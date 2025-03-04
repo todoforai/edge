@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "todo4ai-client"
+version = "0.1.0"
+description = "Python client for Todo4AI service"
+readme = "README.md"
+authors = [
+    {name = "Todo4AI Team"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "websockets>=10.0",
+    "requests>=2.25.0",
+]
+
+[project.urls]
+"Homepage" = "https://todofor.ai"
+"Bug Tracker" = "https://github.com/todo4ai/todo4ai-client/issues"
+
+[project.scripts]
+todo4ai-client = "todo4ai_client.cli:main"

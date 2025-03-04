@@ -1,0 +1,41 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+*.onefile-build/
+*.dist/
+*.build/
+
+# Nuitka
+*.build/
+*.dist/
+*.onefile-build/
+temp_entry.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Compiled executables
+todo4ai-client
+todo4ai-client-nuitka
+todo4ai-client-compressed
