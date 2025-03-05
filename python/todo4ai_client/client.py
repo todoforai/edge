@@ -9,6 +9,17 @@ import uuid
 import logging
 from pathlib import Path
 
+# Message Types
+CONNECTED_EDGE = "connected_edge"
+PROJECT_DIR_LIST = "project:dir"
+TODO_DIR_LIST = "todo:dir"
+BLOCK_EXECUTE = "block:execute"
+BLOCK_SAVE = "block:save" 
+BLOCK_REFRESH = "block:refresh"
+BLOCK_KEYBOARD = "block:keyboard"
+BLOCK_SIGNAL = "block:signal"
+BLOCK_DIFF = "block:diff" 
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -34,17 +45,19 @@ class Todo4AIClient:
         self.api_key = api_key or os.environ.get("TODO4AI_API_KEY", "")
         self.debug = debug
         self.agent_id = ""
+        self.user_id = ""
+        self.edge_id = ""
         self.connected = False
         self.ws = None
-        self.ws_url = self._api_to_ws_url(self.api_url, "agent")
+        self.ws_url = self._api_to_ws_url(self.api_url)
         self.heartbeat_task = None
 
-    def _api_to_ws_url(self, api_url, type="agent"):
+    def _api_to_ws_url(self, api_url):
         """Convert HTTP URL to WebSocket URL"""
         if api_url.startswith("https://"):
-            return api_url.replace("https://", f"wss://") + f"/ws/v1/{type}"
+            return api_url.replace("https://", f"wss://") + f"/ws/v1/edge"
         else:
-            return api_url.replace("http://", f"ws://") + f"/ws/v1/{type}"
+            return api_url.replace("http://", f"ws://") + f"/ws/v1/edge"
 
     def _generate_fingerprint(self):
         """Generate a unique fingerprint for this client"""
@@ -82,32 +95,33 @@ class Todo4AIClient:
             if self.debug:
                 logger.info(f"Received message type: {msg_type}")
                 
-            if msg_type == "CONNECTED_AGENT":
-                self.agent_id = payload.get("agentId", "")
-                logger.info(f"Connected with agent ID: {self.agent_id}")
+            if msg_type == CONNECTED_EDGE:
+                self.edge_id = payload.get("edgeId", "")
+                self.user_id = payload.get("userId", "")
+                logger.info(f"Connected with edge ID: {self.edge_id} and user ID: {self.user_id}")
                 
-            elif msg_type == "PROJECT_DIR_LIST":
+            elif msg_type == PROJECT_DIR_LIST:
                 await handle_project_dir_list(payload, self)
                 
-            elif msg_type == "TODO_DIR_LIST":
+            elif msg_type == TODO_DIR_LIST:
                 await handle_todo_dir_list(payload, self)
                 
-            elif msg_type == "BLOCK_EXECUTE":
+            elif msg_type == BLOCK_EXECUTE:
                 await handle_block_execute(payload, self)
                 
-            elif msg_type == "BLOCK_SAVE":
+            elif msg_type == BLOCK_SAVE:
                 await handle_block_save(payload, self)
                 
-            elif msg_type == "BLOCK_REFRESH":
+            elif msg_type == BLOCK_REFRESH:
                 await handle_block_refresh(payload, self)
                 
-            elif msg_type == "BLOCK_KEYBOARD":
+            elif msg_type == BLOCK_KEYBOARD:
                 await handle_block_keyboard(payload, self)
                 
-            elif msg_type == "BLOCK_SIGNAL":
+            elif msg_type == BLOCK_SIGNAL:
                 await handle_block_signal(payload, self)
                 
-            elif msg_type == "BLOCK_DIFF":
+            elif msg_type == BLOCK_DIFF:
                 await handle_block_diff(payload, self)
                 
             else:
@@ -145,6 +159,18 @@ class Todo4AIClient:
                 async for message in ws:
                     await self._handle_message(message)
                     
+        except websockets.exceptions.InvalidStatusCode as e:
+            logger.error(f"WebSocket connection failed with status code: {e.status_code}")
+            if e.status_code == 401:
+                logger.error("Authentication failed. Please check your API key.")
+            elif e.status_code == 403:
+                logger.error("Access forbidden. Your API key might not have the required permissions.")
+            else:
+                logger.error(f"Server returned error: {e}")
+        except websockets.exceptions.ConnectionClosedError as e:
+            logger.error(f"WebSocket connection closed unexpectedly: {e}")
+        except websockets.exceptions.ConnectionClosedOK as e:
+            logger.info(f"WebSocket connection closed normally: {e}")
         except Exception as e:
             logger.error(f"WebSocket connection error: {str(e)}")
         finally:
