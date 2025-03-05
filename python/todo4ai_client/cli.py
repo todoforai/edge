@@ -6,7 +6,8 @@ import argparse
 
 # Change from relative to absolute import
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from todo4ai_client.client import Todo4AIClient, authenticate_and_get_api_key
+from todo4ai_client.client import Todo4AIClient
+from todo4ai_client.apikey import authenticate_and_get_api_key
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Todo4AI Python Client")
@@ -18,7 +19,7 @@ def parse_args():
                         help="Password for authentication")
     parser.add_argument("--api-key", default=os.environ.get("TODO4AI_API_KEY", ""),
                         help="API key (if already authenticated)")
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--debug", action="store_true", default=True, help="Enable debug logging")
     return parser.parse_args()
 
 async def async_main(args):
@@ -32,8 +33,12 @@ async def async_main(args):
                 print("Please provide credentials with --email and --password or set TODO4AI_EMAIL and TODO4AI_PASSWORD environment variables")
                 sys.exit(1)
                 
+            # Use the authenticate_and_get_api_key function from apikey.py
             api_key = authenticate_and_get_api_key(args.email, args.password, args.url)
             print(f"Successfully authenticated as {args.email}")
+            print(f"API Key: {api_key}")
+        else:
+            print(f"Using provided API key: {api_key[:10]}...")
         
         # Create and start client
         client = Todo4AIClient(api_url=args.url, api_key=api_key, debug=args.debug)
