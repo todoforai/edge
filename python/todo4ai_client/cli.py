@@ -3,7 +3,10 @@ import os
 import sys
 import asyncio
 import argparse
-from .client import Todo4AIClient, authenticate_and_get_api_key
+
+# Change from relative to absolute import
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from todo4ai_client.client import Todo4AIClient, authenticate_and_get_api_key
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Todo4AI Python Client")
