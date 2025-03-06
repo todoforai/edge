@@ -3,21 +3,14 @@ import json
 import base64
 import platform
 import subprocess
-import requests
 import asyncio
+import requests
 import logging
 
 logger = logging.getLogger("todo4ai-client")
 
-
-
 def generate_machine_fingerprint():
-    """
-    Generate a unique fingerprint for the client machine based on hardware and system information.
-    
-    Returns:
-        str: Base64 encoded JSON string containing machine identifiers
-    """
+    """Generate a unique fingerprint for this client"""
     identifiers = {}
     
     # Basic system info (OS, architecture, hostname)
@@ -57,24 +50,25 @@ def generate_machine_fingerprint():
             pass
     
     # Encode as base64 for transmission
-    return base64.b64encode(json.dumps(identifiers).encode()).decode() 
-  
+    return base64.b64encode(json.dumps(identifiers).encode()).decode()
+
 async def async_request(client, method, endpoint, data=None):
-    """Make an async HTTP request to the server API
+    """
+    Make an asynchronous HTTP request to the API
     
     Args:
         client: The Todo4AIClient instance
-        method: HTTP method (get, post, patch, delete)
-        endpoint: API endpoint (without base URL)
-        data: Optional JSON data to send
+        method: HTTP method (get, post, patch, etc.)
+        endpoint: API endpoint (starting with /)
+        data: Optional data to send (for POST, PATCH, etc.)
         
     Returns:
-        Response object or None if error
+        Response object or None if failed
     """
     if not client.api_key:
         logger.warning("Cannot make API request: missing API key")
         return None
-    
+        
     headers = {"X-API-Key": client.api_key, "Content-Type": "application/json"}
     url = f"{client.api_url}{endpoint}"
     
@@ -84,24 +78,33 @@ async def async_request(client, method, endpoint, data=None):
         
         if method.lower() == 'get':
             response = await loop.run_in_executor(
-                None, lambda: requests.get(url, headers=headers)
+                None, 
+                lambda: requests.get(url, headers=headers)
             )
         elif method.lower() == 'post':
             response = await loop.run_in_executor(
-                None, lambda: requests.post(url, headers=headers, json=data or {})
+                None, 
+                lambda: requests.post(url, headers=headers, json=data)
             )
         elif method.lower() == 'patch':
             response = await loop.run_in_executor(
-                None, lambda: requests.patch(url, headers=headers, json=data or {})
+                None, 
+                lambda: requests.patch(url, headers=headers, json=data)
+            )
+        elif method.lower() == 'put':
+            response = await loop.run_in_executor(
+                None, 
+                lambda: requests.put(url, headers=headers, json=data)
             )
         elif method.lower() == 'delete':
             response = await loop.run_in_executor(
-                None, lambda: requests.delete(url, headers=headers)
+                None, 
+                lambda: requests.delete(url, headers=headers)
             )
         else:
             logger.error(f"Unsupported HTTP method: {method}")
             return None
-        
+            
         if response.status_code >= 400:
             logger.error(f"API request failed: {response.status_code} - {response.text}")
             return None

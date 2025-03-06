@@ -11,11 +11,11 @@ from pathlib import Path
 
 # Import constants
 from .constants import (
-    ServerResponse, Front2Edge, Edge2Agent, Agent2Edge, Edge2Front,
+    ServerResponse, Front2Edge, Edge2Agent, Agent2Edge, Edge2Front, EdgeStatus,
     SR, FE, EA, AE, EF
 )
 from .utils import generate_machine_fingerprint, async_request
-
+from .messages import edge_status_msg
 
 # Configure logging
 logging.basicConfig(
@@ -39,6 +39,7 @@ from .handlers import (
     handle_ctx_workspace_request,
     handle_diff_file_request
 )
+
 class EdgeConfig:
     """Edge configuration class"""
     def __init__(self, data=None):
@@ -103,6 +104,7 @@ class Todo4AIClient:
             return False
         
         try:
+            # Update status in API
             response = await async_request(
                 self, 
                 'patch', 
@@ -112,6 +114,12 @@ class Todo4AIClient:
             
             if not response:
                 return False
+            
+            # Also broadcast status to connected clients
+            await self._send_response(EF.EDGE_STATUS, {
+                "edgeId": self.edge_id,
+                "status": status
+            })
                 
             logger.info(f"Updated edge status to {status}")
             return True
@@ -119,7 +127,6 @@ class Todo4AIClient:
         except Exception as e:
             logger.error(f"Error updating edge status: {str(e)}")
             return False
-
 
     def _api_to_ws_url(self, api_url):
         """Convert HTTP URL to WebSocket URL"""
@@ -137,13 +144,12 @@ class Todo4AIClient:
                         logger.debug(f"Sending heartbeat for edge {self.edge_id}")
                     
                     # Update edge status to ONLINE with each heartbeat
-                    self._update_edge_status("ONLINE")
+                    await self._update_edge_status(EdgeStatus.ONLINE)
                     
             except Exception as error:
                 logger.error(f"Heartbeat error: {str(error)}")
             
             await asyncio.sleep(30)  # Send heartbeat every 30 seconds
-
 
     async def _handle_message(self, message):
         """Process incoming messages from the server"""
@@ -162,7 +168,6 @@ class Todo4AIClient:
             
                 # Load edge configuration after connection
                 await self._load_edge_config()
-
                 
             elif msg_type == FE.EDGE_DIR_LIST:
                 await handle_todo_dir_list(payload, self)
@@ -205,7 +210,6 @@ class Todo4AIClient:
                 
         except Exception as error:
             logger.error(f"Error handling message: {str(error)}")
-
 
     async def _send_response(self, channel, payload):
         """Send a response to the server"""
@@ -256,13 +260,12 @@ class Todo4AIClient:
             self.ws = None
             
             # Update edge status to OFFLINE when disconnecting
-            self._update_edge_status("OFFLINE")
+            await self._update_edge_status(EdgeStatus.OFFLINE)
             
             if self.heartbeat_task:
                 self.heartbeat_task.cancel()
                 self.heartbeat_task = None
             logger.info("WebSocket disconnected")
-
 
     async def start(self):
         """Start the client with reconnection logic"""
