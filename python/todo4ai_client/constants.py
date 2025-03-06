@@ -5,6 +5,12 @@ class ServerResponse:
     CONNECTED_AGENT = 'connected_agent'
     CONNECTED_EDGE = 'connected_edge'
 
+# Edge Status Types
+class EdgeStatus:
+    ONLINE = 'ONLINE'
+    OFFLINE = 'OFFLINE'
+    CONNECTING = 'CONNECTING'
+    ERROR = 'ERROR'
 
 # Frontend to Edge Messages
 class Front2Edge:
@@ -47,7 +53,8 @@ class Edge2Front:
     EDGE_STATUS = 'edge:status'
     
     # Project responses
-    EDGE_DIR_RESULT = 'project:dir_result'
+    EDGE_DIR_RESPONSE = 'edge:dir_response'
+    EDGE_CD_RESPONSE = 'edge:cd_response'
     
     # Block responses
     BLOCK_MESSAGE_RESULT = 'block:message_result'

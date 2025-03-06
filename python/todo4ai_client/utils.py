@@ -3,6 +3,13 @@ import json
 import base64
 import platform
 import subprocess
+import requests
+import asyncio
+import logging
+
+logger = logging.getLogger("todo4ai-client")
+
+
 
 def generate_machine_fingerprint():
     """
@@ -51,3 +58,56 @@ def generate_machine_fingerprint():
     
     # Encode as base64 for transmission
     return base64.b64encode(json.dumps(identifiers).encode()).decode() 
+  
+async def async_request(client, method, endpoint, data=None):
+    """Make an async HTTP request to the server API
+    
+    Args:
+        client: The Todo4AIClient instance
+        method: HTTP method (get, post, patch, delete)
+        endpoint: API endpoint (without base URL)
+        data: Optional JSON data to send
+        
+    Returns:
+        Response object or None if error
+    """
+    if not client.api_key:
+        logger.warning("Cannot make API request: missing API key")
+        return None
+    
+    headers = {"X-API-Key": client.api_key, "Content-Type": "application/json"}
+    url = f"{client.api_url}{endpoint}"
+    
+    try:
+        # Use asyncio to run the request without blocking
+        loop = asyncio.get_event_loop()
+        
+        if method.lower() == 'get':
+            response = await loop.run_in_executor(
+                None, lambda: requests.get(url, headers=headers)
+            )
+        elif method.lower() == 'post':
+            response = await loop.run_in_executor(
+                None, lambda: requests.post(url, headers=headers, json=data or {})
+            )
+        elif method.lower() == 'patch':
+            response = await loop.run_in_executor(
+                None, lambda: requests.patch(url, headers=headers, json=data or {})
+            )
+        elif method.lower() == 'delete':
+            response = await loop.run_in_executor(
+                None, lambda: requests.delete(url, headers=headers)
+            )
+        else:
+            logger.error(f"Unsupported HTTP method: {method}")
+            return None
+        
+        if response.status_code >= 400:
+            logger.error(f"API request failed: {response.status_code} - {response.text}")
+            return None
+            
+        return response
+        
+    except Exception as error:
+        logger.error(f"Error making API request: {str(error)}")
+        return None

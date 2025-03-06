@@ -5,6 +5,7 @@ import logging
 import difflib
 from pathlib import Path
 import requests
+from .utils import async_request
 
 logger = logging.getLogger("todo4ai-client")
 
@@ -142,21 +143,18 @@ async def handle_todo_cd(payload, client):
                 client.config.workspacepaths.append(abs_path)
                 
                 # Update the edge configuration on the server if we have an edge_id
-                if client.edge_id and client.api_key:
-                    try:
-                        headers = {"X-API-Key": client.api_key, "Content-Type": "application/json"}
-                        url = f"{client.api_url}/api/v1/edges/{client.edge_id}"
-                        data = {"workspacepaths": client.config.workspacepaths}
-                        
-                        # Use asyncio to run the request without blocking
-                        loop = asyncio.get_event_loop()
-                        await loop.run_in_executor(
-                            None, 
-                            lambda: requests.patch(url, headers=headers, json=data)
-                        )
+                if client.edge_id:
+                    response = await async_request(
+                        client,
+                        'patch',
+                        f"/api/v1/edges/{client.edge_id}",
+                        {"workspacepaths": client.config.workspacepaths}
+                    )
+                    
+                    if response:
                         logger.info(f"Updated workspace paths with: {abs_path}")
-                    except Exception as error:
-                        logger.error(f"Failed to update workspace paths: {str(error)}")
+                    else:
+                        logger.error(f"Failed to update workspace paths")
         
         await client._send_response(EF.EDGE_CD_RESPONSE, {
             "requestId": request_id,
@@ -171,6 +169,7 @@ async def handle_todo_cd(payload, client):
             "error": str(error),
             "success": False
         })
+
 
 
 async def handle_block_execute(payload, client):
