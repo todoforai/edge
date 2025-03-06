@@ -1,33 +1,3 @@
-# Handler functions for edge client
-function handle_project_cd(payload::Dict, client::ClientEdge)
-    project_id = payload["projectId"]
-    path = payload["path"]
-    
-    settings = get_project_settings(client.datasource, project_id)
-    workspace_paths = settings.workspacePaths
-    isempty(workspace_paths) && throw(ErrorException("No workspace paths defined"))
-    
-    root_path = first(workspace_paths)
-    target_path = joinpath(root_path, path)
-    
-    if !isdir(target_path)
-        send_response(block_error_msg(project_id, "Invalid path: $target_path"), client)
-        return
-    end
-    
-    cd(target_path)
-    send_response(project_dir_result_msg(project_id, [relpath(pwd(), root_path)]), client)
-end
-
-function handle_project_dir(payload::Dict, client::ClientEdge)
-    project_id = payload["projectId"]
-    try
-        paths = readdir()
-        send_response(project_dir_result_msg(project_id, paths), client)
-    catch e
-        send_response(block_error_msg(project_id, sprint(showerror, e)), client)
-    end
-end
 
 function handle_todo_cd(payload::Dict, client::ClientEdge)
     todo_id = payload["todoId"]

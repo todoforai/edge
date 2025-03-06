@@ -19,10 +19,8 @@ function handle_message(data::Dict, client::ClientEdge)
 
     channel_handlers = Dict(
         CONNECTED_AGENT => (p) -> connected(p, client),
-        PROJECT_DIR_LIST => (p) -> handle_project_dir(p, client),
-        PROJECT_CD => (p) -> handle_project_cd(p, client),
-        TODO_CD => (p) -> handle_todo_cd(p, client),
-        TODO_DIR_LIST => (p) -> handle_todo_dir(p, client),
+        EDGE_CD => (p) -> handle_todo_cd(p, client),
+        EDGE_DIR_LIST => (p) -> handle_todo_dir(p, client),
         BLOCK_REFRESH => (p) -> handle_block_refresh(p, client),
         BLOCK_EXECUTE => (p) -> handle_block_execute(p, client),
         BLOCK_SAVE => (p) -> handle_block_save(p, client),
