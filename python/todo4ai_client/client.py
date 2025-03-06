@@ -61,13 +61,49 @@ class Todo4AIClient:
 
     def _generate_fingerprint(self):
         """Generate a unique fingerprint for this client"""
-        system_info = {
-            "platform": platform.system(),
-            "machine": platform.machine(),
-            "node": platform.node(),
-            "uuid": str(uuid.uuid4())
-        }
-        return base64.b64encode(json.dumps(system_info).encode()).decode()
+        identifiers = {}
+        
+        # Basic system info (OS, architecture, hostname)
+        identifiers["platform"] = platform.system()
+        identifiers["machine"] = platform.machine()
+        identifiers["node"] = platform.node()
+        
+        # Add CPU info
+        identifiers["processor"] = platform.processor()
+        
+        # Add more stable identifiers based on OS
+        if platform.system() == "Linux":
+            # Try to get machine-id (stable across reboots)
+            try:
+                if os.path.exists("/etc/machine-id"):
+                    with open("/etc/machine-id", "r") as f:
+                        identifiers["machine_id"] = f.read().strip()
+            except Exception:
+                pass
+        elif platform.system() == "Darwin":  # macOS
+            try:
+                import subprocess
+                result = subprocess.run(["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"], 
+                                    capture_output=True, text=True)
+                for line in result.stdout.splitlines():
+                    if "IOPlatformUUID" in line:
+                        identifiers["hardware_uuid"] = line.split('=')[1].strip().strip('"')
+                        break
+            except Exception:
+                pass
+        elif platform.system() == "Windows":
+            try:
+                import subprocess
+                result = subprocess.run(["wmic", "csproduct", "get", "UUID"], 
+                                    capture_output=True, text=True)
+                if result.stdout:
+                    identifiers["hardware_uuid"] = result.stdout.splitlines()[1].strip()
+            except Exception:
+                pass
+        
+        # Encode as base64 for transmission
+        return base64.b64encode(json.dumps(identifiers).encode()).decode()
+
 
     async def _send_heartbeat(self):
         """Send periodic heartbeats to the server"""
@@ -141,6 +177,7 @@ class Todo4AIClient:
     async def connect(self):
         """Connect to the WebSocket server"""
         fingerprint = self._generate_fingerprint()
+        print(f"Fingerprint: {fingerprint}")
         ws_url = f"{self.ws_url}?apiKey={self.api_key}&fingerprint={fingerprint}"
         
         if self.debug:
