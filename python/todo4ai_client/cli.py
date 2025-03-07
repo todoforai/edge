@@ -33,6 +33,7 @@ async def async_main(args):
                 print("Please provide credentials with --email and --password or set TODO4AI_EMAIL and TODO4AI_PASSWORD environment variables")
                 sys.exit(1)
                 
+            print(args.email, args.password)
             # Use the authenticate_and_get_api_key function from apikey.py
             api_key = authenticate_and_get_api_key(args.email, args.password, args.url)
             print(f"Successfully authenticated as {args.email}")

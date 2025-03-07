@@ -5,6 +5,7 @@ class ServerResponse:
     CONNECTED_AGENT = 'connected_agent'
     CONNECTED_EDGE = 'connected_edge'
 
+
 # Edge Status Types
 class EdgeStatus:
     ONLINE = 'ONLINE'
@@ -12,14 +13,15 @@ class EdgeStatus:
     CONNECTING = 'CONNECTING'
     ERROR = 'ERROR'
 
+
 # Frontend to Edge Messages
 class Front2Edge:
     # Task operations
     TASK_ACTION_NEW = 'task_action:new'
 
     # Todo operations
-    EDGE_CD = 'todo:cd'
-    EDGE_DIR_LIST = 'todo:dir'
+    EDGE_CD = 'edge:cd'
+    EDGE_DIR_LIST = 'edge:dir'
 
     # Block operations
     BLOCK_REFRESH = 'block:refresh'

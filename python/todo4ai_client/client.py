@@ -116,10 +116,7 @@ class Todo4AIClient:
                 return False
             
             # Also broadcast status to connected clients
-            await self._send_response(EF.EDGE_STATUS, {
-                "edgeId": self.edge_id,
-                "status": status
-            })
+            await self._send_response(edge_status_msg(self.edge_id, status))
                 
             logger.info(f"Updated edge status to {status}")
             return True
@@ -127,6 +124,7 @@ class Todo4AIClient:
         except Exception as e:
             logger.error(f"Error updating edge status: {str(e)}")
             return False
+
 
     def _api_to_ws_url(self, api_url):
         """Convert HTTP URL to WebSocket URL"""
@@ -211,13 +209,19 @@ class Todo4AIClient:
         except Exception as error:
             logger.error(f"Error handling message: {str(error)}")
 
-    async def _send_response(self, channel, payload):
-        """Send a response to the server"""
+    async def _send_response(self, message):
+        """Send a response to the server
+        
+        Args:
+            message: A complete message object with type and payload
+        """
         if self.ws and self.connected:
-            message = json.dumps({"type": channel, "payload": payload})
-            await self.ws.send(message)
+            message_json = json.dumps(message)
+            await self.ws.send(message_json)
             if self.debug:
-                logger.debug(f"Sent response: {channel}")
+                logger.debug(f"Sent response: {message['type']}")
+                if self.debug > 1:  # More verbose debugging
+                    logger.debug(f"Payload: {message['payload']}")
 
     async def connect(self):
         """Connect to the WebSocket server"""
