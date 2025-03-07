@@ -147,7 +147,7 @@ class Todo4AIClient:
             except Exception as error:
                 logger.error(f"Heartbeat error: {str(error)}")
             
-            await asyncio.sleep(30)  # Send heartbeat every 30 seconds
+            await asyncio.sleep(60)  # Send heartbeat every 30 seconds
 
     async def _handle_message(self, message):
         """Process incoming messages from the server"""
