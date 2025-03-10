@@ -31,13 +31,13 @@ def authenticate_and_get_api_key(email, password, api_url="http://localhost:4000
         api_key_name = "python-client"
         
         # Try to get existing API key
-        get_key_url = f"{api_url}/token/v1/users/api-keys/{api_key_name}"
+        get_key_url = f"{api_url}/token/v1/users/apikeys/{api_key_name}"
         print(f"Checking for existing API key at: {get_key_url}")
         response = requests.get(get_key_url, headers=headers)
         
         if response.status_code == 404:
             # Create new API key
-            create_key_url = f"{api_url}/token/v1/users/api-keys"
+            create_key_url = f"{api_url}/token/v1/users/apikeys"
             print(f"Creating new API key at: {create_key_url}")
             response = requests.post(create_key_url, headers=headers, json={"name": api_key_name})
             

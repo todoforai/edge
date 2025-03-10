@@ -6,7 +6,7 @@ function parse_client_commandline()
     s = ArgParseSettings()
 
     @add_arg_table! s begin
-        "--api-key", "-k"
+        "--apikey", "-k"
             help = "API key for authentication"
             arg_type = String
             required = true

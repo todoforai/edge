@@ -112,9 +112,9 @@ get_user_settings(client::APIClient)                    = GET(client, "/settings
 update_user_settings(client::APIClient, settings::Dict) = put(client, "/settings/user", settings)
 
 # API Key endpoints
-create_api_key(client::TOKENClient; name::String) = post(client, "/users/api-keys", Dict("name" => name))
-get_api_key(client::TOKENClient, name::String)    = GET(client, "/users/api-keys/$name")
-list_api_keys(client::TOKENClient)                = GET(client, "/users/api-keys")
+create_api_key(client::TOKENClient; name::String) = post(client, "/users/apikeys", Dict("name" => name))
+get_api_key(client::TOKENClient, name::String)    = GET(client, "/users/apikeys/$name")
+list_api_keys(client::TOKENClient)                = GET(client, "/users/apikeys")
 create_or_get_api_key(client::TOKENClient; name::String) = begin
     res = try
         get_api_key(client, name)
@@ -129,7 +129,7 @@ end
 function validate_api_key(client::APIClient, api_key::String)::Bool
     try
         client.api_key = api_key
-        result = GET(client, "/api-keys/validate")
+        result = GET(client, "/apikeys/validate")
         return get(result, "valid", false)
     catch e
         return false

@@ -17,14 +17,14 @@ def parse_args():
                         help="Email for authentication")
     parser.add_argument("--password", default=os.environ.get("TODO4AI_PASSWORD", ""),
                         help="Password for authentication")
-    parser.add_argument("--api-key", default=os.environ.get("TODO4AI_API_KEY", ""),
+    parser.add_argument("--apikey", default=os.environ.get("TODO4AI_API_KEY", ""),
                         help="API key (if already authenticated)")
     parser.add_argument("--debug", action="store_true", default=True, help="Enable debug logging")
     return parser.parse_args()
 
 async def async_main(args):
     try:
-        api_key = args.api_key
+        api_key = args.apikey
         
         # If no API key provided, authenticate to get one
         if not api_key:

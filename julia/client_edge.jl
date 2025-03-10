@@ -47,7 +47,7 @@ function main_edge_client()
     args = parse_client_commandline()
     
     # Create API client
-    api_client = APIClient(args["url"], args["api-key"])
+    api_client = APIClient(args["url"], args["apikey"])
     datasource = ServerDataSource(api_client)
     
     # Create edge client
