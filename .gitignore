@@ -1,0 +1,4 @@
+
+*.pyc
+
+todo4ai_client/__pycache__/
