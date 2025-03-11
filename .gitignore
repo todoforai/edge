@@ -2,3 +2,5 @@
 *.pyc
 
 todo4ai_client/__pycache__/
+
+.vscode/settings.json
