@@ -1,0 +1,22 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "TODO for AI edge",
+      "type": "shell",
+      "command": "/bin/python3 ./todo4ai_client/cli.py --email lfg@todofor.ai --password Test123",
+      "presentation": {
+        "reveal": "always",
+        "focus": false
+      },
+      "problemMatcher": [],
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}
