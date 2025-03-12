@@ -48,7 +48,7 @@ todo4ai-client --url https://api.todofor.ai --debug
 
 ```python
 import asyncio
-from todo4ai_client import Todo4AIClient, authenticate_and_get_api_key
+from todo4ai_client import TODOforAIEdge, authenticate_and_get_api_key
 
 async def main():
     # Get API key through authentication
@@ -58,7 +58,7 @@ async def main():
     # api_key = "your-api-key"
     
     # Create client
-    client = Todo4AIClient(api_key=api_key)
+    client = TODOforAIEdge(api_key=api_key)
     
     # Start client (this will run until interrupted)
     await client.start()
@@ -141,8 +141,8 @@ launchctl load ~/Library/LaunchAgents/ai.todofor.client.plist
 You can use NSSM (Non-Sucking Service Manager) to create a Windows service:
 
 ```bash
-nssm install Todo4AIClient "C:\path\to\python.exe" "-m todo4ai_client --api-key your-api-key"
-nssm start Todo4AIClient
+nssm install TODOforAIEdge "C:\path\to\python.exe" "-m todo4ai_client --api-key your-api-key"
+nssm start TODOforAIEdge
 ```
 
 ## Development

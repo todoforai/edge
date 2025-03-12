@@ -57,7 +57,7 @@ async def async_request(client, method, endpoint, data=None):
     Make an asynchronous HTTP request to the API
     
     Args:
-        client: The Todo4AIClient instance
+        client: The TODOforAIEdge instance
         method: HTTP method (get, post, patch, etc.)
         endpoint: API endpoint (starting with /)
         data: Optional data to send (for POST, PATCH, etc.)

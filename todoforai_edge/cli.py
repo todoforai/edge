@@ -7,8 +7,8 @@ import traceback  # Add this import for stacktrace functionality
 
 # Change from relative to absolute import
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from todo4ai_client.client import Todo4AIClient
-from todo4ai_client.apikey import authenticate_and_get_api_key
+from todoforai_edge.client import TODOforAIEdge
+from todoforai_edge.apikey import authenticate_and_get_api_key
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Todo4AI Python Client")
@@ -43,7 +43,7 @@ async def async_main(args):
             print(f"Using provided API key: {api_key[:10]}...")
         
         # Create and start client
-        client = Todo4AIClient(api_url=args.url, api_key=api_key, debug=args.debug)
+        client = TODOforAIEdge(api_url=args.url, api_key=api_key, debug=args.debug)
         await client.start()
     except Exception as e:
         stack_trace = traceback.format_exc()

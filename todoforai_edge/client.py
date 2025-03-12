@@ -53,7 +53,7 @@ class EdgeConfig:
         self.is_filesystem_enabled = data.get("isFileSystemEnabled", False)
         self.created_at = data.get("createdAt", None)
 
-class Todo4AIClient:
+class TODOforAIEdge:
     def __init__(self, api_url=None, api_key=None, debug=False):
         self.api_url = api_url or os.environ.get("TODO4AI_API_URL", "http://localhost:4000")
         self.api_key = api_key or os.environ.get("TODO4AI_API_KEY", "")
