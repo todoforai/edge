@@ -9,28 +9,15 @@ from .messages import (
     edge_status_msg, block_message_result_msg, block_error_result_msg, 
     block_diff_result_msg, block_start_result_msg, block_done_result_msg,
     block_save_result_msg, task_action_update_msg, dir_list_response_msg,
-    cd_response_msg, ctx_julia_result_msg, ctx_workspace_result_msg,
-    diff_file_result_msg
+    cd_response_msg, ctx_julia_result_msg, diff_file_result_msg
 )
+from .workspace_handler import handle_ctx_workspace_request
 from .constants import Edge2Front as EF, Edge2Agent as EA
+from .path_utils import is_path_allowed
 
 logger = logging.getLogger("todo4ai-client")
 
 
-# Helper function to check if path is within allowed workspace paths
-def is_path_allowed(path, workspace_paths):
-    """Check if the given path is within allowed workspace paths"""
-    if not workspace_paths:
-        return True  # If no workspace paths defined, allow all
-        
-    path = os.path.abspath(path)
-    
-    for workspace in workspace_paths:
-        workspace = os.path.abspath(workspace)
-        if path.startswith(workspace):
-            return True
-            
-    return False
 
 
 # Handler functions
@@ -268,26 +255,6 @@ async def handle_ctx_julia_request(payload, client):
         await client._send_response(ctx_julia_result_msg(todo_id, request_id, error=str(error)))
 
 
-async def handle_ctx_workspace_request(payload, client):
-    """Handle workspace context request"""
-    request_id = payload.get("requestId")
-    query = payload.get("query", "")
-    todo_id = payload.get("todoId", "")
-    
-    try:
-        # This is a placeholder - implementation depends on specific requirements
-        # Typically this would involve searching the workspace
-        logger.info(f"Workspace context request received: {query}")
-        
-        # Example implementation - could be replaced with actual workspace search
-        await client._send_response(
-            ctx_workspace_result_msg(todo_id, request_id, "This is a placeholder workspace search result")
-        )
-    except Exception as error:
-        logger.error(f"Error processing workspace request: {str(error)}")
-        await client._send_response(ctx_workspace_result_msg(todo_id, request_id, error=str(error)))
-        
-        
 async def handle_diff_file_request(payload, client):
     """Handle file diff request"""
     request_id = payload.get("requestId")

@@ -158,6 +158,17 @@ def ctx_workspace_result_msg(todo_id, message_id, content=None, error=None):
         "payload": payload
     }
 
+# Updated workspace result message to match the new interface
+def workspace_result_msg(user_id, agent_id, file_chunks):
+    return {
+        "type": EA.CTX_WORKSPACE_RESULT,
+        "payload": {
+            "userId": user_id,
+            "agentId": agent_id,
+            "fileChunks": file_chunks
+        }
+    }
+
 def diff_file_result_msg(todo_id, message_id, original_content=None, modified_content=None, error=None):
     payload = {
         "todoId": todo_id,
