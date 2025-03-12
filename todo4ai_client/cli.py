@@ -3,6 +3,7 @@ import os
 import sys
 import asyncio
 import argparse
+import traceback  # Add this import for stacktrace functionality
 
 # Change from relative to absolute import
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -45,7 +46,8 @@ async def async_main(args):
         client = Todo4AIClient(api_url=args.url, api_key=api_key, debug=args.debug)
         await client.start()
     except Exception as e:
-        print(f"Error: {str(e)}")
+        stack_trace = traceback.format_exc()
+        print(f"Error: {str(e)}\nStacktrace:\n{stack_trace}")
         if "Login failed" in str(e):
             print("\nPlease register or check your account at https://todofor.ai")
         sys.exit(1)
