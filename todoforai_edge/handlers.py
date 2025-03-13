@@ -3,7 +3,7 @@ import json
 import asyncio
 import logging
 import difflib
-import traceback  # Add this import
+import traceback
 from pathlib import Path
 from .utils import async_request
 from .messages import (
@@ -43,8 +43,9 @@ async def handle_todo_dir_list(payload, client):
         # Use the new protocol structure
         await client._send_response(dir_list_response_msg(todo_id, paths))
     except Exception as error:
-        logger.error(f"Error listing directory: {str(error)}")
-        await client._send_response(block_error_result_msg(request_id, todo_id, str(error)))
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error listing directory: {str(error)}\nStacktrace:\n{stack_trace}")
+        await client._send_response(block_error_result_msg(request_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 async def handle_todo_cd(payload, client):
@@ -84,8 +85,9 @@ async def handle_todo_cd(payload, client):
         
         await client._send_response(cd_response_msg(edge_id, path, request_id, True))
     except Exception as error:
-        logger.error(f"Error changing directory: {str(error)}")
-        await client._send_response(cd_response_msg(edge_id, path, request_id, False))
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error changing directory: {str(error)}\nStacktrace:\n{stack_trace}")
+        await client._send_response(cd_response_msg(edge_id, path, request_id, False, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 async def handle_block_execute(payload, client):
@@ -130,8 +132,10 @@ async def handle_block_save(payload, client):
     content = payload.get("content")
     
     try:
-        # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        # Only create directory if filepath has a directory component
+        dirname = os.path.dirname(filepath)
+        if dirname:  # Check if dirname is not empty
+            os.makedirs(dirname, exist_ok=True)
         
         # Write content to file
         with open(filepath, 'w') as f:
@@ -172,8 +176,9 @@ async def handle_block_keyboard(payload, client):
         message["payload"]["processed"] = True
         await client._send_response(message)
     except Exception as error:
-        logger.error(f"Error processing keyboard event: {str(error)}")
-        await client._send_response(block_error_result_msg(block_id, todo_id, str(error)))
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error processing keyboard event: {str(error)}\nStacktrace:\n{stack_trace}")
+        await client._send_response(block_error_result_msg(block_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 async def handle_block_signal(payload, client):
@@ -217,8 +222,9 @@ async def handle_block_diff(payload, client):
             # Send the diff result using the new protocol structure
             await client._send_response(block_diff_result_msg(todo_id, block_id, original_content, content))
     except Exception as error:
-        logger.error(f"Error generating diff: {str(error)}")
-        await client._send_response(block_error_result_msg(block_id, todo_id, str(error)))
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error generating diff: {str(error)}\nStacktrace:\n{stack_trace}")
+        await client._send_response(block_error_result_msg(block_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 async def handle_task_action_new(payload, client):
@@ -254,35 +260,38 @@ async def handle_ctx_julia_request(payload, client):
             ctx_julia_result_msg(todo_id, request_id, ["example/file.jl"], ["# This is a placeholder Julia result"])
         )
     except Exception as error:
-        logger.error(f"Error processing Julia request: {str(error)}")
-        await client._send_response(ctx_julia_result_msg(todo_id, request_id, error=str(error)))
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error processing Julia request: {str(error)}\nStacktrace:\n{stack_trace}")
+        await client._send_response(ctx_julia_result_msg(todo_id, request_id, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 async def handle_diff_file_request(payload, client):
     """Handle file diff request"""
+    agent_id = payload.get("agentId")
     request_id = payload.get("requestId")
-    original_path = payload.get("originalPath", "")
-    modified_path = payload.get("modifiedPath", "")
+    filepath = payload.get("filepath", "")
     todo_id = payload.get("todoId", "")
-    
+    block_id = payload.get("blockId", "")
+    print("handle_diff_file_request", payload)
     try:
-        # Check if both files exist
-        if not Path(original_path).exists():
-            raise FileNotFoundError(f"Original file not found: {original_path}")
-        if not Path(modified_path).exists():
-            raise FileNotFoundError(f"Modified file not found: {modified_path}")
+        # Check if file exists
+        if not Path(filepath).exists():
+            raise FileNotFoundError(f"File not found: {filepath}")
         
-        # Read file contents
-        with open(original_path, 'r') as f:
+        print("handle_diff_file_reques2t")
+        # Read file content
+        with open(filepath, 'r') as f:
             original_content = f.read()
-        with open(modified_path, 'r') as f:
-            modified_content = f.read()
+        print("handle_diff_file_reques212t")
         
-        # Send the result using the new protocol structure
+        # Send the result using the protocol structure
         await client._send_response(
-            diff_file_result_msg(todo_id, request_id, original_content, modified_content)
+            diff_file_result_msg(request_id, agent_id, todo_id, block_id, filepath, original_content)
         )
+        print("SUCCESSSt")
     except Exception as error:
-        logger.error(f"Error generating file diff: {str(error)}")
-        await client._send_response(diff_file_result_msg(todo_id, request_id, error=str(error)))
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error generating file diff: {str(error)}\nStacktrace:\n{stack_trace}")
+        await client._send_response(diff_file_result_msg(agent_id, todo_id, block_id, filepath, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
+
 

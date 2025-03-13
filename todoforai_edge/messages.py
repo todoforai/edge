@@ -169,15 +169,16 @@ def workspace_result_msg(user_id, agent_id, file_chunks):
         }
     }
 
-def diff_file_result_msg(todo_id, message_id, original_content=None, modified_content=None, error=None):
+def diff_file_result_msg(request_id, agent_id, todo_id, block_id, filepath, original_content=None, error=None):
     payload = {
+        "requestId": request_id,
+        "agentId": agent_id,
         "todoId": todo_id,
-        "messageId": message_id
+        "blockId": block_id,
+        "filepath": filepath
     }
     if original_content:
-        payload["original_content"] = original_content
-    if modified_content:
-        payload["modified_content"] = modified_content
+        payload["originalContent"] = original_content
     if error:
         payload["error"] = error
     
