@@ -3,6 +3,7 @@ import json
 import asyncio
 import logging
 import difflib
+import traceback  # Add this import
 from pathlib import Path
 from .utils import async_request
 from .messages import (
@@ -116,8 +117,9 @@ async def handle_block_execute(payload, client):
         # Send the response back
         await client._send_response(block_done_result_msg(todo_id, request_id, block_id, "execute"))
     except Exception as error:
-        logger.error(f"Error executing command: {str(error)}")
-        await client._send_response(block_error_result_msg(block_id, todo_id, str(error)))
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error executing command: {str(error)}\nStacktrace:\n{stack_trace}")
+        await client._send_response(block_error_result_msg(block_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 async def handle_block_save(payload, client):
@@ -138,8 +140,9 @@ async def handle_block_save(payload, client):
         await client._send_response(block_save_result_msg(block_id, todo_id, "SUCCESS"))
             
     except Exception as error:
-        logger.error(f"Error saving file: {str(error)}")
-        await client._send_response(block_save_result_msg(block_id, todo_id, "ERROR"))
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error saving file: {str(error)}\nStacktrace:\n{stack_trace}")
+        await client._send_response(block_save_result_msg(block_id, todo_id, f"ERROR: {str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 async def handle_block_refresh(payload, client):
