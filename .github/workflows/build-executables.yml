@@ -108,6 +108,8 @@ jobs:
         aws configure set aws_access_key_id $R2_ACCESS_KEY_ID
         aws configure set aws_secret_access_key $R2_SECRET_ACCESS_KEY
         aws configure set default.region auto
+        aws configure set default.s3.addressing_style path
+        aws configure set default.s3.signature_version s3v4
         
     - name: Upload to CloudFlare R2
       env:
@@ -124,22 +126,31 @@ jobs:
         
         echo "Uploading to folder: $FOLDER"
         
-        # Set AWS_CA_BUNDLE to system CA bundle to help with SSL validation
-        export AWS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+        # Try alternative upload method using curl
+        echo "Attempting upload with curl..."
         
-        # Try with no-verify-ssl if needed
-        echo "Attempting upload with SSL verification disabled..."
-        aws s3 cp todoforai-edge-linux/todoforai-edge-linux "s3://$R2_BUCKET_NAME/edge/$FOLDER/" \
-          --endpoint-url "$R2_ENDPOINT" \
-          --acl public-read \
-          --no-verify-ssl
+        # Create temporary file with proper Content-Type
+        cp todoforai-edge-linux/todoforai-edge-linux ./todoforai-edge-linux-file
+        chmod +x ./todoforai-edge-linux-file
+        
+        # Upload using curl instead of aws cli
+        curl -X PUT \
+          -H "X-Amz-Content-Sha256: UNSIGNED-PAYLOAD" \
+          -H "X-Amz-Date: $(date -u +%Y%m%dT%H%M%SZ)" \
+          -H "Authorization: AWS4-HMAC-SHA256 Credential=$R2_ACCESS_KEY_ID/$(date -u +%Y%m%d)/auto/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=unsigned" \
+          -H "Content-Type: application/octet-stream" \
+          --data-binary @./todoforai-edge-linux-file \
+          "$R2_ENDPOINT/$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-linux"
         
         # If this is a tag, also update the latest folder
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-          aws s3 cp todoforai-edge-linux/todoforai-edge-linux "s3://$R2_BUCKET_NAME/edge/latest/" \
-            --endpoint-url "$R2_ENDPOINT" \
-            --acl public-read \
-            --no-verify-ssl
+          curl -X PUT \
+            -H "X-Amz-Content-Sha256: UNSIGNED-PAYLOAD" \
+            -H "X-Amz-Date: $(date -u +%Y%m%dT%H%M%SZ)" \
+            -H "Authorization: AWS4-HMAC-SHA256 Credential=$R2_ACCESS_KEY_ID/$(date -u +%Y%m%d)/auto/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=unsigned" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @./todoforai-edge-linux-file \
+            "$R2_ENDPOINT/$R2_BUCKET_NAME/edge/latest/todoforai-edge-linux"
         fi
   
     - name: Create GitHub Release
