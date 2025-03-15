@@ -38,14 +38,12 @@ jobs:
     - name: Build executable
       run: python build_executable.py
       
-    - name: Rename executable
-      run: |
-        if [ "${{ matrix.os }}" != "windows-latest" ]; then
-          mv dist/todoforai-edge dist/${{ matrix.output_name }}
-        else
-          mv dist/todoforai-edge.exe dist/${{ matrix.output_name }}
-        fi
+    - name: Rename executable (Linux/Mac)
+      if: matrix.os != 'windows-latest'
+      run: mv dist/todoforai-edge dist/${{ matrix.output_name }}
       shell: bash
+      
+    # Windows doesn't need renaming since the output name is already correct
       
     - name: Upload executable as artifact
       uses: actions/upload-artifact@v4
