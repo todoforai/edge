@@ -68,7 +68,7 @@ jobs:
       run: |
         aws configure set aws_access_key_id ${{ secrets.R2_ACCESS_KEY_ID }}
         aws configure set aws_secret_access_key ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        aws configure set default.region auto
+        aws configure set default.region "auto"
         
     - name: Upload to CloudFlare R2
       run: |
