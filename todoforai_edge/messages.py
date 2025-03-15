@@ -1,5 +1,6 @@
 from .constants import Edge2Front as EF, Edge2Agent as EA
 
+
 # Edge status message
 def edge_status_msg(edge_id, status):
     return {
@@ -9,6 +10,7 @@ def edge_status_msg(edge_id, status):
             "status": status
         }
     }
+
 
 # Block message formatters
 def block_message_result_msg(todo_id, block_id, content):
@@ -21,6 +23,7 @@ def block_message_result_msg(todo_id, block_id, content):
         }
     }
 
+
 def block_start_result_msg(todo_id, block_id, mode):
     return {
         "type": EF.BLOCK_START_RESULT,
@@ -30,6 +33,7 @@ def block_start_result_msg(todo_id, block_id, mode):
             "mode": mode
         }
     }
+
 
 def block_done_result_msg(todo_id, message_id, block_id, mode):
     return {
@@ -42,6 +46,7 @@ def block_done_result_msg(todo_id, message_id, block_id, mode):
         }
     }
 
+
 def block_save_result_msg(block_id, todo_id, result):
     return {
         "type": EF.BLOCK_SAVE_RESULT,
@@ -51,6 +56,7 @@ def block_save_result_msg(block_id, todo_id, result):
             "result": result
         }
     }
+
 
 def block_error_result_msg(block_id, todo_id, error):
     return {
@@ -62,17 +68,19 @@ def block_error_result_msg(block_id, todo_id, error):
         }
     }
 
+
 def block_meta_result_msg(block_id, **kwargs):
     payload = {"blockId": block_id}
     # Add optional fields if provided
     for key, value in kwargs.items():
         if value is not None:
             payload[key] = value
-    
+
     return {
         "type": EF.BLOCK_META_RESULT,
         "payload": payload
     }
+
 
 def block_diff_result_msg(todo_id, block_id, original_content, ai_generated_content):
     return {
@@ -143,6 +151,7 @@ def ctx_julia_result_msg(todo_id, message_id, filepaths=None, contents=None, err
         "payload": payload
     }
 
+
 def ctx_workspace_result_msg(todo_id, message_id, content=None, error=None):
     payload = {
         "todoId": todo_id,
@@ -158,6 +167,7 @@ def ctx_workspace_result_msg(todo_id, message_id, content=None, error=None):
         "payload": payload
     }
 
+
 # Updated workspace result message to match the new interface
 def workspace_result_msg(user_id, agent_id, file_chunks):
     return {
@@ -168,6 +178,7 @@ def workspace_result_msg(user_id, agent_id, file_chunks):
             "fileChunks": file_chunks
         }
     }
+
 
 def diff_file_result_msg(request_id, agent_id, todo_id, block_id, filepath, original_content=None, error=None):
     payload = {
