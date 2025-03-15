@@ -65,10 +65,17 @@ jobs:
         pip install awscli
         
     - name: Configure AWS CLI for CloudFlare R2
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: "auto"
       run: |
-        aws configure set aws_access_key_id ${{ secrets.R2_ACCESS_KEY_ID }}
-        aws configure set aws_secret_access_key ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        aws configure set default.region "auto"
+        # Create AWS credentials file directly instead of using configure command
+        mkdir -p ~/.aws
+        echo "[default]" > ~/.aws/credentials
+        echo "aws_access_key_id = $AWS_ACCESS_KEY_ID" >> ~/.aws/credentials
+        echo "[default]" > ~/.aws/config
+        echo "region = $AWS_DEFAULT_REGION" >> ~/.aws/config
         
     - name: Upload to CloudFlare R2
       run: |
