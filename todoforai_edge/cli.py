@@ -9,6 +9,7 @@ import traceback  # Add this import for stacktrace functionality
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from todoforai_edge.client import TODOforAIEdge
 from todoforai_edge.apikey import authenticate_and_get_api_key
+from todoforai_edge.protocol_handler import register_protocol_handler, handle_protocol_url
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Todo4AI Python Client")
@@ -21,10 +22,22 @@ def parse_args():
     parser.add_argument("--apikey", default=os.environ.get("TODO4AI_API_KEY", ""),
                         help="API key (if already authenticated)")
     parser.add_argument("--debug", action="store_true", default=True, help="Enable debug logging")
+    parser.add_argument("--register-protocol", action="store_true", help="Register as protocol handler")
+    parser.add_argument("protocol_url", nargs="?", help="Protocol URL to handle (todoforai://...)")
     return parser.parse_args()
 
 async def async_main(args):
     try:
+        # Handle protocol registration if requested
+        if args.register_protocol:
+            register_protocol_handler()
+            return
+            
+        # Handle protocol URL if provided
+        if args.protocol_url and args.protocol_url.startswith("todoforai://"):
+            handle_protocol_url(args.protocol_url)
+            return
+        
         api_key = args.apikey
         
         # If no API key provided, authenticate to get one
