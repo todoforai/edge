@@ -78,6 +78,28 @@ jobs:
         echo "[default]" > ~/.aws/config
         echo "region = $AWS_DEFAULT_REGION" >> ~/.aws/config
         
+    - name: Debug environment
+      run: |
+        # Check if secrets are available (without revealing them)
+        if [ -n "${{ secrets.R2_BUCKET_NAME }}" ]; then
+          echo "R2_BUCKET_NAME is set"
+        else
+          echo "R2_BUCKET_NAME is NOT set"
+        fi
+        
+        if [ -n "${{ secrets.R2_ENDPOINT }}" ]; then
+          echo "R2_ENDPOINT is set"
+        else
+          echo "R2_ENDPOINT is NOT set"
+        fi
+        
+        # List downloaded artifacts
+        echo "Listing downloaded artifacts:"
+        ls -la
+        ls -la todoforai-edge-linux/ || echo "Linux artifact not found"
+        ls -la todoforai-edge.exe/ || echo "Windows artifact not found"
+        ls -la todoforai-edge-mac/ || echo "Mac artifact not found"
+        
     - name: Upload to CloudFlare R2
       env:
         R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
