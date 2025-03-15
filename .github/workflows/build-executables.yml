@@ -60,9 +60,12 @@ jobs:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       
-    - name: Install AWS CLI
+    - name: Install AWS CLI v2
       run: |
-        pip install awscli
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
+        aws --version
         
     - name: Configure AWS CLI for CloudFlare R2
       env:
@@ -77,6 +80,13 @@ jobs:
         echo "aws_secret_access_key = $AWS_SECRET_ACCESS_KEY" >> ~/.aws/credentials
         echo "[default]" > ~/.aws/config
         echo "region = $AWS_DEFAULT_REGION" >> ~/.aws/config
+        echo "s3 =
+          addressing_style = virtual
+          use_accelerate_endpoint = false
+          signature_version = s3v4
+          max_concurrent_requests = 100
+          multipart_threshold = 64MB
+          multipart_chunksize = 16MB" >> ~/.aws/config
         
     - name: Debug environment
       run: |
@@ -129,16 +139,38 @@ jobs:
           exit 1
         fi
         
-        # Upload executables to R2
-        aws s3 cp todoforai-edge-linux/todoforai-edge-linux "s3://${R2_BUCKET_NAME}/edge/${FOLDER}/todoforai-edge-linux" --endpoint-url "${R2_ENDPOINT}" --acl public-read
-        aws s3 cp todoforai-edge.exe/todoforai-edge.exe "s3://${R2_BUCKET_NAME}/edge/${FOLDER}/todoforai-edge.exe" --endpoint-url "${R2_ENDPOINT}" --acl public-read
-        aws s3 cp todoforai-edge-mac/todoforai-edge-mac "s3://${R2_BUCKET_NAME}/edge/${FOLDER}/todoforai-edge-mac" --endpoint-url "${R2_ENDPOINT}" --acl public-read
+        # Upload executables to R2 with additional parameters
+        aws s3 cp todoforai-edge-linux/todoforai-edge-linux "s3://${R2_BUCKET_NAME}/edge/${FOLDER}/todoforai-edge-linux" \
+          --endpoint-url "${R2_ENDPOINT}" \
+          --acl public-read \
+          --no-verify-ssl
+          
+        aws s3 cp todoforai-edge.exe/todoforai-edge.exe "s3://${R2_BUCKET_NAME}/edge/${FOLDER}/todoforai-edge.exe" \
+          --endpoint-url "${R2_ENDPOINT}" \
+          --acl public-read \
+          --no-verify-ssl
+          
+        aws s3 cp todoforai-edge-mac/todoforai-edge-mac "s3://${R2_BUCKET_NAME}/edge/${FOLDER}/todoforai-edge-mac" \
+          --endpoint-url "${R2_ENDPOINT}" \
+          --acl public-read \
+          --no-verify-ssl
         
         # If this is a tag, also update the latest folder
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-          aws s3 cp todoforai-edge-linux/todoforai-edge-linux "s3://${R2_BUCKET_NAME}/edge/latest/todoforai-edge-linux" --endpoint-url "${R2_ENDPOINT}" --acl public-read
-          aws s3 cp todoforai-edge.exe/todoforai-edge.exe "s3://${R2_BUCKET_NAME}/edge/latest/todoforai-edge.exe" --endpoint-url "${R2_ENDPOINT}" --acl public-read
-          aws s3 cp todoforai-edge-mac/todoforai-edge-mac "s3://${R2_BUCKET_NAME}/edge/latest/todoforai-edge-mac" --endpoint-url "${R2_ENDPOINT}" --acl public-read
+          aws s3 cp todoforai-edge-linux/todoforai-edge-linux "s3://${R2_BUCKET_NAME}/edge/latest/todoforai-edge-linux" \
+            --endpoint-url "${R2_ENDPOINT}" \
+            --acl public-read \
+            --no-verify-ssl
+            
+          aws s3 cp todoforai-edge.exe/todoforai-edge.exe "s3://${R2_BUCKET_NAME}/edge/latest/todoforai-edge.exe" \
+            --endpoint-url "${R2_ENDPOINT}" \
+            --acl public-read \
+            --no-verify-ssl
+            
+          aws s3 cp todoforai-edge-mac/todoforai-edge-mac "s3://${R2_BUCKET_NAME}/edge/latest/todoforai-edge-mac" \
+            --endpoint-url "${R2_ENDPOINT}" \
+            --acl public-read \
+            --no-verify-ssl
         fi
         
     - name: Create GitHub Release
