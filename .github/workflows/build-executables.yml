@@ -74,10 +74,14 @@ jobs:
         mkdir -p ~/.aws
         echo "[default]" > ~/.aws/credentials
         echo "aws_access_key_id = $AWS_ACCESS_KEY_ID" >> ~/.aws/credentials
+        echo "aws_secret_access_key = $AWS_SECRET_ACCESS_KEY" >> ~/.aws/credentials
         echo "[default]" > ~/.aws/config
         echo "region = $AWS_DEFAULT_REGION" >> ~/.aws/config
         
     - name: Upload to CloudFlare R2
+      env:
+        R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
       run: |
         # Determine folder name based on trigger
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -89,16 +93,30 @@ jobs:
           FOLDER="latest"
         fi
         
+        echo "Uploading to folder: $FOLDER"
+        
+        # Check if endpoint is set
+        if [ -z "$R2_ENDPOINT" ]; then
+          echo "Error: R2_ENDPOINT is not set"
+          exit 1
+        fi
+        
+        # Check if bucket name is set
+        if [ -z "$R2_BUCKET_NAME" ]; then
+          echo "Error: R2_BUCKET_NAME is not set"
+          exit 1
+        fi
+        
         # Upload executables to R2
-        aws s3 cp todoforai-edge-linux/todoforai-edge-linux s3://${{ secrets.R2_BUCKET_NAME }}/edge/$FOLDER/todoforai-edge-linux --endpoint-url ${{ secrets.R2_ENDPOINT }} --acl public-read
-        aws s3 cp todoforai-edge.exe/todoforai-edge.exe s3://${{ secrets.R2_BUCKET_NAME }}/edge/$FOLDER/todoforai-edge.exe --endpoint-url ${{ secrets.R2_ENDPOINT }} --acl public-read
-        aws s3 cp todoforai-edge-mac/todoforai-edge-mac s3://${{ secrets.R2_BUCKET_NAME }}/edge/$FOLDER/todoforai-edge-mac --endpoint-url ${{ secrets.R2_ENDPOINT }} --acl public-read
+        aws s3 cp todoforai-edge-linux/todoforai-edge-linux "s3://${R2_BUCKET_NAME}/edge/${FOLDER}/todoforai-edge-linux" --endpoint-url "${R2_ENDPOINT}" --acl public-read
+        aws s3 cp todoforai-edge.exe/todoforai-edge.exe "s3://${R2_BUCKET_NAME}/edge/${FOLDER}/todoforai-edge.exe" --endpoint-url "${R2_ENDPOINT}" --acl public-read
+        aws s3 cp todoforai-edge-mac/todoforai-edge-mac "s3://${R2_BUCKET_NAME}/edge/${FOLDER}/todoforai-edge-mac" --endpoint-url "${R2_ENDPOINT}" --acl public-read
         
         # If this is a tag, also update the latest folder
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-          aws s3 cp todoforai-edge-linux/todoforai-edge-linux s3://${{ secrets.R2_BUCKET_NAME }}/edge/latest/todoforai-edge-linux --endpoint-url ${{ secrets.R2_ENDPOINT }} --acl public-read
-          aws s3 cp todoforai-edge.exe/todoforai-edge.exe s3://${{ secrets.R2_BUCKET_NAME }}/edge/latest/todoforai-edge.exe --endpoint-url ${{ secrets.R2_ENDPOINT }} --acl public-read
-          aws s3 cp todoforai-edge-mac/todoforai-edge-mac s3://${{ secrets.R2_BUCKET_NAME }}/edge/latest/todoforai-edge-mac --endpoint-url ${{ secrets.R2_ENDPOINT }} --acl public-read
+          aws s3 cp todoforai-edge-linux/todoforai-edge-linux "s3://${R2_BUCKET_NAME}/edge/latest/todoforai-edge-linux" --endpoint-url "${R2_ENDPOINT}" --acl public-read
+          aws s3 cp todoforai-edge.exe/todoforai-edge.exe "s3://${R2_BUCKET_NAME}/edge/latest/todoforai-edge.exe" --endpoint-url "${R2_ENDPOINT}" --acl public-read
+          aws s3 cp todoforai-edge-mac/todoforai-edge-mac "s3://${R2_BUCKET_NAME}/edge/latest/todoforai-edge-mac" --endpoint-url "${R2_ENDPOINT}" --acl public-read
         fi
         
     - name: Create GitHub Release
