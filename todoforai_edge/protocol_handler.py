@@ -80,14 +80,7 @@ def handle_protocol_url(url):
     print(f"Handling command: {command} with params: {params}")
     
     # Handle different commands
-    if command == "connect":
-        # Example: todoforai://connect/workspace_id
-        if params:
-            workspace_id = params[0]
-            print(f"Connecting to workspace: {workspace_id}")
-            return True
-    
-    elif command == "auth":
+    if command == "auth":
         # Example: todoforai://auth/apikey/YOUR_API_KEY_HERE
         if len(params) >= 2 and params[0] == "apikey":
             api_key = params[1]
