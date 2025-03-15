@@ -16,11 +16,11 @@ This is a Python client for the Todo4AI service that runs as a background task. 
 ### Download Prebuilt Executables (Recommended)
 
 Download the appropriate file for your system:
-- Windows: [todoforai-edge.exe](https://downloads.todoforai.com/edge/latest/todoforai-edge.exe)
-- macOS: [todoforai-edge-mac](https://downloads.todoforai.com/edge/latest/todoforai-edge-mac)
-- Linux: [todoforai-edge-linux](https://downloads.todoforai.com/edge/latest/todoforai-edge-linux)
+- Windows: [todoforai-edge.exe](https://todoforai-edge.r2.cloudflarestorage.com/edge/latest/todoforai-edge.exe)
+- macOS: [todoforai-edge-mac](https://todoforai-edge.r2.cloudflarestorage.com/edge/latest/todoforai-edge-mac)
+- Linux: [todoforai-edge-linux](https://todoforai-edge.r2.cloudflarestorage.com/edge/latest/todoforai-edge-linux)
 
-For more information, visit our [download page](https://downloads.todoforai.com).
+For more information, visit our [download page](https://todoforai.com/downloads).
 
 ### From PyPI
 
