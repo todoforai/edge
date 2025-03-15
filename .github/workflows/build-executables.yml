@@ -60,13 +60,11 @@ jobs:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       
-    - name: Install rclone
+    - name: Install AWS CLI
       run: |
-        curl -O https://downloads.rclone.org/rclone-current-linux-amd64.zip
-        unzip rclone-current-linux-amd64.zip
-        cd rclone-*-linux-amd64
-        sudo cp rclone /usr/bin/
-        sudo chmod 755 /usr/bin/rclone
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
         
     - name: Debug environment
       run: |
@@ -102,30 +100,20 @@ jobs:
         ls -la todoforai-edge.exe/ || echo "Windows artifact not found"
         ls -la todoforai-edge-mac/ || echo "Mac artifact not found"
         
-    - name: Configure rclone
+    - name: Configure AWS CLI for R2
       env:
         R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
       run: |
-        # Extract the hostname from the endpoint URL
-        ENDPOINT_HOST=$(echo $R2_ENDPOINT | sed -e 's|^[^/]*//||' -e 's|/.*$||')
-        
-        # Configure rclone
-        mkdir -p ~/.config/rclone
-        cat > ~/.config/rclone/rclone.conf << EOF
-        [r2]
-        type = s3
-        provider = Cloudflare
-        access_key_id = $R2_ACCESS_KEY_ID
-        secret_access_key = $R2_SECRET_ACCESS_KEY
-        endpoint = $ENDPOINT_HOST
-        acl = public-read
-        EOF
+        aws configure set aws_access_key_id $R2_ACCESS_KEY_ID
+        aws configure set aws_secret_access_key $R2_SECRET_ACCESS_KEY
+        aws configure set default.region auto
         
     - name: Upload to CloudFlare R2
       env:
         R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
       run: |
         # Determine folder name based on trigger
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -139,16 +127,16 @@ jobs:
         
         echo "Uploading to folder: $FOLDER"
         
-        # Upload executables to R2 using rclone
-        rclone copy todoforai-edge-linux/todoforai-edge-linux r2:$R2_BUCKET_NAME/edge/$FOLDER/
-        rclone copy todoforai-edge.exe/todoforai-edge.exe r2:$R2_BUCKET_NAME/edge/$FOLDER/
-        rclone copy todoforai-edge-mac/todoforai-edge-mac r2:$R2_BUCKET_NAME/edge/$FOLDER/
+        # Upload executables to R2 using AWS CLI with S3 compatibility
+        aws s3 cp todoforai-edge-linux/todoforai-edge-linux s3://$R2_BUCKET_NAME/edge/$FOLDER/ --endpoint-url $R2_ENDPOINT --acl public-read
+        aws s3 cp todoforai-edge.exe/todoforai-edge.exe s3://$R2_BUCKET_NAME/edge/$FOLDER/ --endpoint-url $R2_ENDPOINT --acl public-read
+        aws s3 cp todoforai-edge-mac/todoforai-edge-mac s3://$R2_BUCKET_NAME/edge/$FOLDER/ --endpoint-url $R2_ENDPOINT --acl public-read
         
         # If this is a tag, also update the latest folder
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-          rclone copy todoforai-edge-linux/todoforai-edge-linux r2:$R2_BUCKET_NAME/edge/latest/
-          rclone copy todoforai-edge.exe/todoforai-edge.exe r2:$R2_BUCKET_NAME/edge/latest/
-          rclone copy todoforai-edge-mac/todoforai-edge-mac r2:$R2_BUCKET_NAME/edge/latest/
+          aws s3 cp todoforai-edge-linux/todoforai-edge-linux s3://$R2_BUCKET_NAME/edge/latest/ --endpoint-url $R2_ENDPOINT --acl public-read
+          aws s3 cp todoforai-edge.exe/todoforai-edge.exe s3://$R2_BUCKET_NAME/edge/latest/ --endpoint-url $R2_ENDPOINT --acl public-read
+          aws s3 cp todoforai-edge-mac/todoforai-edge-mac s3://$R2_BUCKET_NAME/edge/latest/ --endpoint-url $R2_ENDPOINT --acl public-read
         fi
         
     - name: Create GitHub Release
