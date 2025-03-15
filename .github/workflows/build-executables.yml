@@ -60,11 +60,10 @@ jobs:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       
-    - name: Install AWS CLI
+    - name: Verify AWS CLI
       run: |
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-        unzip awscliv2.zip
-        sudo ./aws/install
+        # Verify AWS CLI is working
+        aws --version
         
     - name: Debug environment
       run: |
@@ -126,6 +125,10 @@ jobs:
         fi
         
         echo "Uploading to folder: $FOLDER"
+        # Check and display the exact structure of downloaded artifacts
+        echo "Artifact structure:"
+        find . -type f | sort
+        
         
         # Upload executables to R2 using AWS CLI with S3 compatibility
         aws s3 cp todoforai-edge-linux/todoforai-edge-linux s3://$R2_BUCKET_NAME/edge/$FOLDER/ --endpoint-url $R2_ENDPOINT --acl public-read
