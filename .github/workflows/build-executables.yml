@@ -1,0 +1,106 @@
+name: Build and Deploy Executables
+
+on:
+  push:
+    branches: [ prod ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            output_name: todoforai-edge-linux
+          - os: windows-latest
+            output_name: todoforai-edge.exe
+          - os: macos-latest
+            output_name: todoforai-edge-mac
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pyinstaller
+        
+    - name: Build executable
+      run: python build_executable.py
+      
+    - name: Rename executable
+      run: |
+        if [ "${{ matrix.os }}" != "windows-latest" ]; then
+          mv dist/todoforai-edge dist/${{ matrix.output_name }}
+        else
+          mv dist/todoforai-edge.exe dist/${{ matrix.output_name }}
+        fi
+      shell: bash
+      
+    - name: Upload executable as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.output_name }}
+        path: dist/${{ matrix.output_name }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/prod'
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      
+    - name: Install AWS CLI
+      run: |
+        pip install awscli
+        
+    - name: Configure AWS CLI for CloudFlare R2
+      run: |
+        aws configure set aws_access_key_id ${{ secrets.R2_ACCESS_KEY_ID }}
+        aws configure set aws_secret_access_key ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        aws configure set default.region auto
+        
+    - name: Upload to CloudFlare R2
+      run: |
+        # Determine folder name based on trigger
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          # Get version from tag
+          VERSION=${GITHUB_REF#refs/tags/v}
+          FOLDER="$VERSION"
+        else
+          # For prod branch pushes
+          FOLDER="latest"
+        fi
+        
+        # Upload executables to R2
+        aws s3 cp todoforai-edge-linux/todoforai-edge-linux s3://${{ secrets.R2_BUCKET_NAME }}/edge/$FOLDER/todoforai-edge-linux --endpoint-url ${{ secrets.R2_ENDPOINT }} --acl public-read
+        aws s3 cp todoforai-edge.exe/todoforai-edge.exe s3://${{ secrets.R2_BUCKET_NAME }}/edge/$FOLDER/todoforai-edge.exe --endpoint-url ${{ secrets.R2_ENDPOINT }} --acl public-read
+        aws s3 cp todoforai-edge-mac/todoforai-edge-mac s3://${{ secrets.R2_BUCKET_NAME }}/edge/$FOLDER/todoforai-edge-mac --endpoint-url ${{ secrets.R2_ENDPOINT }} --acl public-read
+        
+        # If this is a tag, also update the latest folder
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          aws s3 cp todoforai-edge-linux/todoforai-edge-linux s3://${{ secrets.R2_BUCKET_NAME }}/edge/latest/todoforai-edge-linux --endpoint-url ${{ secrets.R2_ENDPOINT }} --acl public-read
+          aws s3 cp todoforai-edge.exe/todoforai-edge.exe s3://${{ secrets.R2_BUCKET_NAME }}/edge/latest/todoforai-edge.exe --endpoint-url ${{ secrets.R2_ENDPOINT }} --acl public-read
+          aws s3 cp todoforai-edge-mac/todoforai-edge-mac s3://${{ secrets.R2_BUCKET_NAME }}/edge/latest/todoforai-edge-mac --endpoint-url ${{ secrets.R2_ENDPOINT }} --acl public-read
+        fi
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/v')
+      with:
+        files: |
+          todoforai-edge-linux/todoforai-edge-linux
+          todoforai-edge.exe/todoforai-edge.exe
+          todoforai-edge-mac/todoforai-edge-mac
