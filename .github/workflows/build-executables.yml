@@ -56,15 +56,9 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/prod'
     
-    steps:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       
-    - name: Verify AWS CLI
-      run: |
-        # Verify AWS CLI is working
-        aws --version
-        
     - name: Debug environment
       run: |
         # Check if secrets are available (without revealing them)
@@ -74,47 +68,31 @@ jobs:
           echo "R2_BUCKET_NAME is NOT set"
         fi
         
-        if [ -n "${{ secrets.R2_ENDPOINT }}" ]; then
-          echo "R2_ENDPOINT is set"
+        if [ -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+          echo "CLOUDFLARE_API_TOKEN is set"
         else
-          echo "R2_ENDPOINT is NOT set"
+          echo "CLOUDFLARE_API_TOKEN is NOT set"
         fi
         
-        if [ -n "${{ secrets.R2_ACCESS_KEY_ID }}" ]; then
-          echo "R2_ACCESS_KEY_ID is set"
+        if [ -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+          echo "CLOUDFLARE_ACCOUNT_ID is set"
         else
-          echo "R2_ACCESS_KEY_ID is NOT set"
-        fi
-        
-        if [ -n "${{ secrets.R2_SECRET_ACCESS_KEY }}" ]; then
-          echo "R2_SECRET_ACCESS_KEY is set"
-        else
-          echo "R2_SECRET_ACCESS_KEY is NOT set"
+          echo "CLOUDFLARE_ACCOUNT_ID is NOT set"
         fi
         
         # List downloaded artifacts
         echo "Listing downloaded artifacts:"
         ls -la
         ls -la todoforai-edge-linux/ || echo "Linux artifact not found"
-        ls -la todoforai-edge.exe/ || echo "Windows artifact not found"
-        ls -la todoforai-edge-mac/ || echo "Mac artifact not found"
         
-    - name: Configure AWS CLI for R2
+    - name: Install CloudFlare Wrangler
+      run: npm install -g wrangler
+      
+    - name: Upload to CloudFlare R2 using Wrangler
       env:
-        R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-        R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-        R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-      run: |
-        aws configure set aws_access_key_id $R2_ACCESS_KEY_ID
-        aws configure set aws_secret_access_key $R2_SECRET_ACCESS_KEY
-        aws configure set default.region auto
-        aws configure set default.s3.addressing_style path
-        aws configure set default.s3.signature_version s3v4
-        
-    - name: Upload to CloudFlare R2
-      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
-        R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
       run: |
         # Determine folder name based on trigger
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -126,31 +104,16 @@ jobs:
         
         echo "Uploading to folder: $FOLDER"
         
-        # Try alternative upload method using curl
-        echo "Attempting upload with curl..."
-        
-        # Create temporary file with proper Content-Type
-        cp todoforai-edge-linux/todoforai-edge-linux ./todoforai-edge-linux-file
-        chmod +x ./todoforai-edge-linux-file
-        
-        # Upload using curl instead of aws cli
-        curl -X PUT \
-          -H "X-Amz-Content-Sha256: UNSIGNED-PAYLOAD" \
-          -H "X-Amz-Date: $(date -u +%Y%m%dT%H%M%SZ)" \
-          -H "Authorization: AWS4-HMAC-SHA256 Credential=$R2_ACCESS_KEY_ID/$(date -u +%Y%m%d)/auto/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=unsigned" \
-          -H "Content-Type: application/octet-stream" \
-          --data-binary @./todoforai-edge-linux-file \
-          "$R2_ENDPOINT/$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-linux"
+        # Upload using Wrangler
+        wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-linux" \
+          --file todoforai-edge-linux/todoforai-edge-linux \
+          --content-type application/octet-stream
         
         # If this is a tag, also update the latest folder
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-          curl -X PUT \
-            -H "X-Amz-Content-Sha256: UNSIGNED-PAYLOAD" \
-            -H "X-Amz-Date: $(date -u +%Y%m%dT%H%M%SZ)" \
-            -H "Authorization: AWS4-HMAC-SHA256 Credential=$R2_ACCESS_KEY_ID/$(date -u +%Y%m%d)/auto/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date, Signature=unsigned" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary @./todoforai-edge-linux-file \
-            "$R2_ENDPOINT/$R2_BUCKET_NAME/edge/latest/todoforai-edge-linux"
+          wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/todoforai-edge-linux" \
+            --file todoforai-edge-linux/todoforai-edge-linux \
+            --content-type application/octet-stream
         fi
   
     - name: Create GitHub Release
