@@ -105,18 +105,20 @@ jobs:
         
         echo "Uploading to folder: $FOLDER"
         
-        # Upload using Wrangler
+        # Upload using Wrangler with --remote flag
         wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-linux" \
           --file todoforai-edge-linux/todoforai-edge-linux \
-          --content-type application/octet-stream
+          --content-type application/octet-stream \
+          --remote
         
         # If this is a tag, also update the latest folder
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
           wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/todoforai-edge-linux" \
             --file todoforai-edge-linux/todoforai-edge-linux \
-            --content-type application/octet-stream
+            --content-type application/octet-stream \
+            --remote
         fi
-  
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/v')
