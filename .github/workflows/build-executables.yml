@@ -10,14 +10,14 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         include:
           - os: ubuntu-latest
             output_name: todoforai-edge-linux
-          # - os: windows-latest
-          #   output_name: todoforai-edge.exe
-          # - os: macos-latest
-          #   output_name: todoforai-edge-mac
+          - os: windows-latest
+            output_name: todoforai-edge.exe
+          - os: macos-latest
+            output_name: todoforai-edge-mac
 
     runs-on: ${{ matrix.os }}
     
@@ -85,6 +85,8 @@ jobs:
         echo "Listing downloaded artifacts:"
         ls -la
         ls -la todoforai-edge-linux/ || echo "Linux artifact not found"
+        ls -la todoforai-edge.exe/ || echo "Windows artifact not found"
+        ls -la todoforai-edge-mac/ || echo "Mac artifact not found"
         
     - name: Install CloudFlare Wrangler
       run: npm install -g wrangler
@@ -105,9 +107,21 @@ jobs:
         
         echo "Uploading to folder: $FOLDER"
         
-        # Upload using Wrangler with --remote flag
+        # Upload Linux executable
         wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-linux" \
           --file todoforai-edge-linux/todoforai-edge-linux \
+          --content-type application/octet-stream \
+          --remote
+        
+        # Upload Windows executable
+        wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge.exe" \
+          --file todoforai-edge.exe/todoforai-edge.exe \
+          --content-type application/octet-stream \
+          --remote
+        
+        # Upload Mac executable
+        wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-mac" \
+          --file todoforai-edge-mac/todoforai-edge-mac \
           --content-type application/octet-stream \
           --remote
         
@@ -117,11 +131,23 @@ jobs:
             --file todoforai-edge-linux/todoforai-edge-linux \
             --content-type application/octet-stream \
             --remote
+            
+          wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/todoforai-edge.exe" \
+            --file todoforai-edge.exe/todoforai-edge.exe \
+            --content-type application/octet-stream \
+            --remote
+            
+          wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/todoforai-edge-mac" \
+            --file todoforai-edge-mac/todoforai-edge-mac \
+            --content-type application/octet-stream \
+            --remote
         fi
-
+  
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/v')
       with:
         files: |
           todoforai-edge-linux/todoforai-edge-linux
+          todoforai-edge.exe/todoforai-edge.exe
+          todoforai-edge-mac/todoforai-edge-mac
