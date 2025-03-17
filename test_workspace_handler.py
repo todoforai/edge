@@ -8,7 +8,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 # Import the function to test
-from todoforai_edge.workspace_handler import get_filtered_files_and_folders
+from todoforai_edge.workspace_handler import get_filtered_files_and_folders, is_ignored_by_patterns, get_accumulated_ignore_patterns, GitIgnoreCache, IGNORE_FILES
 
 def create_test_workspace():
     """Create a temporary test workspace with various files and directories"""
@@ -62,6 +62,12 @@ def test_get_filtered_files_and_folders():
     workspace_path = create_test_workspace()
     
     try:
+        # Print the content of the gitignore file for verification
+        gitignore_path = os.path.join(workspace_path, ".gitignore")
+        print("\n=== Gitignore Content ===")
+        with open(gitignore_path, 'r') as f:
+            print(f.read())
+        
         # Get filtered files and folders
         project_files, filtered_files, filtered_dirs = get_filtered_files_and_folders(workspace_path)
         
@@ -76,6 +82,24 @@ def test_get_filtered_files_and_folders():
         print("\n=== Filtered Directories ===")
         for directory in sorted(filtered_dirs):
             print(f"- {os.path.relpath(directory, workspace_path)}")
+        
+        # Debug: Check the important.log file specifically
+        important_log_path = os.path.join(workspace_path, "important.log")
+        if os.path.exists(important_log_path):
+            print(f"\nDebug: important.log exists at {important_log_path}")
+            is_ignored = is_ignored_by_patterns(
+                important_log_path, 
+                get_accumulated_ignore_patterns(os.path.dirname(important_log_path), workspace_path, IGNORE_FILES, GitIgnoreCache()),
+                workspace_path
+            )
+            print(f"Debug: is_ignored_by_patterns returns {is_ignored} for important.log")
+            
+            if important_log_path in project_files:
+                print("Debug: important.log is in project_files")
+            elif important_log_path in filtered_files:
+                print("Debug: important.log is in filtered_files")
+            else:
+                print("Debug: important.log is neither in project_files nor filtered_files")
         
         # Verify results
         # 1. Check that node_modules and .git are in filtered directories
@@ -102,6 +126,7 @@ def test_get_filtered_files_and_folders():
     finally:
         # Clean up
         shutil.rmtree(workspace_path)
+
 
 if __name__ == "__main__":
     test_get_filtered_files_and_folders()
