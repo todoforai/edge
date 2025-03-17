@@ -69,8 +69,17 @@ async def async_request(client, method, endpoint, data=None):
         logger.warning("Cannot make API request: missing API key")
         return None
         
-    headers = {"X-API-Key": client.api_key, "Content-Type": "application/json"}
+    # Make sure we're using the correct header for API key authentication
+    headers = {
+        "Authorization": f"Bearer {client.api_key}",  # Try using Bearer authentication
+        "X-API-Key": client.api_key,                  # Also include X-API-Key as fallback
+        "Content-Type": "application/json"
+    }
+    
     url = f"{client.api_url}{endpoint}"
+    
+    if client.debug:
+        logger.debug(f"Making {method.upper()} request to {url}")
     
     try:
         # Use asyncio to run the request without blocking

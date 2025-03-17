@@ -169,13 +169,16 @@ def ctx_workspace_result_msg(todo_id, message_id, content=None, error=None):
 
 
 # Updated workspace result message to match the new interface
-def workspace_result_msg(user_id, agent_id, file_chunks):
+def workspace_result_msg(request_id, user_id, agent_id, project_files, filtered_files, filtered_dirs):
     return {
         "type": EA.CTX_WORKSPACE_RESULT,
         "payload": {
+            "requestId": request_id,
             "userId": user_id,
             "agentId": agent_id,
-            "fileChunks": file_chunks
+            "project_files": project_files,
+            "filtered_files": filtered_files,
+            "filtered_dirs": filtered_dirs
         }
     }
 
