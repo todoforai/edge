@@ -227,13 +227,19 @@ class TODOforAIEdge:
         """Connect to the WebSocket server"""
         fingerprint = generate_machine_fingerprint()
         print(f"Fingerprint: {fingerprint}")
-        ws_url = f"{self.ws_url}?apiKey={self.api_key}&fingerprint={fingerprint}"
+        
+        # Only include fingerprint in URL
+        ws_url = f"{self.ws_url}?fingerprint={fingerprint}"
         
         if self.debug:
             logger.info(f"Connecting to WebSocket: {ws_url}")
         
         try:
-            async with websockets.connect(ws_url) as ws:
+            # Use a custom subprotocol that includes the API key
+            # Format: "apikey-{api_key}"
+            custom_protocol = f"{self.api_key}"
+            
+            async with websockets.connect(ws_url, subprotocols=[custom_protocol]) as ws:
                 self.ws = ws
                 self.connected = True
                 logger.info("WebSocket connected")
@@ -244,6 +250,8 @@ class TODOforAIEdge:
                 # Process messages
                 async for message in ws:
                     await self._handle_message(message)
+
+
                     
         except websockets.exceptions.InvalidStatusCode as error:
             logger.error(f"WebSocket connection failed with status code: {error.status_code}")

@@ -1,0 +1,158 @@
+name: Build and Deploy Executables
+
+on:
+  push:
+    branches: [ prod ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            output_name: todoforai-edge-linux
+          - os: windows-latest
+            output_name: todoforai-edge.exe
+          - os: macos-latest
+            output_name: todoforai-edge-mac
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pyinstaller
+        
+    - name: Build executable
+      run: python build_executable.py
+      
+    - name: Rename executable (Linux/Mac)
+      if: matrix.os != 'windows-latest'
+      run: mv dist/todoforai-edge dist/${{ matrix.output_name }}
+      shell: bash
+      
+    # Windows doesn't need renaming since the output name is already correct
+      
+    - name: Upload executable as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.output_name }}
+        path: dist/${{ matrix.output_name }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/prod'
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      
+    - name: Debug environment
+      run: |
+        # Check if secrets are available (without revealing them)
+        if [ -n "${{ secrets.R2_BUCKET_NAME }}" ]; then
+          echo "R2_BUCKET_NAME is set"
+        else
+          echo "R2_BUCKET_NAME is NOT set"
+        fi
+        
+        if [ -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+          echo "CLOUDFLARE_API_TOKEN is set"
+        else
+          echo "CLOUDFLARE_API_TOKEN is NOT set"
+        fi
+        
+        if [ -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+          echo "CLOUDFLARE_ACCOUNT_ID is set"
+        else
+          echo "CLOUDFLARE_ACCOUNT_ID is NOT set"
+        fi
+        
+        # List downloaded artifacts
+        echo "Listing downloaded artifacts:"
+        ls -la
+        ls -la todoforai-edge-linux/ || echo "Linux artifact not found"
+        ls -la todoforai-edge.exe/ || echo "Windows artifact not found"
+        ls -la todoforai-edge-mac/ || echo "Mac artifact not found"
+        
+    - name: Install CloudFlare Wrangler
+      run: npm install -g wrangler
+      
+    - name: Upload to CloudFlare R2 using Wrangler
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+      run: |
+        # Determine folder name based on trigger
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/v}
+          FOLDER="$VERSION"
+        else
+          FOLDER="latest"
+        fi
+        
+        echo "Uploading to folder: $FOLDER"
+        
+        # Upload Linux executable
+        wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-linux" \
+          --file todoforai-edge-linux/todoforai-edge-linux \
+          --content-type application/octet-stream \
+          --remote
+        
+        # Upload Windows executable
+        wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge.exe" \
+          --file todoforai-edge.exe/todoforai-edge.exe \
+          --content-type application/octet-stream \
+          --remote
+        
+        # Upload Mac executable
+        wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-mac" \
+          --file todoforai-edge-mac/todoforai-edge-mac \
+          --content-type application/octet-stream \
+          --remote
+        
+        # If this is a tag, also update the latest folder
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/todoforai-edge-linux" \
+            --file todoforai-edge-linux/todoforai-edge-linux \
+            --content-type application/octet-stream \
+            --remote
+            
+          wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/todoforai-edge.exe" \
+            --file todoforai-edge.exe/todoforai-edge.exe \
+            --content-type application/octet-stream \
+            --remote
+            
+          wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/todoforai-edge-mac" \
+            --file todoforai-edge-mac/todoforai-edge-mac \
+            --content-type application/octet-stream \
+            --remote
+        fi
+  
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/v')
+      with:
+        files: |
+          todoforai-edge-linux/todoforai-edge-linux
+          todoforai-edge.exe/todoforai-edge.exe
+          todoforai-edge-mac/todoforai-edge-mac
