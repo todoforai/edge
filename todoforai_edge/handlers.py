@@ -10,7 +10,8 @@ from .messages import (
     edge_status_msg, block_message_result_msg, block_error_result_msg, 
     block_diff_result_msg, block_start_result_msg, block_done_result_msg,
     block_save_result_msg, task_action_update_msg, dir_list_response_msg,
-    cd_response_msg, ctx_julia_result_msg, diff_file_result_msg
+    cd_response_msg, ctx_julia_result_msg, diff_file_result_msg,
+    file_chunk_result_msg
 )
 from .workspace_handler import handle_ctx_workspace_request
 from .constants import Edge2Front as EF, Edge2Agent as EA
@@ -294,4 +295,43 @@ async def handle_diff_file_request(payload, client):
         logger.error(f"Error generating file diff: {str(error)}\nStacktrace:\n{stack_trace}")
         await client._send_response(diff_file_result_msg(agent_id, todo_id, block_id, filepath, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
-
+async def handle_file_chunk_request(payload, client):
+    """Handle file chunk request - reads a file and returns its content"""
+    agent_id = payload.get("agentId", "")
+    path = payload.get("path", "")
+    request_id = payload.get("requestId")
+    
+    try:
+        logger.info(f"File chunk request received for path: {path}")
+        
+        # Check if path is allowed
+        if not is_path_allowed(path, client.config.workspacepaths):
+            raise PermissionError(f"Access to path '{path}' is not allowed")
+        
+        # Check if file exists
+        file_path = Path(path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {path}")
+        
+        # Try to read file content as text
+        try:
+            with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+        except UnicodeDecodeError:
+            # If we get a decode error, it's likely a binary file
+            await client._send_response(
+                file_chunk_result_msg(request_id, agent_id, path, error=f"Cannot read binary file.")
+            )
+            return
+        
+        # Send the response using the message formatter
+        await client._send_response(
+            file_chunk_result_msg(request_id, agent_id, path, content)
+        )
+        
+    except Exception as error:
+        logger.error(f"Error processing file chunk request: {str(error)}")
+        # Send error response using the message formatter
+        await client._send_response(
+            file_chunk_result_msg(request_id, agent_id, path, error=str(error), success=False)
+        )

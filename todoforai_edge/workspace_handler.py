@@ -232,7 +232,14 @@ async def handle_ctx_workspace_request(payload, client):
         # Get filtered files - use global constants directly
         project_files, filtered_files, filtered_dirs = get_filtered_files_and_folders(path)
         
-        await client._send_response(workspace_result_msg(request_id, user_id, agent_id, project_files, filtered_files, filtered_dirs))
+        await client._send_response(workspace_result_msg(
+            request_id, 
+            user_id, 
+            agent_id, 
+            project_files, 
+            list(filtered_files), 
+            list(filtered_dirs)
+        ))
         
     except Exception as error:
         logger.error(f"Error processing workspace request: {str(error)}")
@@ -321,32 +328,3 @@ def get_filtered_files_and_folders(path):
     
     return project_files_list, filtered_files, filtered_dirs
 
-
-def is_binary_file(file_path):
-    """Check if a file is binary"""
-    try:
-        # Check file extension first
-        _, ext = os.path.splitext(file_path)
-        if ext.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', 
-                          '.pdf', '.zip', '.tar', '.gz', '.exe', '.dll', 
-                          '.so', '.pyc', '.class']:
-            return True
-            
-        # Read a small chunk of the file
-        with open(file_path, 'rb') as f:
-            chunk = f.read(1024)
-            
-        # Check for null bytes which typically indicate binary content
-        if b'\x00' in chunk:
-            return True
-            
-        # Try to decode as text
-        try:
-            chunk.decode('utf-8')
-            return False
-        except UnicodeDecodeError:
-            return True
-            
-    except Exception:
-        # If any error occurs, consider it binary to be safe
-        return True

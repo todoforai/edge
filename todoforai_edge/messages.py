@@ -200,3 +200,23 @@ def diff_file_result_msg(request_id, agent_id, todo_id, block_id, filepath, orig
         "type": EA.DIFF_FILE_RESULT,
         "payload": payload
     }
+
+
+def file_chunk_result_msg(request_id, agent_id, path, content=None, error=None, success=True):
+    payload = {
+        "requestId": request_id,
+        "agentId": agent_id,
+        "path": path,
+        "success": success
+    }
+    
+    if content is not None:
+        payload["content"] = content
+    if error is not None:
+        payload["error"] = error
+        payload["success"] = False
+    
+    return {
+        "type": EA.FILE_CHUNK_RESULT,
+        "payload": payload
+    }
