@@ -62,7 +62,7 @@ else:
     task = asyncio.create_task(shell.execute_block("block2", code, client, "todo2", "req2"))
     
     # Wait a bit for the process to start and prompt for input
-    await asyncio.sleep(10.5)
+    await asyncio.sleep(2.5)
     
     # Send input
     success = await shell.send_input("block2", "Test User")

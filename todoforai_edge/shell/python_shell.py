@@ -2,7 +2,9 @@ import asyncio
 import subprocess
 import signal
 import sys
-import time
+import os
+import select
+import re
 
 from typing import Dict, Any, Optional
 
@@ -74,14 +76,53 @@ class PythonShell:
     
     async def _stream_output(self, stream, client, todo_id: str, request_id: str, block_id: str, stream_type: str):
         """Stream output from process to client."""
+        # Get the file descriptor for select
+        fd = stream.fileno()
+        buffer = ""
+        
+        # Make the stream non-blocking
+        os.set_blocking(fd, False)
+        
         while True:
-            line = await asyncio.get_event_loop().run_in_executor(None, stream.readline)
+            # Use select to check if there's data to read
+            await asyncio.sleep(0.1)  # Small delay to prevent CPU hogging
             
-            if not line:
+            # Check if the process is still running
+            if block_id not in self.processes:
                 break
                 
-            # Send output to client
-            await client._send_response(block_output_msg(todo_id, request_id, block_id, stream_type, line))
+            # Try to read data
+            try:
+                ready_to_read, _, _ = select.select([fd], [], [], 0)
+                if fd in ready_to_read:
+                    chunk = stream.read(1024)  # Read a chunk of data
+                    if not chunk:  # EOF
+                        if buffer:  # Send any remaining data
+                            await client._send_response(block_output_msg(todo_id, request_id, block_id, stream_type, buffer))
+                        break
+                    
+                    buffer += chunk
+                    
+                    # Process the buffer line by line
+                    lines = buffer.split('\n')
+                    
+                    # If the buffer ends with a newline, the last element will be empty
+                    # Otherwise, the last element is an incomplete line
+                    for i, line in enumerate(lines[:-1]):
+                        await client._send_response(block_output_msg(todo_id, request_id, block_id, stream_type, line + '\n'))
+                    
+                    # Keep the last incomplete line in the buffer
+                    buffer = lines[-1]
+                    
+                    # If we have data in the buffer and it's stdout, check if it might be an input prompt
+                    if buffer and stream_type == "stdout":
+                        # Check for common input prompt patterns
+                        if re.search(r'input|enter|prompt|name|value|answer', buffer.lower()):
+                            await client._send_response(block_output_msg(todo_id, request_id, block_id, "input_prompt", buffer))
+                            buffer = ""  # Clear the buffer after sending
+            except (OSError, ValueError):
+                # Stream might be closed
+                break
     
     def interrupt_block(self, block_id: str):
         """Interrupt a running process."""
