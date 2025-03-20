@@ -4,9 +4,9 @@ import os
 import time
 import json
 
-# Add parent directory to path to import the python_shell module
+# Add parent directory to path to import the shell_handler module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from python_shell import PythonShell
+from shell_handler import ShellProcess
 
 
 class MockClient:
@@ -33,7 +33,7 @@ async def test_normal_execution():
     """Test normal execution of Python code."""
     print("\n=== Testing Normal Execution ===")
     client = MockClient()
-    shell = PythonShell()
+    shell = ShellProcess()
     
     code = """
 print("Hello, World!")
@@ -47,7 +47,7 @@ async def test_input():
     """Test sending input to a running process."""
     print("\n=== Testing Input ===")
     client = MockClient()
-    shell = PythonShell()
+    shell = ShellProcess()
     
     code = """
 # Standard way to use input
@@ -76,7 +76,7 @@ async def test_timeout():
     """Test timeout functionality."""
     print("\n=== Testing Timeout ===")
     client = MockClient()
-    shell = PythonShell()
+    shell = ShellProcess()
     
     # Code that runs for longer than the timeout
     code = """
@@ -96,7 +96,7 @@ async def test_interrupt():
     """Test interrupting a running process."""
     print("\n=== Testing Interrupt ===")
     client = MockClient()
-    shell = PythonShell()
+    shell = ShellProcess()
     
     # Code that runs in an infinite loop
     code = """

@@ -37,14 +37,15 @@ def block_start_result_msg(todo_id, block_id, mode, message_id):
     }
 
 
-def block_done_result_msg(todo_id, message_id, block_id, mode):
+def block_done_result_msg(todo_id, message_id, block_id, mode, return_code):
     return {
         "type": EF.BLOCK_SH_DONE,  # Updated to match protocol
         "payload": {
             "todoId": todo_id,
             "messageId": message_id,
             "blockId": block_id,
-            "mode": mode
+            "mode": mode,
+            "return_code": return_code
         }
     }
 

@@ -5,19 +5,21 @@ import sys
 import os
 import select
 import re
+import shlex
 
 from typing import Dict, Any, Optional
+from ..messages import block_message_result_msg, block_done_result_msg
 
 
-class PythonShell:
+class ShellProcess:
     def __init__(self):
         self.processes: Dict[str, subprocess.Popen] = {}
         
     async def execute_block(self, block_id: str, code: str, client, todo_id: str, request_id: str, timeout: Optional[float] = None):
-        """Execute a Python code block and stream results back to client."""
+        """Execute a shell command block and stream results back to client."""
         # Create process with pipes for stdin/stdout/stderr
         process = subprocess.Popen(
-            [sys.executable, "-u", "-c", code],
+            ['/bin/bash', '-c', code],  # Use bash to execute the shell commands
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -47,9 +49,9 @@ class PythonShell:
                 await asyncio.gather(stdout_task, stderr_task)
                 
             return_code = await asyncio.get_event_loop().run_in_executor(None, process.wait)
-            
+            print("return_code", return_code)
             # Send completion message
-            await client._send_response(block_done_result_msg(todo_id, request_id, block_id, "execute"))
+            await client._send_response(block_done_result_msg(todo_id, request_id, block_id, "execute", return_code))
             
         except asyncio.CancelledError:
             self.interrupt_block(block_id)
@@ -169,52 +171,3 @@ class PythonShell:
                 return True
         return False
 
-
-# Import message formatters
-from ..messages import block_message_result_msg, block_done_result_msg
-
-
-# Example handler function
-async def handle_block_execute(payload, client):
-    """Handle block execution request."""
-    todo_id = payload.get("todo_id", "")
-    request_id = payload.get("request_id", "")
-    block_id = payload.get("block_id", "")
-    code = payload.get("code", "")
-    timeout = payload.get("timeout")  # Optional timeout in seconds
-    
-    shell = PythonShell()
-    try:
-        await shell.execute_block(block_id, code, client, todo_id, request_id, timeout)
-    except Exception as e:
-        # Send error message
-        await client._send_response(block_message_result_msg(
-            todo_id, block_id, f"Error: {str(e)}", request_id
-        ))
-
-
-# Example handler for input
-async def handle_block_input(payload, client):
-    """Handle input to a running block."""
-    block_id = payload.get("block_id", "")
-    input_text = payload.get("input", "")
-    
-    shell = PythonShell()
-    success = await shell.send_input(block_id, input_text)
-    
-    return {"success": success}
-
-
-# Example handler for interruption
-async def handle_block_interrupt(payload, client):
-    """Handle block interruption request."""
-    todo_id = payload.get("todo_id", "")
-    request_id = payload.get("request_id", "")
-    block_id = payload.get("block_id", "")
-    
-    shell = PythonShell()
-    shell.interrupt_block(block_id)
-    
-    await client._send_response(block_message_result_msg(
-        todo_id, block_id, "Process interrupted", request_id
-    ))

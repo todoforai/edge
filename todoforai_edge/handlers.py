@@ -16,11 +16,61 @@ from .messages import (
 from .workspace_handler import handle_ctx_workspace_request
 from .constants import Edge2Front as EF, Edge2Agent as EA
 from .path_utils import is_path_allowed
-from .shell.python_shell import PythonShell, handle_block_execute as handle_python_execute, handle_block_input, handle_block_interrupt
+from .shell_handler import ShellProcess
 
 logger = logging.getLogger("todo4ai-client")
 
 
+# Handler functions for external use
+async def handle_block_execute(payload, client):
+    """Handle code execution request"""
+    block_id = payload.get("blockId")
+    message_id = payload.get("messageId", "")
+    content = payload.get("content", "")
+    todo_id = payload.get("todoId", "")
+    print("handle_block_execute", payload)
+    
+    # The content is already the shell script
+    code = content
+    
+    # Send start message
+    await client._send_response(block_start_result_msg(todo_id, block_id, "execute", message_id))
+    
+    try:
+        # Create a ShellProcess instance
+        shell = ShellProcess()
+        
+        # Execute the code block
+        await shell.execute_block(block_id, code, client, todo_id, message_id)
+    except Exception as error:
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error executing command: {str(error)}\nStacktrace:\n{stack_trace}")
+        await client._send_response(block_error_result_msg(block_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
+
+
+async def handle_block_keyboard(payload, client):
+    """Handle input to a running block."""
+    block_id = payload.get("block_id", "")
+    input_text = payload.get("content", "")
+    
+    shell = ShellProcess()
+    success = await shell.send_input(block_id, input_text)
+    
+    return {"success": success}
+
+
+async def handle_block_signal(payload, client):
+    """Handle block interruption request."""
+    todo_id = payload.get("todo_id", "")
+    request_id = payload.get("request_id", "")
+    block_id = payload.get("block_id", "")
+    
+    shell = ShellProcess()
+    shell.interrupt_block(block_id)
+    
+    await client._send_response(block_message_result_msg(
+        todo_id, block_id, "Process interrupted", request_id
+    ))
 
 
 # Handler functions
@@ -92,120 +142,7 @@ async def handle_todo_cd(payload, client):
         await client._send_response(cd_response_msg(edge_id, path, request_id, False, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
-async def handle_block_execute(payload, client):
-    """Handle code execution request"""
-    block_id = payload.get("blockId")
-    message_id = payload.get("messageId", "")
-    edge_id = payload.get("edgeId", "")
-    content = payload.get("content", "")
-    todo_id = payload.get("todoId", "")
-    print("handle_block_execute", payload)
-    # Extract code and language from content
-    # Assuming content format is like: ```python\nprint('hello')\n```
-    language = None
-    code = content
-    
-    # Try to extract language from markdown code block format
-    if content.startswith("```"):
-        parts = content.split("\n", 1)
-        if len(parts) > 1:
-            lang_line = parts[0].strip("`").strip()
-            if lang_line:
-                language = lang_line.lower()
-                code = parts[1]
-    
-    # Check if shell is enabled
-    # if not client.config.is_shell_enabled:
-    #     error_msg = "Shell execution is not enabled for this edge"
-    #     logger.warning(error_msg)
-    #     await client._send_response(block_error_result_msg(block_id, todo_id, error_msg))
-    #     return
-    
-    # Send start message
-    await client._send_response(block_start_result_msg(todo_id, block_id, "execute", message_id))
-    
-    try:
-        if language == "python":
-            # Use Python shell for Python code
-            await handle_python_execute({
-                "todo_id": todo_id,
-                "request_id": message_id,
-                "block_id": block_id,
-                "code": code
-            }, client)
-        else:
-            # Execute the shell command for other languages
-            process = await asyncio.create_subprocess_shell(
-                code,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await process.communicate()
-            
-            # Send the response back
-            await client._send_response(block_done_result_msg(todo_id, message_id, block_id, "execute"))
-    except Exception as error:
-        stack_trace = traceback.format_exc()
-        logger.error(f"Error executing command: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client._send_response(block_error_result_msg(block_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
-
-
-async def handle_block_keyboard(payload, client):
-    """Handle keyboard events"""
-    block_id = payload.get("blockId")
-    edge_id = payload.get("edgeId", "")
-    content = payload.get("content", "")
-    todo_id = payload.get("todoId", "")
-    message_id = payload.get("messageId", "")
-    
-    try:
-        # Parse the content as JSON to get key information
-        key_data = json.loads(content)
-        key = key_data.get("key", "")
-        input_text = key_data.get("text", key)  # Use key as fallback for text
         
-        logger.info(f"Keyboard event received: {key} for block {block_id}")
-        
-        # If this is input for a Python block, send it to the Python shell
-        if input_text:
-            await handle_block_input({
-                "block_id": block_id,
-                "input": input_text
-            }, client)
-            
-        message = block_message_result_msg(todo_id, block_id, f"Processed key: {key}", message_id)
-        message["payload"]["processed"] = True
-        await client._send_response(message)
-    except Exception as error:
-        stack_trace = traceback.format_exc()
-        logger.error(f"Error processing key: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client._send_response(block_error_result_msg(block_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
-
-
-async def handle_block_signal(payload, client):
-    """Handle signal events (like SIGINT, SIGTERM)"""
-    block_id = payload.get("blockId")
-    edge_id = payload.get("edgeId", "")
-    todo_id = payload.get("todoId", "")
-    message_id = payload.get("messageId", "")
-    
-    try:
-        # Default to interrupt signal
-        signal_type = "interrupt"
-        
-        logger.info(f"Signal received: {signal_type} for block {block_id}")
-        
-        # Send interrupt to the Python shell
-        await handle_block_interrupt({
-            "todo_id": todo_id,
-            "request_id": message_id,
-            "block_id": block_id
-        }, client)
-        
-        await client._send_response(block_message_result_msg(todo_id, block_id, f"Processed signal: {signal_type}", message_id))
-    except Exception as error:
-        logger.error(f"Error processing signal: {str(error)}")
-        await client._send_response(block_error_result_msg(block_id, todo_id, str(error)))
 
 
 async def handle_block_save(payload, client):
