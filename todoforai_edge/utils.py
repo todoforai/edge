@@ -71,10 +71,14 @@ async def async_request(client, method, endpoint, data=None):
         
     # Make sure we're using the correct header for API key authentication
     headers = {
-        "Authorization": f"Bearer {client.api_key}",  # Try using Bearer authentication
-        "X-API-Key": client.api_key,                  # Also include X-API-Key as fallback
         "Content-Type": "application/json"
     }
+    
+    # Use Bearer auth for /token endpoints, X-API-Key for /api endpoints
+    if "/token/v1" in endpoint:
+        headers["authorization"] = f"Bearer {client.api_key}"
+    else:  # /api/ endpoints
+        headers["x-api-key"] = client.api_key
     
     url = f"{client.api_url}{endpoint}"
     
@@ -115,7 +119,7 @@ async def async_request(client, method, endpoint, data=None):
             return None
             
         if response.status_code >= 400:
-            logger.error(f"API request failed: {response.status_code} - {response.text}")
+            logger.error(f"API request failed: {response.status_code} - {response.text}  method: {method.lower()} url: {url}")
             return None
             
         return response
