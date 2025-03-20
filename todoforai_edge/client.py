@@ -174,14 +174,14 @@ class TODOforAIEdge:
             elif msg_type == FE.EDGE_CD:
                 await handle_todo_cd(payload, self)
                 
-            elif msg_type == FE.BLOCK_EXECUTE:
-                await handle_block_execute(payload, self)
-                
             elif msg_type == FE.BLOCK_SAVE:
                 await handle_block_save(payload, self)
                 
             elif msg_type == FE.BLOCK_REFRESH:
                 await handle_block_refresh(payload, self)
+                
+            elif msg_type == FE.BLOCK_EXECUTE:
+                await handle_block_execute(payload, self)
                 
             elif msg_type == FE.BLOCK_KEYBOARD:
                 await handle_block_keyboard(payload, self)
