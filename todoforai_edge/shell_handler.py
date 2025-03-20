@@ -7,15 +7,21 @@ import select
 import re
 import shlex
 import logging
+import psutil  # We'll need to add this dependency
 
 from typing import Dict, Any, Optional
 from .messages import block_message_result_msg, block_done_result_msg
 
 logger = logging.getLogger("todo4ai-client")
 
+# Make processes dictionary a global variable so it's shared across all instances
+_processes: Dict[str, subprocess.Popen] = {}
+
 class ShellProcess:
     def __init__(self):
-        self.processes: Dict[str, subprocess.Popen] = {}
+        # Use the global processes dictionary
+        global _processes
+        self.processes = _processes
         
     async def execute_block(self, block_id: str, content: str, client, todo_id: str, request_id: str, timeout: float):
         """Execute a shell command block and stream results back to client."""
@@ -31,7 +37,8 @@ class ShellProcess:
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
-                universal_newlines=True
+                universal_newlines=True,
+                preexec_fn=os.setsid  # Create a new process group for better signal handling
             )
             
             print(f"DEBUG: Process created with PID {process.pid}")
@@ -109,21 +116,34 @@ class ShellProcess:
             process = self.processes[block_id]
             print(f"DEBUG: Interrupting process for block {block_id}")
             try:
-                # Send interrupt signal
-                process.send_signal(signal.SIGINT)
+                # Send interrupt signal to the entire process group
+                # This ensures all child processes receive the signal
+                pgid = os.getpgid(process.pid)
+                print(f"DEBUG: Sending SIGINT to process group {pgid}")
+                os.killpg(pgid, signal.SIGINT)
+                
                 # Give it a moment to handle the signal
                 process.wait(timeout=1)
                 print(f"DEBUG: Process interrupted successfully")
             except subprocess.TimeoutExpired:
                 print(f"DEBUG: Process did not respond to interrupt, terminating")
-                # Force terminate if it doesn't respond to interrupt
-                process.terminate()
+                # Force terminate the entire process group
                 try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                     process.wait(timeout=1)
-                except subprocess.TimeoutExpired:
+                except (subprocess.TimeoutExpired, ProcessLookupError):
                     print(f"DEBUG: Process did not respond to terminate, killing")
                     # Kill as last resort
-                    process.kill()
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    except ProcessLookupError:
+                        print(f"DEBUG: Process already gone")
+            except ProcessLookupError:
+                print(f"DEBUG: Process already gone")
+            finally:
+                # Clean up the process entry
+                if block_id in self.processes:
+                    del self.processes[block_id]
     
     async def send_input(self, block_id: str, input_text: str):
         """Send input to a running process."""
@@ -158,7 +178,14 @@ class ShellProcess:
             
         except Exception as e:
             print(f"DEBUG: Error waiting for process: {str(e)}")
+            # Send completion message even on error
+            return_code = process.returncode if process.returncode is not None else -1
+            done_msg = block_done_result_msg(todo_id, request_id, block_id, "execute", return_code)
+            await client._send_response(done_msg)
         finally:
             # Clean up
             if block_id in self.processes:
                 del self.processes[block_id]
+
+
+
