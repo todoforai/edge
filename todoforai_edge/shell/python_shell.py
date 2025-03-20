@@ -89,7 +89,7 @@ class PythonShell:
             # Check if the process is still running
             if block_id not in self.processes:
                 break
-                
+                    
             # Try to read data
             try:
                 ready_to_read, _, _ = select.select([fd], [], [], 0)
@@ -97,6 +97,8 @@ class PythonShell:
                     chunk = stream.read(1024)  # Read a chunk of data
                     if not chunk:  # EOF
                         if buffer:  # Send any remaining data
+                            # Debug log to verify message is being sent
+                            print(f"Sending final buffer: {buffer}")
                             await client._send_response(block_message_result_msg(
                                 todo_id, block_id, buffer, request_id
                             ))
@@ -110,6 +112,8 @@ class PythonShell:
                     # If the buffer ends with a newline, the last element will be empty
                     # Otherwise, the last element is an incomplete line
                     for i, line in enumerate(lines[:-1]):
+                        # Debug log to verify message is being sent
+                        print(f"Sending line: {line}")
                         await client._send_response(block_message_result_msg(
                             todo_id, block_id, line + '\n', request_id
                         ))
@@ -121,6 +125,8 @@ class PythonShell:
                     if buffer and stream_type == "stdout":
                         # Check for common input prompt patterns
                         if re.search(r'input|enter|prompt|name|value|answer', buffer.lower()):
+                            # Debug log to verify message is being sent
+                            print(f"Sending prompt buffer: {buffer}")
                             await client._send_response(block_message_result_msg(
                                 todo_id, block_id, buffer, request_id
                             ))
@@ -128,6 +134,7 @@ class PythonShell:
             except (OSError, ValueError):
                 # Stream might be closed
                 break
+
     
     def interrupt_block(self, block_id: str):
         """Interrupt a running process."""
