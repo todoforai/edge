@@ -20,7 +20,6 @@ from .shell_handler import ShellProcess
 
 logger = logging.getLogger("todo4ai-client")
 
-
 # Handler functions for external use
 async def handle_block_execute(payload, client):
     """Handle code execution request"""
@@ -30,18 +29,15 @@ async def handle_block_execute(payload, client):
     todo_id = payload.get("todoId", "")
     print("handle_block_execute", payload)
     
-    # The content is already the shell script
-    code = content
-    
     # Send start message
     await client._send_response(block_start_result_msg(todo_id, block_id, "execute", message_id))
     
     try:
-        # Create a ShellProcess instance
         shell = ShellProcess()
         
-        # Execute the code block
-        await shell.execute_block(block_id, code, client, todo_id, message_id)
+        print(f"DEBUG: Executing shell block with content: {content[:100]}...")
+
+        await shell.execute_block(block_id, content, client, todo_id, message_id, 12)
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error executing command: {str(error)}\nStacktrace:\n{stack_trace}")
@@ -49,28 +45,40 @@ async def handle_block_execute(payload, client):
 
 
 async def handle_block_keyboard(payload, client):
-    """Handle input to a running block."""
-    block_id = payload.get("block_id", "")
+    print("""Handle keyboard events""")
+    block_id = payload.get("blockId")
     input_text = payload.get("content", "")
     
-    shell = ShellProcess()
-    success = await shell.send_input(block_id, input_text)
-    
-    return {"success": success}
+    try:
+        
+        logger.info(f"Keyboard event received: {input_text} for block {block_id}")
+        
+        shell = ShellProcess()
+        await shell.send_input(block_id, input_text)
+    except Exception as error:
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error processing key: {str(error)}\nStacktrace:\n{stack_trace}")
+        await client._send_response(block_error_result_msg(block_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 async def handle_block_signal(payload, client):
-    """Handle block interruption request."""
-    todo_id = payload.get("todo_id", "")
-    request_id = payload.get("request_id", "")
-    block_id = payload.get("block_id", "")
+    """Handle signal events (like SIGINT, SIGTERM)"""
+    print("""Handle signal events (like SIGINT, SIGTERM)""")
+    block_id = payload.get("blockId")
     
-    shell = ShellProcess()
-    shell.interrupt_block(block_id)
-    
-    await client._send_response(block_message_result_msg(
-        todo_id, block_id, "Process interrupted", request_id
-    ))
+    try:
+        # Default to interrupt signal
+        signal_type = "interrupt"
+        
+        logger.info(f"Signal received: {signal_type} for block {block_id}")
+        
+        # Send interrupt to the shell
+        shell = ShellProcess()
+        shell.interrupt_block(block_id)
+    except Exception as error:
+        logger.error(f"Error processing signal: {str(error)}")
+        await client._send_response(block_error_result_msg(block_id, str(error)))
+
 
 
 # Handler functions
