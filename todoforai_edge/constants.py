@@ -59,15 +59,17 @@ class Edge2Front:
     # Project responses
     EDGE_DIR_RESPONSE = 'edge:dir_response'
     EDGE_CD_RESPONSE = 'edge:cd_response'
-    
+
     # Block responses
-    BLOCK_MESSAGE_RESULT = 'block:message_result'
-    BLOCK_START_RESULT = 'block:start_result'
-    BLOCK_DONE_RESULT = 'block:done_result'
     BLOCK_SAVE_RESULT = 'block:save_result'
     BLOCK_ERROR_RESULT = 'block:error_result'
     BLOCK_META_RESULT = 'block:meta_result'
     BLOCK_DIFF_RESULT = 'block:diff_result'
+    
+    # Shell block responses (updated to match protocol)
+    BLOCK_SH_MSG_RESULT = 'block:sh_msg_result'
+    BLOCK_SH_MSG_START = 'block:sh_msg_start'
+    BLOCK_SH_DONE = 'block:sh_done'
 
 
 # Shorthand aliases

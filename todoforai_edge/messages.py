@@ -13,22 +13,24 @@ def edge_status_msg(edge_id, status):
 
 
 # Block message formatters
-def block_message_result_msg(todo_id, block_id, content):
+def block_message_result_msg(todo_id, block_id, content, message_id):
     return {
-        "type": EF.BLOCK_MESSAGE_RESULT,
+        "type": EF.BLOCK_SH_MSG_RESULT,  
         "payload": {
             "todoId": todo_id,
+            "messageId": message_id,
             "blockId": block_id,
             "content": content
         }
     }
 
 
-def block_start_result_msg(todo_id, block_id, mode):
+def block_start_result_msg(todo_id, block_id, mode, message_id):
     return {
-        "type": EF.BLOCK_START_RESULT,
+        "type": EF.BLOCK_SH_MSG_START,  
         "payload": {
             "todoId": todo_id,
+            "messageId": message_id,
             "blockId": block_id,
             "mode": mode
         }
@@ -37,7 +39,7 @@ def block_start_result_msg(todo_id, block_id, mode):
 
 def block_done_result_msg(todo_id, message_id, block_id, mode):
     return {
-        "type": EF.BLOCK_DONE_RESULT,
+        "type": EF.BLOCK_SH_DONE,  # Updated to match protocol
         "payload": {
             "todoId": todo_id,
             "messageId": message_id,

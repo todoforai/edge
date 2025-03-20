@@ -49,7 +49,7 @@ class PythonShell:
             return_code = await asyncio.get_event_loop().run_in_executor(None, process.wait)
             
             # Send completion message
-            await client._send_response(block_done_result_msg(todo_id, request_id, block_id, "execute", {"return_code": return_code}))
+            await client._send_response(block_done_result_msg(todo_id, request_id, block_id, "execute"))
             
         except asyncio.CancelledError:
             self.interrupt_block(block_id)
@@ -69,9 +69,8 @@ class PythonShell:
             self.interrupt_block(block_id)
             
             # Send timeout message
-            await client._send_response(block_done_result_msg(
-                todo_id, request_id, block_id, "execute", 
-                {"error": f"Execution timed out after {timeout} seconds", "status": "timeout"}
+            await client._send_response(block_message_result_msg(
+                todo_id, block_id, f"Execution timed out after {timeout} seconds", request_id
             ))
     
     async def _stream_output(self, stream, client, todo_id: str, request_id: str, block_id: str, stream_type: str):
@@ -98,7 +97,9 @@ class PythonShell:
                     chunk = stream.read(1024)  # Read a chunk of data
                     if not chunk:  # EOF
                         if buffer:  # Send any remaining data
-                            await client._send_response(block_output_msg(todo_id, request_id, block_id, stream_type, buffer))
+                            await client._send_response(block_message_result_msg(
+                                todo_id, block_id, buffer, request_id
+                            ))
                         break
                     
                     buffer += chunk
@@ -109,7 +110,9 @@ class PythonShell:
                     # If the buffer ends with a newline, the last element will be empty
                     # Otherwise, the last element is an incomplete line
                     for i, line in enumerate(lines[:-1]):
-                        await client._send_response(block_output_msg(todo_id, request_id, block_id, stream_type, line + '\n'))
+                        await client._send_response(block_message_result_msg(
+                            todo_id, block_id, line + '\n', request_id
+                        ))
                     
                     # Keep the last incomplete line in the buffer
                     buffer = lines[-1]
@@ -118,7 +121,9 @@ class PythonShell:
                     if buffer and stream_type == "stdout":
                         # Check for common input prompt patterns
                         if re.search(r'input|enter|prompt|name|value|answer', buffer.lower()):
-                            await client._send_response(block_output_msg(todo_id, request_id, block_id, "input_prompt", buffer))
+                            await client._send_response(block_message_result_msg(
+                                todo_id, block_id, buffer, request_id
+                            ))
                             buffer = ""  # Clear the buffer after sending
             except (OSError, ValueError):
                 # Stream might be closed
@@ -158,27 +163,8 @@ class PythonShell:
         return False
 
 
-# Helper functions to create response messages
-def block_output_msg(todo_id: str, request_id: str, block_id: str, stream_type: str, content: str):
-    return {
-        "type": "block_output",
-        "todo_id": todo_id,
-        "request_id": request_id,
-        "block_id": block_id,
-        "stream_type": stream_type,
-        "content": content
-    }
-
-
-def block_done_result_msg(todo_id: str, request_id: str, block_id: str, action: str, data: Optional[Dict[str, Any]] = None):
-    return {
-        "type": "block_done",
-        "todo_id": todo_id,
-        "request_id": request_id,
-        "block_id": block_id,
-        "action": action,
-        "data": data or {}
-    }
+# Import message formatters
+from ..messages import block_message_result_msg, block_done_result_msg
 
 
 # Example handler function
@@ -195,9 +181,8 @@ async def handle_block_execute(payload, client):
         await shell.execute_block(block_id, code, client, todo_id, request_id, timeout)
     except Exception as e:
         # Send error message
-        await client._send_response(block_done_result_msg(
-            todo_id, request_id, block_id, "execute", 
-            {"error": str(e), "status": "error"}
+        await client._send_response(block_message_result_msg(
+            todo_id, block_id, f"Error: {str(e)}", request_id
         ))
 
 
@@ -223,7 +208,6 @@ async def handle_block_interrupt(payload, client):
     shell = PythonShell()
     shell.interrupt_block(block_id)
     
-    await client._send_response(block_done_result_msg(
-        todo_id, request_id, block_id, "interrupt", 
-        {"status": "interrupted"}
+    await client._send_response(block_message_result_msg(
+        todo_id, block_id, "Process interrupted", request_id
     ))
