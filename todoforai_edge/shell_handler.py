@@ -88,27 +88,66 @@ class ShellProcess:
             await client._send_response(timeout_msg)
         else:
             print(f"DEBUG: Timeout reached but process already completed for block {block_id}")
-
+            
     async def _stream_output(self, stream, client, todo_id: str, request_id: str, block_id: str, stream_type: str):
         """Stream output from process to client."""
         print(f"DEBUG: Starting to stream {stream_type} for block {block_id}")
         
-        # Use run_in_executor to read from the stream without blocking the event loop
+        # Use non-blocking reads to get data as it becomes available
         while block_id in self.processes:
-            # Read a line using run_in_executor to avoid blocking
-            line = await asyncio.get_event_loop().run_in_executor(None, stream.readline)
-            
-            if not line:  # EOF
+            try:
+                # Check if data is available without blocking (shorter timeout for more responsiveness)
+                if select.select([stream], [], [], 0.05)[0]:
+                    # Read available data (smaller chunks for more responsiveness)
+                    data = os.read(stream.fileno(), 1024).decode('utf-8', errors='replace')
+                    
+                    if not data:  # EOF
+                        break
+                        
+                    print(f"DEBUG: Read data from {stream_type}: {data.rstrip()}")
+                    
+                    # Send the data immediately
+                    msg = block_message_result_msg(todo_id, block_id, data, request_id)
+                    await client._send_response(msg)
+                else:
+                    # Small sleep to prevent CPU spinning
+                    await asyncio.sleep(0.01)
+            except Exception as e:
+                print(f"DEBUG: Error reading from {stream_type}: {str(e)}")
                 break
-                
-            print(f"DEBUG: Read line from {stream_type}: {line.rstrip()}")
-            
-            # Send the line immediately
-            msg = block_message_result_msg(todo_id, block_id, line, request_id)
-            print(f"DEBUG: Sending message: {msg}")
-            await client._send_response(msg)
         
         print(f"DEBUG: Stream {stream_type} for block {block_id} finished")
+
+    async def send_input(self, block_id: str, input_text: str):
+        """Send input to a running process."""
+        print(f"DEBUG: Attempting to send input to block {block_id}: {input_text}")
+        if block_id in self.processes:
+            process = self.processes[block_id]
+            try:
+                if process.stdin and not process.stdin.closed:
+                    # Add newline if not present
+                    if not input_text.endswith('\n'):
+                        input_text += '\n'
+                        
+                    # Write to stdin
+                    print(f"DEBUG: Writing to stdin: {input_text}")
+                    process.stdin.write(input_text)
+                    process.stdin.flush()
+                    print(f"DEBUG: Input sent successfully")
+                    
+                    # Give the process a moment to process the input
+                    await asyncio.sleep(0.1)
+                    
+                    return True
+                else:
+                    print(f"DEBUG: Process stdin is closed or not available")
+            except Exception as e:
+                print(f"DEBUG: Error sending input to process: {str(e)}")
+        else:
+            print(f"DEBUG: Process not found for block {block_id}")
+        return False
+
+
     
     def interrupt_block(self, block_id: str):
         """Interrupt a running process."""
@@ -145,24 +184,6 @@ class ShellProcess:
                 if block_id in self.processes:
                     del self.processes[block_id]
     
-    async def send_input(self, block_id: str, input_text: str):
-        """Send input to a running process."""
-        print(f"DEBUG: Attempting to send input to block {block_id}: {input_text}")
-        if block_id in self.processes:
-            process = self.processes[block_id]
-            if process.stdin:
-                # Add newline if not present
-                if not input_text.endswith('\n'):
-                    input_text += '\n'
-                    
-                # Write to stdin
-                print(f"DEBUG: Writing to stdin: {input_text}")
-                process.stdin.write(input_text)
-                process.stdin.flush()
-                print(f"DEBUG: Input sent successfully")
-                return True
-        print(f"DEBUG: Failed to send input - process not found or stdin not available")
-        return False
 
     async def _wait_for_process(self, process, block_id, client, todo_id, request_id):
         """Wait for process to complete and send completion message."""
