@@ -22,8 +22,8 @@ class ShellProcess:
         logger.info(f"Executing shell block {block_id} with content: {content[:50]}...")
         print(f"DEBUG: Starting shell execution for block {block_id}")
         
-        # Create process with pipes for stdin/stdout/stderr
         try:
+            # Create process with pipes for stdin/stdout/stderr
             process = subprocess.Popen(
                 ['/bin/bash', '-c', content],  # Use bash to execute the shell commands
                 stdin=subprocess.PIPE,
@@ -39,34 +39,19 @@ class ShellProcess:
             # Store process for potential interruption
             self.processes[block_id] = process
             
-            # Set up tasks to read stdout and stderr
-            stdout_task = asyncio.create_task(self._stream_output(process.stdout, client, todo_id, request_id, block_id, "stdout"))
-            stderr_task = asyncio.create_task(self._stream_output(process.stderr, client, todo_id, request_id, block_id, "stderr"))
+            # Start tasks to read stdout and stderr - don't wait for them
+            asyncio.create_task(self._stream_output(process.stdout, client, todo_id, request_id, block_id, "stdout"))
+            asyncio.create_task(self._stream_output(process.stderr, client, todo_id, request_id, block_id, "stderr"))
             
-            # Set up timeout if specified
-            timeout_task = asyncio.create_task(self._handle_timeout(block_id, timeout, client, todo_id, request_id))
+            # Start timeout task - don't wait for it
+            asyncio.create_task(self._handle_timeout(block_id, timeout, client, todo_id, request_id))
             
-            # Wait for process to complete
-            try:
-                await asyncio.gather(stdout_task, stderr_task, timeout_task)
-                    
-                return_code = await asyncio.get_event_loop().run_in_executor(None, process.wait)
-                print(f"DEBUG: Process completed with return content {return_code}")
+            # Start a task to wait for process completion - don't wait for it
+            asyncio.create_task(self._wait_for_process(process, block_id, client, todo_id, request_id))
+            
+            # Return immediately without waiting for any tasks
+            return
                 
-                # Send completion message
-                done_msg = block_done_result_msg(todo_id, request_id, block_id, "execute", return_code)
-                print(f"DEBUG: Sending done message: {done_msg}")
-                await client._send_response(done_msg)
-                
-            except asyncio.CancelledError:
-                print(f"DEBUG: Process was cancelled for block {block_id}")
-                self.interrupt_block(block_id)
-                raise
-            finally:
-                # Clean up
-                if block_id in self.processes:
-                    del self.processes[block_id]
-                    
         except Exception as e:
             logger.error(f"Error creating process: {str(e)}")
             print(f"DEBUG: Error creating process: {str(e)}")
@@ -101,8 +86,11 @@ class ShellProcess:
         """Stream output from process to client."""
         print(f"DEBUG: Starting to stream {stream_type} for block {block_id}")
         
-        # Simplified approach: read line by line
-        for line in iter(stream.readline, ''):
+        # Use run_in_executor to read from the stream without blocking the event loop
+        while block_id in self.processes:
+            # Read a line using run_in_executor to avoid blocking
+            line = await asyncio.get_event_loop().run_in_executor(None, stream.readline)
+            
             if not line:  # EOF
                 break
                 
@@ -112,11 +100,6 @@ class ShellProcess:
             msg = block_message_result_msg(todo_id, block_id, line, request_id)
             print(f"DEBUG: Sending message: {msg}")
             await client._send_response(msg)
-            
-            # Check if the process is still running
-            if block_id not in self.processes:
-                print(f"DEBUG: Process no longer running for block {block_id}, exiting {stream_type} stream")
-                break
         
         print(f"DEBUG: Stream {stream_type} for block {block_id} finished")
     
@@ -160,3 +143,22 @@ class ShellProcess:
                 return True
         print(f"DEBUG: Failed to send input - process not found or stdin not available")
         return False
+
+    async def _wait_for_process(self, process, block_id, client, todo_id, request_id):
+        """Wait for process to complete and send completion message."""
+        try:
+            # Wait for process to complete
+            return_code = await asyncio.get_event_loop().run_in_executor(None, process.wait)
+            print(f"DEBUG: Process completed with return code {return_code}")
+            
+            # Send completion message
+            done_msg = block_done_result_msg(todo_id, request_id, block_id, "execute", return_code)
+            print(f"DEBUG: Sending done message: {done_msg}")
+            await client._send_response(done_msg)
+            
+        except Exception as e:
+            print(f"DEBUG: Error waiting for process: {str(e)}")
+        finally:
+            # Clean up
+            if block_id in self.processes:
+                del self.processes[block_id]

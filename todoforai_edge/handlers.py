@@ -37,7 +37,13 @@ async def handle_block_execute(payload, client):
         
         print(f"DEBUG: Executing shell block with content: {content[:100]}...")
 
-        await shell.execute_block(block_id, content, client, todo_id, message_id, 12)
+        # Start the execution in a separate task so we don't block
+        asyncio.create_task(
+            shell.execute_block(block_id, content, client, todo_id, message_id, 12)
+        )
+        
+        # Return immediately without waiting for the command to complete
+        return
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error executing command: {str(error)}\nStacktrace:\n{stack_trace}")

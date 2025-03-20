@@ -160,58 +160,61 @@ class TODOforAIEdge:
             if self.debug:
                 logger.info(f"Received message type: {msg_type}")
                 
+            # Create a task for each message handler so they run concurrently
+            # This ensures that one long-running handler doesn't block others
             if msg_type == SR.CONNECTED_EDGE:
                 self.edge_id = payload.get("edgeId", "")
                 self.user_id = payload.get("userId", "")
                 logger.info(f"Connected with edge ID: {self.edge_id} and user ID: {self.user_id}")
             
                 # Load edge configuration after connection
-                await self._load_edge_config()
+                asyncio.create_task(self._load_edge_config())
                 
             elif msg_type == FE.EDGE_DIR_LIST:
-                await handle_todo_dir_list(payload, self)
+                asyncio.create_task(handle_todo_dir_list(payload, self))
                 
             elif msg_type == FE.EDGE_CD:
-                await handle_todo_cd(payload, self)
+                asyncio.create_task(handle_todo_cd(payload, self))
                 
             elif msg_type == FE.BLOCK_SAVE:
-                await handle_block_save(payload, self)
+                asyncio.create_task(handle_block_save(payload, self))
                 
             elif msg_type == FE.BLOCK_REFRESH:
-                await handle_block_refresh(payload, self)
+                asyncio.create_task(handle_block_refresh(payload, self))
                 
             elif msg_type == FE.BLOCK_EXECUTE:
-                await handle_block_execute(payload, self)
+                asyncio.create_task(handle_block_execute(payload, self))
                 
             elif msg_type == FE.BLOCK_KEYBOARD:
-                await handle_block_keyboard(payload, self)
+                asyncio.create_task(handle_block_keyboard(payload, self))
                 
             elif msg_type == FE.BLOCK_SIGNAL:
-                await handle_block_signal(payload, self)
+                asyncio.create_task(handle_block_signal(payload, self))
                 
             elif msg_type == FE.BLOCK_DIFF:
-                await handle_block_diff(payload, self)
+                asyncio.create_task(handle_block_diff(payload, self))
                 
             elif msg_type == FE.TASK_ACTION_NEW:
-                await handle_task_action_new(payload, self)
+                asyncio.create_task(handle_task_action_new(payload, self))
                 
             elif msg_type == AE.CTX_JULIA_REQUEST:
-                await handle_ctx_julia_request(payload, self)
+                asyncio.create_task(handle_ctx_julia_request(payload, self))
                 
             elif msg_type == AE.CTX_WORKSPACE_REQUEST:
-                await handle_ctx_workspace_request(payload, self)
+                asyncio.create_task(handle_ctx_workspace_request(payload, self))
                 
             elif msg_type == AE.DIFF_FILE_REQUEST:
-                await handle_diff_file_request(payload, self)
+                asyncio.create_task(handle_diff_file_request(payload, self))
             
             elif msg_type == AE.FILE_CHUNK_REQUEST:
-                await handle_file_chunk_request(payload, self)
+                asyncio.create_task(handle_file_chunk_request(payload, self))
                 
             else:
                 logger.warning(f"Unknown message type: {msg_type}")
                 
         except Exception as error:
             logger.error(f"Error handling message: {str(error)}")
+
 
     async def _send_response(self, message):
         """Send a response to the server
