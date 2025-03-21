@@ -88,7 +88,7 @@ class ShellProcess:
         while block_id in self.processes:
             try:
                 # Check if data is available without blocking (shorter timeout for more responsiveness)
-                if select.select([stream], [], [], 0.05)[0]:
+                if select.select([stream], [], [], 0.3)[0]:
                     # Read available data (smaller chunks for more responsiveness)
                     data = os.read(stream.fileno(), 1024).decode('utf-8', errors='replace')
                     
