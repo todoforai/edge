@@ -4,7 +4,7 @@
     {
       "label": "TODO for AI edge",
       "type": "shell",
-      "command": "/bin/python3 todoforai_edge/cli.py --email lfg@todofor.ai --password Test123",
+      "command": "python3 todoforai_edge/cli.py --email lfg@todofor.ai --password Test123",
       "presentation": {
         "reveal": "always",
         "focus": false

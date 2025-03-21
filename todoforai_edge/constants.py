@@ -22,6 +22,7 @@ class Front2Edge:
     # Todo operations
     EDGE_CD = 'edge:cd'
     EDGE_DIR_LIST = 'edge:dir'
+    GET_FOLDERS = 'edge:get_folders'
 
     # Block operations
     BLOCK_REFRESH = 'block:refresh'
@@ -59,7 +60,8 @@ class Edge2Front:
     # Project responses
     EDGE_DIR_RESPONSE = 'edge:dir_response'
     EDGE_CD_RESPONSE = 'edge:cd_response'
-
+    EDGE_GET_FOLDERS_RESPONSE = 'edge:get_folders_response'
+    
     # Block responses
     BLOCK_SAVE_RESULT = 'block:save_result'
     BLOCK_ERROR_RESULT = 'block:error_result'

@@ -223,3 +223,16 @@ def file_chunk_result_msg(request_id, agent_id, path, content=None, error=None, 
         "type": EA.FILE_CHUNK_RESULT,
         "payload": payload
     }
+
+def get_folders_response_msg(request_id, edge_id, folders, files, error=None):
+    """Format a get folders response message"""
+    return {
+        "type": EF.EDGE_GET_FOLDERS_RESPONSE,
+        "payload": {
+            "requestId": request_id,
+            "edgeId": edge_id,
+            "folders": folders,
+            "files": files,
+            "error": error
+        }
+    }

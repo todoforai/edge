@@ -11,7 +11,7 @@ from .messages import (
     block_diff_result_msg, block_start_result_msg, block_done_result_msg,
     block_save_result_msg, task_action_update_msg, dir_list_response_msg,
     cd_response_msg, ctx_julia_result_msg, diff_file_result_msg,
-    file_chunk_result_msg
+    file_chunk_result_msg, get_folders_response_msg
 )
 from .workspace_handler import handle_ctx_workspace_request
 from .constants import Edge2Front as EF, Edge2Agent as EA
@@ -85,7 +85,52 @@ async def handle_block_signal(payload, client):
         logger.error(f"Error processing signal: {str(error)}")
         await client._send_response(block_error_result_msg(block_id, str(error)))
 
+async def handle_get_folders(payload, client):
+    """Handle request to get folders at depth 1 for a given path"""
+    request_id = payload.get("requestId")
+    edge_id = payload.get("edgeId")
+    path = payload.get("path", ".")
+    
+    try:
+        # Check if path is allowed
+        # if not is_path_allowed(path, client.config.workspacepaths):
+        #     raise PermissionError(f"Access to path '{path}' is not allowed")
+        
+        # Normalize path
+        target_path = Path(path).expanduser().resolve()
+        
+        # Check if path exists
+        if not target_path.exists():
+            raise FileNotFoundError(f"Path does not exist: {path}")
+        
+        # If path is a file, use its parent directory
+        if target_path.is_file():
+            target_path = target_path.parent
+        
+        # Get all folders at depth 1
+        folders = []
+        files = []
+        
+        for item in target_path.iterdir():
+            if item.is_dir():
+                folders.append(str(item))
+            else:
+                files.append(str(item))
+        
+        # Sort the lists for consistent output
+        folders.sort()
+        files.sort()
 
+        
+        # Send the response
+        await client._send_response(get_folders_response_msg(request_id, edge_id, folders, files))
+        
+    except Exception as error:
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error getting folders: {str(error)}\nStacktrace:\n{stack_trace}")
+        await client._send_response(get_folders_response_msg(
+            request_id, edge_id, [], [], f"{str(error)}\n\nStacktrace:\n{stack_trace}"
+        ))
 
 # Handler functions
 async def handle_todo_dir_list(payload, client):

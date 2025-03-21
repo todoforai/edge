@@ -38,7 +38,8 @@ from .handlers import (
     handle_ctx_julia_request,
     handle_ctx_workspace_request,
     handle_diff_file_request,
-    handle_file_chunk_request
+    handle_file_chunk_request,
+    handle_get_folders
 )
 
 class EdgeConfig:
@@ -208,6 +209,9 @@ class TODOforAIEdge:
             
             elif msg_type == AE.FILE_CHUNK_REQUEST:
                 asyncio.create_task(handle_file_chunk_request(payload, self))
+            
+            elif msg_type == FE.GET_FOLDERS:
+                asyncio.create_task(handle_get_folders(payload, self))
                 
             else:
                 logger.warning(f"Unknown message type: {msg_type}")
