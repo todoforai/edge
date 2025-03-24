@@ -24,7 +24,7 @@ def authenticate_and_get_api_key(email, password, api_url="http://localhost:4000
         
     data = response.json()
     print(f"Login response: {data}")
-    token = data.get("session").get("token")
+    token = data.get("token")
     print(f"Successfully authenticated, received token")
     
     # Get or create API key
