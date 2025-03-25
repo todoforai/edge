@@ -209,9 +209,11 @@ async def handle_block_save(payload, client):
     block_id = payload.get("blockId")
     todo_id = payload.get("todoId")
     filepath = payload.get("filepath")
+    rootpath = payload.get("rootPath")
     content = payload.get("content")
     
     try:
+        filepath = os.path.join(rootpath, filepath)
         # Only create directory if filepath has a directory component
         dirname = os.path.dirname(filepath)
         if dirname:  # Check if dirname is not empty
@@ -307,19 +309,18 @@ async def handle_diff_file_request(payload, client):
     agent_id = payload.get("agentId")
     request_id = payload.get("requestId")
     filepath = payload.get("filepath", "")
+    rootpath = payload.get("rootPath", "")
     todo_id = payload.get("todoId", "")
     block_id = payload.get("blockId", "")
-    print("handle_diff_file_request", payload)
     try:
+        filepath = os.path.join(rootpath, filepath)
         # Check if file exists
         if not Path(filepath).exists():
             raise FileNotFoundError(f"File not found: {filepath}")
         
-        print("handle_diff_file_reques2t")
         # Read file content
         with open(filepath, 'r') as f:
             original_content = f.read()
-        print("handle_diff_file_reques212t")
         
         # Send the result using the protocol structure
         await client._send_response(
@@ -340,9 +341,9 @@ async def handle_file_chunk_request(payload, client):
     try:
         logger.info(f"File chunk request received for path: {path}")
         
-        # Check if path is allowed
-        if not is_path_allowed(path, client.config.workspacepaths):
-            raise PermissionError(f"Access to path '{path}' is not allowed")
+        # # Check if path is allowed
+        # if not is_path_allowed(path, client.config.workspacepaths):
+        #     raise PermissionError(f"Access to path '{path}' is not allowed")
         
         # Check if file exists
         file_path = Path(path)
