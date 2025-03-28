@@ -18,6 +18,8 @@ DEFAULT_API_URL = "http://localhost:4000"
 ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
+
+
 class CustomMessageBox:
     def __init__(self, master, title, message, icon="info"):
         self.master = master
@@ -28,7 +30,7 @@ class CustomMessageBox:
         
         # Create content
         frame = ctk.CTkFrame(self.dialog, corner_radius=0)
-        frame.pack(fill="both", expand=True, padx=0, pady=0)
+        frame.pack(fill="both", expand=True)
         
         # Icon and title
         if icon == "error":
@@ -194,7 +196,7 @@ class ClientWindow:
         self.client_thread = None
         
         self.root.title("TodoForAI Edge - Client")
-        self.root.geometry("700x500")
+        self.root.geometry("800x600")  # Larger window
         self.create_widgets()
         
         # Log initial information
