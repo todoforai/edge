@@ -19,32 +19,65 @@ def main():
         print("Installing PyInstaller...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "PyInstaller"])
     
+    # Check if Azure theme files exist
+    azure_theme_path = Path("todoforai_edge/ui/Azure-ttk-theme/azure.tcl")
+    if not azure_theme_path.exists():
+        print(f"Warning: Azure theme file not found at {azure_theme_path}")
+        print("Checking alternative locations...")
+        
+        # Try to find the theme file in alternative locations
+        possible_paths = [
+            Path("todoforai_edge/ui/azure-ttk-theme/azure.tcl"),
+            Path("todoforai_edge/ui/Azure-ttk-theme/azure.tcl"),
+            Path("todoforai_edge/ui/azure.tcl")
+        ]
+        
+        found = False
+        for path in possible_paths:
+            if path.exists():
+                azure_theme_path = path
+                print(f"Found Azure theme at: {path}")
+                found = True
+                break
+        
+        if not found:
+            print("Azure theme file not found. The executable may not have proper styling.")
+    
     # Create a simple entry point script
     entry_point = "todoforai_executable.py"
     with open(entry_point, "w") as f:
         f.write("""#!/usr/bin/env python3
 import sys
-from todoforai_edge.cli import main
+from todoforai_edge.ui import run_ui
 
 if __name__ == "__main__":
-    sys.exit(main())
+    run_ui()
 """)
     
     # Create a custom spec file with more aggressive optimizations
     spec_file = "todoforai_edge_minimal.spec"
+    
+    # Determine the correct path for the Azure theme
+    theme_data = []
+    if azure_theme_path.exists():
+        theme_data = [(str(azure_theme_path), str(azure_theme_path.parent))]
+    
     with open(spec_file, "w") as f:
-        f.write("""# -*- mode: python ; coding: utf-8 -*-
+        f.write(f"""# -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
+
+# Include the Azure theme files
+datas = {theme_data}
 
 a = Analysis(
     ['todoforai_executable.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=datas,
     hiddenimports=[],
     hookspath=[],
-    hooksconfig={},
+    hooksconfig={{}},
     runtime_hooks=[],
     excludes=[
         'matplotlib', 'numpy', 'pandas', 'PIL', 'PyQt5', 
@@ -75,12 +108,13 @@ exe = EXE(
     upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,  # Changed to False for windowed application
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='todoforai_edge/ui/icon.ico' if os.path.exists('todoforai_edge/ui/icon.ico') else None,
 )
 """)
     

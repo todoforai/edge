@@ -35,13 +35,15 @@ async def async_main(args):
             return
             
         # Handle protocol URL if provided
+        api_key_from_url = None
         if args.protocol_url and args.protocol_url.startswith("todoforai://"):
             result = handle_protocol_url(args.protocol_url)
             if result and isinstance(result, dict):
                 if result.get("action") == "start_client":
                     # Override the API key with the one from the URL
                     if "api_key" in result:
-                        args.apikey = result["api_key"]
+                        api_key_from_url = result["api_key"]
+                        args.apikey = api_key_from_url
                     # Continue execution to start the client
                 else:
                     # Handle other actions if needed
@@ -50,7 +52,7 @@ async def async_main(args):
         # Always use the UI unless explicitly told not to
         if not args.no_ui:
             from todoforai_edge.ui import run_ui
-            run_ui()
+            run_ui(protocol_url=args.protocol_url, api_key=api_key_from_url or args.apikey)
             return
         
         api_key = args.apikey

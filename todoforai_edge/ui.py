@@ -8,6 +8,7 @@ from tkinter import ttk, messagebox, scrolledtext
 
 from .apikey import authenticate_and_get_api_key
 from .client import TODOforAIEdge
+from .protocol_handler import register_protocol_handler
 
 # Default API URL
 DEFAULT_API_URL = "http://localhost:4000"
@@ -48,6 +49,17 @@ class AuthWindow:
             
         # Hardwired password for testing
         self.password_entry.insert(0, "Test123")
+        
+        # Register protocol handler on startup
+        self.register_protocol()
+    
+    def register_protocol(self):
+        """Register the application as a protocol handler"""
+        try:
+            register_protocol_handler()
+            print("Protocol handler registered successfully")
+        except Exception as e:
+            print(f"Failed to register protocol handler: {e}")
     
     def create_widgets(self):
         # Main frame
@@ -259,7 +271,14 @@ class ClientWindow:
         self.client_running = False
 
 
-def run_ui():
+def run_ui(protocol_url=None, api_key=None):
+    """
+    Run the UI with optional protocol URL handling
+    
+    Args:
+        protocol_url: Optional URL to handle (todoforai://...)
+        api_key: Optional API key to use directly
+    """
     try:
         print("Starting TodoForAI Edge UI...")
         
@@ -268,16 +287,22 @@ def run_ui():
         root.title("TodoForAI Edge")
         
         # Try to apply a modern theme
-        theme_applied = False
-        
-        # Try Azure theme from local files
         theme_applied = setup_azure_theme(root)
         print(f"Azure theme applied: {theme_applied}")
-        # Create auth window
-        auth_window = AuthWindow(root)
         
-        # Start main loop
-        root.mainloop()
+        # If API key is provided, go directly to client window
+        if api_key:
+            root.destroy()  # Close the initial window
+            client_root = tk.Tk()
+            setup_azure_theme(client_root)
+            ClientWindow(client_root, api_key, DEFAULT_API_URL)
+            client_root.mainloop()
+        else:
+            # Create auth window
+            auth_window = AuthWindow(root)
+            
+            # Start main loop
+            root.mainloop()
     except Exception as e:
         print(f"Error starting UI: {str(e)}")
         import traceback
