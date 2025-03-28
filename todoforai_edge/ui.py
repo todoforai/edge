@@ -62,27 +62,7 @@ class CustomMessageBox:
             corner_radius=8
         )
         ok_button.pack(pady=(0, 10))
-        
-        # Center the dialog on the parent window
-        
-    def center_on_parent(self):
-        self.dialog.update_idletasks()
-        
-        # Get parent and dialog dimensions
-        parent_width = self.master.winfo_width()
-        parent_height = self.master.winfo_height()
-        parent_x = self.master.winfo_rootx()
-        parent_y = self.master.winfo_rooty()
-        
-        dialog_width = self.dialog.winfo_width()
-        dialog_height = self.dialog.winfo_height()
-        
-        # Calculate position
-        x = parent_x + (parent_width - dialog_width) // 2
-        y = parent_y + (parent_height - dialog_height) // 2
-        
-        # Set position
-        self.dialog.geometry(f"+{x}+{y}")
+
 
 class AuthWindow:
     def __init__(self, root):
@@ -96,6 +76,9 @@ class AuthWindow:
             self.email_entry.insert(0, os.environ.get("TODO4AI_EMAIL"))
         if os.environ.get("TODO4AI_API_KEY"):
             self.apikey_entry.insert(0, os.environ.get("TODO4AI_API_KEY"))
+            
+        # Hardwired password for testing
+        self.password_entry.insert(0, "")
     
     def create_widgets(self):
         # Main frame - set fg_color to "transparent" to match parent background
@@ -175,7 +158,7 @@ class AuthWindow:
         api_key = self.apikey_entry.get()
         
         if not api_key:
-            messagebox.showerror("Error", "API Key is required")
+            self.show_error("Error", "API Key is required")
             return
         
         self.root.destroy()
@@ -188,8 +171,6 @@ class AuthWindow:
 
 
 class ClientWindow:
-    def show_error(self, title, message):
-        CustomMessageBox(self.root, title, message, icon="error")
     def __init__(self, root, api_key, api_url):
         self.root = root
         self.api_key = api_key
