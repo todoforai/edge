@@ -2,83 +2,36 @@ import os
 import sys
 import threading
 import asyncio
-import customtkinter as ctk
-
-from .apikey import authenticate_and_get_api_key
-from .client import TODOforAIEdge
+import tkinter as tk
+from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox, scrolledtext
 
 from .apikey import authenticate_and_get_api_key
 from .client import TODOforAIEdge
 
 # Default API URL
-# DEFAULT_API_URL = "https://api.todofor.ai"
 DEFAULT_API_URL = "http://localhost:4000"
 
-# Set appearance mode and default color theme
-ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
-ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
-
-
-
-class CustomMessageBox:
-    def __init__(self, master, title, message, icon="info"):
-        self.master = master
-        self.dialog = ctk.CTkToplevel(master)
-        self.dialog.title(title)
-        self.dialog.geometry("600x500")
-        self.dialog.transient(master)
+def setup_azure_theme(root):
+    """Set up the Azure theme for Tkinter using local files"""
+    try:
+        # Path to the Azure theme file
+        azure_tcl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "Azure-ttk-theme", "azure.tcl")
         
-        # Create content
-        frame = ctk.CTkFrame(self.dialog, corner_radius=0)
-        frame.pack(fill="both", expand=True)
-        
-        # Icon and title
-        if icon == "error":
-            title_color = "#FF5555"  # Red for error
-        else:
-            title_color = None  # Default color
+        # Check if the file exists
+        if not os.path.exists(azure_tcl):
+            print(f"Azure theme file not found at: {azure_tcl}")
+            return False
             
-        ctk.CTkLabel(
-            frame, 
-            text=title, 
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color=title_color
-        ).pack(pady=(20, 15))
-        
-        # Message
-        message_label = ctk.CTkLabel(
-            frame, 
-            text=message,
-        )
-        message_label.pack(pady=(0, 20), padx=20, fill="both", expand=True)
-        
-        # OK button
-        ok_button = ctk.CTkButton(
-            frame, 
-            text="OK", 
-            command=self.dialog.destroy,
-            width=100,
-            corner_radius=8
-        )
-        ok_button.pack(pady=(0, 10))
-        
-        # Wait for the dialog to be visible before grabbing focus
-        self.dialog.update_idletasks()
-        
-        # Schedule grab_set after the window is visible
-        self.dialog.after(100, self._set_grab)
-        
-        # Print error to console as well
-        if icon == "error":
-            print(f"ERROR: {title} - {message}")
-    
-    def _set_grab(self):
-        try:
-            # Make dialog modal
-            self.dialog.focus_set()
-            self.dialog.grab_set()
-        except Exception as e:
-            print(f"Warning: Could not set dialog grab: {e}")
+        # Load the theme
+        root.tk.call("source", azure_tcl)
+        root.tk.call("set_theme", "dark")  # Use dark theme by default
+        print("Azure theme applied successfully")
+        return True
+    except Exception as e:
+        print(f"Failed to set up Azure theme: {e}")
+        return False
+
 
 class AuthWindow:
     def __init__(self, root):
@@ -97,48 +50,44 @@ class AuthWindow:
         self.password_entry.insert(0, "Test123")
     
     def create_widgets(self):
-        # Main frame - set fg_color to "transparent" to match parent background
-        main_frame = ctk.CTkFrame(self.root, fg_color="transparent", corner_radius=15)
-        main_frame.pack(fill="both", expand=True, padx=40, pady=40)
+        # Main frame
+        main_frame = ttk.Frame(self.root, padding=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
         
-        label = ctk.CTkLabel(
+        # Title label
+        label = ttk.Label(
             main_frame,
-            text="Connect your PC\n to TodoForAI",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            wraplength=300
+            text="Connect your PC to TodoForAI",
+            font=("Helvetica", 14, "bold")
         )
         label.pack(pady=(20, 20))
         
         # Email login section
-        ctk.CTkLabel(main_frame, text="Login with Email", font=ctk.CTkFont(size=16, weight="bold")).pack(anchor="w", pady=(10, 5))
-        self.email_entry = ctk.CTkEntry(main_frame, width=260, placeholder_text="Enter your email", corner_radius=16,
-                                       border_width=1, border_color="#555555")
+        ttk.Label(main_frame, text="Login with Email", font=("Helvetica", 12, "bold")).pack(anchor="w", pady=(10, 5))
+        self.email_entry = ttk.Entry(main_frame, width=40)
         self.email_entry.pack(fill="x", pady=(0, 10))
         
-        ctk.CTkLabel(main_frame, text="Password").pack(anchor="w")
-        self.password_entry = ctk.CTkEntry(main_frame, width=260, show="•", placeholder_text="Enter your password", 
-                                          corner_radius=16, border_width=1, border_color="#555555")
+        ttk.Label(main_frame, text="Password").pack(anchor="w")
+        self.password_entry = ttk.Entry(main_frame, width=40, show="•")
         self.password_entry.pack(fill="x", pady=(0, 10))
         
-        self.login_button = ctk.CTkButton(main_frame, text="Login", command=self.login, height=40, corner_radius=8)
+        self.login_button = ttk.Button(main_frame, text="Login", command=self.login)
         self.login_button.pack(pady=10)
         
         # Separator
-        separator = ctk.CTkFrame(main_frame, height=2)
-        separator.pack(fill="x", pady=15)
+        ttk.Separator(main_frame, orient="horizontal").pack(fill="x", pady=15)
         
         # API Key section
-        ctk.CTkLabel(main_frame, text="Connect with API Key", font=ctk.CTkFont(size=16, weight="bold")).pack(anchor="w", pady=(10, 5))
-        self.apikey_entry = ctk.CTkEntry(main_frame, width=260, placeholder_text="Enter your API key", 
-                                        corner_radius=16, border_width=1, border_color="#555555")
+        ttk.Label(main_frame, text="Connect with API Key", font=("Helvetica", 12, "bold")).pack(anchor="w", pady=(10, 5))
+        self.apikey_entry = ttk.Entry(main_frame, width=40)
         self.apikey_entry.pack(fill="x", pady=(0, 10))
         
-        self.connect_button = ctk.CTkButton(main_frame, text="Connect", command=self.connect_with_key, height=40, corner_radius=8)
+        self.connect_button = ttk.Button(main_frame, text="Connect", command=self.connect_with_key)
         self.connect_button.pack(pady=10)
-        
     
     def show_error(self, title, message):
-        CustomMessageBox(self.root, title, message, icon="error")
+        messagebox.showerror(title, message)
+        print(f"ERROR: {title} - {message}")
     
     def login(self):
         email = self.email_entry.get()
@@ -182,7 +131,9 @@ class AuthWindow:
         self.open_client_window(api_key)
     
     def open_client_window(self, api_key):
-        client_root = ctk.CTk()
+        client_root = tk.Tk()
+        # Apply Azure theme to the new window
+        setup_azure_theme(client_root)
         ClientWindow(client_root, api_key, DEFAULT_API_URL)
         client_root.mainloop()
 
@@ -196,7 +147,7 @@ class ClientWindow:
         self.client_thread = None
         
         self.root.title("TodoForAI Edge - Client")
-        self.root.geometry("800x600")  # Larger window
+        self.root.geometry("800x600")
         self.create_widgets()
         
         # Log initial information
@@ -207,68 +158,45 @@ class ClientWindow:
     
     def create_widgets(self):
         # Main frame
-        main_frame = ctk.CTkFrame(self.root, corner_radius=15)
-        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        main_frame = ttk.Frame(self.root, padding=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Header - centered title with status on right
-        header_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        header_frame.pack(fill="x", pady=(0, 10))
+        # Title
+        ttk.Label(main_frame, text="TodoForAI Edge", font=("Helvetica", 16, "bold")).pack(pady=(0, 10))
         
-        # Title in center
-        title_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
-        title_frame.pack(fill="x")
-        ctk.CTkLabel(title_frame, text="TodoForAI Edge", font=ctk.CTkFont(size=24, weight="bold"), 
-                    anchor="center").pack(pady=(0, 10))
-        
-        # Status on right
-        status_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        # Status
+        status_frame = ttk.Frame(main_frame)
         status_frame.pack(fill="x", pady=(0, 10))
         
-        ctk.CTkLabel(status_frame, text="Status:", anchor="e").pack(side="left", padx=(0, 5))
-        self.connection_status = ctk.CTkLabel(status_frame, text="Disconnected", text_color="red")
+        ttk.Label(status_frame, text="Status:").pack(side="left", padx=(0, 5))
+        self.connection_status = ttk.Label(status_frame, text="Disconnected", foreground="red")
         self.connection_status.pack(side="left")
         
-        # Log area with centered header
-        log_frame = ctk.CTkFrame(main_frame, corner_radius=12)
+        # Log area
+        log_frame = ttk.LabelFrame(main_frame, text="Client Log")
         log_frame.pack(fill="both", expand=True, pady=10)
         
-        ctk.CTkLabel(log_frame, text="Client Log", font=ctk.CTkFont(weight="bold"), 
-                    anchor="center").pack(pady=5)
+        # Create scrolled textbox
+        self.log_area = scrolledtext.ScrolledText(log_frame, height=15, font=("Courier", 10))
+        self.log_area.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Create textbox with lighter border
-        self.log_area = ctk.CTkTextbox(
-            log_frame, 
-            height=300, 
-            font=ctk.CTkFont(family="Courier", size=12), 
-            corner_radius=10,
-            border_width=1,
-            border_color="#CCCCCC"  # Light gray border color
-        )
-        self.log_area.pack(fill="both", expand=True, padx=10, pady=5)
-        
-        # Control buttons - centered
-        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        # Control buttons
+        button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill="x", pady=10)
         
-        # Center the buttons
-        button_center_frame = ctk.CTkFrame(button_frame, fg_color="transparent")
-        button_center_frame.pack(anchor="center")
-        
-        self.start_button = ctk.CTkButton(button_center_frame, text="Start Client", command=self.start_client, 
-                                         width=150, height=40, corner_radius=10)
+        self.start_button = ttk.Button(button_frame, text="Start Client", command=self.start_client)
         self.start_button.pack(side="left", padx=5)
         
-        self.stop_button = ctk.CTkButton(button_center_frame, text="Stop Client", command=self.stop_client, 
-                                        state="disabled", width=150, height=40, corner_radius=10)
-        self.stop_button.pack(side="left", padx=5)
+        self.stop_button = ttk.Button(button_frame, text="Stop Client", command=self.stop_client, state="disabled")
+        self.stop_button.pack(side="right", padx=5)
         
-        # Status bar - centered
-        self.status_label = ctk.CTkLabel(main_frame, text="Ready", anchor="center")
+        # Status bar
+        self.status_label = ttk.Label(main_frame, text="Ready")
         self.status_label.pack(pady=10)
     
     def log_message(self, message):
-        self.log_area.insert("end", f"{message}\n")
-        self.log_area.see("end")
+        self.log_area.insert(tk.END, f"{message}\n")
+        self.log_area.see(tk.END)
     
     def start_client(self):
         if not self.client_running:
@@ -297,7 +225,7 @@ class ClientWindow:
             # Note: We should have a proper way to stop the client
             
             self.status_label.configure(text="Client stopped")
-            self.connection_status.configure(text="Disconnected", text_color="red")
+            self.connection_status.configure(text="Disconnected", foreground="red")
             self.log_message("Client stopped")
     
     def run_client(self):
@@ -314,17 +242,18 @@ class ClientWindow:
             # Run the client
             loop.run_until_complete(client.start())
         except Exception as e:
-            self.root.after(0, lambda: self.client_error(str(e)))
+            error_message = str(e)
+            self.root.after(0, lambda: self.client_error(error_message))
     
     def client_connected(self):
         self.log_message("Client connected")
         self.status_label.configure(text="Client running")
-        self.connection_status.configure(text="Connected", text_color="green")
+        self.connection_status.configure(text="Connected", foreground="green")
     
     def client_error(self, error_msg):
         self.log_message(f"Error: {error_msg}")
         self.status_label.configure(text="Client error")
-        self.connection_status.configure(text="Error", text_color="red")
+        self.connection_status.configure(text="Error", foreground="red")
         self.start_button.configure(state="normal")
         self.stop_button.configure(state="disabled")
         self.client_running = False
@@ -332,13 +261,33 @@ class ClientWindow:
 
 def run_ui():
     try:
-        root = ctk.CTk()
+        print("Starting TodoForAI Edge UI...")
+        
+        # Create root window
+        root = tk.Tk()
+        root.title("TodoForAI Edge")
+        
+        # Try to apply a modern theme
+        theme_applied = False
+        
+        # Try Azure theme from local files
+        theme_applied = setup_azure_theme(root)
+        print(f"Azure theme applied: {theme_applied}")
+        # Create auth window
         auth_window = AuthWindow(root)
+        
+        # Start main loop
         root.mainloop()
     except Exception as e:
         print(f"Error starting UI: {str(e)}")
         import traceback
         traceback.print_exc()
+        
+        # Show error in a standard dialog
+        try:
+            messagebox.showerror("Error Starting UI", str(e))
+        except:
+            pass
 
 
 if __name__ == "__main__":
