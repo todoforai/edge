@@ -16,7 +16,7 @@ def setup_azure_theme(root):
     """Set up the Azure theme for Tkinter using local files"""
     try:
         # Path to the Azure theme file
-        azure_tcl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "Azure-ttk-theme", "azure.tcl")
+        azure_tcl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "azure-ttk-theme", "azure.tcl")
         
         # Check if the file exists
         if not os.path.exists(azure_tcl):
