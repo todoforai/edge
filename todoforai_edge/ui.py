@@ -11,7 +11,8 @@ from .apikey import authenticate_and_get_api_key
 from .client import TODOforAIEdge
 
 # Default API URL
-DEFAULT_API_URL = "https://api.todofor.ai"
+# DEFAULT_API_URL = "https://api.todofor.ai"
+DEFAULT_API_URL = "http://localhost:4000"
 
 # Set appearance mode and default color theme
 ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
@@ -22,12 +23,8 @@ class CustomMessageBox:
         self.master = master
         self.dialog = ctk.CTkToplevel(master)
         self.dialog.title(title)
-        self.dialog.geometry("400x200")
+        self.dialog.geometry("600x500")
         self.dialog.transient(master)
-        self.dialog.grab_set()
-        
-        # Make dialog modal
-        self.dialog.focus_set()
         
         # Create content
         frame = ctk.CTkFrame(self.dialog, corner_radius=0)
@@ -51,7 +48,7 @@ class CustomMessageBox:
             frame, 
             text=message,
         )
-        message_label.pack(pady=(0, 20), fill="both", expand=True)
+        message_label.pack(pady=(0, 20), padx=20, fill="both", expand=True)
         
         # OK button
         ok_button = ctk.CTkButton(
@@ -62,7 +59,24 @@ class CustomMessageBox:
             corner_radius=8
         )
         ok_button.pack(pady=(0, 10))
-
+        
+        # Wait for the dialog to be visible before grabbing focus
+        self.dialog.update_idletasks()
+        
+        # Schedule grab_set after the window is visible
+        self.dialog.after(100, self._set_grab)
+        
+        # Print error to console as well
+        if icon == "error":
+            print(f"ERROR: {title} - {message}")
+    
+    def _set_grab(self):
+        try:
+            # Make dialog modal
+            self.dialog.focus_set()
+            self.dialog.grab_set()
+        except Exception as e:
+            print(f"Warning: Could not set dialog grab: {e}")
 
 class AuthWindow:
     def __init__(self, root):
@@ -78,7 +92,7 @@ class AuthWindow:
             self.apikey_entry.insert(0, os.environ.get("TODO4AI_API_KEY"))
             
         # Hardwired password for testing
-        self.password_entry.insert(0, "")
+        self.password_entry.insert(0, "Test123")
     
     def create_widgets(self):
         # Main frame - set fg_color to "transparent" to match parent background
@@ -142,8 +156,9 @@ class AuthWindow:
         try:
             api_key = authenticate_and_get_api_key(email, password, DEFAULT_API_URL)
             self.root.after(0, lambda: self._auth_success(api_key))
-        except Exception as e:
-            self.root.after(0, lambda: self._auth_failed(str(e)))
+        except Exception as exc:
+            error_message = str(exc)
+            self.root.after(0, lambda: self._auth_failed(error_message))
     
     def _auth_success(self, api_key):
         self.login_button.configure(state="normal", text="Login")
