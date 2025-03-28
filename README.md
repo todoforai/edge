@@ -38,19 +38,33 @@ pip install -e .
 
 ## Usage
 
+### Graphical User Interface (Default)
+
+By default, Todo4AI Edge starts with a graphical user interface for easy authentication and monitoring:
+
+```bash
+# Simply run the client to start the UI
+todo4ai-client
+```
+
+The UI provides:
+- Authentication via email/password or API key
+- Client status monitoring
+- Start/stop controls for the client
+
 ### Command Line
 
-After installation, you can run the client from the command line:
+For automation or headless environments, you can run the client from the command line:
 
 ```bash
 # Using email/password authentication
-todo4ai-client --email your@email.com --password yourpassword
+todo4ai-client --no-ui --email your@email.com --password yourpassword
 
 # Using an existing API key
-todo4ai-client --api-key your-api-key
+todo4ai-client --no-ui --apikey your-api-key
 
 # Additional options
-todo4ai-client --url https://api.todofor.ai --debug
+todo4ai-client --no-ui --url https://api.todofor.ai --debug
 ```
 
 ### As a Library
@@ -169,6 +183,65 @@ pip install -e ".[dev]"
 ```bash
 pytest
 ```
+
+## URL Protocol Handler
+
+Todo4AI supports a custom URL protocol that allows you to start the client directly from a web browser. This is useful for authentication and quick access to the application.
+
+### Installation
+
+First, register the protocol handler:
+
+```bash
+todo4ai-client --register-protocol
+```
+
+This only needs to be done once per machine.
+
+### Usage
+
+You can use the following URL formats:
+
+1. Authenticate with an API key:
+   ```
+   todoforai://auth/apikey/YOUR_API_KEY_HERE
+   ```
+
+2. Start the client with saved credentials:
+   ```
+   todoforai://start
+   ```
+
+3. Open a specific file:
+   ```
+   todoforai://open/path/to/file
+   ```
+
+### Web Integration
+
+You can add links to your website that will launch the Todo4AI client:
+
+```html
+<a href="todoforai://auth/apikey/YOUR_API_KEY_HERE">Start Todo4AI Client</a>
+```
+
+For security reasons, you might want to generate these links dynamically with user-specific API keys.
+
+## Graphical User Interface
+
+Todo4AI Edge includes a simple graphical user interface for authentication and monitoring the client:
+
+```bash
+# Launch the client with the UI
+todo4ai-client --ui
+```
+
+The UI provides:
+- Authentication via email/password or API key
+- Client status monitoring
+- Start/stop controls for the client
+
+This is especially useful for users who prefer not to use the command line.
 
 ## License
 

@@ -23,6 +23,7 @@ def parse_args():
                         help="API key (if already authenticated)")
     parser.add_argument("--debug", action="store_true", default=True, help="Enable debug logging")
     parser.add_argument("--register-protocol", action="store_true", help="Register as protocol handler")
+    parser.add_argument("--no-ui", action="store_true", help="Run in command-line mode without UI")
     parser.add_argument("protocol_url", nargs="?", help="Protocol URL to handle (todoforai://...)")
     return parser.parse_args()
 
@@ -35,7 +36,21 @@ async def async_main(args):
             
         # Handle protocol URL if provided
         if args.protocol_url and args.protocol_url.startswith("todoforai://"):
-            handle_protocol_url(args.protocol_url)
+            result = handle_protocol_url(args.protocol_url)
+            if result and isinstance(result, dict):
+                if result.get("action") == "start_client":
+                    # Override the API key with the one from the URL
+                    if "api_key" in result:
+                        args.apikey = result["api_key"]
+                    # Continue execution to start the client
+                else:
+                    # Handle other actions if needed
+                    return
+        
+        # Always use the UI unless explicitly told not to
+        if not args.no_ui:
+            from todoforai_edge.ui import run_ui
+            run_ui()
             return
         
         api_key = args.apikey
@@ -45,6 +60,7 @@ async def async_main(args):
             if not args.email or not args.password:
                 print("Error: Email and password are required if no API key is provided")
                 print("Please provide credentials with --email and --password or set TODO4AI_EMAIL and TODO4AI_PASSWORD environment variables")
+                print("Alternatively, run without --no-ui to use the graphical interface")
                 sys.exit(1)
                 
             print(args.email, args.password)

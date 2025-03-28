@@ -47,7 +47,7 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        'tkinter', 'matplotlib', 'numpy', 'pandas', 'PIL', 'PyQt5', 
+        'matplotlib', 'numpy', 'pandas', 'PIL', 'PyQt5', 
         'PySide2', 'IPython', 'notebook', 'scipy', 'cryptography',
         'unittest', 'pydoc', 'doctest', 'pdb', 
         'pydoc_data', 'test', 'distutils', 'setuptools', 'curses', 
