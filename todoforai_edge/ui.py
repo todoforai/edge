@@ -5,6 +5,7 @@ import asyncio
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 from tkinter import ttk, messagebox, scrolledtext
+import argparse
 
 from .apikey import authenticate_and_get_api_key
 from .client import TODOforAIEdge
@@ -49,21 +50,26 @@ def setup_azure_theme(root):
 
 
 class AuthWindow:
-    def __init__(self, root):
+    def __init__(self, root, email="", password=""):
         self.root = root
         self.root.title("TodoForAI Edge - Login")
         self.root.geometry("400x600")
+        self.email = email
+        self.password = password
         self.create_widgets()
         
-        # Pre-fill from environment variables if available
-        if os.environ.get("TODO4AI_EMAIL"):
+        # Pre-fill from provided arguments or environment variables
+        if self.email:
+            self.email_entry.insert(0, self.email)
+        elif os.environ.get("TODO4AI_EMAIL"):
             self.email_entry.insert(0, os.environ.get("TODO4AI_EMAIL"))
+            
+        if self.password:
+            self.password_entry.insert(0, self.password)
+            
         if os.environ.get("TODO4AI_API_KEY"):
             self.apikey_entry.insert(0, os.environ.get("TODO4AI_API_KEY"))
             
-        # Hardwired password for testing
-        self.password_entry.insert(0, "Test123")
-        
         # Register protocol handler on startup
         self.register_protocol()
     
@@ -296,6 +302,12 @@ def run_ui(protocol_url=None, api_key=None):
     try:
         print("Starting TodoForAI Edge UI...")
         
+        # Parse command line arguments
+        parser = argparse.ArgumentParser(description="TodoForAI Edge Client UI")
+        parser.add_argument("--email", default="", help="Email for authentication")
+        parser.add_argument("--password", default="", help="Password for authentication")
+        args = parser.parse_args()
+        
         # Create root window
         root = tk.Tk()
         root.title("TodoForAI Edge")
@@ -313,7 +325,7 @@ def run_ui(protocol_url=None, api_key=None):
             client_root.mainloop()
         else:
             # Create auth window
-            auth_window = AuthWindow(root)
+            auth_window = AuthWindow(root, email=args.email, password=args.password)
             
             # Start main loop
             root.mainloop()
