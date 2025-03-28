@@ -7,12 +7,82 @@ import customtkinter as ctk
 from .apikey import authenticate_and_get_api_key
 from .client import TODOforAIEdge
 
+from .apikey import authenticate_and_get_api_key
+from .client import TODOforAIEdge
+
 # Default API URL
 DEFAULT_API_URL = "https://api.todofor.ai"
 
 # Set appearance mode and default color theme
 ctk.set_appearance_mode("System")  # Modes: "System" (standard), "Dark", "Light"
 ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
+
+class CustomMessageBox:
+    def __init__(self, master, title, message, icon="info"):
+        self.master = master
+        self.dialog = ctk.CTkToplevel(master)
+        self.dialog.title(title)
+        self.dialog.geometry("400x200")
+        self.dialog.transient(master)
+        self.dialog.grab_set()
+        
+        # Make dialog modal
+        self.dialog.focus_set()
+        
+        # Create content
+        frame = ctk.CTkFrame(self.dialog, corner_radius=0)
+        frame.pack(fill="both", expand=True, padx=0, pady=0)
+        
+        # Icon and title
+        if icon == "error":
+            title_color = "#FF5555"  # Red for error
+        else:
+            title_color = None  # Default color
+            
+        ctk.CTkLabel(
+            frame, 
+            text=title, 
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=title_color
+        ).pack(pady=(20, 15))
+        
+        # Message
+        message_label = ctk.CTkLabel(
+            frame, 
+            text=message,
+        )
+        message_label.pack(pady=(0, 20), fill="both", expand=True)
+        
+        # OK button
+        ok_button = ctk.CTkButton(
+            frame, 
+            text="OK", 
+            command=self.dialog.destroy,
+            width=100,
+            corner_radius=8
+        )
+        ok_button.pack(pady=(0, 10))
+        
+        # Center the dialog on the parent window
+        
+    def center_on_parent(self):
+        self.dialog.update_idletasks()
+        
+        # Get parent and dialog dimensions
+        parent_width = self.master.winfo_width()
+        parent_height = self.master.winfo_height()
+        parent_x = self.master.winfo_rootx()
+        parent_y = self.master.winfo_rooty()
+        
+        dialog_width = self.dialog.winfo_width()
+        dialog_height = self.dialog.winfo_height()
+        
+        # Calculate position
+        x = parent_x + (parent_width - dialog_width) // 2
+        y = parent_y + (parent_height - dialog_height) // 2
+        
+        # Set position
+        self.dialog.geometry(f"+{x}+{y}")
 
 class AuthWindow:
     def __init__(self, root):
@@ -68,16 +138,19 @@ class AuthWindow:
         self.connect_button.pack(pady=10)
         
     
+    def show_error(self, title, message):
+        CustomMessageBox(self.root, title, message, icon="error")
+    
     def login(self):
         email = self.email_entry.get()
         password = self.password_entry.get()
         
         if not email or not password:
-            ctk.CTkMessagebox(title="Error", message="Email and password are required", icon="cancel")
+            self.show_error("Error", "Email and password are required")
             return
         
-        self.status_label.configure(text="Authenticating...")
-        self.login_button.configure(state="disabled")
+        # Disable login button to prevent multiple attempts
+        self.login_button.configure(state="disabled", text="Authenticating...")
         
         # Run authentication in a separate thread
         threading.Thread(target=self._authenticate, args=(email, password), daemon=True).start()
@@ -90,21 +163,19 @@ class AuthWindow:
             self.root.after(0, lambda: self._auth_failed(str(e)))
     
     def _auth_success(self, api_key):
-        self.status_label.configure(text="Authentication successful")
-        self.login_button.configure(state="normal")
+        self.login_button.configure(state="normal", text="Login")
         self.root.destroy()
         self.open_client_window(api_key)
     
     def _auth_failed(self, error):
-        self.status_label.configure(text="Authentication failed")
-        self.login_button.configure(state="normal")
-        ctk.CTkMessagebox(title="Authentication Error", message=error, icon="cancel")
+        self.login_button.configure(state="normal", text="Login")
+        self.show_error("Authentication Error", error)
     
     def connect_with_key(self):
         api_key = self.apikey_entry.get()
         
         if not api_key:
-            ctk.CTkMessagebox(title="Error", message="API Key is required", icon="cancel")
+            messagebox.showerror("Error", "API Key is required")
             return
         
         self.root.destroy()
@@ -117,6 +188,8 @@ class AuthWindow:
 
 
 class ClientWindow:
+    def show_error(self, title, message):
+        CustomMessageBox(self.root, title, message, icon="error")
     def __init__(self, root, api_key, api_url):
         self.root = root
         self.api_key = api_key
