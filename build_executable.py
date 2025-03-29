@@ -19,29 +19,14 @@ def main():
         print("Installing PyInstaller...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "PyInstaller"])
     
-    # Check if Azure theme files exist
-    azure_theme_path = Path("todoforai_edge/ui/Azure-ttk-theme/azure.tcl")
-    if not azure_theme_path.exists():
-        print(f"Warning: Azure theme file not found at {azure_theme_path}")
-        print("Checking alternative locations...")
-        
-        # Try to find the theme file in alternative locations
-        possible_paths = [
-            Path("todoforai_edge/ui/azure-ttk-theme/azure.tcl"),
-            Path("todoforai_edge/ui/Azure-ttk-theme/azure.tcl"),
-            Path("todoforai_edge/ui/azure.tcl")
-        ]
-        
-        found = False
-        for path in possible_paths:
-            if path.exists():
-                azure_theme_path = path
-                print(f"Found Azure theme at: {path}")
-                found = True
-                break
-        
-        if not found:
-            print("Azure theme file not found. The executable may not have proper styling.")
+    # Find the Azure theme directory
+    theme_dir = Path("todoforai_edge/ui/")
+    
+    if theme_dir.exists() and theme_dir.is_dir():
+        print(f"Found Azure theme directory at: {theme_dir}")
+    
+    if not theme_dir:
+        print("Azure theme directory not found. The executable may not have proper styling.")
     
     # Create a simple entry point script
     entry_point = "todoforai_executable.py"
@@ -59,8 +44,11 @@ if __name__ == "__main__":
     
     # Determine the correct path for the Azure theme
     theme_data = []
-    if azure_theme_path.exists():
-        theme_data = [(str(azure_theme_path), str(azure_theme_path.parent))]
+    if theme_dir:
+        # Include the entire theme directory in the executable
+        # We need to make sure the theme directory is included with its full path structure
+        theme_data = [(str(theme_dir), str(theme_dir))]
+        print(f"Adding theme {theme_data}")
     
     with open(spec_file, "w") as f:
         f.write(f"""# -*- mode: python ; coding: utf-8 -*-
@@ -108,7 +96,7 @@ exe = EXE(
     upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,  # Changed to False for windowed application
+    console=True,  # Changed to True for debugging (you can change back to False later)
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

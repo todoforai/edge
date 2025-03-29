@@ -16,14 +16,27 @@ DEFAULT_API_URL = "http://localhost:4000"
 def setup_azure_theme(root):
     """Set up the Azure theme for Tkinter using local files"""
     try:
-        # Path to the Azure theme file
-        azure_tcl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "azure-ttk-theme", "azure.tcl")
+        # Determine the base directory based on whether we're running from a PyInstaller bundle
+        if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+            # Running as PyInstaller bundle
+            base_dir = sys._MEIPASS
+            print(f"Running from PyInstaller bundle, base dir: {base_dir}")
+            base_dir = os.path.join(base_dir, "todoforai_edge")
+        else:
+            # Running as a normal Python script
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            print(f"Running as script, base dir: {base_dir}")
         
-        # Check if the file exists
-        if not os.path.exists(azure_tcl):
-            print(f"Azure theme file not found at: {azure_tcl}")
+        # Check for theme file
+        azure_tcl = os.path.join("todoforai_edge/ui", "azure.tcl")
+        
+        print(f"Checking for theme at: {azure_tcl}")
+        if os.path.exists(azure_tcl):
+            print(f"Found Azure theme at: {azure_tcl}")
+        else:
+            print("Azure theme file not found")
             return False
-            
+
         # Load the theme
         root.tk.call("source", azure_tcl)
         root.tk.call("set_theme", "dark")  # Use dark theme by default
@@ -32,6 +45,7 @@ def setup_azure_theme(root):
     except Exception as e:
         print(f"Failed to set up Azure theme: {e}")
         return False
+
 
 
 class AuthWindow:

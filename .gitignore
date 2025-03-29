@@ -5,6 +5,7 @@ todo4ai_client/__pycache__/
 
 .vscode/settings.json
 
+build/
 ./build/
 ./dist/
 dist/
