@@ -5,7 +5,7 @@ from pathlib import Path
 from .messages import workspace_result_msg
 from .path_utils import is_path_allowed
 
-logger = logging.getLogger("todo4ai-client")
+logger = logging.getLogger("todoforai-edge")
 
 # Constants from the Julia code
 PROJECT_FILES = {

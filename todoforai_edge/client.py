@@ -15,14 +15,15 @@ from .constants import (
     SR, FE, EA, AE, EF
 )
 from .utils import generate_machine_fingerprint, async_request
+from .config import config  # Import the config module
 from .messages import edge_status_msg
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, config.log_level),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger("todo4ai-client")
+logger = logging.getLogger("todoforai-client")
 
 # Import handlers
 from .handlers import (
@@ -56,16 +57,16 @@ class EdgeConfig:
         self.created_at = data.get("createdAt", None)
 
 class TODOforAIEdge:
-    def __init__(self, api_url=None, api_key=None, debug=False):
-        self.api_url = api_url or os.environ.get("TODO4AI_API_URL", "http://localhost:4000")
+    def __init__(self, api_key=None):
+        self.api_url = config.api_url
         self.api_key = api_key or os.environ.get("TODO4AI_API_KEY", "")
-        self.debug = debug
+        self.debug = config.debug
         self.agent_id = ""
         self.user_id = ""
         self.edge_id = ""
         self.connected = False
         self.ws = None
-        self.ws_url = self._api_to_ws_url(self.api_url)
+        self.ws_url = config.get_ws_url(config.api_url)
         self.heartbeat_task = None
         self.config = EdgeConfig()
         self.fingerprint = generate_machine_fingerprint()

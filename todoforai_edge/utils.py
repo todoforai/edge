@@ -7,7 +7,7 @@ import asyncio
 import requests
 import logging
 
-logger = logging.getLogger("todo4ai-client")
+logger = logging.getLogger("todoforai-edge")
 
 def generate_machine_fingerprint():
     """Generate a unique fingerprint for this client"""
@@ -71,14 +71,11 @@ async def async_request(client, method, endpoint, data=None):
         
     # Make sure we're using the correct header for API key authentication
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "x-api-key": client.api_key
     }
     
     # Use Bearer auth for /token endpoints, X-API-Key for /api endpoints
-    if "/token/v1" in endpoint:
-        headers["authorization"] = f"Bearer {client.api_key}"
-    else:  # /api/ endpoints
-        headers["x-api-key"] = client.api_key
     
     url = f"{client.api_url}{endpoint}"
     

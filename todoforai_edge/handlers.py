@@ -18,7 +18,7 @@ from .constants import Edge2Front as EF, Edge2Agent as EA
 from .path_utils import is_path_allowed
 from .shell_handler import ShellProcess
 
-logger = logging.getLogger("todo4ai-client")
+logger = logging.getLogger("todoforai-edge")
 
 # Handler functions for external use
 async def handle_block_execute(payload, client):

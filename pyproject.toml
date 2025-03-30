@@ -3,12 +3,12 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "todo4ai-client"
-version = "0.1.0"
-description = "Python client for Todo4AI service"
+name = "todoforai-client"
+version = "0.9.2"
+description = "TODO for AI service client"
 readme = "README.md"
 authors = [
-    {name = "Todo4AI Team"}
+    {name = "TODO for AI Team"}
 ]
 license = {text = "MIT"}
 classifiers = [
@@ -24,7 +24,7 @@ dependencies = [
 
 [project.urls]
 "Homepage" = "https://todofor.ai"
-"Bug Tracker" = "https://github.com/todo4ai/todo4ai-client/issues"
+"Bug Tracker" = "https://github.com/todoforai/edge/issues"
 
 [project.scripts]
-todo4ai-client = "todo4ai_client.cli:main"
+todoforai-edge = "todoforai_edge.cli:main"

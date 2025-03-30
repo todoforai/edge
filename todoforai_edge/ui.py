@@ -10,9 +10,9 @@ import argparse
 from .apikey import authenticate_and_get_api_key
 from .client import TODOforAIEdge
 from .protocol_handler import register_protocol_handler
+from .config import config  # Import the config module
 
-# Default API URL
-DEFAULT_API_URL = "http://localhost:4000"
+# Default API URL from config
 
 def setup_azure_theme(root):
     """Set up the Azure theme for Tkinter using local files"""
@@ -137,7 +137,7 @@ class AuthWindow:
     
     def _authenticate(self, email, password):
         try:
-            api_key = authenticate_and_get_api_key(email, password, DEFAULT_API_URL)
+            api_key = authenticate_and_get_api_key(email, password)
             self.root.after(0, lambda: self._auth_success(api_key))
         except Exception as exc:
             error_message = str(exc)
@@ -166,15 +166,14 @@ class AuthWindow:
         client_root = tk.Tk()
         # Apply Azure theme to the new window
         setup_azure_theme(client_root)
-        ClientWindow(client_root, api_key, DEFAULT_API_URL)
+        ClientWindow(client_root, api_key)
         client_root.mainloop()
 
 
 class ClientWindow:
-    def __init__(self, root, api_key, api_url):
+    def __init__(self, root, api_key):
         self.root = root
         self.api_key = api_key
-        self.api_url = api_url
         self.client_running = False
         self.client_thread = None
         
@@ -184,7 +183,6 @@ class ClientWindow:
         
         # Log initial information
         self.log_message(f"TodoForAI Edge Client initialized")
-        self.log_message(f"API URL: {api_url}")
         self.log_message(f"API Key: {api_key[:5]}...{api_key[-5:] if len(api_key) > 10 else ''}")
         self.log_message("Click 'Start Client' to connect to the server")
     
@@ -266,7 +264,7 @@ class ClientWindow:
         
         try:
             # Create and start client
-            client = TODOforAIEdge(api_url=self.api_url, api_key=self.api_key, debug=True)
+            client = TODOforAIEdge(api_key=self.api_key, debug=True)
             
             # Update UI
             self.root.after(0, self.client_connected)
@@ -321,7 +319,7 @@ def run_ui(protocol_url=None, api_key=None):
             root.destroy()  # Close the initial window
             client_root = tk.Tk()
             setup_azure_theme(client_root)
-            ClientWindow(client_root, api_key, DEFAULT_API_URL)
+            ClientWindow(client_root, api_key)
             client_root.mainloop()
         else:
             # Create auth window

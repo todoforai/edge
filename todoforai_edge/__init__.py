@@ -1,5 +1,5 @@
 """
-Todo4AI Client - Python client for Todo4AI service
+TODO for AI Edge - Python client for TODO for AI service
 """
 
 from .client import TODOforAIEdge

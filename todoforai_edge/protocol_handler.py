@@ -67,7 +67,7 @@ MimeType=x-scheme-handler/{protocol_name};
 def handle_protocol_url(url):
     """Handle a protocol URL like todoforai://command/param1/param2"""
     if not url.startswith("todoforai://"):
-        return False
+        return False, None
         
     # Strip the protocol prefix
     path = url[len("todoforai://"):]
@@ -90,13 +90,6 @@ def handle_protocol_url(url):
             os.environ["TODO4AI_API_KEY"] = api_key
             print("API key set for this session")
             
-            return True
+            return True, {"api_key": api_key}
     
-    elif command == "open":
-        # Example: todoforai://open/file_path
-        if params:
-            file_path = '/'.join(params)
-            print(f"Opening file: {file_path}")
-            return True
-    
-    return False
+    return False, None

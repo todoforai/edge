@@ -9,7 +9,7 @@ from typing import Dict
 
 from .messages import block_message_result_msg, block_done_result_msg
 
-logger = logging.getLogger("todo4ai-client")
+logger = logging.getLogger("todoforai-edge")
 
 # Make processes dictionary a global variable so it's shared across all instances
 _processes: Dict[str, subprocess.Popen] = {}
