@@ -306,6 +306,10 @@ class TODOforAIEdge:
                 # Reset attempt counter
                 attempt = 0
                 
+                # Stop all file syncs when disconnected
+                from .file_sync import stop_all_syncs
+                await stop_all_syncs()
+                
                 # Wait before reconnecting
                 logger.info("Connection closed. Reconnecting in 4 seconds...")
                 await asyncio.sleep(4.0)
@@ -313,6 +317,10 @@ class TODOforAIEdge:
             except Exception as error:
                 logger.error(f"Connection error: {str(error)}")
                 attempt += 1
+                
+                # Stop all file syncs on error
+                from .file_sync import stop_all_syncs
+                await stop_all_syncs()
                 
                 if attempt < max_attempts:
                     delay = min(4 + attempt, 20.0)

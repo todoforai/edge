@@ -72,6 +72,9 @@ class Edge2Front:
     BLOCK_SH_MSG_RESULT = 'block:sh_msg_result'
     BLOCK_SH_MSG_START = 'block:sh_msg_start'
     BLOCK_SH_DONE = 'block:sh_done'
+    
+    WORKSPACE_FILE_SYNC = "workspace_file_sync"
+    WORKSPACE_FILE_DONE = "workspace_file_done"
 
 
 # Shorthand aliases
