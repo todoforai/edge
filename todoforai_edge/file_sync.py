@@ -96,33 +96,6 @@ class WorkspaceSyncManager:
         
         logger.info(f"Initialized file lists: {len(self.project_files)} project files to sync")
     
-    def should_sync_file(self, rel_path):
-        """Check if a file should be synced based on workspace filtering"""
-        # Check if the file is in our project files list
-        if rel_path in self.project_files:
-            return True
-        
-        # Check if the file is in a filtered directory
-        for filtered_dir in self.filtered_dirs:
-            if rel_path.startswith(filtered_dir):
-                return False
-        
-        # Check if the file is explicitly filtered
-        if rel_path in self.filtered_files:
-            return False
-        
-        # For files not explicitly included or excluded, check if it's a text file
-        try:
-            # Simple check - try to open as text
-            with open(os.path.join(self.workspace_dir, rel_path), 'r', encoding='utf-8', errors='replace') as f:
-                # Read a small sample to check if it looks like text
-                sample = f.read(1024)
-                if '\0' in sample:  # Binary files often contain null bytes
-                    return False
-                return True  # It's a text file we can read
-        except (UnicodeDecodeError, IOError):
-            return False  # Can't read as text or other error
-    
     async def start(self):
         """Start the file synchronization manager"""
         if self.is_running:
@@ -192,7 +165,6 @@ class WorkspaceSyncManager:
         
         logger.info(f"Initial sync complete for workspace: {self.workspace_dir}")
     
-  
     async def stop(self):
         """Stop the file synchronization manager"""
         if not self.is_running:
@@ -236,14 +208,14 @@ class WorkspaceSyncManager:
                     path = event["path"]
                     
                     # Skip files that shouldn't be synced
-                    if not self.should_sync_file(path):
+                    if path not in self.project_files:
                         logger.debug(f"Skipping {action} for non-project file: {path}")
                         continue
                     
                     logger.info(f"Processing {action} for {path}")
                     
                     if action in ("create", "modify"):
-                        await self.sync_file(path)
+                        await self.sync_file(action, path)
                     elif action == "delete":
                         await self.delete_file(path)
                         
@@ -272,7 +244,7 @@ class WorkspaceSyncManager:
                 hash_md5.update(chunk)
         return hash_md5.hexdigest()
     
-    async def sync_file(self, rel_path):
+    async def sync_file(self, action, rel_path):
         """Sync a file to the server"""
         file_path = os.path.join(self.workspace_dir, rel_path)
         
@@ -281,94 +253,77 @@ class WorkspaceSyncManager:
             if not os.path.exists(file_path):
                 logger.debug(f"File no longer exists: {file_path}")
                 return
+            
+            if action == "create" or action == "modify":
                 
-            # Get file stats
-            stats = os.stat(file_path)
-            current_size = stats.st_size
-            current_mtime = stats.st_mtime
+                # Get file stats
+                stats = os.stat(file_path)
+                current_size = stats.st_size
+                current_mtime = stats.st_mtime
+                
+                # Check if file has changed since last sync
+                if rel_path in self.file_cache:
+                    cached = self.file_cache[rel_path]
+                    if cached["mtime"] == current_mtime:
+                        logger.debug(f"File unchanged (same mtime and size): {rel_path}")
+                        return
             
-            # Check if file has changed since last sync
-            if rel_path in self.file_cache:
-                cached = self.file_cache[rel_path]
-                if cached["mtime"] == current_mtime and cached["size"] == current_size:
-                    logger.debug(f"File unchanged (same mtime and size): {rel_path}")
-                    return
-            
-            # Compute hash for the current file
-            current_hash = self.compute_file_hash(file_path)
-            
-            # Check if content has actually changed
-            if rel_path in self.file_cache and self.file_cache[rel_path]["hash"] == current_hash:
-                logger.debug(f"File unchanged (same hash): {rel_path}")
-                # Update metadata but don't sync
-                self.file_cache[rel_path].update({
+                    # Compute hash for the current file
+                    current_hash = await self.compute_file_hash(file_path)
+                    
+                    # Check if content has actually changed
+                    if (cached["hash"] == current_hash and cached["size"] == current_size):
+                        logger.debug(f"File unchanged (same hash): {rel_path}")
+                        # Update metadata but don't sync
+                        self.file_cache[rel_path].update({
+                            "mtime": current_mtime,
+                        })
+                        return
+                self.project_files.add(rel_path)
+                # Read file content
+                with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                    content = f.read()
+                
+                # Update cache
+                self.file_cache[rel_path] = {
                     "size": current_size,
-                    "mtime": current_mtime
-                })
-                return
-            
-            # Read file content
-            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-                content = f.read()
-            
-            # Update cache
-            self.file_cache[rel_path] = {
-                "size": current_size,
-                "mtime": current_mtime,
-                "hash": current_hash
-            }
-            
-            # Send file to server
-            await self.client._send_response({
-                "type": EF.WORKSPACE_FILE_SYNC,
-                "payload": {
-                    "action": "sync",
-                    "path": rel_path,
-                    "content": content,
-                    "edgeId": self.client.edge_id,
-                    "userId": self.client.user_id
+                    "mtime": current_mtime,
+                    "hash": current_hash
                 }
-            })
             
-            logger.info(f"Synced file: {rel_path} ({current_size} bytes)")
+                # Send file to server with appropriate message type
+                await self.client._send_response({
+                    "type": EF.WORKSPACE_FILE_CREATE_SYNC if action == "create" else EF.WORKSPACE_FILE_MODIFY_SYNC,
+                    "payload": {
+                        "path": rel_path,
+                        "content": content,
+                        "edgeId": self.client.edge_id,
+                        "userId": self.client.user_id
+                    }
+                })
+            elif action == "delete":
+                if rel_path in self.project_files:
+                    del self.file_cache[rel_path]
+                    self.project_files.remove(rel_path)          
+                    # Send delete notification
+                    await self.client._send_response({
+                        "type": EF.WORKSPACE_FILE_DELETE_SYNC,
+                        "payload": {
+                            "path": rel_path,
+                            "edgeId": self.client.edge_id,
+                            "userId": self.client.user_id
+                        }
+                    })
+
+            
+            logger.info(f"Synced file: {action} {rel_path} ({current_size} bytes)")
             
         except UnicodeDecodeError:
             # Skip binary files
             logger.warning(f"Skipping binary file: {rel_path}")
         except Exception as e:
             logger.error(f"Error syncing file {rel_path}: {str(e)}")
-    
-    async def delete_file(self, rel_path):
-        """Notify server about deleted file"""
-        try:
-            # Only notify about deletion if it was a project file we were tracking
-            if rel_path not in self.project_files and not self.should_sync_file(rel_path):
-                logger.debug(f"Ignoring deletion of non-project file: {rel_path}")
-                return
-                
-            # Remove from cache
-            if rel_path in self.file_cache:
-                del self.file_cache[rel_path]
-            
-            # Remove from project files if present
-            if rel_path in self.project_files:
-                self.project_files.remove(rel_path)
-            
-            # Send delete notification
-            await self.client._send_response({
-                "type": EF.WORKSPACE_FILE_SYNC,
-                "payload": {
-                    "action": "delete",
-                    "path": rel_path,
-                    "edgeId": self.client.edge_id,
-                    "userId": self.client.user_id
-                }
-            })
-            
-            logger.info(f"Notified server of deleted file: {rel_path}")
-            
-        except Exception as e:
-            logger.error(f"Error notifying server of deleted file {rel_path}: {str(e)}")
+
 
 # Function to start syncing a workspace
 async def start_workspace_sync(client, workspace_dir):
@@ -407,5 +362,6 @@ async def stop_all_syncs():
     for workspace_dir, sync_manager in list(active_sync_managers.items()):
         await sync_manager.stop()
     
-    logger.info(f"Stopped all workspace syncs")
+    logger.info("Stopped all workspace syncs")
+
 

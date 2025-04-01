@@ -323,7 +323,7 @@ def run_ui(protocol_url=None, api_key=None):
             client_root.mainloop()
         else:
             # Create auth window
-            auth_window = AuthWindow(root, email=args.email, password=args.password)
+            AuthWindow(root, email=args.email, password=args.password)
             
             # Start main loop
             root.mainloop()
