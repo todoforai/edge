@@ -264,7 +264,7 @@ class ClientWindow:
         
         try:
             # Create and start client
-            client = TODOforAIEdge(api_key=self.api_key, debug=True)
+            client = TODOforAIEdge(api_key=self.api_key, )
             
             # Update UI
             self.root.after(0, self.client_connected)
