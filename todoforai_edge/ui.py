@@ -193,8 +193,13 @@ class ClientWindow:
         main_frame = ttk.Frame(self.root, padding=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Title
-        ttk.Label(main_frame, text="TodoForAI Edge", font=("Helvetica", 16, "bold")).pack(pady=(0, 10))
+        # Title and logout button in the same row
+        title_frame = ttk.Frame(main_frame)
+        title_frame.pack(fill="x", pady=(0, 10))
+        
+        ttk.Label(title_frame, text="TodoForAI Edge", font=("Helvetica", 16, "bold")).pack(side="left")
+        self.logout_button = ttk.Button(title_frame, text="Logout", command=self.logout)
+        self.logout_button.pack(side="right")
         
         # Status
         status_frame = ttk.Frame(main_frame)
@@ -225,6 +230,7 @@ class ClientWindow:
         # Status bar
         self.status_label = ttk.Label(main_frame, text="Ready")
         self.status_label.pack(pady=10)
+
     
     def log_message(self, message):
         self.log_area.insert(tk.END, f"{message}\n")
@@ -289,6 +295,23 @@ class ClientWindow:
         self.start_button.configure(state="normal")
         self.stop_button.configure(state="disabled")
         self.client_running = False
+        
+    def logout(self):
+        """Logout and return to login screen"""
+        if self.client_running:
+            # Stop the client first
+            self.stop_client()
+        
+        self.log_message("Logging out...")
+        
+        # Close current window and open login window
+        self.root.destroy()
+        
+        # Create new login window
+        login_root = tk.Tk()
+        setup_azure_theme(login_root)
+        AuthWindow(login_root)
+        login_root.mainloop()
 
 
 def run_ui(protocol_url=None, api_key=None):
