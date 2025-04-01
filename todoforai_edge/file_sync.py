@@ -3,11 +3,13 @@ import hashlib
 import asyncio
 import logging
 import time
+import queue
+import threading
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-from .constants import Edge2Front as EFA
+from .constants import Edge2FrontAgent as EFA
 from .workspace_handler import get_filtered_files_and_folders
 
 logger = logging.getLogger("todoforai-edge-sync")
@@ -38,6 +40,7 @@ class FileChangeHandler(FileSystemEventHandler):
             return
         self.queue_change("delete", event.src_path)
     
+    
     def _debounced_queue(self, action, path):
         """Queue a change with debouncing to avoid multiple events for the same file"""
         current_time = time.time()
@@ -55,13 +58,11 @@ class FileChangeHandler(FileSystemEventHandler):
         """Queue a file change for processing"""
         rel_path = os.path.relpath(path, self.sync_manager.workspace_dir)
         
-        asyncio.run_coroutine_threadsafe(
-            self.sync_manager.sync_queue.put({
-                "action": action,
-                "path": rel_path,
-            }),
-            asyncio.get_event_loop()
-        )
+        # Use the thread-safe queue instead of directly interacting with asyncio
+        self.sync_manager.thread_queue.put({
+            "action": action,
+            "path": rel_path,
+        })
 
 class WorkspaceSyncManager:
     """Manages synchronization of workspace files with the server"""
@@ -70,10 +71,13 @@ class WorkspaceSyncManager:
         self.client = client
         self.workspace_dir = os.path.abspath(workspace_dir)
         self.sync_queue = asyncio.Queue()
+        self.thread_queue = queue.Queue()  # Thread-safe queue for file events
         self.observer = None
         self.sync_task = None
+        self.queue_task = None  # Task to process the thread queue
         self.is_running = False
         self.file_cache = {}  # Cache of file metadata and content hashes
+        
         
         # Track which files we should sync
         self.project_files = set()
@@ -115,6 +119,9 @@ class WorkspaceSyncManager:
         # Start sync processor
         self.sync_task = asyncio.create_task(self.process_sync_queue())
         
+        # Start thread queue processor
+        self.queue_task = asyncio.create_task(self.process_thread_queue())
+        
         logger.info(f"Started workspace sync for {self.workspace_dir}")
         
         # Initial sync of all project files
@@ -144,8 +151,27 @@ class WorkspaceSyncManager:
         
         # Send completion signal
         await self._send_sync_complete_signal()
-
         
+    async def process_thread_queue(self):
+        """Process the thread queue and move items to the asyncio queue"""
+        while self.is_running:
+            try:
+                # Check if there are items in the thread queue
+                try:
+                    # Non-blocking get with timeout
+                    event = self.thread_queue.get(block=True, timeout=0.5)
+                    # Put the event in the asyncio queue
+                    await self.sync_queue.put(event)
+                    self.thread_queue.task_done()
+                except queue.Empty:
+                    # No items in queue, just continue
+                    await asyncio.sleep(0.1)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error processing thread queue: {str(e)}")
+                await asyncio.sleep(1)  # Prevent tight loop on error
+    
     async def _send_sync_complete_signal(self):
         """Send a signal that sync is complete for this workspace"""
         if self.initial_sync_complete:
@@ -186,6 +212,14 @@ class WorkspaceSyncManager:
             except asyncio.CancelledError:
                 pass
             self.sync_task = None
+            
+        if self.queue_task:
+            self.queue_task.cancel()
+            try:
+                await self.queue_task
+            except asyncio.CancelledError:
+                pass
+            self.queue_task = None
             
         logger.info(f"Stopped workspace sync for {self.workspace_dir}")
         
@@ -269,7 +303,7 @@ class WorkspaceSyncManager:
                         return
             
                     # Compute hash for the current file
-                    current_hash = await self.compute_file_hash(file_path)
+                    current_hash = self.compute_file_hash(file_path)
                     
                     # Check if content has actually changed
                     if (cached["hash"] == current_hash and cached["size"] == current_size):
@@ -279,6 +313,8 @@ class WorkspaceSyncManager:
                             "mtime": current_mtime,
                         })
                         return
+                    
+                current_hash = self.compute_file_hash(file_path)
                 self.project_files.add(rel_path)
                 # Read file content
                 with open(file_path, "r", encoding="utf-8", errors="replace") as f:
