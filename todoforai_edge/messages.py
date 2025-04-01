@@ -155,21 +155,6 @@ def ctx_julia_result_msg(todo_id, message_id, filepaths=None, contents=None, err
     }
 
 
-def ctx_workspace_result_msg(todo_id, message_id, content=None, error=None):
-    payload = {
-        "todoId": todo_id,
-        "messageId": message_id
-    }
-    if content:
-        payload["content"] = content
-    if error:
-        payload["error"] = error
-    
-    return {
-        "type": EA.CTX_WORKSPACE_RESULT,
-        "payload": payload
-    }
-
 
 # Updated workspace result message to match the new interface
 def workspace_result_msg(request_id, user_id, agent_id, project_files, filtered_files, filtered_dirs):

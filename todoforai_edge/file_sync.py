@@ -7,7 +7,7 @@ import time
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-from .constants import Edge2Front as EF
+from .constants import Edge2Front as EFA
 from .workspace_handler import get_filtered_files_and_folders
 
 logger = logging.getLogger("todoforai-edge-sync")
@@ -155,7 +155,7 @@ class WorkspaceSyncManager:
         
         # Send completion signal to server
         await self.client._send_response({
-            "type": EF.WORKSPACE_FILE_DONE,
+            "type": EFA.WORKSPACE_FILE_DONE,
             "payload": {
                 "path": self.workspace_dir,
                 "edgeId": self.client.edge_id,
@@ -293,7 +293,7 @@ class WorkspaceSyncManager:
             
                 # Send file to server with appropriate message type
                 await self.client._send_response({
-                    "type": EF.WORKSPACE_FILE_CREATE_SYNC if action == "create" else EF.WORKSPACE_FILE_MODIFY_SYNC,
+                    "type": EFA.WORKSPACE_FILE_CREATE_SYNC if action == "create" else EFA.WORKSPACE_FILE_MODIFY_SYNC,
                     "payload": {
                         "path": rel_path,
                         "content": content,
@@ -307,7 +307,7 @@ class WorkspaceSyncManager:
                     self.project_files.remove(rel_path)          
                     # Send delete notification
                     await self.client._send_response({
-                        "type": EF.WORKSPACE_FILE_DELETE_SYNC,
+                        "type": EFA.WORKSPACE_FILE_DELETE_SYNC,
                         "payload": {
                             "path": rel_path,
                             "edgeId": self.client.edge_id,

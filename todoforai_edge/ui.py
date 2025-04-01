@@ -147,26 +147,28 @@ class AuthWindow:
         self.login_button.configure(state="normal", text="Login")
         self.root.destroy()
         self.open_client_window(api_key)
-    
+
     def _auth_failed(self, error):
         self.login_button.configure(state="normal", text="Login")
         self.show_error("Authentication Error", error)
-    
+
     def connect_with_key(self):
         api_key = self.apikey_entry.get()
-        
+
         if not api_key:
             self.show_error("Error", "API Key is required")
             return
-        
+
         self.root.destroy()
         self.open_client_window(api_key)
-    
+
     def open_client_window(self, api_key):
         client_root = tk.Tk()
         # Apply Azure theme to the new window
         setup_azure_theme(client_root)
-        ClientWindow(client_root, api_key)
+        client_window = ClientWindow(client_root, api_key)
+        # Automatically start the client after window is created
+        client_root.after(200, client_window.start_client)
         client_root.mainloop()
 
 

@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# Try to load .env file from current directory
+load_dotenv()
 
 # Default configuration values
 DEFAULT_API_URL = "https://api.todofor.ai"

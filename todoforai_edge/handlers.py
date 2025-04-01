@@ -13,7 +13,6 @@ from .messages import (
     cd_response_msg, ctx_julia_result_msg,
     file_chunk_result_msg, get_folders_response_msg
 )
-from .workspace_handler import handle_ctx_workspace_request
 from .constants import Edge2Front as EF, Edge2Agent as EA
 from .path_utils import is_path_allowed
 from .shell_handler import ShellProcess
@@ -338,7 +337,7 @@ async def handle_file_chunk_request(payload, client):
         )
         
     except Exception as error:
-        logger.error(f"Error processing file chunk request: {str(error)}")
+        logger.error(f"Error processing file chunk request: {str(error)}, path: {path}")
         # Send error response using the message formatter
         await client._send_response(
             file_chunk_result_msg(request_id, agent_id, path, error=str(error), success=False)

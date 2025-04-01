@@ -71,12 +71,12 @@ class Edge2Front:
     BLOCK_SH_MSG_START = 'block:sh_msg_start'
     BLOCK_SH_DONE = 'block:sh_done'
     
-    WORKSPACE_FILE_SYNC = "workspace_file_sync"
-    WORKSPACE_FILE_DONE = "workspace_file_done"
     
+class Edge2FrontAgent:
     WORKSPACE_FILE_CREATE_SYNC = "workspace:file_create_sync"
     WORKSPACE_FILE_MODIFY_SYNC = "workspace:file_modify_sync"
     WORKSPACE_FILE_DELETE_SYNC = "workspace:file_delete_sync"
+    WORKSPACE_FILE_DONE = "workspace:file_done"
 
 
 # Shorthand aliases
@@ -84,4 +84,5 @@ AE = Agent2Edge
 FE = Front2Edge
 EA = Edge2Agent
 EF = Edge2Front
+EFA = Edge2FrontAgent
 SR = ServerResponse

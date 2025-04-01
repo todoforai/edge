@@ -37,10 +37,10 @@ from .handlers import (
     handle_block_diff,
     handle_task_action_new,
     handle_ctx_julia_request,
-    handle_ctx_workspace_request,
     handle_file_chunk_request,
     handle_get_folders
 )
+from .workspace_handler import handle_ctx_workspace_request
 
 class EdgeConfig:
     """Edge configuration class"""
