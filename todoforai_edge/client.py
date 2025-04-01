@@ -93,11 +93,26 @@ class TODOforAIEdge:
             # Update edge status to ONLINE
             await self._update_edge_status(EdgeStatus.ONLINE)
             
+            # Start file syncing for all workspace paths
+            if self.config.workspacepaths:
+                await self._start_workspace_syncs()
+            
             return True
             
         except Exception as e:
             logger.error(f"Error loading edge configuration: {str(e)}")
             return False
+
+    async def _start_workspace_syncs(self):
+        """Start file synchronization for all workspace paths"""
+        from .file_sync import start_workspace_sync
+        
+        for workspace_path in self.config.workspacepaths:
+            try:
+                logger.info(f"Starting file sync for workspace: {workspace_path}")
+                await start_workspace_sync(self, workspace_path)
+            except Exception as e:
+                logger.error(f"Failed to start file sync for {workspace_path}: {str(e)}")
 
     async def _update_edge_status(self, status):
         """Update edge status in the API"""
