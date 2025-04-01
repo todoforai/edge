@@ -308,7 +308,43 @@ def run_ui(protocol_url=None, api_key=None):
         parser.add_argument("--password", default="", help="Password for authentication")
         args = parser.parse_args()
         
-        # Create root window
+        # Helper function to start client window
+        def start_client_window(api_key):
+            client_root = tk.Tk()
+            setup_azure_theme(client_root)
+            client_window = ClientWindow(client_root, api_key)
+            client_root.after(200, client_window.start_client)
+            client_root.mainloop()
+        
+        # Check if we can auto-login with environment variables or API key
+        env_email = os.environ.get("TODO4AI_EMAIL", "")
+        env_password = os.environ.get("TODO4AI_PASSWORD", "")
+        env_api_key = os.environ.get("TODO4AI_API_KEY", "")
+        
+        # If API key is provided directly, use it
+        if api_key:
+            print("Using provided API key")
+            start_client_window(api_key)
+            return
+            
+        # If environment has API key, use it
+        if env_api_key:
+            print("Using API key from environment")
+            start_client_window(env_api_key)
+            return
+            
+        # If environment has both email and password, auto-login
+        if env_email and env_password:
+            print(f"Auto-logging in with email from environment: {env_email}")
+            try:
+                api_key = authenticate_and_get_api_key(env_email, env_password)
+                start_client_window(api_key)
+                return
+            except Exception as e:
+                print(f"Auto-login failed: {str(e)}")
+                # Fall back to showing the login UI
+        
+        # Create root window for login UI
         root = tk.Tk()
         root.title("TodoForAI Edge")
         
@@ -316,19 +352,11 @@ def run_ui(protocol_url=None, api_key=None):
         theme_applied = setup_azure_theme(root)
         print(f"Azure theme applied: {theme_applied}")
         
-        # If API key is provided, go directly to client window
-        if api_key:
-            root.destroy()  # Close the initial window
-            client_root = tk.Tk()
-            setup_azure_theme(client_root)
-            ClientWindow(client_root, api_key)
-            client_root.mainloop()
-        else:
-            # Create auth window
-            AuthWindow(root, email=args.email, password=args.password)
-            
-            # Start main loop
-            root.mainloop()
+        # Create auth window
+        AuthWindow(root, email=args.email or env_email, password=args.password or env_password)
+        
+        # Start main loop
+        root.mainloop()
     except Exception as e:
         print(f"Error starting UI: {str(e)}")
         import traceback
