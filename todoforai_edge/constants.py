@@ -78,7 +78,6 @@ class Edge2FrontAgent:
     WORKSPACE_FILE_DELETE_SYNC = "workspace:file_delete_sync"
     WORKSPACE_FILE_DONE = "workspace:file_done"
 
-
 # Shorthand aliases
 AE = Agent2Edge
 FE = Front2Edge
