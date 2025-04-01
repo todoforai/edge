@@ -38,7 +38,6 @@ from .handlers import (
     handle_task_action_new,
     handle_ctx_julia_request,
     handle_ctx_workspace_request,
-    handle_diff_file_request,
     handle_file_chunk_request,
     handle_get_folders
 )
@@ -205,9 +204,6 @@ class TODOforAIEdge:
             elif msg_type == AE.CTX_WORKSPACE_REQUEST:
                 asyncio.create_task(handle_ctx_workspace_request(payload, self))
                 
-            elif msg_type == AE.DIFF_FILE_REQUEST:
-                asyncio.create_task(handle_diff_file_request(payload, self))
-            
             elif msg_type == AE.FILE_CHUNK_REQUEST:
                 asyncio.create_task(handle_file_chunk_request(payload, self))
             

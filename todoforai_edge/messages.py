@@ -185,26 +185,6 @@ def workspace_result_msg(request_id, user_id, agent_id, project_files, filtered_
         }
     }
 
-
-def diff_file_result_msg(request_id, agent_id, todo_id, block_id, filepath, original_content=None, error=None):
-    payload = {
-        "requestId": request_id,
-        "agentId": agent_id,
-        "todoId": todo_id,
-        "blockId": block_id,
-        "filepath": filepath
-    }
-    if original_content:
-        payload["originalContent"] = original_content
-    if error:
-        payload["error"] = error
-    
-    return {
-        "type": EA.DIFF_FILE_RESULT,
-        "payload": payload
-    }
-
-
 def file_chunk_result_msg(request_id, agent_id, path, content=None, error=None, success=True):
     payload = {
         "requestId": request_id,

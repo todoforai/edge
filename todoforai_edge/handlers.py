@@ -10,7 +10,7 @@ from .messages import (
     edge_status_msg, block_message_result_msg, block_error_result_msg, 
     block_diff_result_msg, block_start_result_msg, block_done_result_msg,
     block_save_result_msg, task_action_update_msg, dir_list_response_msg,
-    cd_response_msg, ctx_julia_result_msg, diff_file_result_msg,
+    cd_response_msg, ctx_julia_result_msg,
     file_chunk_result_msg, get_folders_response_msg
 )
 from .workspace_handler import handle_ctx_workspace_request
@@ -302,35 +302,6 @@ async def handle_ctx_julia_request(payload, client):
         stack_trace = traceback.format_exc()
         logger.error(f"Error processing Julia request: {str(error)}\nStacktrace:\n{stack_trace}")
         await client._send_response(ctx_julia_result_msg(todo_id, request_id, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
-
-
-async def handle_diff_file_request(payload, client):
-    """Handle file diff request"""
-    agent_id = payload.get("agentId")
-    request_id = payload.get("requestId")
-    filepath = payload.get("filepath", "")
-    rootpath = payload.get("rootPath", "")
-    todo_id = payload.get("todoId", "")
-    block_id = payload.get("blockId", "")
-    try:
-        filepath = os.path.join(rootpath, filepath)
-        # Check if file exists
-        if not Path(filepath).exists():
-            raise FileNotFoundError(f"File not found: {filepath}")
-        
-        # Read file content
-        with open(filepath, 'r') as f:
-            original_content = f.read()
-        
-        # Send the result using the protocol structure
-        await client._send_response(
-            diff_file_result_msg(request_id, agent_id, todo_id, block_id, filepath, original_content)
-        )
-        print("SUCCESSSt")
-    except Exception as error:
-        stack_trace = traceback.format_exc()
-        logger.error(f"Error generating file diff: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client._send_response(diff_file_result_msg(agent_id, todo_id, block_id, filepath, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 async def handle_file_chunk_request(payload, client):
     """Handle file chunk request - reads a file and returns its content"""

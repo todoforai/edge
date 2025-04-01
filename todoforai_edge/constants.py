@@ -37,7 +37,6 @@ class Front2Edge:
 class Agent2Edge:
     CTX_JULIA_REQUEST = 'ctx:julia_request'
     CTX_WORKSPACE_REQUEST = 'ctx:workspace_request'
-    DIFF_FILE_REQUEST = 'diff:file_request'
     FILE_CHUNK_REQUEST = 'file:chunk_request'
 
 
@@ -45,7 +44,6 @@ class Agent2Edge:
 class Edge2Agent:
     CTX_JULIA_RESULT = 'ctx:julia_result'
     CTX_WORKSPACE_RESULT = 'ctx:workspace_result'
-    DIFF_FILE_RESULT = 'diff:file_result'
     FILE_CHUNK_RESULT = 'file:chunk_result'
 
 
