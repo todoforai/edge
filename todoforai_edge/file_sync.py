@@ -137,18 +137,17 @@ class WorkspaceSyncManager:
         # Reset sync flag
         self.initial_sync_complete = False
         
-        # Queue each project file for syncing
-        for rel_path in self.project_files:
-            await self.sync_queue.put({
-                "action": "create",
-                "path": rel_path
-            })
+        # Create tasks for parallel syncing of all files
+        sync_tasks = []
+        for abs_path in self.project_files_abs:
+            sync_tasks.append(asyncio.create_task(self.sync_file("create", abs_path)))
         
-        logger.info(f"Queued {len(self.project_files)} files for initial sync")
+        logger.info(f"Started parallel sync of {len(self.project_files_abs)} files")
         
-        # Wait for the queue to be processed
-        await self.sync_queue.join()
-        
+        # Wait for all sync tasks to complete
+        if sync_tasks:
+            await asyncio.gather(*sync_tasks)
+    
         # Send completion signal
         await self._send_sync_complete_signal()
         
