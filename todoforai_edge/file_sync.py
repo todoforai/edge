@@ -56,12 +56,12 @@ class FileChangeHandler(FileSystemEventHandler):
     
     def queue_change(self, action, path):
         """Queue a file change for processing"""
-        rel_path = os.path.relpath(path, self.sync_manager.workspace_dir)
+        abs_path = os.path.abspath(path)
         
         # Use the thread-safe queue instead of directly interacting with asyncio
         self.sync_manager.thread_queue.put({
             "action": action,
-            "path": rel_path,
+            "abs_path": abs_path,
         })
 
 class WorkspaceSyncManager:
@@ -80,9 +80,9 @@ class WorkspaceSyncManager:
         
         
         # Track which files we should sync
-        self.project_files = set()
-        self.filtered_files = set()
-        self.filtered_dirs = set()
+        self.project_files_abs = set()
+        self.filtered_files_abs = set()
+        self.filtered_dirs_abs = set()
         
         # Track initial sync progress
         self.initial_sync_complete = False
@@ -93,12 +93,12 @@ class WorkspaceSyncManager:
         # Use the workspace handler to get filtered files and folders
         project_files, filtered_files, filtered_dirs = get_filtered_files_and_folders(self.workspace_dir)
         
-        # Convert to sets of relative paths for easier lookup
-        self.project_files = {os.path.relpath(f, self.workspace_dir) for f in project_files}
-        self.filtered_files = {os.path.relpath(f, self.workspace_dir) for f in filtered_files}
-        self.filtered_dirs = {os.path.relpath(f, self.workspace_dir) for f in filtered_dirs}
+        # Store as sets of absolute paths for easier lookup
+        self.project_files_abs = set(project_files)
+        self.filtered_files_abs = set(filtered_files)
+        self.filtered_dirs_abs = set(filtered_dirs)
         
-        logger.info(f"Initialized file lists: {len(self.project_files)} project files to sync")
+        logger.info(f"Initialized file lists: {len(self.project_files_abs)} project files to sync")
     
     async def start(self):
         """Start the file synchronization manager"""
@@ -238,28 +238,25 @@ class WorkspaceSyncManager:
                 
                 try:
                     action = event["action"]
-                    path = event["path"]
+                    abs_path = event["abs_path"]
                     
                     # Skip files that shouldn't be synced
-                    if path not in self.project_files:
-                        logger.debug(f"Skipping {action} for non-project file: {path}")
+                    if abs_path not in self.project_files_abs:
+                        logger.debug(f"Skipping {action} for non-project file: {abs_path}")
                         continue
                     
-                    logger.info(f"Processing {action} for {path}")
+                    logger.info(f"Processing {action} for {abs_path}")
                     
                     if action in ("create", "modify"):
-                        await self.sync_file(action, path)
+                        await self.sync_file(action, abs_path)
                     elif action == "delete":
-                        await self.delete_file(path)
+                        await self.delete_file(abs_path)
+                    else:
+                        logger.warning(f"Unhandled action type '{action}' for file: {abs_path}")
                         
                 except Exception as e:
                     logger.error(f"Error processing file: {str(e)}")
                     
-                    # If this was part of initial sync, update counter even on error
-                    if event.get("is_initial_sync", False):
-                        self.initial_sync_processed += 1
-                        if self.initial_sync_processed >= self.initial_sync_total:
-                            await self._send_sync_complete_signal()
                 finally:
                     self.sync_queue.task_done()
                     
@@ -277,50 +274,48 @@ class WorkspaceSyncManager:
                 hash_md5.update(chunk)
         return hash_md5.hexdigest()
     
-    async def sync_file(self, action, rel_path):
+    async def sync_file(self, action, abs_path):
         """Sync a file to the server"""
-        file_path = os.path.join(self.workspace_dir, rel_path)
-        
         try:
             # Check if file still exists
-            if not os.path.exists(file_path):
-                logger.debug(f"File no longer exists: {file_path}")
+            if not os.path.exists(abs_path):
+                logger.debug(f"File no longer exists: {abs_path}")
                 return
             
             if action == "create" or action == "modify":
                 
                 # Get file stats
-                stats = os.stat(file_path)
+                stats = os.stat(abs_path)
                 current_size = stats.st_size
                 current_mtime = stats.st_mtime
                 
                 # Check if file has changed since last sync
-                if rel_path in self.file_cache:
-                    cached = self.file_cache[rel_path]
+                if abs_path in self.file_cache:
+                    cached = self.file_cache[abs_path]
                     if cached["mtime"] == current_mtime:
-                        logger.debug(f"File unchanged (same mtime and size): {rel_path}")
+                        logger.debug(f"File unchanged (same mtime and size): {abs_path}")
                         return
             
                     # Compute hash for the current file
-                    current_hash = self.compute_file_hash(file_path)
+                    current_hash = self.compute_file_hash(abs_path)
                     
                     # Check if content has actually changed
                     if (cached["hash"] == current_hash and cached["size"] == current_size):
-                        logger.debug(f"File unchanged (same hash): {rel_path}")
+                        logger.debug(f"File unchanged (same hash): {abs_path}")
                         # Update metadata but don't sync
-                        self.file_cache[rel_path].update({
+                        self.file_cache[abs_path].update({
                             "mtime": current_mtime,
                         })
                         return
                     
-                current_hash = self.compute_file_hash(file_path)
-                self.project_files.add(rel_path)
+                current_hash = self.compute_file_hash(abs_path)
+                self.project_files_abs.add(abs_path)
                 # Read file content
-                with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
                 
                 # Update cache
-                self.file_cache[rel_path] = {
+                self.file_cache[abs_path] = {
                     "size": current_size,
                     "mtime": current_mtime,
                     "hash": current_hash
@@ -330,34 +325,37 @@ class WorkspaceSyncManager:
                 await self.client._send_response({
                     "type": EFA.WORKSPACE_FILE_CREATE_SYNC if action == "create" else EFA.WORKSPACE_FILE_MODIFY_SYNC,
                     "payload": {
-                        "path": rel_path,
+                        "path": abs_path,
                         "content": content,
                         "edgeId": self.client.edge_id,
                         "userId": self.client.user_id
                     }
                 })
-            elif action == "delete":
-                if rel_path in self.project_files:
-                    del self.file_cache[rel_path]
-                    self.project_files.remove(rel_path)          
-                    # Send delete notification
-                    await self.client._send_response({
-                        "type": EFA.WORKSPACE_FILE_DELETE_SYNC,
-                        "payload": {
-                            "path": rel_path,
-                            "edgeId": self.client.edge_id,
-                            "userId": self.client.user_id
-                        }
-                    })
-
             
-            logger.info(f"Synced file: {action} {rel_path} ({current_size} bytes)")
+                logger.info(f"Synced file: {action} {abs_path} ({current_size} bytes)")
             
         except UnicodeDecodeError:
             # Skip binary files
-            logger.warning(f"Skipping binary file: {rel_path}")
+            logger.warning(f"Skipping binary file: {abs_path}")
         except Exception as e:
-            logger.error(f"Error syncing file {rel_path}: {str(e)}")
+            logger.error(f"Error syncing file {abs_path}: {str(e)}")
+
+    async def delete_file(self, abs_path):
+        """Handle deletion of a file"""
+        if abs_path in self.project_files_abs:
+            if abs_path in self.file_cache:
+                del self.file_cache[abs_path]
+            self.project_files_abs.remove(abs_path)
+            # Send delete notification
+            await self.client._send_response({
+                "type": EFA.WORKSPACE_FILE_DELETE_SYNC,
+                "payload": {
+                    "path": abs_path,
+                    "edgeId": self.client.edge_id,
+                    "userId": self.client.user_id
+                }
+            })
+            logger.info(f"Deleted file: {abs_path}")
 
 
 # Function to start syncing a workspace
@@ -398,5 +396,3 @@ async def stop_all_syncs():
         await sync_manager.stop()
     
     logger.info("Stopped all workspace syncs")
-
-
