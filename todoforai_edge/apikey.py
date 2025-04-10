@@ -47,7 +47,7 @@ def authenticate_and_get_api_key(email, password):
             raise Exception(f"Failed to create API key: {response.text}")
             
         data = response.json()
-        api_key = data.get("key")
+        api_key = data.get("id")
         print(f"API Key: {api_key}")
         return api_key
     else:
@@ -55,7 +55,7 @@ def authenticate_and_get_api_key(email, password):
             raise Exception(f"Failed to get API key: {response.text}")
             
         data = response.json()
-        api_key = data.get("key")
+        api_key = data.get("id")
         print(f"API Key: {api_key}")
         return api_key
 
