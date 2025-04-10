@@ -4,8 +4,8 @@ import threading
 import asyncio
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
-from tkinter import ttk, messagebox, scrolledtext
 import argparse
+import queue
 
 from .apikey import authenticate_and_get_api_key
 from .client import TODOforAIEdge
@@ -145,12 +145,8 @@ class AuthWindow:
     
     def _auth_success(self, api_key):
         self.login_button.configure(state="normal", text="Login")
-        self.root.destroy()
-        self.open_client_window(api_key)
-
-    def _auth_failed(self, error):
-        self.login_button.configure(state="normal", text="Login")
-        self.show_error("Authentication Error", error)
+        # Transform this window into client window instead of creating a new one
+        self.transform_to_client_window(api_key)
 
     def connect_with_key(self):
         api_key = self.apikey_entry.get()
@@ -159,17 +155,24 @@ class AuthWindow:
             self.show_error("Error", "API Key is required")
             return
 
-        self.root.destroy()
-        self.open_client_window(api_key)
+        # Transform this window into client window
+        self.transform_to_client_window(api_key)
 
-    def open_client_window(self, api_key):
-        client_root = tk.Tk()
-        # Apply Azure theme to the new window
-        setup_azure_theme(client_root)
-        client_window = ClientWindow(client_root, api_key)
-        # Automatically start the client after window is created
-        client_root.after(200, client_window.start_client)
-        client_root.mainloop()
+    def transform_to_client_window(self, api_key):
+        """Transform the login window into a client window"""
+        # Clear all widgets from the root window
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        
+        # Resize the window
+        self.root.geometry("800x600")
+        self.root.title("TodoForAI Edge - Client")
+        
+        # Create client window in the same root
+        client_window = ClientWindow(self.root, api_key)
+        
+        # Start client after a short delay
+        self.root.after(200, client_window.start_client)
 
 
 class ClientWindow:
@@ -178,6 +181,7 @@ class ClientWindow:
         self.api_key = api_key
         self.client_running = False
         self.client_thread = None
+        self.message_queue = queue.Queue()
         
         self.root.title("TodoForAI Edge - Client")
         self.root.geometry("800x600")
@@ -187,6 +191,9 @@ class ClientWindow:
         self.log_message(f"TodoForAI Edge Client initialized")
         self.log_message(f"API Key: {api_key[:5]}...{api_key[-5:] if len(api_key) > 10 else ''}")
         self.log_message("Click 'Start Client' to connect to the server")
+        
+        # Start checking the message queue
+        self.check_message_queue()
     
     def create_widgets(self):
         # Main frame
@@ -236,6 +243,26 @@ class ClientWindow:
         self.log_area.insert(tk.END, f"{message}\n")
         self.log_area.see(tk.END)
     
+    def check_message_queue(self):
+        """Check for messages from the client thread"""
+        try:
+            while not self.message_queue.empty():
+                message = self.message_queue.get_nowait()
+                action = message.get('action')
+                
+                if action == 'connected':
+                    self.client_connected()
+                elif action == 'error':
+                    self.client_error(message.get('error', 'Unknown error'))
+                # Add more actions as needed
+                
+                self.message_queue.task_done()
+        except Exception as e:
+            print(f"Error processing message queue: {e}")
+        
+        # Schedule the next check
+        self.root.after(100, self.check_message_queue)
+    
     def start_client(self):
         if not self.client_running:
             self.start_button.configure(state="disabled")
@@ -272,16 +299,18 @@ class ClientWindow:
         
         try:
             # Create and start client
-            client = TODOforAIEdge(api_key=self.api_key, )
+            client = TODOforAIEdge(api_key=self.api_key)
             
-            # Update UI
-            self.root.after(0, self.client_connected)
+            # Signal that client is connected (via queue)
+            self.message_queue.put({'action': 'connected'})
             
             # Run the client
             loop.run_until_complete(client.start())
         except Exception as e:
             error_message = str(e)
-            self.root.after(0, lambda: self.client_error(error_message))
+            # Signal error via queue
+            self.message_queue.put({'action': 'error', 'error': error_message})
+
     
     def client_connected(self):
         self.log_message("Client connected")
@@ -304,14 +333,16 @@ class ClientWindow:
         
         self.log_message("Logging out...")
         
-        # Close current window and open login window
-        self.root.destroy()
+        # Clear all widgets from the root window
+        for widget in self.root.winfo_children():
+            widget.destroy()
         
-        # Create new login window
-        login_root = tk.Tk()
-        setup_azure_theme(login_root)
-        AuthWindow(login_root)
-        login_root.mainloop()
+        # Resize the window back to login size
+        self.root.geometry("400x600")
+        self.root.title("TodoForAI Edge - Login")
+        
+        # Create auth window in the same root
+        AuthWindow(self.root)
 
 
 def run_ui(protocol_url=None, api_key=None):
@@ -331,43 +362,7 @@ def run_ui(protocol_url=None, api_key=None):
         parser.add_argument("--password", default="", help="Password for authentication")
         args = parser.parse_args()
         
-        # Helper function to start client window
-        def start_client_window(api_key):
-            client_root = tk.Tk()
-            setup_azure_theme(client_root)
-            client_window = ClientWindow(client_root, api_key)
-            client_root.after(200, client_window.start_client)
-            client_root.mainloop()
-        
-        # Check if we can auto-login with environment variables or API key
-        env_email = os.environ.get("TODO4AI_EMAIL", "")
-        env_password = os.environ.get("TODO4AI_PASSWORD", "")
-        env_api_key = os.environ.get("TODO4AI_API_KEY", "")
-        
-        # If API key is provided directly, use it
-        if api_key:
-            print("Using provided API key")
-            start_client_window(api_key)
-            return
-            
-        # If environment has API key, use it
-        if env_api_key:
-            print("Using API key from environment")
-            start_client_window(env_api_key)
-            return
-            
-        # If environment has both email and password, auto-login
-        if env_email and env_password:
-            print(f"Auto-logging in with email from environment: {env_email}")
-            try:
-                api_key = authenticate_and_get_api_key(env_email, env_password)
-                start_client_window(api_key)
-                return
-            except Exception as e:
-                print(f"Auto-login failed: {str(e)}")
-                # Fall back to showing the login UI
-        
-        # Create root window for login UI
+        # Create root window for UI
         root = tk.Tk()
         root.title("TodoForAI Edge")
         
@@ -375,8 +370,35 @@ def run_ui(protocol_url=None, api_key=None):
         theme_applied = setup_azure_theme(root)
         print(f"Azure theme applied: {theme_applied}")
         
-        # Create auth window
-        AuthWindow(root, email=args.email or env_email, password=args.password or env_password)
+        # Check if we can auto-login with environment variables or API key
+        env_email = os.environ.get("TODO4AI_EMAIL", "")
+        env_password = os.environ.get("TODO4AI_PASSWORD", "")
+        env_api_key = os.environ.get("TODO4AI_API_KEY", "")
+        
+        # If API key is provided directly, start with client window
+        if api_key:
+            print("Using provided API key")
+            client_window = ClientWindow(root, api_key)
+            root.after(200, client_window.start_client)
+        # If environment has API key, use it
+        elif env_api_key:
+            print("Using API key from environment")
+            client_window = ClientWindow(root, env_api_key)
+            root.after(200, client_window.start_client)
+        # If environment has both email and password, auto-login
+        elif env_email and env_password:
+            print(f"Auto-logging in with email from environment: {env_email}")
+            try:
+                api_key = authenticate_and_get_api_key(env_email, env_password)
+                client_window = ClientWindow(root, api_key)
+                root.after(200, client_window.start_client)
+            except Exception as e:
+                print(f"Auto-login failed: {str(e)}")
+                # Fall back to showing the login UI
+                AuthWindow(root, email=args.email or env_email, password=args.password or env_password)
+        else:
+            # Create auth window
+            AuthWindow(root, email=args.email or env_email, password=args.password or env_password)
         
         # Start main loop
         root.mainloop()
