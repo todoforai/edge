@@ -100,18 +100,19 @@ class TODOforAIEdge:
                 return False
                 
             data = response.json()
-            self.config = EdgeConfig(data)
+            # Create EdgeConfig but don't replace the entire config
+            self.edge_config = EdgeConfig(data)
             
-            logger.info(f"Loaded edge configuration: {self.config.name}")
-            logger.info(f"Workspace paths: {self.config.workspacepaths}")
-            logger.info(f"Shell enabled: {self.config.is_shell_enabled}")
-            logger.info(f"Filesystem enabled: {self.config.is_filesystem_enabled}")
+            logger.info(f"Loaded edge configuration: {self.edge_config.name}")
+            logger.info(f"Workspace paths: {self.edge_config.workspacepaths}")
+            logger.info(f"Shell enabled: {self.edge_config.is_shell_enabled}")
+            logger.info(f"Filesystem enabled: {self.edge_config.is_filesystem_enabled}")
             
             # Update edge status to ONLINE
             await self._update_edge_status(EdgeStatus.ONLINE)
             
             # Start file syncing for all workspace paths
-            if self.config.workspacepaths:
+            if self.edge_config.workspacepaths:
                 await self._start_workspace_syncs()
             
             return True
