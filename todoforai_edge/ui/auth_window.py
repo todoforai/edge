@@ -96,32 +96,33 @@ class AuthWindow:
     
     def _authenticate(self, email, password):
         try:
-            api_key = authenticate_and_get_api_key(email, password)
-            self.root.after(0, lambda: self._auth_success(api_key))
+            api_key_id = authenticate_and_get_api_key(email, password)
+            self.config.api_key = api_key_id
+            self.root.after(0, lambda: self._auth_success())
         except Exception as exc:
             error_message = str(exc)
             self.root.after(0, lambda: self._auth_failed(error_message))
     
-    def _auth_success(self, api_key):
+    def _auth_success(self):
         self.login_button.configure(state="normal", text="Login")
         # Transform this window into client window instead of creating a new one
-        self.transform_to_client_window(api_key)
+        self.transform_to_client_window()
     
     def _auth_failed(self, error_message):
         self.login_button.configure(state="normal", text="Login")
         self.show_error("Authentication Failed", error_message)
 
     def connect_with_key(self):
-        api_key = self.apikey_entry.get()
+        self.config.api_key = self.apikey_entry.get()
 
-        if not api_key:
+        if not self.config.api_key:
             self.show_error("Error", "API Key is required")
             return
 
         # Transform this window into client window
-        self.transform_to_client_window(api_key)
+        self.transform_to_client_window()
 
-    def transform_to_client_window(self, api_key):
+    def transform_to_client_window(self,):
         """Transform the login window into a client window"""
         # Clear all widgets from the root window
         for widget in self.root.winfo_children():
@@ -132,7 +133,7 @@ class AuthWindow:
         self.root.title("TodoForAI Edge - Client")
 
         # Create TODOforAIEdge client with the API key and config
-        todo_client = TODOforAIEdge(config=config, api_key=api_key)
+        todo_client = TODOforAIEdge(client_config=config)
 
         # Import here to avoid circular imports
         from .client_window import ClientWindow

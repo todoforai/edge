@@ -94,9 +94,20 @@ async def start_ui(existing_client=None):
             
             # Set up a handler for when the window is closed
             def on_closing():
+                print("Window closing, shutting down application...")
+                # Stop any running client
+                if todo_client and hasattr(todo_client, 'connected') and todo_client.connected:
+                    print("Stopping client before exit...")
+                    # We can't await here, so we'll just set the flag
+                    todo_client.connected = False
+                
                 root.destroy()
                 if not ui_future.done():
                     ui_future.set_result(None)
+                
+                # Force exit the application
+                print("Exiting application...")
+                os._exit(0)
             
             root.protocol("WM_DELETE_WINDOW", on_closing)
             

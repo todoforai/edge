@@ -9,6 +9,7 @@ class ClientWindow:
         self.root = root
         self.todo_client = todo_client  # Store the shared client
         self.api_key = todo_client.config.api_key
+        self.email = todo_client.config.email  # Store the email for display
         self.client_running = False
         self.client_thread = None
         self.message_queue = queue.Queue()
@@ -19,6 +20,8 @@ class ClientWindow:
         
         # Log initial information
         self.log_message(f"TodoForAI Edge Client initialized")
+        if self.email:
+            self.log_message(f"Connected as: {self.email}")
         self.log_message(f"API Key: {self.api_key[:5]}...{self.api_key[-5:] if len(self.api_key) > 10 else ''}")
         self.log_message("Click 'Start Client' to connect to the server")
         
@@ -37,6 +40,12 @@ class ClientWindow:
         ttk.Label(title_frame, text="TodoForAI Edge", font=("Helvetica", 16, "bold")).pack(side="left")
         self.logout_button = ttk.Button(title_frame, text="Logout", command=self.logout)
         self.logout_button.pack(side="right")
+                
+        # User info (email if available)
+        if self.email:
+            user_frame = ttk.Frame(main_frame)
+            user_frame.pack(fill="x", pady=(0, 10))
+            ttk.Label(user_frame, text=f"Connected as: {self.email}", font=("Helvetica", 10, "italic")).pack(side="left")
         
         # Status
         status_frame = ttk.Frame(main_frame)

@@ -52,20 +52,28 @@ async def run_app(description=None, protocol_url=None, api_key=None):
     todo_client = None
     if config.api_key:
         print(f"Created TODOforAIEdge client with API key: {config.api_key[:10]}...")
+        todo_client = TODOforAIEdge(client_config=config)
     else:
-        if not config.email or not config.password:
+        if config.email and config.password:
+            try:
+                print(f"Authenticating with email: {config.email}")
+                config.api_key = authenticate_and_get_api_key(config.email, config.password)
+                print(f"Successfully authenticated as {config.email}")
+                print(f"API Key: {config.api_key}")
+                
+                if config.api_key:
+                    todo_client = TODOforAIEdge(client_config=config)
+                else:
+                    print("Warning: Authentication succeeded but no API key was returned")
+            except Exception as e:
+                print(f"Authentication failed: {str(e)}")
+                if config.no_ui:
+                    sys.exit(1)
+        elif config.no_ui:
             print("Error: Email and password are required if no API key is provided")
             print("Please provide credentials with --email and --password or set TODO4AI_EMAIL and TODO4AI_PASSWORD environment variables")
             print("Alternatively, run without --no-ui to use the graphical interface")
             sys.exit(1)
-            
-        print(f"Authenticating with email: {config.email}")
-        config.api_key = authenticate_and_get_api_key(config.email, config.password)
-        print(f"Successfully authenticated as {config.email}")
-        print(f"API Key: {config.api_key}")
-        
-        
-    todo_client = TODOforAIEdge(client_config=config)
     
     # Decide whether to use UI or CLI mode
     if not config.no_ui:
@@ -75,7 +83,11 @@ async def run_app(description=None, protocol_url=None, api_key=None):
         return await start_ui(existing_client=todo_client)
     else:
         # Start client in CLI mode
-        await todo_client.start()
+        if todo_client:
+            await todo_client.start()
+        else:
+            print("Error: No client available to start")
+            sys.exit(1)
 
 def main():
     """Main entry point for the application"""

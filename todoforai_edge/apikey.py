@@ -48,6 +48,9 @@ def authenticate_and_get_api_key(email, password):
             
         data = response.json()
         api_key = data.get("id")
+        if not api_key:
+            raise ValueError(f"Server returned invalid API key response: {data}")
+            
         print(f"API Key: {api_key}")
         return api_key
     else:
@@ -56,7 +59,9 @@ def authenticate_and_get_api_key(email, password):
             
         data = response.json()
         api_key = data.get("id")
+            
         print(f"API Key: {api_key}")
+        
         return api_key
 
 
