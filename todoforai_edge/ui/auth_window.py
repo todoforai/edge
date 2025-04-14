@@ -6,6 +6,7 @@ import threading
 from ..apikey import authenticate_and_get_api_key
 from ..client import TODOforAIEdge
 from ..protocol_handler import register_protocol_handler
+from ..config import config  # Import the config module
 
 class AuthWindow:
     def __init__(self, root, email="", password=""):
@@ -130,8 +131,8 @@ class AuthWindow:
         self.root.geometry("800x600")
         self.root.title("TodoForAI Edge - Client")
 
-        # Create TODOforAIEdge client with the API key
-        todo_client = TODOforAIEdge(api_key=api_key)
+        # Create TODOforAIEdge client with the API key and config
+        todo_client = TODOforAIEdge(config=config, api_key=api_key)
 
         # Import here to avoid circular imports
         from .client_window import ClientWindow

@@ -15,7 +15,6 @@ from .constants import (
     SR, FE, EA, AE, EF
 )
 from .utils import generate_machine_fingerprint, async_request
-from .config import config  # Import the config module
 from .messages import edge_status_msg
 
 # Configure logging
@@ -52,25 +51,27 @@ class EdgeConfig:
         self.created_at = data.get("createdAt", None)
 
 class TODOforAIEdge:
-    def __init__(self, config, api_key=None):
+    def __init__(self, client_config):
         """
         Initialize the TodoForAI Edge client
         
         Args:
-            config: Configuration object (required)
-            api_key: Optional API key to override the one in config
+            client_config: Configuration object (required)
             
         Raises:
             ValueError: If config is not provided
         """
-        if config is None:
+        if client_config is None:
             raise ValueError("Config object must be provided to TODOforAIEdge")
             
         # Store the config object
-        self.config = config
+        self.config = client_config
         
         # API key can override config value
-        self.api_key = api_key or self.config.api_key
+        self.api_key = self.config.api_key
+        
+        # Add debug attribute for convenience
+        self.debug = self.config.debug
         
         self.agent_id = ""
         self.user_id = ""
@@ -83,7 +84,7 @@ class TODOforAIEdge:
         self.fingerprint = generate_machine_fingerprint()
         
         # Set logging level based on config
-        if self.config.debug:
+        if self.debug:
             logger.setLevel(logging.DEBUG)
         
     async def _load_edge_config(self):
