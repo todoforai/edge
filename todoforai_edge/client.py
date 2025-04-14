@@ -120,12 +120,18 @@ class TODOforAIEdge:
 
     async def _start_workspace_syncs(self):
         """Start file synchronization for all workspace paths"""
-        from .file_sync import start_workspace_sync
+        from .file_sync import start_workspace_sync, stop_all_syncs
+        
+        # First stop any existing syncs to prevent duplicates
+        await stop_all_syncs()
         
         for workspace_path in self.edge_config.workspacepaths:
             try:
-                logger.info(f"Starting file sync for workspace: {workspace_path}")
-                await start_workspace_sync(self, workspace_path)
+                if os.path.exists(workspace_path):
+                    logger.info(f"Starting file sync for workspace: {workspace_path}")
+                    await start_workspace_sync(self, workspace_path)
+                else:
+                    logger.warning(f"Workspace path does not exist: {workspace_path}")
             except Exception as e:
                 logger.error(f"Failed to start file sync for {workspace_path}: {str(e)}")
 

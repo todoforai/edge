@@ -41,12 +41,12 @@ def authenticate_and_get_api_key(email, password):
         # Create new API key
         create_key_url = f"{config.api_url}/token/v1/users/apikeys"
         print(f"Creating new API key at: {create_key_url}")
-        response = requests.post(create_key_url, headers=headers, json={"name": api_key_name})
+        response2 = requests.post(create_key_url, headers=headers, json={"name": api_key_name})
         
-        if response.status_code != 200:
-            raise Exception(f"Failed to create API key: {response.text}")
+        if response2.status_code != 200:
+            raise Exception(f"Failed to create API key: {response2.text}")
             
-        data = response.json()
+        data = response2.json()
         api_key = data.get("id")
         if not api_key:
             raise ValueError(f"Server returned invalid API key response: {data}")

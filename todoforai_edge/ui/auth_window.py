@@ -9,12 +9,11 @@ from ..protocol_handler import register_protocol_handler
 from ..config import config  # Import the config module
 
 class AuthWindow:
-    def __init__(self, root, email="", password=""):
+    def __init__(self, root, client_config=None):
         self.root = root
         self.root.title("TodoForAI Edge - Login")
         self.root.geometry("400x600")
-        self.email = email
-        self.password = password
+        self.client_config = client_config
         self.create_widgets()
         
         # Pre-fill from provided arguments or environment variables
@@ -97,7 +96,7 @@ class AuthWindow:
     def _authenticate(self, email, password):
         try:
             api_key_id = authenticate_and_get_api_key(email, password)
-            self.config.api_key = api_key_id
+            self.client_config.config.api_key = api_key_id
             self.root.after(0, lambda: self._auth_success())
         except Exception as exc:
             error_message = str(exc)
@@ -113,9 +112,9 @@ class AuthWindow:
         self.show_error("Authentication Failed", error_message)
 
     def connect_with_key(self):
-        self.config.api_key = self.apikey_entry.get()
+        self.client_config.config.api_key = self.apikey_entry.get()
 
-        if not self.config.api_key:
+        if not self.client_config.config.api_key:
             self.show_error("Error", "API Key is required")
             return
 
@@ -133,7 +132,7 @@ class AuthWindow:
         self.root.title("TodoForAI Edge - Client")
 
         # Create TODOforAIEdge client with the API key and config
-        todo_client = TODOforAIEdge(client_config=config)
+        todo_client = TODOforAIEdge(client_config=self.client_config)
 
         # Import here to avoid circular imports
         from .client_window import ClientWindow

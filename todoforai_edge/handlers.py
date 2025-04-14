@@ -96,7 +96,8 @@ async def handle_get_folders(payload, client):
         
         # Check if path exists
         if not target_path.exists():
-            raise FileNotFoundError(f"Path does not exist: {path}")
+            logger.warning(f"Path does not exist: {path}")
+            return
         
         # If path is a file, use its parent directory
         if target_path.is_file():

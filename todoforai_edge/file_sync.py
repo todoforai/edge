@@ -370,10 +370,20 @@ async def start_workspace_sync(client, workspace_dir):
     
     # Create and start a new sync manager
     sync_manager = WorkspaceSyncManager(client, workspace_dir)
-    await sync_manager.start()
     
-    logger.info(f"Started syncing workspace: {workspace_dir}")
-    return sync_manager
+    # Store in registry before starting to prevent race conditions
+    active_sync_managers[workspace_dir] = sync_manager
+    
+    try:
+        await sync_manager.start()
+        logger.info(f"Started syncing workspace: {workspace_dir}")
+        return sync_manager
+    except Exception as e:
+        # If start fails, remove from registry
+        if workspace_dir in active_sync_managers:
+            del active_sync_managers[workspace_dir]
+        logger.error(f"Failed to start sync for {workspace_dir}: {str(e)}")
+        raise
 
 # Function to stop syncing a workspace
 async def stop_workspace_sync(workspace_dir):

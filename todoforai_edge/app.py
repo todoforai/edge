@@ -92,6 +92,3 @@ async def run_app(description=None, protocol_url=None, api_key=None):
 def main():
     """Main entry point for the application"""
     asyncio.run(run_app(description="TodoForAI Edge Client"))
-
-if __name__ == "__main__":
-    main()

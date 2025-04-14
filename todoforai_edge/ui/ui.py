@@ -76,10 +76,10 @@ async def start_ui(existing_client=None):
                 client_window = ClientWindow(root, todo_client)
                 root.after(200, client_window.start_client)
             # If email and password are provided in config, try to authenticate
-            elif config.email and config.password:
-                print(f"Auto-logging in with email: {config.email}")
+            elif existing_client.config.email and existing_client.config.password:
+                print(f"Auto-logging in with email: {existing_client.config.email}")
                 try:
-                    api_key = authenticate_and_get_api_key(config.email, config.password)
+                    api_key = authenticate_and_get_api_key(existing_client.config.email, existing_client.config.password)
                     # Create client with the authenticated API key
                     todo_client = TODOforAIEdge(api_key=api_key)
                     client_window = ClientWindow(root, todo_client)
@@ -87,10 +87,10 @@ async def start_ui(existing_client=None):
                 except Exception as e:
                     print(f"Auto-login failed: {str(e)}")
                     # Fall back to showing the login UI
-                    AuthWindow(root, email=config.email, password=config.password)
+                    AuthWindow(root, client_config=existing_client.config)
             else:
                 # Create auth window
-                AuthWindow(root, email=config.email, password=config.password)
+                AuthWindow(root, client_config=existing_client.config)
             
             # Set up a handler for when the window is closed
             def on_closing():
