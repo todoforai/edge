@@ -27,4 +27,4 @@ dependencies = [
 "Bug Tracker" = "https://github.com/todoforai/edge/issues"
 
 [project.scripts]
-todoforai-edge = "todoforai_edge.cli:main"
+todoforai-edge = "todoforai_edge.app:main"

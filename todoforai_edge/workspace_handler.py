@@ -3,7 +3,6 @@ import logging
 import re
 from pathlib import Path
 from .messages import workspace_result_msg
-from .path_utils import is_path_allowed
 
 logger = logging.getLogger("todoforai-edge")
 
@@ -327,4 +326,19 @@ def get_filtered_files_and_folders(path):
         logger.warning(f"Filtered files might be important: {', '.join(filtered_unignored_files)}")
     
     return project_files_list, filtered_files, filtered_dirs
+
+
+def is_path_allowed(path, workspace_paths):
+    """Check if the given path is within allowed workspace paths"""
+    if not workspace_paths:
+        return False  # If no workspace paths defined, deny all
+        
+    path = os.path.abspath(path)
+    
+    for workspace in workspace_paths:
+        workspace = os.path.abspath(workspace)
+        if path.startswith(workspace):
+            return True
+            
+    return False
 

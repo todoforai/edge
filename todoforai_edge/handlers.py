@@ -14,7 +14,7 @@ from .messages import (
     file_chunk_result_msg, get_folders_response_msg
 )
 from .constants import Edge2Front as EF, Edge2Agent as EA
-from .path_utils import is_path_allowed
+from .workspace_handler import is_path_allowed
 from .shell_handler import ShellProcess
 
 logger = logging.getLogger("todoforai-edge")
@@ -91,10 +91,6 @@ async def handle_get_folders(payload, client):
     path = payload.get("path", ".")
     
     try:
-        # Check if path is allowed
-        # if not is_path_allowed(path, client.config.workspacepaths):
-        #     raise PermissionError(f"Access to path '{path}' is not allowed")
-        
         # Normalize path
         target_path = Path(path).expanduser().resolve()
         
@@ -139,7 +135,6 @@ async def handle_todo_dir_list(payload, client):
     todo_id = payload.get("todoId", "")
     
     try:
-        # Check if path is allowed
         if not is_path_allowed(path, client.config.workspacepaths):
             raise PermissionError(f"Access to path '{path}' is not allowed")
             
@@ -310,10 +305,6 @@ async def handle_file_chunk_request(payload, client):
     
     try:
         logger.info(f"File chunk request received for path: {path}")
-        
-        # # Check if path is allowed
-        # if not is_path_allowed(path, client.config.workspacepaths):
-        #     raise PermissionError(f"Access to path '{path}' is not allowed")
         
         # Check if file exists
         file_path = Path(path)

@@ -46,17 +46,24 @@ MimeType=x-scheme-handler/{protocol_name};
         
     elif platform.system() == "Darwin":  # macOS
         plist_file = os.path.expanduser(f"~/Library/Preferences/com.{protocol_name}.plist")
+        plist_content = {
+            'CFBundleIdentifier': f'com.{protocol_name}',
+            'CFBundleName': protocol_name,
+            'CFBundleURLTypes': [{
+                'CFBundleURLName': protocol_name,
+                'CFBundleURLSchemes': [protocol_name]
+            }]
+        }
+        try:
+            with open(plist_file, 'wb') as f:
+                import plistlib
+                plistlib.dump(plist_content, f)
+            # Register with Launch Services
+            os.system(f"defaults write com.apple.LaunchServices LSHandlers -array-add '{{LSHandlerURLScheme={protocol_name};LSHandlerRoleAll=com.{protocol_name};}}'")
+            
+        except Exception as e:
+            print(f"Failed to create plist file: {e}")
         
-        # Use defaults command to register the protocol
-        subprocess.run([
-            "defaults", "write", f"com.{protocol_name}", "CFBundleURLTypes", 
-            f"-array '{{CFBundleURLName=\"{protocol_name}\"; CFBundleURLSchemes=(\"{protocol_name}\");}}'"])
-            
-        # Associate the app with the protocol
-        subprocess.run([
-            "defaults", "write", f"com.{protocol_name}", "CFBundleURLTypes", 
-            f"-array '{{CFBundleURLName=\"{protocol_name}\"; CFBundleTypeRole=\"Viewer\"; CFBundleURLSchemes=(\"{protocol_name}\");}}'"])
-            
         print(f"Registered {protocol_name}:// protocol handler for macOS")
         return True
         

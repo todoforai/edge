@@ -19,10 +19,6 @@ from .config import config  # Import the config module
 from .messages import edge_status_msg
 
 # Configure logging
-logging.basicConfig(
-    level=getattr(logging, config.log_level),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 logger = logging.getLogger("todoforai-client")
 
 # Import handlers
@@ -56,19 +52,39 @@ class EdgeConfig:
         self.created_at = data.get("createdAt", None)
 
 class TODOforAIEdge:
-    def __init__(self, api_key=None):
-        self.api_url = config.api_url
-        self.api_key = api_key or os.environ.get("TODO4AI_API_KEY", "")
-        self.debug = config.debug
+    def __init__(self, config, api_key=None):
+        """
+        Initialize the TodoForAI Edge client
+        
+        Args:
+            config: Configuration object (required)
+            api_key: Optional API key to override the one in config
+            
+        Raises:
+            ValueError: If config is not provided
+        """
+        if config is None:
+            raise ValueError("Config object must be provided to TODOforAIEdge")
+            
+        # Store the config object
+        self.config = config
+        
+        # API key can override config value
+        self.api_key = api_key or self.config.api_key
+        
         self.agent_id = ""
         self.user_id = ""
         self.edge_id = ""
         self.connected = False
         self.ws = None
-        self.ws_url = config.get_ws_url(config.api_url)
+        self.ws_url = self.config.get_ws_url()
         self.heartbeat_task = None
-        self.config = EdgeConfig()
+        self.edge_config = EdgeConfig()
         self.fingerprint = generate_machine_fingerprint()
+        
+        # Set logging level based on config
+        if self.config.debug:
+            logger.setLevel(logging.DEBUG)
         
     async def _load_edge_config(self):
         """Load edge configuration from the API"""
@@ -142,14 +158,6 @@ class TODOforAIEdge:
             logger.error(f"Error updating edge status: {str(e)}")
             return False
 
-
-    def _api_to_ws_url(self, api_url):
-        """Convert HTTP URL to WebSocket URL"""
-        if api_url.startswith("https://"):
-            return api_url.replace("https://", f"wss://") + f"/ws/v1/edge"
-        else:
-            return api_url.replace("http://", f"ws://") + f"/ws/v1/edge"
-        
     async def _send_heartbeat(self):
         """Send periodic heartbeats to the server"""
         while self.connected:
