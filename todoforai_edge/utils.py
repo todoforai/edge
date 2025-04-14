@@ -53,74 +53,35 @@ def generate_machine_fingerprint():
     return base64.b64encode(json.dumps(identifiers).encode()).decode()
 
 async def async_request(client, method, endpoint, data=None):
-    """
-    Make an asynchronous HTTP request to the API
-    
-    Args:
-        client: The TODOforAIEdge instance
-        method: HTTP method (get, post, patch, etc.)
-        endpoint: API endpoint (starting with /)
-        data: Optional data to send (for POST, PATCH, etc.)
-        
-    Returns:
-        Response object or None if failed
-    """
-    if not client.api_key:
+    """Make an async request to the API"""
+    if not client.config.api_key:
         logger.warning("Cannot make API request: missing API key")
         return None
         
-    # Make sure we're using the correct header for API key authentication
+    url = f"{client.config.api_url}{endpoint}"
     headers = {
-        "Content-Type": "application/json",
-        "x-api-key": client.api_key
-    }
-    
-    # Use Bearer auth for /token endpoints, X-API-Key for /api endpoints
-    
-    url = f"{client.api_url}{endpoint}"
-    
-    if client.debug:
-        logger.debug(f"Making {method.upper()} request to {url}")
+        "content-type": "application/json",
+        "x-api-key": f"{client.config.api_key}"
+        }
     
     try:
-        # Use asyncio to run the request without blocking
-        loop = asyncio.get_event_loop()
-        
         if method.lower() == 'get':
-            response = await loop.run_in_executor(
-                None, 
-                lambda: requests.get(url, headers=headers)
-            )
+            response = requests.get(url, headers=headers)
         elif method.lower() == 'post':
-            response = await loop.run_in_executor(
-                None, 
-                lambda: requests.post(url, headers=headers, json=data)
-            )
-        elif method.lower() == 'patch':
-            response = await loop.run_in_executor(
-                None, 
-                lambda: requests.patch(url, headers=headers, json=data)
-            )
+            response = requests.post(url, headers=headers, json=data)
         elif method.lower() == 'put':
-            response = await loop.run_in_executor(
-                None, 
-                lambda: requests.put(url, headers=headers, json=data)
-            )
+            response = requests.put(url, headers=headers, json=data)
+        elif method.lower() == 'patch':
+            response = requests.patch(url, headers=headers, json=data)
         elif method.lower() == 'delete':
-            response = await loop.run_in_executor(
-                None, 
-                lambda: requests.delete(url, headers=headers)
-            )
+            response = requests.delete(url, headers=headers)
         else:
-            logger.error(f"Unsupported HTTP method: {method}")
-            return None
+            raise ValueError(f"Unsupported HTTP method: {method}")
             
         if response.status_code >= 400:
-            logger.error(f"API request failed: {response.status_code} - {response.text}  method: {method.lower()} url: {url}")
-            return None
+            raise Exception(f"API request failed with status {response.status_code}: {response.text}")
             
         return response
-        
-    except Exception as error:
-        logger.error(f"Error making API request: {str(error)}")
+    except Exception as e:
+        logging.error(f"API request error: {str(e)}")
         return None

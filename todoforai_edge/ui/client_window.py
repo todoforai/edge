@@ -8,7 +8,7 @@ class ClientWindow:
     def __init__(self, root, todo_client):
         self.root = root
         self.todo_client = todo_client  # Store the shared client
-        self.api_key = todo_client.api_key
+        self.api_key = todo_client.config.api_key
         self.client_running = False
         self.client_thread = None
         self.message_queue = queue.Queue()

@@ -67,9 +67,6 @@ class TODOforAIEdge:
         # Store the config object
         self.config = client_config
         
-        # API key can override config value
-        self.api_key = self.config.api_key
-        
         # Add debug attribute for convenience
         self.debug = self.config.debug
         
@@ -125,7 +122,7 @@ class TODOforAIEdge:
         """Start file synchronization for all workspace paths"""
         from .file_sync import start_workspace_sync
         
-        for workspace_path in self.config.workspacepaths:
+        for workspace_path in self.edge_config.workspacepaths:
             try:
                 logger.info(f"Starting file sync for workspace: {workspace_path}")
                 await start_workspace_sync(self, workspace_path)
@@ -270,7 +267,7 @@ class TODOforAIEdge:
         try:
             # Use a custom subprotocol that includes the API key
             # Format: "apikey-{api_key}"
-            custom_protocol = f"{self.api_key}"
+            custom_protocol = f"{self.config.api_key}"
             
             async with websockets.connect(ws_url, subprotocols=[custom_protocol]) as ws:
                 self.ws = ws
