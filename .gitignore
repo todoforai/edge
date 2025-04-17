@@ -1,4 +1,4 @@
-
+.env
 *.pyc
 
 .vscode/settings.json

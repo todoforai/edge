@@ -298,11 +298,9 @@ async def handle_ctx_julia_request(payload, client):
         logger.error(f"Error processing Julia request: {str(error)}\nStacktrace:\n{stack_trace}")
         await client._send_response(ctx_julia_result_msg(todo_id, request_id, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
-async def handle_file_chunk_request(payload, client):
+async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK_RESULT):
     """Handle file chunk request - reads a file and returns its content"""
-    agent_id = payload.get("agentId", "")
     path = payload.get("path", "")
-    request_id = payload.get("requestId")
     
     try:
         logger.info(f"File chunk request received for path: {path}")
@@ -317,20 +315,21 @@ async def handle_file_chunk_request(payload, client):
             with open(path, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
         except UnicodeDecodeError:
+            logger.error(f"Error decoding file: {path}")
             # If we get a decode error, it's likely a binary file
             await client._send_response(
-                file_chunk_result_msg(request_id, agent_id, path, error=f"Cannot read binary file.")
+                file_chunk_result_msg(response_type, path, error=f"Cannot read binary file.")
             )
             return
         
         # Send the response using the message formatter
         await client._send_response(
-            file_chunk_result_msg(request_id, agent_id, path, content)
+            file_chunk_result_msg(response_type, **payload, content=content)
         )
         
     except Exception as error:
         logger.error(f"Error processing file chunk request: {str(error)}, path: {path}")
         # Send error response using the message formatter
         await client._send_response(
-            file_chunk_result_msg(request_id, agent_id, path, error=str(error), success=False)
+            file_chunk_result_msg(response_type, path, error=str(error))
         )

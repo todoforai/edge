@@ -234,6 +234,9 @@ class TODOforAIEdge:
                 
             elif msg_type == AE.FILE_CHUNK_REQUEST:
                 asyncio.create_task(handle_file_chunk_request(payload, self))
+
+            elif msg_type == FE.FRONTEND_FILE_CHUNK_REQUEST:
+                asyncio.create_task(handle_file_chunk_request(payload, self, response_type=EF.FRONTEND_FILE_CHUNK_RESULT))
             
             elif msg_type == FE.GET_FOLDERS:
                 asyncio.create_task(handle_get_folders(payload, self))

@@ -31,6 +31,7 @@ class Front2Edge:
     BLOCK_KEYBOARD = 'block:keyboard'
     BLOCK_SIGNAL = 'block:signal'
     BLOCK_DIFF = 'block:diff'
+    FRONTEND_FILE_CHUNK_REQUEST = 'frontend:file_chunk_request'
 
 
 # Agent to Edge Messages
@@ -70,6 +71,7 @@ class Edge2Front:
     BLOCK_SH_MSG_RESULT = 'block:sh_msg_result'
     BLOCK_SH_MSG_START = 'block:sh_msg_start'
     BLOCK_SH_DONE = 'block:sh_done'
+    FRONTEND_FILE_CHUNK_RESULT = 'frontend:file_chunk_result'
     
     
 class Edge2FrontAgent:

@@ -170,22 +170,16 @@ def workspace_result_msg(request_id, user_id, agent_id, project_files, filtered_
         }
     }
 
-def file_chunk_result_msg(request_id, agent_id, path, content=None, error=None, success=True):
-    payload = {
-        "requestId": request_id,
-        "agentId": agent_id,
-        "path": path,
-        "success": success
-    }
+def file_chunk_result_msg(response_type, content=None, error=None, **payload):
+    print('payload:', payload)
     
     if content is not None:
         payload["content"] = content
     if error is not None:
         payload["error"] = error
-        payload["success"] = False
     
     return {
-        "type": EA.FILE_CHUNK_RESULT,
+        "type": response_type,
         "payload": payload
     }
 
