@@ -17,13 +17,13 @@ class AuthWindow:
         self.create_widgets()
         
         # Pre-fill from provided arguments or environment variables
-        if self.email:
-            self.email_entry.insert(0, self.email)
+        if self.client_config.email:
+            self.email_entry.insert(0, self.client_config.email)
         elif os.environ.get("TODO4AI_EMAIL"):
             self.email_entry.insert(0, os.environ.get("TODO4AI_EMAIL"))
             
-        if self.password:
-            self.password_entry.insert(0, self.password)
+        if self.client_config.password:
+            self.password_entry.insert(0, self.client_config.password)
             
         if os.environ.get("TODO4AI_API_KEY"):
             self.apikey_entry.insert(0, os.environ.get("TODO4AI_API_KEY"))
@@ -96,7 +96,7 @@ class AuthWindow:
     def _authenticate(self, email, password):
         try:
             api_key_id = authenticate_and_get_api_key(email, password)
-            self.client_config.config.api_key = api_key_id
+            self.client_config.api_key = api_key_id
             self.root.after(0, lambda: self._auth_success())
         except Exception as exc:
             error_message = str(exc)
@@ -112,9 +112,9 @@ class AuthWindow:
         self.show_error("Authentication Failed", error_message)
 
     def connect_with_key(self):
-        self.client_config.config.api_key = self.apikey_entry.get()
+        self.client_config.api_key = self.apikey_entry.get()
 
-        if not self.client_config.config.api_key:
+        if not self.client_config.api_key:
             self.show_error("Error", "API Key is required")
             return
 

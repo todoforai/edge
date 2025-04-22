@@ -45,7 +45,7 @@ def setup_azure_theme(root):
         print(f"Failed to set up Azure theme: {e}")
         return False
 
-async def start_ui(existing_client=None):
+async def start_ui(todo_client):
     """
     Start the UI using an optional existing client
     
@@ -67,30 +67,27 @@ async def start_ui(existing_client=None):
             theme_applied = setup_azure_theme(root)
             print(f"Azure theme applied: {theme_applied}")
             
-            # Use existing client if provided
-            todo_client = existing_client
-            
             # If we have a client, start with client window
-            if todo_client:
-                print("Using existing TODOforAIEdge client")
-                client_window = ClientWindow(root, todo_client)
-                root.after(200, client_window.start_client)
-            # If email and password are provided in config, try to authenticate
-            elif existing_client.config.email and existing_client.config.password:
-                print(f"Auto-logging in with email: {existing_client.config.email}")
-                try:
-                    api_key = authenticate_and_get_api_key(existing_client.config.email, existing_client.config.password)
-                    # Create client with the authenticated API key
-                    todo_client = TODOforAIEdge(api_key=api_key)
+            if todo_client is not None and hasattr(todo_client, 'config'):
+                if todo_client.config.email and todo_client.config.password:
+                    print(f"Auto-logging in with email: {todo_client.config.email}")
+                    try:
+                        api_key = authenticate_and_get_api_key(todo_client.config.email, todo_client.config.password)
+                        tclient = TODOforAIEdge(api_key=api_key)
+                        client_window = ClientWindow(root, tclient)
+                        root.after(200, client_window.start_client)
+                    except Exception as e:
+                        print(f"Auto-login failed: {str(e)}")
+                        # Fall back to showing the login UI
+                        AuthWindow(root, client_config=todo_client.config)
+                else:
+                    print("Using existing TODOforAIEdge client")
                     client_window = ClientWindow(root, todo_client)
                     root.after(200, client_window.start_client)
-                except Exception as e:
-                    print(f"Auto-login failed: {str(e)}")
-                    # Fall back to showing the login UI
-                    AuthWindow(root, client_config=existing_client.config)
             else:
-                # Create auth window
-                AuthWindow(root, client_config=existing_client.config)
+                # Create auth window with default config
+                print("No client provided, starting with auth window")
+                AuthWindow(root, client_config=config)
             
             # Set up a handler for when the window is closed
             def on_closing():

@@ -74,13 +74,13 @@ async def run_app(description=None, protocol_url=None, api_key=None):
             print("Please provide credentials with --email and --password or set TODO4AI_EMAIL and TODO4AI_PASSWORD environment variables")
             print("Alternatively, run without --no-ui to use the graphical interface")
             sys.exit(1)
-    
+            
     # Decide whether to use UI or CLI mode
     if not config.no_ui:
         # Import UI components here to avoid circular imports
         from todoforai_edge.ui.ui import start_ui
         # Run UI with the existing client
-        return await start_ui(existing_client=todo_client)
+        return await start_ui(todo_client=todo_client)
     else:
         # Start client in CLI mode
         if todo_client:
