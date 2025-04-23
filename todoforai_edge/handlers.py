@@ -318,18 +318,18 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
             logger.error(f"Error decoding file: {path}")
             # If we get a decode error, it's likely a binary file
             await client._send_response(
-                file_chunk_result_msg(response_type, path, error=f"Cannot read binary file.")
+                file_chunk_result_msg(response_type, path=path, error=f"Cannot read binary file.")
             )
             return
         
         # Send the response using the message formatter
         await client._send_response(
-            file_chunk_result_msg(response_type, **payload, content=content)
+            file_chunk_result_msg(response_type, path=path, **payload, content=content)
         )
         
     except Exception as error:
         logger.error(f"Error processing file chunk request: {str(error)}, path: {path}")
         # Send error response using the message formatter
         await client._send_response(
-            file_chunk_result_msg(response_type, path, error=str(error))
+            file_chunk_result_msg(response_type, path=path, error=str(error))
         )

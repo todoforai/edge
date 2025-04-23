@@ -171,8 +171,6 @@ def workspace_result_msg(request_id, user_id, agent_id, project_files, filtered_
     }
 
 def file_chunk_result_msg(response_type, content=None, error=None, **payload):
-    print('payload:', payload)
-    
     if content is not None:
         payload["content"] = content
     if error is not None:
