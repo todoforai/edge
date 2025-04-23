@@ -324,7 +324,7 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
         
         # Send the response using the message formatter
         await client._send_response(
-            file_chunk_result_msg(response_type, path=path, **payload, content=content)
+            file_chunk_result_msg(response_type, **payload, content=content)
         )
         
     except Exception as error:
