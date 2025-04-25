@@ -8,8 +8,6 @@ class ClientWindow:
     def __init__(self, root, todo_client):
         self.root = root
         self.todo_client = todo_client  # Store the shared client
-        self.api_key = todo_client.config.api_key
-        self.email = todo_client.config.email  # Store the email for display
         self.client_running = False
         self.client_thread = None
         self.message_queue = queue.Queue()
@@ -20,9 +18,9 @@ class ClientWindow:
         
         # Log initial information
         self.log_message(f"TodoForAI Edge Client initialized")
-        if self.email:
-            self.log_message(f"Connected as: {self.email}")
-        self.log_message(f"API Key: {self.api_key[:5]}...{self.api_key[-5:] if len(self.api_key) > 10 else ''}")
+        if self.todo_client.email:
+            self.log_message(f"Connected as: {self.todo_client.email}")
+        self.log_message(f"API Key: {self.todo_client.api_key[:5]}...{self.todo_client.api_key[-5:] if len(self.todo_client.api_key) > 10 else ''}")
         self.log_message("Click 'Start Client' to connect to the server")
         
         # Start checking the message queue
@@ -42,10 +40,10 @@ class ClientWindow:
         self.logout_button.pack(side="right")
                 
         # User info (email if available)
-        if self.email:
+        if self.todo_client.email:
             user_frame = ttk.Frame(main_frame)
             user_frame.pack(fill="x", pady=(0, 10))
-            ttk.Label(user_frame, text=f"Connected as: {self.email}", font=("Helvetica", 10, "italic")).pack(side="left")
+            ttk.Label(user_frame, text=f"Connected as: {self.todo_client.email}", font=("Helvetica", 10, "italic")).pack(side="left")
         
         # Status
         status_frame = ttk.Frame(main_frame)
@@ -137,14 +135,11 @@ class ClientWindow:
         asyncio.set_event_loop(loop)
         
         try:
-            # Use the existing client
-            client = self.todo_client
-            
             # Signal that client is connected (via queue)
             self.message_queue.put({'action': 'connected'})
             
             # Run the client
-            loop.run_until_complete(client.start())
+            loop.run_until_complete(self.todo_client.start())
         except Exception as e:
             error_message = str(e)
             # Signal error via queue

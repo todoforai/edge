@@ -1,7 +1,6 @@
 import requests
 import logging
 import sys
-from .config import config
 
 # Configure logging
 logging.basicConfig(
@@ -11,10 +10,10 @@ logging.basicConfig(
 logger = logging.getLogger("todoforai-auth")
 
 
-def authenticate_and_get_api_key(email, password):
+def authenticate_and_get_api_key(email, password, api_url):
     """Authenticate with the server and get an API key"""
     # Login only, no registration
-    login_url = f"{config.api_url}/token/v1/auth/login"
+    login_url = f"{api_url}/token/v1/auth/login"
     print(f"Attempting to login weweat: {login_url}")
     response = requests.post(login_url, json={"email": email, "password": password})
     
@@ -33,13 +32,13 @@ def authenticate_and_get_api_key(email, password):
     api_key_name = "python-client"
     
     # Try to get existing API key
-    get_key_url = f"{config.api_url}/token/v1/users/apikeys/{api_key_name}"
+    get_key_url = f"{api_url}/token/v1/users/apikeys/{api_key_name}"
     print(f"Checking for existing API key at: {get_key_url}")
     response = requests.get(get_key_url, headers=headers)
     
     if response.status_code == 404:
         # Create new API key
-        create_key_url = f"{config.api_url}/token/v1/users/apikeys"
+        create_key_url = f"{api_url}/token/v1/users/apikeys"
         print(f"Creating new API key at: {create_key_url}")
         response2 = requests.post(create_key_url, headers=headers, json={"name": api_key_name})
         

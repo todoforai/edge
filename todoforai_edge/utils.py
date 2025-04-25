@@ -54,14 +54,14 @@ def generate_machine_fingerprint():
 
 async def async_request(client, method, endpoint, data=None):
     """Make an async request to the API"""
-    if not client.config.api_key:
+    if not client.api_key:
         logger.warning("Cannot make API request: missing API key")
         return None
         
-    url = f"{client.config.api_url}{endpoint}"
+    url = f"{client.edge_config.api_url}{endpoint}"
     headers = {
         "content-type": "application/json",
-        "x-api-key": f"{client.config.api_key}"
+        "x-api-key": f"{client.api_key}"
         }
     
     try:

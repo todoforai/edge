@@ -6,10 +6,6 @@ import tkinter as tk
 from tkinter import messagebox
 import traceback
 
-# Fix imports to use the parent package
-from todoforai_edge.apikey import authenticate_and_get_api_key
-from todoforai_edge.client import TODOforAIEdge
-from todoforai_edge.config import config
 from todoforai_edge.ui.auth_window import AuthWindow
 from todoforai_edge.ui.client_window import ClientWindow
 
@@ -68,26 +64,14 @@ async def start_ui(todo_client):
             print(f"Azure theme applied: {theme_applied}")
             
             # If we have a client, start with client window
-            if todo_client is not None and hasattr(todo_client, 'config'):
-                if todo_client.config.email and todo_client.config.password:
-                    print(f"Auto-logging in with email: {todo_client.config.email}")
-                    try:
-                        api_key = authenticate_and_get_api_key(todo_client.config.email, todo_client.config.password)
-                        tclient = TODOforAIEdge(api_key=api_key)
-                        client_window = ClientWindow(root, tclient)
-                        root.after(200, client_window.start_client)
-                    except Exception as e:
-                        print(f"Auto-login failed: {str(e)}")
-                        # Fall back to showing the login UI
-                        AuthWindow(root, client_config=todo_client.config)
-                else:
-                    print("Using existing TODOforAIEdge client")
-                    client_window = ClientWindow(root, todo_client)
-                    root.after(200, client_window.start_client)
+            if todo_client is not None:
+                print("Using existing TODOforAIEdge client")
+                client_window = ClientWindow(root, todo_client)
+                root.after(200, client_window.start_client)
             else:
                 # Create auth window with default config
                 print("No client provided, starting with auth window")
-                AuthWindow(root, client_config=config)
+                AuthWindow(root, todo_client)
             
             # Set up a handler for when the window is closed
             def on_closing():

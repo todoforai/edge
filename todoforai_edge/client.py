@@ -65,19 +65,22 @@ class TODOforAIEdge:
             raise ValueError("Config object must be provided to TODOforAIEdge")
             
         # Store the config object
-        self.config = client_config
-        
+        self.api_url = client_config.api_url
+        self.api_key = client_config.api_key
+        self.email = client_config.email
+        self.password = client_config.password
         # Add debug attribute for convenience
-        self.debug = self.config.debug
+        self.debug = client_config.debug
+        self.ws = None
+        self.ws_url = client_config.get_ws_url()
+        self.edge_config = EdgeConfig()
+        
         
         self.agent_id = ""
         self.user_id = ""
         self.edge_id = ""
         self.connected = False
-        self.ws = None
-        self.ws_url = self.config.get_ws_url()
         self.heartbeat_task = None
-        self.edge_config = EdgeConfig()
         self.fingerprint = generate_machine_fingerprint()
         
         # Set logging level based on config
@@ -276,7 +279,7 @@ class TODOforAIEdge:
         try:
             # Use a custom subprotocol that includes the API key
             # Format: "apikey-{api_key}"
-            custom_protocol = f"{self.config.api_key}"
+            custom_protocol = f"{self.api_key}"
             
             async with websockets.connect(ws_url, subprotocols=[custom_protocol]) as ws:
                 self.ws = ws

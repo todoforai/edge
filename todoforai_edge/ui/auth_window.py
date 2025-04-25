@@ -6,24 +6,23 @@ import threading
 from ..apikey import authenticate_and_get_api_key
 from ..client import TODOforAIEdge
 from ..protocol_handler import register_protocol_handler
-from ..config import config  # Import the config module
 
 class AuthWindow:
-    def __init__(self, root, client_config=None):
+    def __init__(self, root, todo_client=None):
         self.root = root
         self.root.title("TodoForAI Edge - Login")
         self.root.geometry("400x600")
-        self.client_config = client_config
+        self.todo_client = todo_client
         self.create_widgets()
         
         # Pre-fill from provided arguments or environment variables
-        if self.client_config.email:
-            self.email_entry.insert(0, self.client_config.email)
+        if self.todo_client.email:
+            self.email_entry.insert(0, self.todo_client.email)
         elif os.environ.get("TODO4AI_EMAIL"):
             self.email_entry.insert(0, os.environ.get("TODO4AI_EMAIL"))
             
-        if self.client_config.password:
-            self.password_entry.insert(0, self.client_config.password)
+        if self.todo_client.password:
+            self.password_entry.insert(0, self.todo_client.password)
             
         if os.environ.get("TODO4AI_API_KEY"):
             self.apikey_entry.insert(0, os.environ.get("TODO4AI_API_KEY"))
@@ -95,8 +94,8 @@ class AuthWindow:
     
     def _authenticate(self, email, password):
         try:
-            api_key_id = authenticate_and_get_api_key(email, password)
-            self.client_config.api_key = api_key_id
+            api_key_id = authenticate_and_get_api_key(email, password, self.todo_client.api_url)
+            self.todo_client.api_key = api_key_id
             self.root.after(0, lambda: self._auth_success())
         except Exception as exc:
             error_message = str(exc)
@@ -111,10 +110,10 @@ class AuthWindow:
         self.login_button.configure(state="normal", text="Login")
         self.show_error("Authentication Failed", error_message)
 
-    def connect_with_key(self):
-        self.client_config.api_key = self.apikey_entry.get()
+    def connect_with_key(self):  # TODO we don't perform any authentication here, we just set the api key
+        self.todo_client.api_key = self.apikey_entry.get()
 
-        if not self.client_config.api_key:
+        if not self.todo_client.api_key:
             self.show_error("Error", "API Key is required")
             return
 
@@ -131,14 +130,11 @@ class AuthWindow:
         self.root.geometry("800x600")
         self.root.title("TodoForAI Edge - Client")
 
-        # Create TODOforAIEdge client with the API key and config
-        todo_client = TODOforAIEdge(client_config=self.client_config)
-
         # Import here to avoid circular imports
         from .client_window import ClientWindow
         
         # Create client window in the same root
-        client_window = ClientWindow(root=self.root, todo_client=todo_client)
+        client_window = ClientWindow(root=self.root, todo_client=self.todo_client)
         
         # Start client after a short delay
         self.root.after(200, client_window.start_client)
