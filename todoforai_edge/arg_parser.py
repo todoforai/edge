@@ -3,51 +3,35 @@ import os
 import argparse
 from .config import config
 
-def create_parser(description="TodoForAI Edge Client"):
+def parse_args():
     """
-    Create a common argument parser for both CLI and UI applications
+    Create parser and parse command line arguments
     
-    Args:
-        description: Description for the argument parser
-        
-    Returns:
-        argparse.ArgumentParser: Configured argument parser
-    """
-    parser = argparse.ArgumentParser(description=description)
-    
-    # Authentication arguments
-    parser.add_argument("--email", default=config.email,
-                        help="Email for authentication")
-    parser.add_argument("--password", default=config.password,
-                        help="Password for authentication")
-    parser.add_argument("--apikey", default=config.api_key,
-                        help="API key (if already authenticated)")
-    
-    # Configuration arguments
-    parser.add_argument("--apiurl", default=config.api_url,
-                        help="API URL")
-    parser.add_argument("--debug", action="store_true", default=config.debug, 
-                        help="Enable debug logging")
-    
-    # Protocol handling
-    parser.add_argument("--register-protocol", action="store_true", 
-                        help="Register as protocol handler")
-    parser.add_argument("--no-ui", action="store_true", 
-                        help="Run in command-line mode without UI")
-    parser.add_argument("protocol_url", nargs="?", 
-                        help="Protocol URL to handle (todoforai://...)")
-    
-    return parser
-
-def parse_args(description=None):
-    """
-    Parse command line arguments
-    
-    Args:
-        description: Optional custom description
-        
     Returns:
         argparse.Namespace: Parsed arguments
+    
+    Raises:
+        ValueError: If API key is required but not provided
     """
-    parser = create_parser(description=description or "TodoForAI Edge Client")
-    return parser.parse_args()
+    parser = argparse.ArgumentParser(description="TodoForAI Edge Client")
+    
+    # Authentication arguments
+    parser.add_argument("--email", default=config.email, help="Email for authentication")
+    parser.add_argument("--password", default=config.password, help="Password for authentication")
+    parser.add_argument("--apikey", default=config.api_key, help="API key (if already authenticated)")
+    
+    # Configuration arguments
+    parser.add_argument("--apiurl", default=config.api_url, help="API URL")
+    parser.add_argument("--debug", action="store_true", default=config.debug, help="Enable debug logging")
+    
+    # Protocol handling
+    parser.add_argument("--register-protocol", action="store_true", default=config.register_protocol,
+                        help="Register as protocol handler")
+    parser.add_argument("--no-ui", action="store_true", default=config.no_ui,
+                        help="Run in command-line mode without UI")
+    parser.add_argument("protocol_url", nargs="?", default=config.protocol_url,
+                        help="Protocol URL to handle (todoforai://...)")
+    
+    args = parser.parse_args()
+    config.update_from_args(args)
+    return config
