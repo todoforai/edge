@@ -58,7 +58,7 @@ async def async_request(client, method, endpoint, data=None):
         logger.warning("Cannot make API request: missing API key")
         return None
         
-    url = f"{client.edge_config.api_url}{endpoint}"
+    url = f"{client.api_url}{endpoint}"
     headers = {
         "content-type": "application/json",
         "x-api-key": f"{client.api_key}"
