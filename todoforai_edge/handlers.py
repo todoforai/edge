@@ -136,7 +136,7 @@ async def handle_todo_dir_list(payload, client):
     todo_id = payload.get("todoId", "")
     
     try:
-        if not is_path_allowed(path, client.config.workspacepaths):
+        if not is_path_allowed(path, client.edge_config.workspacepaths):
             raise PermissionError(f"Access to path '{path}' is not allowed")
             
         items = []
@@ -171,9 +171,9 @@ async def handle_todo_cd(payload, client):
         
         # Update workspace paths if this is a new path
         abs_path = os.path.abspath(path)
-        if hasattr(client, 'config') and hasattr(client.config, 'workspacepaths'):
-            if abs_path not in client.config.workspacepaths:
-                client.config.workspacepaths.append(abs_path)
+        if hasattr(client, 'edge_config') and hasattr(client.edge_config, 'workspacepaths'):
+            if abs_path not in client.edge_config.workspacepaths:
+                client.edge_config.workspacepaths.append(abs_path)
                 
                 # Update the edge configuration on the server if we have an edge_id
                 if client.edge_id:
@@ -181,7 +181,7 @@ async def handle_todo_cd(payload, client):
                         client,
                         'patch',
                         f"/api/v1/edges/{client.edge_id}",
-                        {"workspacepaths": client.config.workspacepaths}
+                        {"workspacepaths": client.edge_config.workspacepaths}
                     )
                     
                     if response:
