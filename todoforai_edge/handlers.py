@@ -208,7 +208,12 @@ async def handle_block_save(payload, client):
     content = payload.get("content")
     
     try:
-        filepath = os.path.join(rootpath, filepath)
+        filepath = os.path.expanduser(filepath)
+        
+        # Only prepend rootpath if the expanded path doesn't already start with it
+        if rootpath and not filepath.startswith(rootpath):
+            filepath = os.path.join(rootpath, filepath)
+        
         # Only create directory if filepath has a directory component
         dirname = os.path.dirname(filepath)
         if dirname:  # Check if dirname is not empty
