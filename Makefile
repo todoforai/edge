@@ -5,7 +5,8 @@ help:
 	@echo "  make run               - Run the edge client with default credentials"
 	@echo "  make run-test          - Run the edge client with test credentials"
 	@echo "  make bump-version      - Bump the version number by 0.0.1"
-	@echo "  make deploy-prod       - Bump version, commit, push to main, then deploy main to production"
+	@echo "  make deploy-latest     - Bump version, commit, push to main, then deploy main to latest"
+	@echo "  make deploy-tag        - Create a GitHub release tag for the current version"
 
 run:
 	@echo "Running TodoForAI Edge client..."
@@ -30,7 +31,14 @@ bump-version:
 	git push origin main && \
 	echo "Version updated to $$NEW_VERSION"
 
-deploy-prod: bump-version
+deploy-tag:
+	@VERSION=$$(grep -oP 'version = "\K[0-9]+\.[0-9]+\.[0-9]+' pyproject.toml) && \
+	echo "Creating release tag v$$VERSION..." && \
+	git tag -a "v$$VERSION" -m "Release v$$VERSION" && \
+	git push origin "v$$VERSION" && \
+	echo "Release tag v$$VERSION created and pushed to GitHub"
+
+deploy-latest: bump-version
 	@echo "Deploying main branch to production..."
 	@git checkout prod
 	@git pull origin prod
