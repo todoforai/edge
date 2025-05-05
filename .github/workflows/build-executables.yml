@@ -39,6 +39,23 @@ jobs:
         pip    install -e .
         pip    install pyinstaller
 
+    # ─── macOS specific setup for universal binary ───────────────────────────
+    - name: Setup for universal macOS binary
+      if: matrix.os == 'macos-latest'
+      run: |
+        # Install PyInstaller with universal2 support
+        pip install --upgrade pyinstaller
+
+        # Install the delocate tool for fixing dylib paths
+        pip install delocate
+
+        # Check Python architecture
+        python -c "import platform; print(f'Python architecture: {platform.machine()}')"
+        
+        # Check if we can build universal binaries
+        echo "Checking PyInstaller universal2 support..."
+        python -c "import PyInstaller.utils.osx as osxutils; print(f'Can build universal2: {osxutils.can_build_universal2()}')"
+
     - name: Build executable
       run: python build_executable.py
 
@@ -47,6 +64,19 @@ jobs:
       if: matrix.os != 'windows-latest'
       run: mv dist/todoforai-edge dist/${{ matrix.output_name }}
       shell: bash
+
+    # ─── Check macOS binary architecture ──────────────────────────────────────
+    - name: Check macOS binary architecture
+      if: matrix.os == 'macos-latest'
+      run: |
+        echo "Binary file information:"
+        file dist/${{ matrix.output_name }}
+        
+        echo "Architecture details:"
+        lipo -info dist/${{ matrix.output_name }} || echo "lipo command failed, binary may not be a Mach-O file"
+        
+        echo "Dynamic library dependencies:"
+        otool -L dist/${{ matrix.output_name }} || echo "otool command failed"
 
     # ─── 🍏 Create simplified entitlements file for macOS ─────────────────────
     - name: Write entitlements (macOS)
