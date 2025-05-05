@@ -72,33 +72,36 @@ jobs:
         p12-file-base64:      ${{ secrets.APPLE_CERTIFICATE }}
         p12-password:         ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
 
-    # ─── 🍏 2. Diagnostic step to show available identities ─────────────────
-    - name: Show available code‑signing identities (macOS)
+    # ─── 🍏 2. Verify Developer ID certificate is present ─────────────────────
+    - name: Verify Developer ID certificate (macOS)
+      id: dev-id
       if: matrix.os == 'macos-latest'
       run: |
-        echo "::group::security find-identity"
+        echo "::group::Available certificates"
         security find-identity -v -p codesigning
         echo "::endgroup::"
+        
+        SHA=$(security find-identity -v -p codesigning | 
+              awk '/Developer ID Application: DiabTrend AI/ {print $2; exit}')
+        if [ -z "$SHA" ]; then
+          echo "::error::Developer ID Application certificate not found in keychain"
+          echo "Make sure you've exported the correct certificate from Keychain Access"
+          echo "and updated the APPLE_CERTIFICATE secret with its base64 content."
+          exit 1
+        fi
+        echo "SHA=$SHA" >> $GITHUB_OUTPUT
+        echo "Found Developer ID Application certificate: $SHA"
 
-    # ─── 🍏 3. Capture the identity that's really in the keychain ───────────
-    - name: Detect first codesign identity (macOS)
-      id: detect-identity
-      if: matrix.os == 'macos-latest'
-      run: |
-        ID=$(security find-identity -v -p codesigning | awk 'NR==1{print $2}')
-        echo "IDENTITY_SHA=$ID" >> "$GITHUB_OUTPUT"
-        echo "Found identity SHA: $ID"
-
-    # ─── 🍏 4. Sign macOS binary (deep, with simplified entitlements) ─────────
+    # ─── 🍏 3. Sign macOS binary with verified certificate SHA ─────────────────
     - name: Sign macOS binary
       if: matrix.os == 'macos-latest'
       run: |
         /usr/bin/codesign --force --deep --timestamp --options runtime \
           --entitlements entitlements.plist \
-          --sign "${{ secrets.APPLE_SIGNING_IDENTITY }}" \
+          --sign "${{ steps.dev-id.outputs.SHA }}" \
           dist/${{ matrix.output_name }} -v
 
-    # ─── 🍏 5. Verify signature ─────────────────────────────────────────────
+    # ─── 🍏 4. Verify signature ─────────────────────────────────────────────
     - name: Verify signature (macOS)
       if: matrix.os == 'macos-latest'
       run: |
@@ -129,7 +132,7 @@ jobs:
         echo "Notarization result:"
         cat notarization-result.json
 
-    # ─── 🍏 7. Show notarization log ─────────────────────────────────────
+    # ─── 🍏 6. Show notarization log ─────────────────────────────────────
     - name: Show notarization log (macOS)
       if: matrix.os == 'macos-latest' && steps.notarize.outputs.NOTARIZATION_ID != ''
       run: |
