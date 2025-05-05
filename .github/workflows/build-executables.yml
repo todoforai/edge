@@ -48,6 +48,36 @@ jobs:
       run: mv dist/todoforai-edge dist/${{ matrix.output_name }}
       shell: bash
       
+    # Code signing for macOS
+    - name: Import Code-Signing Certificates (macOS)
+      if: matrix.os == 'macos-latest'
+      uses: apple-actions/import-codesign-certs@v2
+      with:
+        p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+        p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        keychain-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        
+    - name: Sign macOS executable
+      if: matrix.os == 'macos-latest'
+      run: |
+        /usr/bin/codesign --force -s "${{ secrets.APPLE_SIGNING_IDENTITY }}" --options runtime dist/${{ matrix.output_name }} -v
+        
+    - name: Notarize macOS executable
+      if: matrix.os == 'macos-latest'
+      run: |
+        # Create a zip file for notarization
+        ditto -c -k --keepParent dist/${{ matrix.output_name }} dist/todoforai-edge-mac.zip
+        
+        # Submit for notarization
+        xcrun notarytool submit dist/todoforai-edge-mac.zip \
+          --apple-id "${{ secrets.APPLE_ID }}" \
+          --password "${{ secrets.APPLE_PASSWORD }}" \
+          --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+          --wait
+          
+        # Staple the notarization ticket
+        xcrun stapler staple dist/${{ matrix.output_name }}
+      
     # Windows doesn't need renaming since the output name is already correct
       
     - name: Upload executable as artifact
