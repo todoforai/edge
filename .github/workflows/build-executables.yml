@@ -14,14 +14,17 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
         include:
           - os: ubuntu-latest
             output_name: todoforai-edge-linux
           - os: windows-latest
             output_name: todoforai-edge.exe
-          - os: macos-latest
-            output_name: todoforai-edge-mac
+          - os: macos-14
+            output_name: todoforai-edge-mac-arm64
+            arch: arm64
+          - os: macos-13
+            output_name: todoforai-edge-mac-x86_64
+            arch: x86_64
 
     runs-on: ${{ matrix.os }}
 
@@ -39,22 +42,11 @@ jobs:
         pip    install -e .
         pip    install pyinstaller
 
-    # ─── macOS specific setup for universal binary ───────────────────────────
-    - name: Setup for universal macOS binary
-      if: matrix.os == 'macos-latest'
+    - name: Check Python and system architecture
       run: |
-        # Install PyInstaller with universal2 support
-        pip install --upgrade pyinstaller
-
-        # Install the delocate tool for fixing dylib paths
-        pip install delocate
-
-        # Check Python architecture
         python -c "import platform; print(f'Python architecture: {platform.machine()}')"
-        
-        # Check if we can build universal binaries
-        echo "Checking PyInstaller universal2 support..."
-        python -c "import PyInstaller.utils.osx as osxutils; print(f'Can build universal2: {osxutils.can_build_universal2()}')"
+        echo "System information:"
+        uname -a
 
     - name: Build executable
       run: python build_executable.py
@@ -67,7 +59,7 @@ jobs:
 
     # ─── Check macOS binary architecture ──────────────────────────────────────
     - name: Check macOS binary architecture
-      if: matrix.os == 'macos-latest'
+      if: startsWith(matrix.os, 'macos')
       run: |
         echo "Binary file information:"
         file dist/${{ matrix.output_name }}
@@ -80,7 +72,7 @@ jobs:
 
     # ─── 🍏 Create simplified entitlements file for macOS ─────────────────────
     - name: Write entitlements (macOS)
-      if: matrix.os == 'macos-latest'
+      if: startsWith(matrix.os, 'macos')
       run: |
         cat > entitlements.plist <<'EOF'
         <?xml version="1.0" encoding="UTF-8"?>
@@ -96,7 +88,7 @@ jobs:
 
     # ─── 🍏 1. Import the certificate ───────────────────────────────────────
     - name: Import Code‑Signing Certificates (macOS)
-      if: matrix.os == 'macos-latest'
+      if: startsWith(matrix.os, 'macos')
       uses: apple-actions/import-codesign-certs@v2
       with:
         p12-file-base64:      ${{ secrets.APPLE_CERTIFICATE }}
@@ -105,7 +97,7 @@ jobs:
     # ─── 🍏 2. Verify Developer ID certificate is present ─────────────────────
     - name: Verify Developer ID certificate (macOS)
       id: dev-id
-      if: matrix.os == 'macos-latest'
+      if: startsWith(matrix.os, 'macos')
       run: |
         echo "::group::Available certificates"
         security find-identity -v -p codesigning
@@ -124,7 +116,7 @@ jobs:
 
     # ─── 🍏 3. Sign macOS binary with verified certificate SHA ─────────────────
     - name: Sign macOS binary
-      if: matrix.os == 'macos-latest'
+      if: startsWith(matrix.os, 'macos')
       run: |
         # Set bundle identifier for the binary
         BUNDLE_ID="ai.todofor.edge"
@@ -137,7 +129,7 @@ jobs:
 
     # ─── 🍏 4. Verify signature ─────────────────────────────────────────────
     - name: Verify signature (macOS)
-      if: matrix.os == 'macos-latest'
+      if: startsWith(matrix.os, 'macos')
       run: |
         echo "Verifying signature..."
         codesign -vvv --deep --strict dist/${{ matrix.output_name }}
@@ -147,13 +139,13 @@ jobs:
     # ─── 🍏 5. Notarize & capture submission ID ───────────────────────────
     - name: Notarize macOS executable
       id: notarize
-      if: matrix.os == 'macos-latest'
+      if: startsWith(matrix.os, 'macos')
       run: |
         # Create a zip for notarization
-        ditto -c -k --keepParent dist/${{ matrix.output_name }} dist/todoforai-edge-mac.zip
+        ditto -c -k --keepParent dist/${{ matrix.output_name }} dist/${{ matrix.output_name }}.zip
         
         # Submit for notarization and wait for result
-        RESULT_JSON=$(xcrun notarytool submit dist/todoforai-edge-mac.zip \
+        RESULT_JSON=$(xcrun notarytool submit dist/${{ matrix.output_name }}.zip \
           --apple-id   "${{ secrets.APPLE_ID }}" \
           --password   "${{ secrets.APPLE_PASSWORD }}" \
           --team-id    "${{ secrets.APPLE_TEAM_ID }}" \
@@ -168,7 +160,7 @@ jobs:
 
     # ─── 🍏 6. Show notarization log ─────────────────────────────────────
     - name: Show notarization log (macOS)
-      if: matrix.os == 'macos-latest' && steps.notarize.outputs.NOTARIZATION_ID != ''
+      if: startsWith(matrix.os, 'macos') && steps.notarize.outputs.NOTARIZATION_ID != ''
       run: |
         # Fetch the JSON log
         xcrun notarytool log "${{ steps.notarize.outputs.NOTARIZATION_ID }}" \
@@ -185,14 +177,14 @@ jobs:
 
     # ─── 🍏 7. Fail if notarization invalid ───────────────────────────────
     - name: Fail build if notarization invalid (macOS)
-      if: matrix.os == 'macos-latest' && steps.notarize.outputs.NOTARIZATION_STATUS == 'Invalid'
+      if: startsWith(matrix.os, 'macos') && steps.notarize.outputs.NOTARIZATION_STATUS == 'Invalid'
       run: |
         echo "Notarization failed with status: Invalid – see log above"
         exit 1
 
     # ─── 🍏 8. Staple with debugging for macOS ───────────────────────────
     - name: Staple notarization ticket (macOS)
-      if: matrix.os == 'macos-latest' && steps.notarize.outputs.NOTARIZATION_STATUS == 'Accepted'
+      if: startsWith(matrix.os, 'macos') && steps.notarize.outputs.NOTARIZATION_STATUS == 'Accepted'
       run: |
         echo "Checking file existence and permissions:"
         ls -la dist/
@@ -271,14 +263,14 @@ jobs:
           FOLDER="latest"
         fi
         echo "Uploading to folder: $FOLDER"
-        for FILE in todoforai-edge-linux todoforai-edge.exe todoforai-edge-mac; do
+        for FILE in todoforai-edge-linux todoforai-edge.exe todoforai-edge-mac-x86_64 todoforai-edge-mac-arm64; do
           wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/$FILE" \
             --file "$FILE/$FILE" \
             --content-type application/octet-stream \
             --remote
         done
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-          for FILE in todoforai-edge-linux todoforai-edge.exe todoforai-edge-mac; do
+          for FILE in todoforai-edge-linux todoforai-edge.exe todoforai-edge-mac-x86_64 todoforai-edge-mac-arm64; do
             wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/$FILE" \
               --file "$FILE/$FILE" \
               --content-type application/octet-stream \
@@ -293,4 +285,5 @@ jobs:
         files: |
           todoforai-edge-linux/todoforai-edge-linux
           todoforai-edge.exe/todoforai-edge.exe
-          todoforai-edge-mac/todoforai-edge-mac
+          todoforai-edge-mac-arm64/todoforai-edge-mac-arm64
+          todoforai-edge-mac-x86_64/todoforai-edge-mac-x86_64
