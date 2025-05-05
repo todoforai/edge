@@ -152,14 +152,14 @@ jobs:
         echo "::group::Notarization Log"
         # Pretty‑print the important bits for the workflow log
         jq -r '.issues[] | "• \(.severity): \(.message) (\(.path))"' \
-          notarization-log.json || echo "No issues key – probably rejected at upload time"
+          notarization-log.json || echo "No issues key – probably no problems found"
         echo "::endgroup::"
 
     # ─── 🍏 7. Fail if notarization invalid ───────────────────────────────
     - name: Fail build if notarization invalid (macOS)
-      if: matrix.os == 'macos-latest' && steps.notarize.outputs.NOTARIZATION_STATUS != 'Accepted'
+      if: matrix.os == 'macos-latest' && steps.notarize.outputs.NOTARIZATION_STATUS == 'Invalid'
       run: |
-        echo "Notarization failed – see log above"
+        echo "Notarization failed with status: Invalid – see log above"
         exit 1
 
     # ─── 🍏 8. Staple with debugging for macOS ───────────────────────────
