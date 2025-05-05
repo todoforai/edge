@@ -34,10 +34,11 @@ def main():
     with open(entry_point, "w") as f:
         f.write("""#!/usr/bin/env python3
 import sys
-from todoforai_edge.ui import run_ui
+import asyncio
+from todoforai_edge.ui import start_ui
 
 if __name__ == "__main__":
-    run_ui()
+    asyncio.run(start_ui(None))
 """)
     
     # Create a custom spec file with more aggressive optimizations
@@ -78,7 +79,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=datas,
-    hiddenimports=[],
+    hiddenimports=['asyncio', 'tkinter'],
     hookspath=[],
     hooksconfig={{}},
     runtime_hooks=[],
