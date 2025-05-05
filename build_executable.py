@@ -35,10 +35,10 @@ def main():
         f.write("""#!/usr/bin/env python3
 import sys
 import asyncio
-from todoforai_edge.ui import start_ui
+from todoforai_edge.app import run_app
 
 if __name__ == "__main__":
-    asyncio.run(start_ui(None))
+    asyncio.run(run_app())
 """)
     
     # Create a custom spec file with more aggressive optimizations

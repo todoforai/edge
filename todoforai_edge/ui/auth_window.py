@@ -16,12 +16,12 @@ class AuthWindow:
         self.create_widgets()
         
         # Pre-fill from provided arguments or environment variables
-        if self.todo_client.email:
+        if self.todo_client and self.todo_client.email:
             self.email_entry.insert(0, self.todo_client.email)
         elif os.environ.get("TODO4AI_EMAIL"):
             self.email_entry.insert(0, os.environ.get("TODO4AI_EMAIL"))
             
-        if self.todo_client.password:
+        if self.todo_client and self.todo_client.password:
             self.password_entry.insert(0, self.todo_client.password)
             
         if os.environ.get("TODO4AI_API_KEY"):
