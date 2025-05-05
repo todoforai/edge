@@ -13,12 +13,16 @@ def main():
     # Ensure we're in the right directory
     os.chdir(Path(__file__).parent)
     
-    # Install PyInstaller if not already installed
+    # Install PyInstaller and required dependencies if not already installed
     try:
         import PyInstaller
     except ImportError:
         print("Installing PyInstaller...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "PyInstaller"])
+    
+    # Install required dependencies from requirements.txt
+    print("Installing required dependencies...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
     
     # Find the Azure theme directory
     theme_dir = Path("todoforai_edge/ui/")
@@ -79,7 +83,11 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=datas,
-    hiddenimports=['asyncio', 'tkinter'],
+    hiddenimports=[
+        'asyncio', 'tkinter', 'dotenv', 'customtkinter', 'watchdog',
+        'todoforai_edge.ui', 'todoforai_edge.ui.auth_window', 'todoforai_edge.ui.client_window',
+        'websockets', 'requests'
+    ],
     hookspath=[],
     hooksconfig={{}},
     runtime_hooks=[],
