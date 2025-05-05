@@ -113,8 +113,6 @@ jobs:
         codesign -vvv --deep --strict dist/${{ matrix.output_name }}
         echo "Checking entitlements..."
         codesign -d --entitlements :- dist/${{ matrix.output_name }}
-        echo "Checking identifier..."
-        codesign -d --verbose=2 dist/${{ matrix.output_name }} | grep "Identifier"
 
     # ─── 🍏 5. Notarize & capture submission ID ───────────────────────────
     - name: Notarize macOS executable
