@@ -31,7 +31,7 @@ bump-version:
 	git push origin main && \
 	echo "Version updated to $$NEW_VERSION"
 
-deploy-tag:
+deploy-tag: bump-version
 	@VERSION=$$(grep -oP 'version = "\K[0-9]+\.[0-9]+\.[0-9]+' pyproject.toml) && \
 	echo "Creating release tag v$$VERSION..." && \
 	git tag -a "v$$VERSION" -m "Release v$$VERSION" && \
