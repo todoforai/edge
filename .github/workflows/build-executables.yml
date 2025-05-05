@@ -42,7 +42,7 @@ jobs:
     - name: Build executable
       run: python build_executable.py
 
-    # ─── Linux / macOS rename ──────────────────────────────────────────────
+    # ─── Linux / macOS rename ──────────────────────────────────────────────
     - name: Rename executable (Linux/Mac)
       if: matrix.os != 'windows-latest'
       run: mv dist/todoforai-edge dist/${{ matrix.output_name }}
@@ -50,7 +50,7 @@ jobs:
 
     # ─── 🍏 1. Import the certificate; capture keychain path ───────────────
     - name: Import Code‑Signing Certificates (macOS)
-      id: import-certs                       # ← we’ll reference its outputs
+      id: import-certs                       # ← we'll reference its outputs
       if: matrix.os == 'macos-latest'
       uses: apple-actions/import-codesign-certs@v2
       with:
@@ -115,9 +115,25 @@ jobs:
 
     - name: Debug environment
       run: |
-        for V in R2_BUCKET_NAME CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
-          test -n "${{ secrets[$V] }}" && echo "$V is set" || echo "$V is NOT set"
-        done
+        # Check if secrets are available (without revealing them)
+        if [ -n "${{ secrets.R2_BUCKET_NAME }}" ]; then
+          echo "R2_BUCKET_NAME is set"
+        else
+          echo "R2_BUCKET_NAME is NOT set"
+        fi
+        
+        if [ -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+          echo "CLOUDFLARE_API_TOKEN is set"
+        else
+          echo "CLOUDFLARE_API_TOKEN is NOT set"
+        fi
+        
+        if [ -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+          echo "CLOUDFLARE_ACCOUNT_ID is set"
+        else
+          echo "CLOUDFLARE_ACCOUNT_ID is NOT set"
+        fi
+        
         echo "::group::Artifacts"
         ls -R
         echo "::endgroup::"
