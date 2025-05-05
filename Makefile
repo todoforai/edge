@@ -17,25 +17,18 @@ run-test:
 
 bump-version:
 	@echo "Bumping version number..."
-	@python3 -c 'import re; \
-	f = open("pyproject.toml", "r"); \
-	content = f.read(); \
-	f.close(); \
-	version_match = re.search(r"version = \"([0-9]+)\.([0-9]+)\.([0-9]+)\"", content); \
-	if not version_match: \
-		print("Error: Could not find version in pyproject.toml"); \
-		exit(1); \
-	major, minor, patch = map(int, version_match.groups()); \
-	new_version = f"{major}.{minor}.{patch+1}"; \
-	print(f"Bumping version from {major}.{minor}.{patch} to {new_version}"); \
-	new_content = re.sub(r"version = \"[0-9]+\.[0-9]+\.[0-9]+\"", f"version = \"{new_version}\"", content); \
-	f = open("pyproject.toml", "w"); \
-	f.write(new_content); \
-	f.close(); \
-	print(f"Version updated to {new_version}");'
-	@git add pyproject.toml
-	@git commit -m "Bump version to $$(grep -oP "version = \"\K[0-9]+\.[0-9]+\.[0-9]+" pyproject.toml)"
-	@git push origin main
+	@VERSION=$$(grep -oP 'version = "\K[0-9]+\.[0-9]+\.[0-9]+' pyproject.toml) && \
+	MAJOR=$$(echo $$VERSION | cut -d. -f1) && \
+	MINOR=$$(echo $$VERSION | cut -d. -f2) && \
+	PATCH=$$(echo $$VERSION | cut -d. -f3) && \
+	NEW_PATCH=$$((PATCH + 1)) && \
+	NEW_VERSION="$$MAJOR.$$MINOR.$$NEW_PATCH" && \
+	echo "Bumping version from $$VERSION to $$NEW_VERSION" && \
+	sed -i "s/version = \"$$VERSION\"/version = \"$$NEW_VERSION\"/" pyproject.toml && \
+	git add pyproject.toml && \
+	git commit -m "Bump version to $$NEW_VERSION" && \
+	git push origin main && \
+	echo "Version updated to $$NEW_VERSION"
 
 deploy-prod: bump-version
 	@echo "Deploying main branch to production..."
