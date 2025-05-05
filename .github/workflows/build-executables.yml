@@ -48,27 +48,21 @@ jobs:
       run: mv dist/todoforai-edge dist/${{ matrix.output_name }}
       shell: bash
 
-    # ─── 🍏 Create entitlements file for macOS ───────────────────────────────
-    - name: Create entitlements file (macOS)
+    # ─── 🍏 Create simplified entitlements file for macOS ─────────────────────
+    - name: Write entitlements (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        cat > mac.entitlements << 'EOF'
+        cat > entitlements.plist <<'EOF'
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
         <dict>
-            <key>com.apple.security.cs.disable-library-validation</key>
-            <true/>
-            <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-            <true/>
-            <key>com.apple.security.cs.allow-dyld-environment-variables</key>
-            <true/>
-            <key>com.apple.security.cs.disable-executable-page-protection</key>
-            <true/>
+          <key>com.apple.security.cs.disable-library-validation</key>
+          <true/>
         </dict>
         </plist>
         EOF
-        cat mac.entitlements
+        cat entitlements.plist
 
     # ─── 🍏 1. Import the certificate ───────────────────────────────────────
     - name: Import Code‑Signing Certificates (macOS)
@@ -95,29 +89,16 @@ jobs:
         echo "IDENTITY_SHA=$ID" >> "$GITHUB_OUTPUT"
         echo "Found identity SHA: $ID"
 
-    # ─── 🍏 4. Sign all dylibs first ─────────────────────────────────────────
-    - name: Sign dylibs in macOS executable
+    # ─── 🍏 4. Sign macOS binary (deep, with simplified entitlements) ─────────
+    - name: Sign macOS binary
       if: matrix.os == 'macos-latest' && steps.detect-identity.outputs.IDENTITY_SHA != ''
       run: |
-        # Find and sign all dylibs
-        find dist -name "*.dylib" -o -name "*.so" | while read -r file; do
-          echo "Signing $file"
-          /usr/bin/codesign --force --timestamp --options runtime \
-            --sign "${{ steps.detect-identity.outputs.IDENTITY_SHA }}" \
-            "$file" -v
-        done
-
-    # ─── 🍏 5. Sign the main executable with entitlements ───────────────────
-    - name: Sign macOS executable
-      if: matrix.os == 'macos-latest' && steps.detect-identity.outputs.IDENTITY_SHA != ''
-      run: |
-        # Sign with hardened runtime and entitlements
-        /usr/bin/codesign --force --timestamp --options runtime \
+        /usr/bin/codesign --force --deep --timestamp --options runtime \
+          --entitlements entitlements.plist \
           --sign "${{ steps.detect-identity.outputs.IDENTITY_SHA }}" \
-          --entitlements mac.entitlements \
           dist/${{ matrix.output_name }} -v
 
-    # ─── 🍏 6. Verify signature ─────────────────────────────────────────────
+    # ─── 🍏 5. Verify signature ─────────────────────────────────────────────
     - name: Verify signature (macOS)
       if: matrix.os == 'macos-latest' && steps.detect-identity.outputs.IDENTITY_SHA != ''
       run: |
@@ -126,7 +107,7 @@ jobs:
         echo "Checking entitlements..."
         codesign -d --entitlements :- dist/${{ matrix.output_name }}
 
-    # ─── 🍏 7. Notarize & capture submission ID ───────────────────────────
+    # ─── 🍏 6. Notarize & capture submission ID ───────────────────────────
     - name: Notarize macOS executable
       id: notarize
       if: matrix.os == 'macos-latest' && steps.detect-identity.outputs.IDENTITY_SHA != ''
@@ -148,7 +129,7 @@ jobs:
         echo "Notarization result:"
         cat notarization-result.json
 
-    # ─── 🍏 8. Show notarization log ─────────────────────────────────────
+    # ─── 🍏 7. Show notarization log ─────────────────────────────────────
     - name: Show notarization log (macOS)
       if: matrix.os == 'macos-latest' && steps.notarize.outputs.NOTARIZATION_ID != ''
       run: |
@@ -165,7 +146,7 @@ jobs:
           notarization-log.json || echo "No issues key – probably rejected at upload time"
         echo "::endgroup::"
 
-    # ─── 🍏 9. Staple if notarization succeeded ───────────────────────────
+    # ─── 🍏 8. Staple if notarization succeeded ───────────────────────────
     - name: Staple notarization ticket (macOS)
       if: matrix.os == 'macos-latest' && steps.notarize.outputs.NOTARIZATION_STATUS == 'Accepted'
       run: |
