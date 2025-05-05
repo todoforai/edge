@@ -3,13 +3,12 @@ name: Build and Deploy Executables
 on:
   push:
     branches: [ prod ]
-    tags: [ 'v*' ]
+    tags:   [ 'v*' ]
   workflow_dispatch:
 
 permissions:
   contents: write
   packages: write
-
 
 jobs:
   build:
@@ -25,159 +24,134 @@ jobs:
             output_name: todoforai-edge-mac
 
     runs-on: ${{ matrix.os }}
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-        
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .
-        pip install pyinstaller
-        
+        pip    install -e .
+        pip    install pyinstaller
+
     - name: Build executable
       run: python build_executable.py
-      
+
+    # ─── Linux / macOS rename ──────────────────────────────────────────────
     - name: Rename executable (Linux/Mac)
       if: matrix.os != 'windows-latest'
       run: mv dist/todoforai-edge dist/${{ matrix.output_name }}
       shell: bash
-      
-    # Code signing for macOS
-    - name: Import Code-Signing Certificates (macOS)
+
+    # ─── 🍏 1. Import the certificate; capture keychain path ───────────────
+    - name: Import Code‑Signing Certificates (macOS)
+      id: import-certs                       # ← we’ll reference its outputs
       if: matrix.os == 'macos-latest'
       uses: apple-actions/import-codesign-certs@v2
       with:
-        p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
-        p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        keychain-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        
+        p12-file-base64:      ${{ secrets.APPLE_CERTIFICATE }}
+        p12-password:         ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+    # ─── 🍏 2. Extract the certificate hash we just loaded (optional) ──────
+    - name: Detect signing identity hash (macOS)
+      id: detect-identity
+      if: matrix.os == 'macos-latest'
+      env:
+        KEYCHAIN_PATH: ${{ steps.import-certs.outputs.keychain-path }}
+      run: |
+        # Grab the first valid codesigning identity in the keychain
+        HASH=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | \
+               awk 'NR==1 {print $2}')
+        echo "IDENTITY_HASH=$HASH" >> "$GITHUB_OUTPUT"
+
+    # ─── 🍏 3. Sign the executable, telling codesign WHICH keychain to use ─
     - name: Sign macOS executable
       if: matrix.os == 'macos-latest'
+      env:
+        KEYCHAIN_PATH: ${{ steps.import-certs.outputs.keychain-path }}
       run: |
-        /usr/bin/codesign --force -s "${{ secrets.APPLE_SIGNING_IDENTITY }}" --options runtime dist/${{ matrix.output_name }} -v
-        
+        /usr/bin/codesign --force --timestamp --options runtime \
+          --sign   "${{ steps.detect-identity.outputs.IDENTITY_HASH }}" \
+          --keychain "$KEYCHAIN_PATH" \
+          dist/${{ matrix.output_name }} -v
+
+    # ─── 🍏 4. Notarize & staple (unchanged) ───────────────────────────────
     - name: Notarize macOS executable
       if: matrix.os == 'macos-latest'
+      env:
+        KEYCHAIN_PATH: ${{ steps.import-certs.outputs.keychain-path }}
       run: |
-        # Create a zip file for notarization
         ditto -c -k --keepParent dist/${{ matrix.output_name }} dist/todoforai-edge-mac.zip
-        
-        # Submit for notarization
         xcrun notarytool submit dist/todoforai-edge-mac.zip \
-          --apple-id "${{ secrets.APPLE_ID }}" \
-          --password "${{ secrets.APPLE_PASSWORD }}" \
-          --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+          --apple-id   "${{ secrets.APPLE_ID }}" \
+          --password   "${{ secrets.APPLE_PASSWORD }}" \
+          --team-id    "${{ secrets.APPLE_TEAM_ID }}" \
+          --keychain   "$KEYCHAIN_PATH" \
           --wait
-          
-        # Staple the notarization ticket
         xcrun stapler staple dist/${{ matrix.output_name }}
-      
-    # Windows doesn't need renaming since the output name is already correct
-      
+
+    # Windows already produces the correct file name
+
     - name: Upload executable as artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.output_name }}
         path: dist/${{ matrix.output_name }}
 
+  # ─────────────────────────── Deployment (unchanged) ───────────────────────
   deploy:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/prod'
-    
+
     steps:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
-      
+
     - name: Debug environment
       run: |
-        # Check if secrets are available (without revealing them)
-        if [ -n "${{ secrets.R2_BUCKET_NAME }}" ]; then
-          echo "R2_BUCKET_NAME is set"
-        else
-          echo "R2_BUCKET_NAME is NOT set"
-        fi
-        
-        if [ -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
-          echo "CLOUDFLARE_API_TOKEN is set"
-        else
-          echo "CLOUDFLARE_API_TOKEN is NOT set"
-        fi
-        
-        if [ -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
-          echo "CLOUDFLARE_ACCOUNT_ID is set"
-        else
-          echo "CLOUDFLARE_ACCOUNT_ID is NOT set"
-        fi
-        
-        # List downloaded artifacts
-        echo "Listing downloaded artifacts:"
-        ls -la
-        ls -la todoforai-edge-linux/ || echo "Linux artifact not found"
-        ls -la todoforai-edge.exe/ || echo "Windows artifact not found"
-        ls -la todoforai-edge-mac/ || echo "Mac artifact not found"
-        
-    - name: Install CloudFlare Wrangler
+        for V in R2_BUCKET_NAME CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+          test -n "${{ secrets[$V] }}" && echo "$V is set" || echo "$V is NOT set"
+        done
+        echo "::group::Artifacts"
+        ls -R
+        echo "::endgroup::"
+
+    - name: Install Cloudflare Wrangler
       run: npm install -g wrangler
-      
-    - name: Upload to CloudFlare R2 using Wrangler
+
+    - name: Upload to Cloudflare R2 using Wrangler
       env:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        R2_BUCKET_NAME:       ${{ secrets.R2_BUCKET_NAME }}
       run: |
-        # Determine folder name based on trigger
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-          VERSION=${GITHUB_REF#refs/tags/v}
-          FOLDER="$VERSION"
+          VERSION=${GITHUB_REF#refs/tags/v}; FOLDER="$VERSION"
         else
           FOLDER="latest"
         fi
-        
         echo "Uploading to folder: $FOLDER"
-        
-        # Upload Linux executable
-        wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-linux" \
-          --file todoforai-edge-linux/todoforai-edge-linux \
-          --content-type application/octet-stream \
-          --remote
-        
-        # Upload Windows executable
-        wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge.exe" \
-          --file todoforai-edge.exe/todoforai-edge.exe \
-          --content-type application/octet-stream \
-          --remote
-        
-        # Upload Mac executable
-        wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-mac" \
-          --file todoforai-edge-mac/todoforai-edge-mac \
-          --content-type application/octet-stream \
-          --remote
-        
-        # If this is a tag, also update the latest folder
+        for FILE in todoforai-edge-linux todoforai-edge.exe todoforai-edge-mac; do
+          wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/$FILE" \
+            --file "$FILE/$FILE" \
+            --content-type application/octet-stream \
+            --remote
+        done
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-          wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/todoforai-edge-linux" \
-            --file todoforai-edge-linux/todoforai-edge-linux \
-            --content-type application/octet-stream \
-            --remote
-            
-          wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/todoforai-edge.exe" \
-            --file todoforai-edge.exe/todoforai-edge.exe \
-            --content-type application/octet-stream \
-            --remote
-            
-          wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/todoforai-edge-mac" \
-            --file todoforai-edge-mac/todoforai-edge-mac \
-            --content-type application/octet-stream \
-            --remote
+          for FILE in todoforai-edge-linux todoforai-edge.exe todoforai-edge-mac; do
+            wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/$FILE" \
+              --file "$FILE/$FILE" \
+              --content-type application/octet-stream \
+              --remote
+          done
         fi
-  
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/v')
