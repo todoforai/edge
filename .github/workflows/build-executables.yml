@@ -73,26 +73,72 @@ jobs:
         echo "IDENTITY_SHA=$ID" >> "$GITHUB_OUTPUT"
         echo "Found identity SHA: $ID"
 
-    # ─── 🍏 4. Sign without guessing the keychain path ─────────────────────
+    # ─── 🍏 4. Sign all dylibs first ─────────────────────────────────────────
+    - name: Sign dylibs in macOS executable
+      if: matrix.os == 'macos-latest' && steps.detect-identity.outputs.IDENTITY_SHA != ''
+      continue-on-error: true
+      run: |
+        # Find and sign all dylibs
+        find dist -name "*.dylib" -o -name "*.so" | while read -r file; do
+          echo "Signing $file"
+          /usr/bin/codesign --force --timestamp --options runtime \
+            --sign "${{ steps.detect-identity.outputs.IDENTITY_SHA }}" \
+            --entitlements mac.entitlements \
+            "$file" -v
+        done
+
+    # ─── 🍏 5. Sign the main executable with entitlements ───────────────────
     - name: Sign macOS executable
       if: matrix.os == 'macos-latest' && steps.detect-identity.outputs.IDENTITY_SHA != ''
-      continue-on-error: true  # Continue even if signing fails
+      continue-on-error: true
       run: |
         /usr/bin/codesign --force --timestamp --options runtime \
           --sign "${{ steps.detect-identity.outputs.IDENTITY_SHA }}" \
+          --entitlements mac.entitlements \
           dist/${{ matrix.output_name }} -v
 
-    # ─── 🍏 5. Notarize & staple (if signing succeeded) ───────────────────
+    # ─── 🍏 6. Notarize & capture submission ID ───────────────────────────
     - name: Notarize macOS executable
+      id: notarize
       if: matrix.os == 'macos-latest' && steps.detect-identity.outputs.IDENTITY_SHA != ''
-      continue-on-error: true  # Continue even if notarization fails
+      continue-on-error: true
       run: |
         ditto -c -k --keepParent dist/${{ matrix.output_name }} dist/todoforai-edge-mac.zip
-        xcrun notarytool submit dist/todoforai-edge-mac.zip \
+        RESULT_JSON=$(xcrun notarytool submit dist/todoforai-edge-mac.zip \
           --apple-id   "${{ secrets.APPLE_ID }}" \
           --password   "${{ secrets.APPLE_PASSWORD }}" \
           --team-id    "${{ secrets.APPLE_TEAM_ID }}" \
-          --wait
+          --wait \
+          --output-format json)
+        echo "$RESULT_JSON" > notarization-result.json
+        echo "NOTARIZATION_ID=$(echo "$RESULT_JSON" | jq -r '.id')" >> "$GITHUB_OUTPUT"
+        echo "NOTARIZATION_STATUS=$(echo "$RESULT_JSON" | jq -r '.status')" >> "$GITHUB_OUTPUT"
+        cat notarization-result.json
+
+    # ─── 🍏 7. Show notarization log ─────────────────────────────────────
+    - name: Show notarization log (macOS)
+      if: matrix.os == 'macos-latest' && steps.notarize.outputs.NOTARIZATION_ID != ''
+      run: |
+        # Install jq if needed
+        brew install jq || true
+        
+        # Fetch the JSON log
+        xcrun notarytool log "${{ steps.notarize.outputs.NOTARIZATION_ID }}" \
+          --apple-id   "${{ secrets.APPLE_ID }}" \
+          --password   "${{ secrets.APPLE_PASSWORD }}" \
+          --team-id    "${{ secrets.APPLE_TEAM_ID }}" \
+          --output-format json > notarization-log.json
+        
+        echo "::group::Notarization Log"
+        # Pretty‑print the important bits for the workflow log
+        jq -r '.issues[] | "• \(.severity): \(.message) (\(.path))"' \
+          notarization-log.json || echo "No issues key – probably rejected at upload time"
+        echo "::endgroup::"
+
+    # ─── 🍏 8. Staple if notarization succeeded ───────────────────────────
+    - name: Staple notarization ticket (macOS)
+      if: matrix.os == 'macos-latest' && steps.notarize.outputs.NOTARIZATION_STATUS == 'Accepted'
+      run: |
         xcrun stapler staple dist/${{ matrix.output_name }}
 
     # Windows already produces the correct file name
