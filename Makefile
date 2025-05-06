@@ -14,7 +14,7 @@ run:
 
 run-test:
 	@echo "Running TodoForAI Edge client with test credentials..."
-	python3 run_edge.py --email lfg@todofor.ai --password Test123
+	python3 run_edge.py --email lfg@todofor.ai --password Test123 --api-url http://localhost:4000
 
 bump-version:
 	@echo "Bumping version number..."
