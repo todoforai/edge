@@ -177,4 +177,4 @@ class ClientWindow:
         
         # Create auth window in the same root
         from .auth_window import AuthWindow
-        AuthWindow(self.root)
+        AuthWindow(self.root, self.todo_client)

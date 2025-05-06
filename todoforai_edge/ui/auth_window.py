@@ -8,7 +8,7 @@ from ..client import TODOforAIEdge
 from ..protocol_handler import register_protocol_handler
 
 class AuthWindow:
-    def __init__(self, root, todo_client=None):
+    def __init__(self, root, todo_client):
         self.root = root
         self.root.title("TodoForAI Edge - Login")
         self.root.geometry("400x600")
