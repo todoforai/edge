@@ -36,8 +36,8 @@ class Config:
             
     def update_from_args(self, args):
         """Update configuration from parsed arguments"""
-        if args.apiurl:
-            self.api_url = args.apiurl
+        if args.api_url:
+            self.api_url = args.api_url
         if args.debug:
             self.debug = args.debug
             self.log_level = "DEBUG" if self.debug else "INFO"
