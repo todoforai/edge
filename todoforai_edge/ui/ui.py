@@ -114,9 +114,31 @@ async def start_ui(todo_client):
             if not ui_future.done():
                 ui_future.set_exception(e)
     
-    # Start UI in a separate thread
-    ui_thread = threading.Thread(target=ui_thread_func, daemon=True)
-    ui_thread.start()
+    # Check if we're on macOS
+    is_macos = sys.platform == "darwin"
+    
+    # On macOS, we must run Tkinter on the main thread
+    if is_macos and threading.current_thread() is threading.main_thread():
+        logger.info("Running UI directly on main thread (macOS)")
+        ui_thread_func()
+    elif is_macos:
+        # We're on macOS but not on the main thread
+        # This is a problematic situation - log a warning
+        logger.warning("On macOS, but not on main thread. This may cause UI issues.")
+        # Try to use the main thread if possible
+        loop = asyncio.get_event_loop()
+        if hasattr(loop, 'call_soon_threadsafe'):
+            logger.info("Attempting to schedule UI on main thread via event loop")
+            loop.call_soon_threadsafe(ui_thread_func)
+        else:
+            # Fallback, but this will likely fail on macOS
+            logger.warning("No way to schedule on main thread, attempting direct call (may fail)")
+            ui_thread_func()
+    else:
+        # Not on macOS, we can use a separate thread
+        logger.info("Starting UI in separate thread (non-macOS platform)")
+        ui_thread = threading.Thread(target=ui_thread_func, daemon=True)
+        ui_thread.start()
     
     # Wait for UI to complete
     await ui_future
