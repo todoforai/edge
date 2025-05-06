@@ -47,8 +47,8 @@ class Config:
             self.email = args.email
         if args.password:
             self.password = args.password
-        if args.apikey:
-            self.api_key = args.apikey
+        if args.api_key:
+            self.api_key = args.api_key
             
         # Update protocol handling
         if args.register_protocol:
