@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "todoforai-client"
-version = "0.9.21"
+version = "0.9.22"
 description = "TODO for AI service client"
 readme = "README.md"
 authors = [
