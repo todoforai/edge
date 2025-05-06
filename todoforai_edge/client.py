@@ -8,6 +8,7 @@ import platform
 import uuid
 import logging
 from pathlib import Path
+import traceback
 
 # Import constants
 from .constants import (
@@ -68,6 +69,7 @@ class TODOforAIEdge:
         self.api_url = client_config.api_url
         self.api_key = client_config.api_key
         self.email = client_config.email
+        print('self.email:', self.email)
         self.password = client_config.password
         # Add debug attribute for convenience
         self.debug = client_config.debug
@@ -198,43 +200,43 @@ class TODOforAIEdge:
                 self.edge_id = payload.get("edgeId", "")
                 self.user_id = payload.get("userId", "")
                 logger.info(f"Connected with edge ID: {self.edge_id} and user ID: {self.user_id}")
-            
-                # Load edge configuration after connection
+        
+            # Load edge configuration after connection
                 asyncio.create_task(self._load_edge_config())
-                
+            
             elif msg_type == FE.EDGE_DIR_LIST:
                 asyncio.create_task(handle_todo_dir_list(payload, self))
-                
+            
             elif msg_type == FE.EDGE_CD:
                 asyncio.create_task(handle_todo_cd(payload, self))
-                
+            
             elif msg_type == FE.BLOCK_SAVE:
                 asyncio.create_task(handle_block_save(payload, self))
-                
+            
             elif msg_type == FE.BLOCK_REFRESH:
                 asyncio.create_task(handle_block_refresh(payload, self))
-                
+            
             elif msg_type == FE.BLOCK_EXECUTE:
                 asyncio.create_task(handle_block_execute(payload, self))
-                
+            
             elif msg_type == FE.BLOCK_KEYBOARD:
                 asyncio.create_task(handle_block_keyboard(payload, self))
-                
+            
             elif msg_type == FE.BLOCK_SIGNAL:
                 asyncio.create_task(handle_block_signal(payload, self))
-                
+            
             elif msg_type == FE.BLOCK_DIFF:
                 asyncio.create_task(handle_block_diff(payload, self))
-                
+            
             elif msg_type == FE.TASK_ACTION_NEW:
                 asyncio.create_task(handle_task_action_new(payload, self))
-                
+            
             elif msg_type == AE.CTX_JULIA_REQUEST:
                 asyncio.create_task(handle_ctx_julia_request(payload, self))
-                
+            
             elif msg_type == AE.CTX_WORKSPACE_REQUEST:
                 asyncio.create_task(handle_ctx_workspace_request(payload, self))
-                
+            
             elif msg_type == AE.FILE_CHUNK_REQUEST:
                 asyncio.create_task(handle_file_chunk_request(payload, self))
 
@@ -243,12 +245,13 @@ class TODOforAIEdge:
             
             elif msg_type == FE.GET_FOLDERS:
                 asyncio.create_task(handle_get_folders(payload, self))
-                
+            
             else:
                 logger.warning(f"Unknown message type: {msg_type}")
                 
         except Exception as error:
-            logger.error(f"Error handling message: {str(error)}")
+            stack_trace = traceback.format_exc()
+            logger.error(f"Error handling message: {str(error)}\nStacktrace:\n{stack_trace}")
 
 
     async def _send_response(self, message):
@@ -292,11 +295,9 @@ class TODOforAIEdge:
                 # Process messages
                 async for message in ws:
                     await self._handle_message(message)
-
-
-                    
         except websockets.exceptions.InvalidStatusCode as error:
-            logger.error(f"WebSocket connection failed with status code: {error.status_code}")
+            stack_trace = traceback.format_exc()
+            logger.error(f"WebSocket connection failed with status code: {error.status_code}\nStacktrace:\n{stack_trace}")
             if error.status_code == 401:
                 logger.error("Authentication failed. Please check your API key.")
             elif error.status_code == 403:
@@ -304,11 +305,13 @@ class TODOforAIEdge:
             else:
                 logger.error(f"Server returned error: {error}")
         except websockets.exceptions.ConnectionClosedError as error:
-            logger.error(f"WebSocket connection closed unexpectedly: {error}")
+            stack_trace = traceback.format_exc()
+            logger.error(f"WebSocket connection closed unexpectedly: {error}\nStacktrace:\n{stack_trace}")
         except websockets.exceptions.ConnectionClosedOK as error:
             logger.info(f"WebSocket connection closed normally: {error}")
         except Exception as error:
-            logger.error(f"WebSocket connection error: {str(error)}")
+            stack_trace = traceback.format_exc()
+            logger.error(f"WebSocket connection error: {str(error)}\nStacktrace:\n{stack_trace}")
         finally:
             self.connected = False
             self.ws = None
