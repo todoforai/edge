@@ -81,7 +81,8 @@ async def handle_block_signal(payload, client):
         shell = ShellProcess()
         shell.interrupt_block(block_id)
     except Exception as error:
-        logger.error(f"Error processing signal: {str(error)}")
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error processing signal: {str(error)}\nStacktrace:\n{stack_trace}")
         await client._send_response(block_error_result_msg(block_id, str(error)))
 
 async def handle_get_folders(payload, client):

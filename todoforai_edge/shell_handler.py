@@ -6,6 +6,7 @@ import os
 import select
 import logging
 from typing import Dict
+import traceback
 
 from .messages import block_message_result_msg, block_done_result_msg
 
@@ -54,12 +55,13 @@ class ShellProcess:
             
             # Return immediately without waiting for any tasks
             return
-                
+            
         except Exception as e:
-            logger.error(f"Error creating process: {str(e)}")
+            stack_trace = traceback.format_exc()
+            logger.error(f"Error creating process: {str(e)}\nStacktrace:\n{stack_trace}")
             # Send error message to client
             await client._send_response(block_message_result_msg(
-                todo_id, block_id, f"Error creating process: {str(e)}", request_id
+                todo_id, block_id, f"Error creating process: {str(e)}\n\nStacktrace:\n{stack_trace}", request_id
             ))
 
     async def _handle_timeout(self, block_id: str, timeout: float, client, todo_id: str, request_id: str):
@@ -101,7 +103,8 @@ class ShellProcess:
                     # Small sleep to prevent CPU spinning
                     await asyncio.sleep(0.01)
             except Exception as e:
-                logger.error(f"Error reading from {stream_type}: {str(e)}")
+                stack_trace = traceback.format_exc()
+                logger.error(f"Error reading from {stream_type}: {str(e)}\nStacktrace:\n{stack_trace}")
                 break
         
         logger.debug(f"Stream {stream_type} for block {block_id} finished")

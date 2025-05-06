@@ -5,9 +5,12 @@ import asyncio
 import tkinter as tk
 from tkinter import messagebox
 import traceback
+import logging
 
 from todoforai_edge.ui.auth_window import AuthWindow
 from todoforai_edge.ui.client_window import ClientWindow
+
+logger = logging.getLogger("todoforai-ui")
 
 def setup_azure_theme(root):
     try:
@@ -15,30 +18,31 @@ def setup_azure_theme(root):
         if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
             # Running as PyInstaller bundle
             base_dir = sys._MEIPASS
-            print(f"Running from PyInstaller bundle, base dir: {base_dir}")
+            logger.debug(f"Running from PyInstaller bundle, base dir: {base_dir}")
             base_dir = os.path.join(base_dir, "todoforai_edge")
         else:
             # Running as a normal Python script
             base_dir = os.path.dirname(os.path.abspath(__file__))
-            print(f"Running as script, base dir: {base_dir}")
+            logger.debug(f"Running as script, base dir: {base_dir}")
         
         # Check for theme file
         azure_tcl = os.path.join("todoforai_edge/ui", "azure.tcl")
         
-        print(f"Checking for theme at: {azure_tcl}")
+        logger.debug(f"Checking for theme at: {azure_tcl}")
         if os.path.exists(azure_tcl):
-            print(f"Found Azure theme at: {azure_tcl}")
+            logger.debug(f"Found Azure theme at: {azure_tcl}")
         else:
-            print("Azure theme file not found")
+            logger.warning("Azure theme file not found")
             return False
 
         # Load the theme
         root.tk.call("source", azure_tcl)
         root.tk.call("set_theme", "dark")  # Use dark theme by default
-        print("Azure theme applied successfully")
+        logger.debug("Azure theme applied successfully")
         return True
     except Exception as e:
-        print(f"Failed to set up Azure theme: {e}")
+        stack_trace = traceback.format_exc()
+        logger.error(f"Failed to set up Azure theme: {e}\nStacktrace:\n{stack_trace}")
         return False
 
 async def start_ui(todo_client):
@@ -61,24 +65,24 @@ async def start_ui(todo_client):
             
             # Try to apply a modern theme
             theme_applied = setup_azure_theme(root)
-            print(f"Azure theme applied: {theme_applied}")
+            logger.debug(f"Azure theme applied: {theme_applied}")
             
             # If we have a client, start with client window
             if todo_client is not None:
-                print("Using existing TODOforAIEdge client")
+                logger.info("Using existing TODOforAIEdge client")
                 client_window = ClientWindow(root, todo_client)
                 root.after(200, client_window.start_client)
             else:
                 # Create auth window with default config
-                print("No client provided, starting with auth window")
+                logger.info("No client provided, starting with auth window")
                 AuthWindow(root, todo_client)
             
             # Set up a handler for when the window is closed
             def on_closing():
-                print("Window closing, shutting down application...")
+                logger.info("Window closing, shutting down application...")
                 # Stop any running client
                 if todo_client and hasattr(todo_client, 'connected') and todo_client.connected:
-                    print("Stopping client before exit...")
+                    logger.info("Stopping client before exit...")
                     # We can't await here, so we'll just set the flag
                     todo_client.connected = False
                 
@@ -87,7 +91,7 @@ async def start_ui(todo_client):
                     ui_future.set_result(None)
                 
                 # Force exit the application
-                print("Exiting application...")
+                logger.info("Exiting application...")
                 os._exit(0)
             
             root.protocol("WM_DELETE_WINDOW", on_closing)
@@ -100,11 +104,11 @@ async def start_ui(todo_client):
                 ui_future.set_result(None)
                 
         except Exception as e:
-            print(f"Error starting UI: {str(e)}")
-            traceback.print_exc()
+            stack_trace = traceback.format_exc()
+            logger.error(f"Error starting UI: {str(e)}\nStacktrace:\n{stack_trace}")
             
             # Show error in a standard dialog
-            messagebox.showerror("Error Starting UI", str(e))
+            messagebox.showerror("Error Starting UI", f"{str(e)}\n\nSee logs for details.")
             
             # Signal error to the main thread
             if not ui_future.done():
