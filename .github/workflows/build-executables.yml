@@ -173,15 +173,38 @@ jobs:
         TAURI_SKIP_UPDATE_CHECK: 1
       shell: bash
 
-    # Notarize and staple the macOS application
-    - name: Notarize & staple (macOS)
+    # Notarize and staple the macOS application using manual commands
+    - name: Notarize & staple macOS app
       if: startsWith(matrix.os, 'macos')
-      uses: apple-actions/notary-tools@v1
-      with:
-        product-path: edge_frontend/src-tauri/target/release/bundle/dmg/todoforai-edge.dmg
-        apple-id: ${{ secrets.APPLE_ID }}
-        team-id: ${{ secrets.APPLE_TEAM_ID }}
-        password: ${{ secrets.APPLE_APP_PASSWORD }}
+      run: |
+        # Create keychain profile for notarization
+        echo "Creating notarization keychain profile"
+        xcrun notarytool store-credentials "notary-profile" \
+          --apple-id "${{ secrets.APPLE_ID }}" \
+          --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+          --password "${{ secrets.APPLE_APP_PASSWORD }}"
+        
+        # Find the DMG file
+        DMG_PATH=$(find edge_frontend/src-tauri/target/release/bundle/dmg -name "*.dmg" | head -n 1)
+        if [ -z "$DMG_PATH" ]; then
+          echo "::error::DMG file not found"
+          exit 1
+        fi
+        echo "Found DMG at: $DMG_PATH"
+        
+        # Submit for notarization and wait for result
+        echo "Submitting for notarization..."
+        xcrun notarytool submit "$DMG_PATH" \
+          --keychain-profile "notary-profile" \
+          --wait
+        
+        # Staple the notarization ticket to the DMG
+        echo "Stapling notarization ticket..."
+        xcrun stapler staple "$DMG_PATH"
+        
+        # Verify the stapling
+        xcrun stapler validate "$DMG_PATH"
+      shell: bash
 
     # Determine the Tauri app bundle path based on OS
     - name: Set Tauri bundle path
