@@ -152,32 +152,20 @@ jobs:
         
         TEAM_ID="AQB24YZUQ3"  # Your Apple Team ID
         
-        # First try to find a Developer ID Application certificate
+        # Look for Developer ID Application certificate - no fallback
         SHA=$(security find-identity -v -p codesigning | 
               awk "/Developer ID Application: .* ${TEAM_ID}/ {print \$2; exit}")
         
-        # If not found, check if we at least have an Apple Development certificate
         if [ -z "$SHA" ]; then
-          echo "::warning::Developer ID Application certificate not found. Checking for Apple Development certificate..."
-          SHA=$(security find-identity -v -p codesigning | 
-                awk "/Apple Development:/ {print \$2; exit}")
-          
-          if [ -z "$SHA" ]; then
-            echo "::error::No valid code signing certificate found in keychain"
-            echo "Make sure you've exported the correct certificate from Keychain Access"
-            echo "and updated the APPLE_CERTIFICATE secret with its base64 content."
-            exit 1
-          else
-            echo "::warning::Using Apple Development certificate for signing. This will NOT work for distribution!"
-            echo "::warning::For distribution builds, you must use a Developer ID Application certificate."
-          fi
-        else
-          echo "Found Developer ID Application certificate: $SHA"
+          echo "::error::Developer ID Application certificate for team $TEAM_ID not found in keychain"
+          echo "Make sure you've exported the correct certificate from Keychain Access"
+          echo "and updated the APPLE_CERTIFICATE secret with its base64 content."
+          exit 1
         fi
         
         echo "SHA=$SHA" >> $GITHUB_OUTPUT
+        echo "Found Developer ID Application certificate: $SHA"
         
-        # Get the full name of the certificate for Tauri config
         CERT_NAME=$(security find-identity -v -p codesigning | 
                    awk -v sha="$SHA" '$0 ~ sha {match($0,/"([^"]+)"/); print substr($0,RSTART+1,RLENGTH-2)}')
         echo "CERT_NAME=$CERT_NAME" >> $GITHUB_OUTPUT
@@ -190,11 +178,16 @@ jobs:
       env:
         TAURI_SKIP_UPDATE_CHECK: 1
         APPLE_SIGNING_IDENTITY: ${{ steps.dev-id.outputs.CERT_NAME }}
+        # Let Tauri handle notarization
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
       shell: bash
 
     # Notarize and staple the macOS application using manual commands
-    - name: Notarize & staple macOS app
-      if: startsWith(matrix.os, 'macos')
+    # Only run this if Tauri's built-in notarization fails
+    - name: Manual Notarize & staple macOS app
+      if: startsWith(matrix.os, 'macos') && !contains(env.TAURI_BUILD_LOG, 'notarization complete')
       run: |
         # Create keychain profile for notarization
         echo "Creating notarization keychain profile"
@@ -211,37 +204,36 @@ jobs:
         fi
         echo "Found DMG at: $DMG_PATH"
         
-        # Submit for notarization and capture the submission ID
+        # Submit for notarization and capture the submission ID using JSON output
         echo "Submitting for notarization..."
-        SUBMISSION_OUTPUT=$(xcrun notarytool submit "$DMG_PATH" \
+        SUBMISSION_JSON=$(xcrun notarytool submit "$DMG_PATH" \
           --keychain-profile "notary-profile" \
-          --wait)
+          --wait \
+          --output-format json)
         
         echo "Notarization submission output:"
-        echo "$SUBMISSION_OUTPUT"
+        echo "$SUBMISSION_JSON"
         
-        # Extract the submission ID
-        SUBMISSION_ID=$(echo "$SUBMISSION_OUTPUT" | awk '/id:/ {print $2}')
-        
-        if [ -z "$SUBMISSION_ID" ]; then
-          echo "::error::Failed to extract submission ID from notarytool output"
-          exit 1
-        fi
+        # Extract the submission ID and status using jq
+        SUBMISSION_ID=$(echo "$SUBMISSION_JSON" | jq -r '.id')
+        STATUS=$(echo "$SUBMISSION_JSON" | jq -r '.status')
         
         echo "Notarization submission ID: $SUBMISSION_ID"
-        
-        # Get detailed log for the submission
-        echo "Fetching detailed notarization log..."
-        xcrun notarytool log "$SUBMISSION_ID" \
-          --keychain-profile "notary-profile" > notarization.log
-        
-        echo "::group::Notarization Log"
-        cat notarization.log
-        echo "::endgroup::"
+        echo "Notarization status: $STATUS"
         
         # Check if notarization was successful
-        if ! grep -q "status: Accepted" notarization.log; then
-          echo "::error::Notarization failed. See log for details."
+        if [ "$STATUS" != "Accepted" ]; then
+          echo "::error::Notarization failed with status: $STATUS"
+          
+          # Get detailed log for the submission
+          echo "Fetching detailed notarization log..."
+          xcrun notarytool log "$SUBMISSION_ID" \
+            --keychain-profile "notary-profile" > notarization.log
+          
+          echo "::group::Notarization Log"
+          cat notarization.log
+          echo "::endgroup::"
+          
           exit 1
         fi
         
