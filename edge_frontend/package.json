@@ -1,0 +1,50 @@
+{
+  "name": "todoforai-edge",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-deep-link": "~2",
+    "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-os": "^2.2.1",
+    "@tauri-apps/plugin-store": "^2.0.0",
+    "@types/styled-components": "^5.1.34",
+    "@typescript-eslint/eslint-plugin": "^8.32.0",
+    "@typescript-eslint/parser": "^8.32.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "lodash": "^4.17.21",
+    "path-browserify": "^1.0.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-virtualized-auto-sizer": "^1.0.26",
+    "react-window": "^1.8.11",
+    "styled-components": "^6.1.18",
+    "zustand": "^5.0.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.0",
+    "@tauri-apps/cli": "^2",
+    "@types/lodash": "^4.17.16",
+    "@types/node": "^22.15.18",
+    "@types/path-browserify": "^1.0.3",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
+    "@types/react-window": "^1.8.8",
+    "@vitejs/plugin-react-swc": "^3.9.0",
+    "eslint": "^9.25.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^16.0.0",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.30.1",
+    "vite": "^6.3.5"
+  }
+}

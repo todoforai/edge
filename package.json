@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "dev": "cd edge_frontend && yarn dev",
+    "build": "cd edge_frontend && yarn build",
+    "build:edge": "python build_executable.py",
+    "lint": "cd edge_frontend && yarn lint",
+    "preview": "cd edge_frontend && yarn preview",
+    "tauri": "cd edge_frontend && yarn tauri",
+    "install": "cd edge_frontend && yarn install"
+  }
+}

@@ -332,7 +332,7 @@ class WorkspaceSyncManager:
                     }
                 })
             
-                logger.info(f"Synced file: {action} {abs_path} ({current_size} bytes)")
+                # logger.info(f"Synced file: {action} {abs_path} ({current_size} bytes)")
             
         except UnicodeDecodeError:
             # Skip binary files

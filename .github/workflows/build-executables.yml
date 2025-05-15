@@ -1,4 +1,4 @@
-name: Build and Deploy Executables
+name: Build and Deploy Tauri Applications
 
 on:
   push:
@@ -16,15 +16,13 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            output_name: todoforai-edge-linux
+            target_triple: x86_64-unknown-linux-gnu
           - os: windows-latest
-            output_name: todoforai-edge.exe
+            target_triple: x86_64-pc-windows-msvc
           - os: macos-14
-            output_name: todoforai-edge-mac-arm64
-            arch: arm64
+            target_triple: aarch64-apple-darwin
           - os: macos-13
-            output_name: todoforai-edge-mac-x86_64
-            arch: x86_64
+            target_triple: x86_64-apple-darwin
 
     runs-on: ${{ matrix.os }}
 
@@ -36,39 +34,76 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install dependencies
+    - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip    install -e .
-        pip    install pyinstaller
-
-    - name: Check Python and system architecture
-      run: |
-        python -c "import platform; print(f'Python architecture: {platform.machine()}')"
-        echo "System information:"
-        uname -a
-
-    - name: Build executable
-      run: python build_executable.py
-
-    # ─── Linux / macOS rename ──────────────────────────────────────────────
-    - name: Rename executable (Linux/Mac)
-      if: matrix.os != 'windows-latest'
-      run: mv dist/todoforai-edge dist/${{ matrix.output_name }}
+        make install
       shell: bash
 
-    # ─── Check macOS binary architecture ──────────────────────────────────────
-    - name: Check macOS binary architecture
-      if: startsWith(matrix.os, 'macos')
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    - name: Install Tauri dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
       run: |
-        echo "Binary file information:"
-        file dist/${{ matrix.output_name }}
+        sudo apt-get update
+        sudo apt-get install -y libwebkit2gtk-4.0-dev \
+          build-essential \
+          curl \
+          wget \
+          libssl-dev \
+          libgtk-3-dev \
+          libayatana-appindicator3-dev \
+          librsvg2-dev
+      shell: bash
+
+    - name: Build sidecar executable
+      run: make build-sidecar
+      shell: bash
+
+    # Prepare sidecar for Tauri with correct target triple
+    - name: Prepare sidecar for Tauri
+      run: |
+        # Create binaries directory
+        mkdir -p edge_frontend/src-tauri/binaries
         
-        echo "Architecture details:"
-        lipo -info dist/${{ matrix.output_name }} || echo "lipo command failed, binary may not be a Mach-O file"
+        # Determine source and target names based on OS
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          SOURCE_NAME="todoforai-edge-sidecar.exe"
+          TARGET_NAME="todoforai-edge-sidecar-${{ matrix.target_triple }}.exe"
+        else
+          SOURCE_NAME="todoforai-edge-sidecar"
+          TARGET_NAME="todoforai-edge-sidecar-${{ matrix.target_triple }}"
+        fi
         
-        echo "Dynamic library dependencies:"
-        otool -L dist/${{ matrix.output_name }} || echo "otool command failed"
+        # Copy the executable with the correct target triple
+        cp dist/$SOURCE_NAME edge_frontend/src-tauri/binaries/$TARGET_NAME
+        
+        # Make it executable on Unix-like systems
+        if [ "${{ matrix.os }}" != "windows-latest" ]; then
+          chmod +x edge_frontend/src-tauri/binaries/$TARGET_NAME
+        fi
+        
+        # Ensure Python script is in resources
+        mkdir -p edge_frontend/src-tauri/resources/python
+        cp edge_frontend/src-tauri/python/ws_sidecar.py edge_frontend/src-tauri/resources/python/
+        
+        echo "Sidecar prepared at: edge_frontend/src-tauri/binaries/$TARGET_NAME"
+      shell: bash
+
+    # Build the Tauri application
+    - name: Build Tauri application
+      run: make tauri-build
+      shell: bash
 
     # ─── 🍏 Create simplified entitlements file for macOS ─────────────────────
     - name: Write entitlements (macOS)
@@ -114,106 +149,30 @@ jobs:
         echo "SHA=$SHA" >> $GITHUB_OUTPUT
         echo "Found Developer ID Application certificate: $SHA"
 
-    # ─── 🍏 3. Sign macOS binary with verified certificate SHA ─────────────────
-    - name: Sign macOS binary
-      if: startsWith(matrix.os, 'macos')
+    # Determine the Tauri app bundle path based on OS
+    - name: Set Tauri bundle path
+      id: bundle-path
       run: |
-        # Set bundle identifier for the binary
-        BUNDLE_ID="ai.todofor.edge"
-        
-        /usr/bin/codesign --force --deep --timestamp --options runtime \
-          --entitlements entitlements.plist \
-          --sign "${{ steps.dev-id.outputs.SHA }}" \
-          --identifier "$BUNDLE_ID" \
-          dist/${{ matrix.output_name }} -v
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle/msi" >> $GITHUB_OUTPUT
+          echo "BUNDLE_EXTENSION=msi" >> $GITHUB_OUTPUT
+        elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle/appimage" >> $GITHUB_OUTPUT
+          echo "BUNDLE_EXTENSION=AppImage" >> $GITHUB_OUTPUT
+        else
+          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle/macos" >> $GITHUB_OUTPUT
+          echo "BUNDLE_EXTENSION=app" >> $GITHUB_OUTPUT
+        fi
+      shell: bash
 
-    # ─── 🍏 4. Verify signature ─────────────────────────────────────────────
-    - name: Verify signature (macOS)
-      if: startsWith(matrix.os, 'macos')
-      run: |
-        echo "Verifying signature..."
-        codesign -vvv --deep --strict dist/${{ matrix.output_name }}
-        echo "Checking entitlements..."
-        codesign -d --entitlements :- dist/${{ matrix.output_name }}
-
-    # ─── 🍏 5. Notarize & capture submission ID ───────────────────────────
-    - name: Notarize macOS executable
-      id: notarize
-      if: startsWith(matrix.os, 'macos')
-      run: |
-        # Create a zip for notarization
-        ditto -c -k --keepParent dist/${{ matrix.output_name }} dist/${{ matrix.output_name }}.zip
-        
-        # Submit for notarization and wait for result
-        RESULT_JSON=$(xcrun notarytool submit dist/${{ matrix.output_name }}.zip \
-          --apple-id   "${{ secrets.APPLE_ID }}" \
-          --password   "${{ secrets.APPLE_PASSWORD }}" \
-          --team-id    "${{ secrets.APPLE_TEAM_ID }}" \
-          --wait \
-          --output-format json)
-        
-        echo "$RESULT_JSON" > notarization-result.json
-        echo "NOTARIZATION_ID=$(echo "$RESULT_JSON" | jq -r '.id')" >> "$GITHUB_OUTPUT"
-        echo "NOTARIZATION_STATUS=$(echo "$RESULT_JSON" | jq -r '.status')" >> "$GITHUB_OUTPUT"
-        echo "Notarization result:"
-        cat notarization-result.json
-
-    # ─── 🍏 6. Show notarization log ─────────────────────────────────────
-    - name: Show notarization log (macOS)
-      if: startsWith(matrix.os, 'macos') && steps.notarize.outputs.NOTARIZATION_ID != ''
-      run: |
-        # Fetch the JSON log
-        xcrun notarytool log "${{ steps.notarize.outputs.NOTARIZATION_ID }}" \
-          --apple-id   "${{ secrets.APPLE_ID }}" \
-          --password   "${{ secrets.APPLE_PASSWORD }}" \
-          --team-id    "${{ secrets.APPLE_TEAM_ID }}" \
-          --output-format json > notarization-log.json
-        
-        echo "::group::Notarization Log"
-        # Pretty‑print the important bits for the workflow log
-        jq -r '.issues[] | "• \(.severity): \(.message) (\(.path))"' \
-          notarization-log.json || echo "No issues key – probably no problems found"
-        echo "::endgroup::"
-
-    # ─── 🍏 7. Fail if notarization invalid ───────────────────────────────
-    - name: Fail build if notarization invalid (macOS)
-      if: startsWith(matrix.os, 'macos') && steps.notarize.outputs.NOTARIZATION_STATUS == 'Invalid'
-      run: |
-        echo "Notarization failed with status: Invalid – see log above"
-        exit 1
-
-    # ─── 🍏 8. Staple with debugging for macOS ───────────────────────────
-    - name: Staple notarization ticket (macOS)
-      if: startsWith(matrix.os, 'macos') && steps.notarize.outputs.NOTARIZATION_STATUS == 'Accepted'
-      run: |
-        echo "Checking file existence and permissions:"
-        ls -la dist/
-        
-        echo "Checking file type:"
-        file dist/${{ matrix.output_name }}
-        
-        echo "Checking code signature before stapling:"
-        codesign -dvv dist/${{ matrix.output_name }}
-        
-        echo "Attempting to staple the ticket:"
-        xcrun stapler staple -v dist/${{ matrix.output_name }} || true
-        
-        echo "Checking if stapling succeeded:"
-        xcrun stapler validate -v dist/${{ matrix.output_name }} || true
-        
-        # Even if stapling fails, we'll continue the build
-        # The binary is still notarized and will be verified online by Gatekeeper
-        echo "Continuing with build regardless of stapling result"
-
-    # Windows already produces the correct file name
-
-    - name: Upload executable as artifact
+    # Upload the Tauri application bundle as an artifact
+    - name: Upload Tauri application bundle
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.output_name }}
-        path: dist/${{ matrix.output_name }}
+        name: todoforai-edge-${{ matrix.target_triple }}
+        path: ${{ steps.bundle-path.outputs.BUNDLE_PATH }}
 
-  # ─────────────────────────── Deployment (unchanged) ───────────────────────
+  # ─────────────────────────── Deployment ───────────────────────────
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -263,18 +222,65 @@ jobs:
           FOLDER="latest"
         fi
         echo "Uploading to folder: $FOLDER"
-        for FILE in todoforai-edge-linux todoforai-edge.exe todoforai-edge-mac-x86_64 todoforai-edge-mac-arm64; do
-          wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/$FILE" \
-            --file "$FILE/$FILE" \
-            --content-type application/octet-stream \
-            --remote
+        
+        # Create a directory for each platform's artifacts
+        mkdir -p uploads
+        
+        # Find and prepare all Tauri app bundles for upload
+        for DIR in todoforai-edge-*; do
+          if [ -d "$DIR" ]; then
+            TARGET_TRIPLE=$(echo $DIR | sed 's/todoforai-edge-//')
+            
+            # Create a zip of the bundle for each platform
+            if [[ "$TARGET_TRIPLE" == *windows* ]]; then
+              # For Windows, find and copy the MSI installer
+              find "$DIR" -name "*.msi" -exec cp {} "uploads/todoforai-edge-$TARGET_TRIPLE.msi" \;
+              
+              # Upload the MSI
+              if [ -f "uploads/todoforai-edge-$TARGET_TRIPLE.msi" ]; then
+                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-$TARGET_TRIPLE.msi" \
+                  --file "uploads/todoforai-edge-$TARGET_TRIPLE.msi" \
+                  --content-type application/octet-stream \
+                  --remote
+              fi
+            elif [[ "$TARGET_TRIPLE" == *linux* ]]; then
+              # For Linux, find and copy the AppImage
+              find "$DIR" -name "*.AppImage" -exec cp {} "uploads/todoforai-edge-$TARGET_TRIPLE.AppImage" \;
+              
+              # Upload the AppImage
+              if [ -f "uploads/todoforai-edge-$TARGET_TRIPLE.AppImage" ]; then
+                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-$TARGET_TRIPLE.AppImage" \
+                  --file "uploads/todoforai-edge-$TARGET_TRIPLE.AppImage" \
+                  --content-type application/octet-stream \
+                  --remote
+              fi
+            elif [[ "$TARGET_TRIPLE" == *darwin* || "$TARGET_TRIPLE" == *apple* ]]; then
+              # For macOS, zip the .app bundle
+              if [ -d "$DIR/todoforai-edge.app" ]; then
+                (cd "$DIR" && zip -r "../uploads/todoforai-edge-$TARGET_TRIPLE.zip" "todoforai-edge.app")
+                
+                # Upload the zip
+                if [ -f "uploads/todoforai-edge-$TARGET_TRIPLE.zip" ]; then
+                  wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-$TARGET_TRIPLE.zip" \
+                    --file "uploads/todoforai-edge-$TARGET_TRIPLE.zip" \
+                    --content-type application/zip \
+                    --remote
+                fi
+              fi
+            fi
+          fi
         done
+        
+        # If this is a tag release, also copy to latest
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-          for FILE in todoforai-edge-linux todoforai-edge.exe todoforai-edge-mac-x86_64 todoforai-edge-mac-arm64; do
-            wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/$FILE" \
-              --file "$FILE/$FILE" \
-              --content-type application/octet-stream \
-              --remote
+          for FILE in uploads/*; do
+            if [ -f "$FILE" ]; then
+              FILENAME=$(basename "$FILE")
+              wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/$FILENAME" \
+                --file "$FILE" \
+                --content-type application/octet-stream \
+                --remote
+            fi
           done
         fi
 
@@ -282,8 +288,4 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/v')
       with:
-        files: |
-          todoforai-edge-linux/todoforai-edge-linux
-          todoforai-edge.exe/todoforai-edge.exe
-          todoforai-edge-mac-arm64/todoforai-edge-mac-arm64
-          todoforai-edge-mac-x86_64/todoforai-edge-mac-x86_64
+        files: uploads/*

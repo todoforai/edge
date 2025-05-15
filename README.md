@@ -121,6 +121,17 @@ The UI provides:
 
 This is especially useful for users who prefer not to use the command line.
 
+## Let Us Know You're Using TodoForAI!
+
+We'd love to hear from you! If you're using TodoForAI in your projects or organization, please consider dropping us a quick note at marcellhavlik@todofor.ai. 
+
+Hearing about your use cases helps us:
+- Improve the product based on real-world usage
+- Prioritize features that matter to our community
+- Connect with users who might benefit from upcoming features
+
+This is completely optional and not required by our license, but your feedback is incredibly valuable to our small team!
+
 ## License
 
-MIT
+MIT License with Notification Request - see the [LICENSE](LICENSE) file for details.

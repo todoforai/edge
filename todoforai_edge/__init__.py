@@ -8,6 +8,6 @@ from .constants import (
     ServerResponse, Front2Edge, Edge2Agent, Agent2Edge, Edge2Front,
     SR, FE, EA, AE, EF
 )
-
+from .config import Config
 
 __version__ = "0.1.0"

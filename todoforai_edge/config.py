@@ -21,18 +21,17 @@ class Config:
         self.password = os.environ.get("TODO4AI_PASSWORD", "")
         self.api_key = os.environ.get("TODO4AI_API_KEY", "")
         
-        # Protocol handling
-        self.register_protocol = False
-        self.protocol_url = None
-        self.no_ui = False
-    
     def get_ws_url(self, api_url=None):
         """Convert HTTP URL to WebSocket URL"""
         url = api_url or self.api_url
         if url.startswith("https://"):
             return url.replace("https://", "wss://") + "/ws/v1/edge"
-        else:
+        elif url.startswith("http://"):
             return url.replace("http://", "ws://") + "/ws/v1/edge"
+        elif url.startswith("localhost"):
+            return "ws://" + url + "/ws/v1/edge"
+        else:
+            raise ValueError('WHUT? url:', url)
             
     def update_from_args(self, args):
         """Update configuration from parsed arguments"""
@@ -50,13 +49,5 @@ class Config:
         if args.api_key:
             self.api_key = args.api_key
             
-        # Update protocol handling
-        if args.register_protocol:
-            self.register_protocol = True
-        if args.no_ui:
-            self.no_ui = True
-        if args.protocol_url:
-            self.protocol_url = args.protocol_url
-
 # Create a singleton instance
 config = Config()

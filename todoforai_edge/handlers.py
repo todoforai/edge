@@ -1,11 +1,10 @@
 import os
-import json
 import asyncio
 import logging
-import difflib
 import traceback
 from pathlib import Path
-from .utils import async_request
+from typing import Dict, Any, Optional, List, Union
+
 from .messages import (
     edge_status_msg, block_message_result_msg, block_error_result_msg, 
     block_diff_result_msg, block_start_result_msg, block_done_result_msg,
@@ -155,7 +154,8 @@ async def handle_todo_dir_list(payload, client):
         await client._send_response(block_error_result_msg(request_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
-async def handle_todo_cd(payload, client):
+
+async def handle_todo_cd(payload: Dict[str, Any], client: Any) -> None:
     """Handle todo change directory request and update workspace list"""
     request_id = payload.get("requestId")
     edge_id = payload.get("edgeId")
@@ -167,38 +167,20 @@ async def handle_todo_cd(payload, client):
         if not dir_path.exists() or not dir_path.is_dir():
             raise ValueError(f"Path does not exist or is not a directory: {path}")
         
-        # Change the current working directory
-        os.chdir(path)
-        
         # Update workspace paths if this is a new path
         abs_path = os.path.abspath(path)
-        if hasattr(client, 'edge_config') and hasattr(client.edge_config, 'workspacepaths'):
-            if abs_path not in client.edge_config.workspacepaths:
-                client.edge_config.workspacepaths.append(abs_path)
-                
-                # Update the edge configuration on the server if we have an edge_id
-                if client.edge_id:
-                    response = await async_request(
-                        client,
-                        'patch',
-                        f"/api/v1/edges/{client.edge_id}",
-                        {"workspacepaths": client.edge_config.workspacepaths}
-                    )
-                    
-                    if response:
-                        logger.info(f"Updated workspace paths with: {abs_path}")
-                    else:
-                        logger.error(f"Failed to update workspace paths")
+        if hasattr(client, 'edge_config'):
+            # Use the new add_workspace_path method which handles the callback
+            path_added = client.edge_config.add_workspace_path(abs_path)
+            
+            if path_added:
+                logger.info(f"Added new workspace path: {abs_path}")
         
         await client._send_response(cd_response_msg(edge_id, path, request_id, True))
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error changing directory: {str(error)}\nStacktrace:\n{stack_trace}")
         await client._send_response(cd_response_msg(edge_id, path, request_id, False, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
-
-
-        
-
 
 async def handle_block_save(payload, client):
     """Handle file save request - simple implementation"""

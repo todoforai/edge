@@ -23,7 +23,7 @@ def authenticate_and_get_api_key(email, password, api_url):
         raise Exception(f"{error_msg}\n{registration_msg}")
         
     data = response.json()
-    print(f"Login response: {data}")
+    # print(f"Login response: {data}")
     token = data.get("token")
     print(f"Successfully authenticated, received token")
     

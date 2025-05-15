@@ -1,4 +1,6 @@
-.PHONY: help run run-test deploy-prod bump-version
+# Makefile for todoforai-edge
+
+.PHONY: install build-sidecar copy-sidecar tauri-dev tauri-build clean help run run-test deploy-prod bump-version
 
 help:
 	@echo "Available commands:"
@@ -46,3 +48,39 @@ deploy-latest: bump-version
 	@git push origin prod
 	@git checkout -
 	@echo "Deployment complete!"
+
+
+# Install dependencies
+install:
+	pip install -e .
+	cd edge_frontend && npm install
+
+# Build the WebSocket sidecar executable
+build-sidecar:
+	python3 build_executable.py
+
+# Copy the sidecar executable to the Tauri resources directory
+copy-sidecar:
+	bash copy_sidecar_to_resources.sh
+
+# Run Tauri in development mode
+tauri-dev:
+	cd edge_frontend && npm run tauri dev
+
+# Build Tauri application with the sidecar
+tauri-build: copy-sidecar
+	cd edge_frontend && npm run tauri build
+
+# Clean build artifacts
+clean:
+	rm -rf dist
+	rm -rf build
+	rm -rf *.spec
+	rm -rf edge_frontend/src-tauri/resources/todoforai-edge-sidecar*
+
+# Test the sidecar build
+test-sidecar: clean
+	bash test_build_executable.sh
+
+# Default target
+all: install build-sidecar copy-sidecar tauri-build

@@ -9,6 +9,7 @@ import uuid
 import logging
 from pathlib import Path
 import traceback
+from typing import List, Optional, Dict, Any, Callable, Coroutine, Union, TypeVar, cast
 
 # Import constants
 from .constants import (
@@ -17,6 +18,7 @@ from .constants import (
 )
 from .utils import generate_machine_fingerprint, async_request
 from .messages import edge_status_msg
+from .apikey import authenticate_and_get_api_key
 
 # Configure logging
 logger = logging.getLogger("todoforai-client")
@@ -38,18 +40,82 @@ from .handlers import (
 )
 from .workspace_handler import handle_ctx_workspace_request
 
+# Type for callback functions
+T = TypeVar('T')
+CallbackType = Union[Callable[[T], None], Callable[[T], Coroutine[Any, Any, None]]]
+
+def invoke_callback(callback: CallbackType, arg: Any) -> None:
+    """Helper function to invoke a callback, handling both sync and async callbacks"""
+    if callback is None:
+        return
+        
+    if asyncio.iscoroutinefunction(callback):
+        asyncio.create_task(cast(Callable[[Any], Coroutine[Any, Any, None]], callback)(arg))
+    else:
+        cast(Callable[[Any], None], callback)(arg)
+
 class EdgeConfig:
-    """Edge configuration class"""
-    def __init__(self, data=None):
+    """Edge configuration class with proper type annotations"""
+    def __init__(self, data: Optional[Dict[str, Any]] = None):
         data = data or {}
-        self.id = data.get("id", "")
-        self.name = data.get("name", "Unknown Edge")
-        self.workspacepaths = data.get("workspacepaths", [])
-        self.owner_id = data.get("ownerId", "")
-        self.status = data.get("status", "OFFLINE")
-        self.is_shell_enabled = data.get("isShellEnabled", False)
-        self.is_filesystem_enabled = data.get("isFileSystemEnabled", False)
-        self.created_at = data.get("createdAt", None)
+        self.id: str = data.get("id", "")
+        self.name: str = data.get("name", "Unknown Edge")
+        self._workspacepaths: List[str] = data.get("workspacepaths", [])
+        self.owner_id: str = data.get("ownerId", "")
+        self.status: str = data.get("status", "OFFLINE")
+        self.is_shell_enabled: bool = data.get("isShellEnabled", False)
+        self.is_filesystem_enabled: bool = data.get("isFileSystemEnabled", False)
+        self.created_at: Optional[str] = data.get("createdAt", None)
+        
+        # Callback for workspace paths changes
+        self._on_workspacepaths_change: Optional[CallbackType[List[str]]] = None
+    
+    def update(self, data: Dict[str, Any]) -> None:
+        """Update configuration with new data"""
+        if not data:
+            return
+            
+        if "id" in data:
+            self.id = data["id"]
+        if "name" in data:
+            self.name = data["name"]
+        if "workspacepaths" in data:
+            self.workspacepaths = data["workspacepaths"]
+        if "ownerId" in data:
+            self.owner_id = data["ownerId"]
+        if "status" in data:
+            self.status = data["status"]
+        if "isShellEnabled" in data:
+            self.is_shell_enabled = data["isShellEnabled"]
+        if "isFileSystemEnabled" in data:
+            self.is_filesystem_enabled = data["isFileSystemEnabled"]
+        if "createdAt" in data:
+            self.created_at = data["createdAt"]
+    
+    @property
+    def workspacepaths(self) -> List[str]:
+        """Get workspace paths"""
+        return self._workspacepaths
+    
+    @workspacepaths.setter
+    def workspacepaths(self, paths: List[str]) -> None:
+        """Set workspace paths and trigger callback if defined"""
+        self._workspacepaths = paths
+        invoke_callback(self._on_workspacepaths_change, self._workspacepaths)
+    
+    def set_workspacepaths_change_callback(self, callback: CallbackType[List[str]]) -> None:
+        """Set callback for workspace paths changes"""
+        self._on_workspacepaths_change = callback
+        # Trigger callback with current paths to initialize
+        invoke_callback(callback, self._workspacepaths)
+    
+    def add_workspace_path(self, path: str) -> bool:
+        """Add a workspace path if it doesn't already exist"""
+        if path not in self._workspacepaths:
+            self._workspacepaths.append(path)
+            invoke_callback(self._on_workspacepaths_change, self._workspacepaths)
+            return True
+        return False
 
 class TODOforAIEdge:
     def __init__(self, client_config):
@@ -67,9 +133,9 @@ class TODOforAIEdge:
             
         # Store the config object
         self.api_url = client_config.api_url
+        self.api_url = f"http://{self.api_url}" if self.api_url.startswith("localhost") else self.api_url
         self.api_key = client_config.api_key
         self.email = client_config.email
-        print('self.email:', self.email)
         self.password = client_config.password
         # Add debug attribute for convenience
         self.debug = client_config.debug
@@ -77,6 +143,8 @@ class TODOforAIEdge:
         self.ws_url = client_config.get_ws_url()
         self.edge_config = EdgeConfig()
         
+        # Set up the workspace paths change callback
+        self.edge_config.set_workspacepaths_change_callback(self._on_workspacepaths_change)
         
         self.agent_id = ""
         self.user_id = ""
@@ -88,6 +156,55 @@ class TODOforAIEdge:
         # Set logging level based on config
         if self.debug:
             logger.setLevel(logging.DEBUG)
+    
+    async def _on_workspacepaths_change(self, paths: List[str]) -> None:
+        """Callback when workspace paths change - broadcasts to frontend"""
+        logger.info(f"Workspace paths changed: {paths}")
+        
+        # Broadcast the updated paths to connected clients
+        await self._send_response({
+            "type": "edge:workspace_paths",
+            "payload": {
+                "workspacePaths": paths
+            }
+        })
+        
+        # If we have an edge_id, update the server
+        if self.edge_id and self.connected:
+            try:
+                response = await async_request(
+                    self,
+                    'patch',
+                    f"/api/v1/edges/{self.edge_id}",
+                    {"workspacepaths": paths}
+                )
+                
+                if response:
+                    logger.info("Updated workspace paths on server")
+                else:
+                    logger.error("Failed to update workspace paths on server")
+            except Exception as e:
+                logger.error(f"Error updating workspace paths on server: {str(e)}")
+        
+    async def authenticate(self):
+        """Authenticate with email and password to get API key"""
+        if self.api_key:
+            logger.info("Already have API key, skipping authentication")
+            return True
+            
+        if not self.email or not self.password:
+            logger.error("Email and password are required for authentication")
+            return False
+            
+        try:
+            logger.info(f"Authenticating with email: {self.email}")
+            self.api_key = authenticate_and_get_api_key(self.email, self.password, self.api_url)
+            print('self.api_key:', self.api_key)
+            logger.info(f"Successfully authenticated as {self.email}")
+            return True
+        except Exception as e:
+            logger.error(f"Authentication failed: {str(e)}")
+            return False
         
     async def _load_edge_config(self):
         """Load edge configuration from the API"""
@@ -102,8 +219,9 @@ class TODOforAIEdge:
                 return False
                 
             data = response.json()
-            # Create EdgeConfig but don't replace the entire config
-            self.edge_config = EdgeConfig(data)
+            
+            # Use the update method to update the config
+            self.edge_config.update(data)
             
             logger.info(f"Loaded edge configuration: {self.edge_config.name}")
             logger.info(f"Workspace paths: {self.edge_config.workspacepaths}")
@@ -270,6 +388,17 @@ class TODOforAIEdge:
 
     async def connect(self):
         """Connect to the WebSocket server"""
+        # Authenticate if needed
+        if not self.api_key and (self.email and self.password):
+            auth_success = await self.authenticate()
+            if not auth_success:
+                logger.error("Authentication failed, cannot connect")
+                return
+                
+        if not self.api_key:
+            logger.error("No API key available, cannot connect")
+            return
+            
         fingerprint = generate_machine_fingerprint()
         print(f"Fingerprint: {fingerprint}")
         
