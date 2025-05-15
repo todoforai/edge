@@ -69,7 +69,7 @@ tauri-dev:
 # Build Tauri application with the sidecar
 tauri-build: copy-sidecar
 	# Ensure fresh node dependencies are installed for the current platform
-	cd edge_frontend && npm ci --no-audit --progress=false
+	cd edge_frontend && npm install --no-audit --progress=false
 	cd edge_frontend && TAURI_SKIP_UPDATE_CHECK=1 npm run tauri build
 
 # Clean build artifacts
