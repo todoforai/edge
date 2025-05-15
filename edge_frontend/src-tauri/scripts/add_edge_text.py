@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to add "Edge" text to the bottom right corner of the icon.
+Script to add a large "E" text to the middle of the icon.
 Designed to be deterministic - same input always produces same output.
 """
 import os
@@ -22,8 +22,8 @@ def add_edge_text(source_path, target_path):
         # Create a drawing context
         draw = ImageDraw.Draw(labeled)
         
-        # Make text about a quarter of the image size
-        font_size = int(source_img.width * 0.20)
+        # Make text about 2.5 times larger than before
+        font_size = int(source_img.width * 0.6)  # Increased from 0.20 to 0.50
         
         # Try to use a TrueType font with the specified size
         try:
@@ -51,8 +51,8 @@ def add_edge_text(source_path, target_path):
             print(f"Font error: {e}, falling back to default font")
             font = ImageFont.load_default()
         
-        # Text to add
-        text = "EDGE"  # Uppercase for better visibility
+        # Text to add - just "E" instead of "EDGE"
+        text = "E"
         
         # Calculate text size
         try:
@@ -64,13 +64,15 @@ def add_edge_text(source_path, target_path):
             text_width, text_height = draw.textsize(text, font=font)
         print('text_height:', text_height)
         
-        # Position text in bottom right, with a fixed margin
-        margin = int(source_img.width * 0.07)  # 5% margin
-        position = (source_img.width - text_width - margin, source_img.height - text_height - margin*1.5)
+        # Position text in the middle of the image
+        position = (
+            (source_img.width) * 0.55,
+            (source_img.height - text_height) * 0.65
+        )
         
         # Increase outline width for better visibility
         outline_color = (0, 0, 0, 255)  # Black outline
-        outline_width = max(2, int(source_img.width * 0.008))  # Doubled from 0.004 to 0.008
+        outline_width = max(10, int(source_img.width * 0.012))  # Increased outline width
         
         # Draw text outline with fixed offsets
         offsets = []
@@ -103,14 +105,14 @@ def add_edge_text(source_path, target_path):
                     
                     # If no difference, don't save
                     if not diff.getbbox():
-                        print(f"Target already has 'EDGE' text, no changes needed to {target_path}")
+                        print(f"Target already has 'E' text, no changes needed to {target_path}")
                         return True
             except Exception as e:
                 print(f"Warning: Could not compare with existing target: {e}")
         
         # Save with deterministic settings
         labeled.save(target_path, pnginfo=None, compress_level=9)
-        print(f"Created/updated {target_path} with 'EDGE' text")
+        print(f"Created/updated {target_path} with 'E' text")
         return True
             
     except Exception as e:

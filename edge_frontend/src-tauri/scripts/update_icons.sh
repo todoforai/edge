@@ -20,13 +20,16 @@ PUBLIC_ICON="$FRONTEND_DIR/public/favicon.png"
 ## ── sanity check ──────────────────────────────────────────────────────────────
 [[ -f "$ORIGINAL_ICON" ]] || { echo "❌ $ORIGINAL_ICON not found." ; exit 1; }
 
-## ── copy & label base image ───────────────────────────────────────────────────
-cp "$ORIGINAL_ICON" "$TARGET_ICON"
-python3 "$SCRIPT_DIR/add_edge_text.py" "$TARGET_ICON"
+## ── create base image with Edge text ─────────────────────────────────────────
+# Let Python handle both copying and adding text
+echo "Updating icons with 'Edge' text..."
+echo python3 "$SCRIPT_DIR/add_edge_text.py" "$ORIGINAL_ICON" "$TARGET_ICON"
+python3 "$SCRIPT_DIR/add_edge_text.py" "$ORIGINAL_ICON" "$TARGET_ICON"
 
 ## ── helper: write RGBA icon(s) in one shot ────────────────────────────────────
 mkpng() {   # mkpng SIZE OUTPUT
-  convert "$TARGET_ICON" -resize "$1"x"$1" -background none -alpha on PNG32:"$2"
+  convert "$TARGET_ICON" -resize "$1"x"$1" -background none -alpha on \
+          -define png:exclude-chunk=time PNG32:"$2"
 }
 
 ## ── raster variants (all RGBA8) ───────────────────────────────────────────────
@@ -43,19 +46,30 @@ for s in 30 44 71 89 107 142 150 284 310; do
   mkpng "$s" "Square${s}x${s}Logo.png"
 done
 
+# Ensure StoreLogo.png exists (sometimes required by Tauri)
+mkpng 50 StoreLogo.png
+
 popd >/dev/null
 
 ## ── favicon for the web front-end ─────────────────────────────────────────────
 mkpng 256 "$PUBLIC_ICON"
 
-## ── Windows .ico (multi-size) ─────────────────────────────────────────────────
+## ── Windows .ico (multi-size) - FIXED for Windows resource compiler ────────────
+echo "Creating Windows ICO file (compatible with rc.exe)..."
+# Create Windows-compatible ICO using ImageMagick with -compress none
+# This is the most reliable method across platforms
+echo "Using ImageMagick to create Windows-compatible ICO file"
 convert "$TARGET_ICON" -alpha on -background none \
-        -define icon:auto-resize=16,32,48,64,128,256 PNG32:"$ICO_PATH"
+        -define icon:auto-resize=16,24,32,48,64,128,256 \
+        -compress none "$ICO_PATH"
 
 ## ── macOS .icns ───────────────────────────────────────────────────────────────
 TMP=$(mktemp -d)
 mkdir -p "$TMP/icon.iconset"
-for s in 16 32 128 256 512 1024; do
+
+# Create all the required sizes for macOS iconset
+# Include 64x64 size to avoid icnsutil errors
+for s in 16 32 64 128 256 512 1024; do
   mkpng "$s" "$TMP/icon.iconset/icon_${s}x${s}.png"
 done
 
@@ -77,20 +91,23 @@ else
   
   # Fallback method using ImageMagick
   echo "Using ImageMagick fallback to create .icns file (less efficient)"
-  convert "$TMP/icon.iconset/icon_512x512.png" PNG32:"$ICNS_PATH"
+  convert "$TMP/icon.iconset/icon_512x512.png" -define png:exclude-chunk=time PNG32:"$ICNS_PATH"
 fi
 
 rm -rf "$TMP"
 
 ## ── verify everything is RGBA8 ────────────────────────────────────────────────
 echo "🔍 Verifying channel layout & bit depth…"
-bad=0
 for f in "$TAURI_DIR"/icons/*.png "$PUBLIC_ICON"; do
-  meta=$(identify -format '%r' "$f")     # e.g. "RGBA 8-bit"
-  case "$meta" in
-    *"RGBA 8-bit"*) : ;;
-    *) echo "⚠️  $f is $meta – re-encoding"; mkpng "$(identify -format '%w' "$f")" "$f" ;;
-  esac
+  if [[ -f "$f" ]]; then
+    meta=$(identify -format '%r' "$f")
+    if ! echo "$meta" | grep -q "RGBA 8-bit"; then
+      echo "⚠️  $f is $meta – fixing format"
+      # Force RGBA 8-bit format with no timestamp
+      convert "$f" -define png:color-type=6 -define png:bit-depth=8 \
+              -define png:exclude-chunk=time PNG32:"$f"
+    fi
+  fi
 done
 
 # Update the index.html to use the new favicon
