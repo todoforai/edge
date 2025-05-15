@@ -38,8 +38,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "minimumSystemVersion": "10.13",
-      "signingIdentity": "Developer ID Application: DiabTrend AI Analytics Korlatolt Felelossegu Tarsasag (AQB24YZUQ3)",
+      "signingIdentity": null,
       "entitlements": "entitlements.plist",
       "hardenedRuntime": true
     }
