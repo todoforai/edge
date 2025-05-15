@@ -151,19 +151,33 @@ jobs:
         echo "::endgroup::"
         
         TEAM_ID="AQB24YZUQ3"  # Your Apple Team ID
+        
+        # First try to find a Developer ID Application certificate
         SHA=$(security find-identity -v -p codesigning | 
               awk "/Developer ID Application: .* ${TEAM_ID}/ {print \$2; exit}")
         
+        # If not found, check if we at least have an Apple Development certificate
         if [ -z "$SHA" ]; then
-          echo "::error::Developer ID Application certificate for team $TEAM_ID not found in keychain"
-          echo "Make sure you've exported the correct certificate from Keychain Access"
-          echo "and updated the APPLE_CERTIFICATE secret with its base64 content."
-          exit 1
+          echo "::warning::Developer ID Application certificate not found. Checking for Apple Development certificate..."
+          SHA=$(security find-identity -v -p codesigning | 
+                awk "/Apple Development:/ {print \$2; exit}")
+          
+          if [ -z "$SHA" ]; then
+            echo "::error::No valid code signing certificate found in keychain"
+            echo "Make sure you've exported the correct certificate from Keychain Access"
+            echo "and updated the APPLE_CERTIFICATE secret with its base64 content."
+            exit 1
+          else
+            echo "::warning::Using Apple Development certificate for signing. This will NOT work for distribution!"
+            echo "::warning::For distribution builds, you must use a Developer ID Application certificate."
+          fi
+        else
+          echo "Found Developer ID Application certificate: $SHA"
         fi
         
         echo "SHA=$SHA" >> $GITHUB_OUTPUT
-        echo "Found Developer ID Application certificate: $SHA"
         
+        # Get the full name of the certificate for Tauri config
         CERT_NAME=$(security find-identity -v -p codesigning | 
                    awk -v sha="$SHA" '$0 ~ sha {match($0,/"([^"]+)"/); print substr($0,RSTART+1,RLENGTH-2)}')
         echo "CERT_NAME=$CERT_NAME" >> $GITHUB_OUTPUT
