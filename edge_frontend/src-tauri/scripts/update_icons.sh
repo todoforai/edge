@@ -1,111 +1,81 @@
-#!/bin/bash
-# Script to update icons with "Edge" text and copy to appropriate locations
+#!/usr/bin/env bash
+# update_icons.sh – regenerate all Tauri icon assets in guaranteed RGBA8 format.
 
-set -e
+set -euo pipefail
 
-# Get the directory of this script
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+## ── locate folders ────────────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TAURI_DIR="$(dirname "$SCRIPT_DIR")"
 FRONTEND_DIR="$(dirname "$TAURI_DIR")"
 PROJECT_ROOT="$(dirname "$FRONTEND_DIR")"
 
-# Path to the original icon
-ORIGINAL_ICON_PATH="$TAURI_DIR/../public/todoforai_original_icon.png"
-# Path to the target icon
-TARGET_ICON_PATH="$TAURI_DIR/icons/Square310x310Logo.png"
-# Path to the .ico file
+## ── source & target paths ─────────────────────────────────────────────────────
+ORIGINAL_ICON="$TAURI_DIR/../public/todoforai_original_icon.png"
+TARGET_ICON="$TAURI_DIR/icons/Square310x310Logo.png"
+
 ICO_PATH="$TAURI_DIR/icons/icon.ico"
-# Path to the .icns file
 ICNS_PATH="$TAURI_DIR/icons/icon.icns"
+PUBLIC_ICON="$FRONTEND_DIR/public/favicon.png"
 
-# Check if the original icon exists
-if [ ! -f "$ORIGINAL_ICON_PATH" ]; then
-    echo "Error: Original icon not found at $ORIGINAL_ICON_PATH"
-    exit 1
-fi
+## ── sanity check ──────────────────────────────────────────────────────────────
+[[ -f "$ORIGINAL_ICON" ]] || { echo "❌ $ORIGINAL_ICON not found." ; exit 1; }
 
-# Make a copy of the original icon to work with
-echo "Creating a copy of the original icon..."
-cp "$ORIGINAL_ICON_PATH" "$TARGET_ICON_PATH"
+## ── copy & label base image ───────────────────────────────────────────────────
+cp "$ORIGINAL_ICON" "$TARGET_ICON"
+python3 "$SCRIPT_DIR/add_edge_text.py" "$TARGET_ICON"
 
-# Run the Python script to add "Edge" text
-echo "Adding 'Edge' text to icon..."
-python3 "$SCRIPT_DIR/add_edge_text.py" "$TARGET_ICON_PATH"
+## ── helper: write RGBA icon(s) in one shot ────────────────────────────────────
+mkpng() {   # mkpng SIZE OUTPUT
+  convert "$TARGET_ICON" -resize "$1"x"$1" -background none -alpha on PNG32:"$2"
+}
 
-# Copy the modified icon to the public directory for web use
-PUBLIC_ICON_PATH="$FRONTEND_DIR/public/favicon.png"
-echo "Copying modified icon to $PUBLIC_ICON_PATH"
-cp "$TARGET_ICON_PATH" "$PUBLIC_ICON_PATH"
+## ── raster variants (all RGBA8) ───────────────────────────────────────────────
+echo "🖼  Generating PNG variants…"
+pushd "$TAURI_DIR/icons" >/dev/null
 
-# Using ImageMagick for icon generation
-echo "Using ImageMagick for icon generation..."
+mkpng 32   32x32.png
+mkpng 128  128x128.png
+mkpng 256  128x128@2x.png   # Windows naming quirk
+mkpng 256  icon.png
 
-# Create standard PNG icons - ensure RGBA format
-convert "$TARGET_ICON_PATH" -resize 32x32 -alpha on -background none "$TAURI_DIR/icons/32x32.png"
-convert "$TARGET_ICON_PATH" -resize 128x128 -alpha on -background none "$TAURI_DIR/icons/128x128.png"
-convert "$TARGET_ICON_PATH" -resize 256x256 -alpha on -background none "$TAURI_DIR/icons/128x128@2x.png"
-convert "$TARGET_ICON_PATH" -resize 256x256 -alpha on -background none "$TAURI_DIR/icons/icon.png"
-
-# Create Windows Store icons - ensure RGBA format
-convert "$TARGET_ICON_PATH" -resize 30x30 -alpha on -background none "$TAURI_DIR/icons/Square30x30Logo.png"
-convert "$TARGET_ICON_PATH" -resize 44x44 -alpha on -background none "$TAURI_DIR/icons/Square44x44Logo.png"
-convert "$TARGET_ICON_PATH" -resize 71x71 -alpha on -background none "$TAURI_DIR/icons/Square71x71Logo.png"
-convert "$TARGET_ICON_PATH" -resize 89x89 -alpha on -background none "$TAURI_DIR/icons/Square89x89Logo.png"
-convert "$TARGET_ICON_PATH" -resize 107x107 -alpha on -background none "$TAURI_DIR/icons/Square107x107Logo.png"
-convert "$TARGET_ICON_PATH" -resize 142x142 -alpha on -background none "$TAURI_DIR/icons/Square142x142Logo.png"
-convert "$TARGET_ICON_PATH" -resize 150x150 -alpha on -background none "$TAURI_DIR/icons/Square150x150Logo.png"
-convert "$TARGET_ICON_PATH" -resize 284x284 -alpha on -background none "$TAURI_DIR/icons/Square284x284Logo.png"
-# Ensure Square310x310Logo.png is also RGBA
-convert "$TARGET_ICON_PATH" -alpha on -background none "$TAURI_DIR/icons/Square310x310Logo.png"
-
-# Create Windows ICO file (combines multiple sizes)
-convert "$TARGET_ICON_PATH" -alpha on -background none -define icon:auto-resize=16,32,48,64,128,256 "$ICO_PATH"
-
-# Create macOS ICNS file
-# First create temporary directory with required sizes
-TEMP_DIR=$(mktemp -d)
-mkdir -p "$TEMP_DIR/icon.iconset"
-
-# Generate the required sizes for ICNS - ensure RGBA format
-convert "$TARGET_ICON_PATH" -resize 16x16 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_16x16.png"
-convert "$TARGET_ICON_PATH" -resize 32x32 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_16x16@2x.png"
-convert "$TARGET_ICON_PATH" -resize 32x32 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_32x32.png"
-convert "$TARGET_ICON_PATH" -resize 64x64 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_32x32@2x.png"
-convert "$TARGET_ICON_PATH" -resize 128x128 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_128x128.png"
-convert "$TARGET_ICON_PATH" -resize 256x256 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_128x128@2x.png"
-convert "$TARGET_ICON_PATH" -resize 256x256 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_256x256.png"
-convert "$TARGET_ICON_PATH" -resize 512x512 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_256x256@2x.png"
-convert "$TARGET_ICON_PATH" -resize 512x512 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_512x512.png"
-convert "$TARGET_ICON_PATH" -resize 1024x1024 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_512x512@2x.png"
-
-# Check if iconutil is available (macOS)
-if command -v iconutil &> /dev/null; then
-    # Convert iconset to icns using iconutil (macOS only)
-    iconutil -c icns "$TEMP_DIR/icon.iconset" -o "$ICNS_PATH"
-else
-    # Alternative method using ImageMagick for Linux
-    echo "iconutil not found, using ImageMagick to create ICNS file"
-    convert "$TEMP_DIR/icon.iconset/icon_16x16.png" \
-            "$TEMP_DIR/icon.iconset/icon_32x32.png" \
-            "$TEMP_DIR/icon.iconset/icon_128x128.png" \
-            "$TEMP_DIR/icon.iconset/icon_256x256.png" \
-            "$TEMP_DIR/icon.iconset/icon_512x512.png" \
-            -alpha on -background none "$ICNS_PATH"
-fi
-
-# Verify all PNGs have alpha channel
-echo "Verifying all icons have RGBA format..."
-for icon in "$TAURI_DIR"/icons/*.png; do
-    # Use identify to check if the image has an alpha channel
-    if ! identify -format "%[channels]" "$icon" | grep -q "rgba"; then
-        echo "Warning: $icon does not have an alpha channel. Fixing..."
-        # Force alpha channel
-        convert "$icon" -alpha on -background none "$icon"
-    fi
+# Windows Store set
+for s in 30 44 71 89 107 142 150 284 310; do
+  mkpng "$s" "Square${s}x${s}Logo.png"
 done
 
-# Clean up temporary directory
-rm -rf "$TEMP_DIR"
+popd >/dev/null
+
+## ── favicon for the web front-end ─────────────────────────────────────────────
+mkpng 256 "$PUBLIC_ICON"
+
+## ── Windows .ico (multi-size) ─────────────────────────────────────────────────
+convert "$TARGET_ICON" -alpha on -background none \
+        -define icon:auto-resize=16,32,48,64,128,256 PNG32:"$ICO_PATH"
+
+## ── macOS .icns ───────────────────────────────────────────────────────────────
+TMP=$(mktemp -d)
+mkdir -p "$TMP/icon.iconset"
+for s in 16 32 128 256 512 1024; do
+  mkpng "$s" "$TMP/icon.iconset/icon_${s}x${s}.png"
+done
+if command -v iconutil &>/dev/null; then
+  iconutil -c icns "$TMP/icon.iconset" -o "$ICNS_PATH"
+else
+  # minimal fallback – single-res ICNS
+  convert "$TMP/icon.iconset/icon_512x512.png" PNG32:"$ICNS_PATH"
+fi
+rm -rf "$TMP"
+
+## ── verify everything is RGBA8 ────────────────────────────────────────────────
+echo "🔍 Verifying channel layout & bit depth…"
+bad=0
+for f in "$TAURI_DIR"/icons/*.png "$PUBLIC_ICON"; do
+  meta=$(identify -format '%r' "$f")     # e.g. "RGBA 8-bit"
+  case "$meta" in
+    *"RGBA 8-bit"*) : ;;
+    *) echo "⚠️  $f is $meta – re-encoding"; mkpng "$(identify -format '%w' "$f")" "$f" ;;
+  esac
+done
 
 # Update the index.html to use the new favicon
 INDEX_HTML="$FRONTEND_DIR/index.html"
@@ -120,4 +90,4 @@ if [ -f "$INDEX_HTML" ]; then
     fi
 fi
 
-echo "Icon update complete!"
+echo "✅ Icon set ready – happy building!"
