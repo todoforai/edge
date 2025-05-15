@@ -52,6 +52,8 @@ jobs:
       run: |
         cd edge_frontend
         npm ci --no-audit --progress=false
+        # Install Tauri CLI globally to avoid platform-specific module issues
+        npm install -g @tauri-apps/cli
       shell: bash
 
     - name: Set up Rust
