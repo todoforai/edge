@@ -29,6 +29,7 @@ python3 "$SCRIPT_DIR/add_edge_text.py" "$ORIGINAL_ICON" "$TARGET_ICON"
 ## ── helper: write RGBA icon(s) in one shot ────────────────────────────────────
 mkpng() {   # mkpng SIZE OUTPUT
   convert "$TARGET_ICON" -resize "$1"x"$1" -background none -alpha on \
+          -define png:color-type=6 -define png:bit-depth=8 \
           -define png:exclude-chunk=time PNG32:"$2"
 }
 
@@ -65,27 +66,41 @@ convert "$TARGET_ICON" -alpha on -background none \
 
 ## ── macOS .icns ───────────────────────────────────────────────────────────────
 TMP=$(mktemp -d)
+echo "$TMP"
 mkdir -p "$TMP/icon.iconset"
 
 # Create all the required sizes for macOS iconset
-# Include 64x64 size to avoid icnsutil errors
-for s in 16 32 64 128 256 512 1024; do
-  mkpng "$s" "$TMP/icon.iconset/icon_${s}x${s}.png"
-done
+# Standard sizes
+mkpng 16  "$TMP/icon.iconset/icon_16x16.png"
+mkpng 32  "$TMP/icon.iconset/icon_16x16@2x.png"
+mkpng 32  "$TMP/icon.iconset/icon_32x32.png"
+mkpng 64  "$TMP/icon.iconset/icon_32x32@2x.png"
+mkpng 64  "$TMP/icon.iconset/icon_64x64.png"
+mkpng 128 "$TMP/icon.iconset/icon_128x128.png"
+mkpng 256 "$TMP/icon.iconset/icon_128x128@2x.png"
+mkpng 256 "$TMP/icon.iconset/icon_256x256.png"
+mkpng 512 "$TMP/icon.iconset/icon_256x256@2x.png"
+mkpng 512 "$TMP/icon.iconset/icon_512x512.png"
+mkpng 1024 "$TMP/icon.iconset/icon_512x512@2x.png"
 
-# Check for iconutil (macOS) or icnsutil (Linux)
+# Check for iconutil (macOS) or png2icns (Linux)
 if command -v iconutil &>/dev/null; then
   # macOS native tool
   echo "Using macOS iconutil to create .icns file"
   iconutil -c icns "$TMP/icon.iconset" -o "$ICNS_PATH"
-elif command -v icnsutil &>/dev/null; then
+elif command -v png2icns &>/dev/null; then
   # Linux equivalent
-  echo "Using Linux icnsutil to create .icns file"
-  icnsutil -c icns "$TMP/icon.iconset" -o "$ICNS_PATH"
+  echo "Using Linux png2icns to create .icns file"
+  png2icns "$ICNS_PATH" \
+           "$TMP/icon.iconset/icon_16x16.png" \
+           "$TMP/icon.iconset/icon_32x32.png" \
+           "$TMP/icon.iconset/icon_128x128.png" \
+           "$TMP/icon.iconset/icon_256x256.png" \
+           "$TMP/icon.iconset/icon_512x512.png"
 else
   # Check if we're on Linux
   if [[ "$(uname)" == "Linux" ]]; then
-    echo "⚠️  For better .icns generation on Linux, install icnsutils:"
+    echo "⚠️  For better .icns generation on Linux, install png2icns:"
     echo "    sudo apt update && sudo apt install icnsutils"
   fi
   
@@ -95,21 +110,6 @@ else
 fi
 
 rm -rf "$TMP"
-
-## ── verify everything is RGBA8 ────────────────────────────────────────────────
-echo "🔍 Verifying channel layout & bit depth…"
-for f in "$TAURI_DIR"/icons/*.png "$PUBLIC_ICON"; do
-  if [[ -f "$f" ]]; then
-    meta=$(identify -format '%r' "$f")
-    if ! echo "$meta" | grep -q "RGBA 8-bit"; then
-      echo "⚠️  $f is $meta – fixing format"
-      # Force RGBA 8-bit format with no timestamp
-      convert "$f" -define png:color-type=6 -define png:bit-depth=8 \
-              -define png:exclude-chunk=time PNG32:"$f"
-    fi
-  fi
-done
-
 # Update the index.html to use the new favicon
 INDEX_HTML="$FRONTEND_DIR/index.html"
 if [ -f "$INDEX_HTML" ]; then
