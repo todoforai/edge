@@ -46,6 +46,20 @@ jobs:
         node-version: '20'
         cache: 'npm'
         cache-dependency-path: 'edge_frontend/package.json'
+    # Fresh install for the current platform to ensure platform-specific binaries are available
+    - name: Fresh Node install for this runner
+      run: |
+        cd edge_frontend
+        rm -f package-lock.json        # Remove the Linux-only lock file
+        npm install --no-audit --progress=false
+      shell: bash
+
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
 
     # New step to ensure platform-specific dependencies are installed
     - name: Install Node dependencies
