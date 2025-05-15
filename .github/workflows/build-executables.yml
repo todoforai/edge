@@ -139,6 +139,7 @@ jobs:
       with:
         p12-file-base64:      ${{ secrets.APPLE_CERTIFICATE }}
         p12-password:         ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        keychain-password:    ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}  # Use same password for keychain
 
     # ─── 🍏 2. Verify Developer ID certificate is present ─────────────────────
     - name: Verify Developer ID certificate (macOS)
@@ -149,19 +150,22 @@ jobs:
         security find-identity -v -p codesigning
         echo "::endgroup::"
         
-        # Look specifically for the DiabTrend certificate
-        SHA=$(security find-identity -v -p codesigning | grep "DiabTrend AI" | head -n 1 | awk '{print $2}')
+        TEAM_ID="AQB24YZUQ3"  # Your Apple Team ID
+        SHA=$(security find-identity -v -p codesigning | 
+              awk "/Developer ID Application: .* ${TEAM_ID}/ {print \$2; exit}")
+        
         if [ -z "$SHA" ]; then
-          echo "::error::Developer ID Application certificate not found in keychain"
+          echo "::error::Developer ID Application certificate for team $TEAM_ID not found in keychain"
           echo "Make sure you've exported the correct certificate from Keychain Access"
           echo "and updated the APPLE_CERTIFICATE secret with its base64 content."
           exit 1
         fi
+        
         echo "SHA=$SHA" >> $GITHUB_OUTPUT
         echo "Found Developer ID Application certificate: $SHA"
         
-        # Get the full name of the certificate for Tauri config
-        CERT_NAME=$(security find-identity -v -p codesigning | grep "$SHA" | sed -E 's/.*"([^"]+)".*/\1/')
+        CERT_NAME=$(security find-identity -v -p codesigning | 
+                   awk -v sha="$SHA" '$0 ~ sha {match($0,/"([^"]+)"/); print substr($0,RSTART+1,RLENGTH-2)}')
         echo "CERT_NAME=$CERT_NAME" >> $GITHUB_OUTPUT
         echo "Certificate name: $CERT_NAME"
 
