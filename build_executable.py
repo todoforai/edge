@@ -52,7 +52,7 @@ def main():
     run_command([sys.executable, "-m", "pip", "install", "-e", "."])
     run_command([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
     
-    # Path to the WebSocket sidecar script
+    # Path to the WebSocket sidecar script - use Path for proper cross-platform handling
     sidecar_path = script_dir / "edge_frontend" / "src-tauri" / "resources" / "python" / "ws_sidecar.py"
     
     if not sidecar_path.exists():
@@ -111,6 +111,10 @@ def main():
     # This is critical for editable installs
     todoforai_edge_path = script_dir
     
+    # Convert paths to strings with proper format for the platform
+    sidecar_path_str = str(sidecar_path).replace('\\', '/')
+    script_dir_str = str(script_dir).replace('\\', '/')
+    
     with open(spec_file, "w") as f:
         f.write(f"""# -*- mode: python ; coding: utf-8 -*-
 
@@ -120,8 +124,8 @@ block_cipher = None
 datas = []
 
 a = Analysis(
-    ['{sidecar_path}'],
-    pathex=['{script_dir}'],  # Add project root to search path
+    ['{sidecar_path_str}'],
+    pathex=['{script_dir_str}'],  # Add project root to search path
     binaries=[],
     datas=datas,
     hiddenimports={hidden_imports + ['todoforai_edge.*']},  # Include all submodules
