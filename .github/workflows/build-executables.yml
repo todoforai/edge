@@ -211,11 +211,39 @@ jobs:
         fi
         echo "Found DMG at: $DMG_PATH"
         
-        # Submit for notarization and wait for result
+        # Submit for notarization and capture the submission ID
         echo "Submitting for notarization..."
-        xcrun notarytool submit "$DMG_PATH" \
+        SUBMISSION_OUTPUT=$(xcrun notarytool submit "$DMG_PATH" \
           --keychain-profile "notary-profile" \
-          --wait
+          --wait)
+        
+        echo "Notarization submission output:"
+        echo "$SUBMISSION_OUTPUT"
+        
+        # Extract the submission ID
+        SUBMISSION_ID=$(echo "$SUBMISSION_OUTPUT" | awk '/id:/ {print $2}')
+        
+        if [ -z "$SUBMISSION_ID" ]; then
+          echo "::error::Failed to extract submission ID from notarytool output"
+          exit 1
+        fi
+        
+        echo "Notarization submission ID: $SUBMISSION_ID"
+        
+        # Get detailed log for the submission
+        echo "Fetching detailed notarization log..."
+        xcrun notarytool log "$SUBMISSION_ID" \
+          --keychain-profile "notary-profile" > notarization.log
+        
+        echo "::group::Notarization Log"
+        cat notarization.log
+        echo "::endgroup::"
+        
+        # Check if notarization was successful
+        if ! grep -q "status: Accepted" notarization.log; then
+          echo "::error::Notarization failed. See log for details."
+          exit 1
+        fi
         
         # Staple the notarization ticket to the DMG
         echo "Stapling notarization ticket..."
