@@ -49,7 +49,6 @@ deploy-latest: bump-version
 	@git checkout -
 	@echo "Deployment complete!"
 
-
 # Install dependencies
 install:
 	pip install -e .
@@ -69,7 +68,9 @@ tauri-dev:
 
 # Build Tauri application with the sidecar
 tauri-build: copy-sidecar
-	cd edge_frontend && npm run tauri build
+	# Ensure fresh node dependencies are installed for the current platform
+	cd edge_frontend && npm ci --no-audit --progress=false
+	cd edge_frontend && TAURI_SKIP_UPDATE_CHECK=1 npm run tauri build
 
 # Clean build artifacts
 clean:

@@ -10,7 +10,8 @@ logger = logging.getLogger("todoforai-edge")
 PROJECT_FILES = {
     "dockerfile", "docker-compose.yml", "makefile", "license", "package.json",
     "app.json", ".gitignore", "gemfile", "cargo.toml", ".eslintrc.json",
-    "requirements.txt", "requirements", "tsconfig.json", ".env.example"
+    "requirements.txt", "requirements", "tsconfig.json", ".env.example",
+    "tsconfig.node.json"
 }
 
 FILE_EXTENSIONS = {
@@ -22,14 +23,14 @@ FILE_EXTENSIONS = {
     "fasl", "jl", "r", "R", "rmd", "mat", "asm", "s", "dart", "sql", "md", "mdx", "markdown",
     "rst", "adoc", "tex", "sty", "gradle", "sbt", "xml", "properties", "plist",
     "proto", "proto3", "graphql", "prisma", "yml", "yaml", "svg",
-    "code-workspace", "txt"
+    "code-workspace", "txt", "json", "desktop"
 }
 
 NONVERBOSE_FILTERED_EXTENSIONS = {
     "jld2", "png", "jpg", "jpeg", "ico", "gif", "pdf", "zip", "tar", "tgz", "lock", "gz", "bz2", "xz",
     "doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv", "tsv", "db", "sqlite", "sqlite3",
     "mp3", "mp4", "wav", "avi", "mov", "mkv", "webm", "ttf", "otf", "woff", "woff2", "eot",
-    "lock", "arrow"
+    "lock", "arrow", "exe"
 }
 
 FILTERED_FOLDERS = {

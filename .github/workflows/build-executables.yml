@@ -43,7 +43,16 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'edge_frontend/package.json'
+
+    # New step to ensure platform-specific dependencies are installed
+    - name: Install Node dependencies
+      run: |
+        cd edge_frontend
+        npm ci --no-audit --progress=false
+      shell: bash
 
     - name: Set up Rust
       uses: actions-rs/toolchain@v1
@@ -99,6 +108,8 @@ jobs:
     # Build the Tauri application
     - name: Build Tauri application
       run: make tauri-build
+      env:
+        TAURI_SKIP_UPDATE_CHECK: 1
       shell: bash
 
     # ─── 🍏 Create simplified entitlements file for macOS ─────────────────────
@@ -186,13 +197,11 @@ jobs:
         else
           echo "R2_BUCKET_NAME is NOT set"
         fi
-        
         if [ -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
           echo "CLOUDFLARE_API_TOKEN is set"
         else
           echo "CLOUDFLARE_API_TOKEN is NOT set"
         fi
-        
         if [ -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
           echo "CLOUDFLARE_ACCOUNT_ID is set"
         else
