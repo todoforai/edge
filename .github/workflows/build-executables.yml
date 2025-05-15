@@ -92,11 +92,7 @@ jobs:
         if [ "${{ matrix.os }}" != "windows-latest" ]; then
           chmod +x edge_frontend/src-tauri/binaries/$TARGET_NAME
         fi
-        
-        # Ensure Python script is in resources
-        mkdir -p edge_frontend/src-tauri/resources/python
-        cp edge_frontend/src-tauri/python/ws_sidecar.py edge_frontend/src-tauri/resources/python/
-        
+
         echo "Sidecar prepared at: edge_frontend/src-tauri/binaries/$TARGET_NAME"
       shell: bash
 
