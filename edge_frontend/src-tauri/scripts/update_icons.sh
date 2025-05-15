@@ -40,42 +40,43 @@ cp "$TARGET_ICON_PATH" "$PUBLIC_ICON_PATH"
 # Using ImageMagick for icon generation
 echo "Using ImageMagick for icon generation..."
 
-# Create standard PNG icons
-convert "$TARGET_ICON_PATH" -resize 32x32 "$TAURI_DIR/icons/32x32.png"
-convert "$TARGET_ICON_PATH" -resize 128x128 "$TAURI_DIR/icons/128x128.png"
-convert "$TARGET_ICON_PATH" -resize 256x256 "$TAURI_DIR/icons/128x128@2x.png"
-convert "$TARGET_ICON_PATH" -resize 256x256 "$TAURI_DIR/icons/icon.png"
+# Create standard PNG icons - ensure RGBA format
+convert "$TARGET_ICON_PATH" -resize 32x32 -alpha on -background none "$TAURI_DIR/icons/32x32.png"
+convert "$TARGET_ICON_PATH" -resize 128x128 -alpha on -background none "$TAURI_DIR/icons/128x128.png"
+convert "$TARGET_ICON_PATH" -resize 256x256 -alpha on -background none "$TAURI_DIR/icons/128x128@2x.png"
+convert "$TARGET_ICON_PATH" -resize 256x256 -alpha on -background none "$TAURI_DIR/icons/icon.png"
 
-# Create Windows Store icons
-convert "$TARGET_ICON_PATH" -resize 30x30 "$TAURI_DIR/icons/Square30x30Logo.png"
-convert "$TARGET_ICON_PATH" -resize 44x44 "$TAURI_DIR/icons/Square44x44Logo.png"
-convert "$TARGET_ICON_PATH" -resize 71x71 "$TAURI_DIR/icons/Square71x71Logo.png"
-convert "$TARGET_ICON_PATH" -resize 89x89 "$TAURI_DIR/icons/Square89x89Logo.png"
-convert "$TARGET_ICON_PATH" -resize 107x107 "$TAURI_DIR/icons/Square107x107Logo.png"
-convert "$TARGET_ICON_PATH" -resize 142x142 "$TAURI_DIR/icons/Square142x142Logo.png"
-convert "$TARGET_ICON_PATH" -resize 150x150 "$TAURI_DIR/icons/Square150x150Logo.png"
-convert "$TARGET_ICON_PATH" -resize 284x284 "$TAURI_DIR/icons/Square284x284Logo.png"
-# Square310x310Logo.png is already created
+# Create Windows Store icons - ensure RGBA format
+convert "$TARGET_ICON_PATH" -resize 30x30 -alpha on -background none "$TAURI_DIR/icons/Square30x30Logo.png"
+convert "$TARGET_ICON_PATH" -resize 44x44 -alpha on -background none "$TAURI_DIR/icons/Square44x44Logo.png"
+convert "$TARGET_ICON_PATH" -resize 71x71 -alpha on -background none "$TAURI_DIR/icons/Square71x71Logo.png"
+convert "$TARGET_ICON_PATH" -resize 89x89 -alpha on -background none "$TAURI_DIR/icons/Square89x89Logo.png"
+convert "$TARGET_ICON_PATH" -resize 107x107 -alpha on -background none "$TAURI_DIR/icons/Square107x107Logo.png"
+convert "$TARGET_ICON_PATH" -resize 142x142 -alpha on -background none "$TAURI_DIR/icons/Square142x142Logo.png"
+convert "$TARGET_ICON_PATH" -resize 150x150 -alpha on -background none "$TAURI_DIR/icons/Square150x150Logo.png"
+convert "$TARGET_ICON_PATH" -resize 284x284 -alpha on -background none "$TAURI_DIR/icons/Square284x284Logo.png"
+# Ensure Square310x310Logo.png is also RGBA
+convert "$TARGET_ICON_PATH" -alpha on -background none "$TAURI_DIR/icons/Square310x310Logo.png"
 
 # Create Windows ICO file (combines multiple sizes)
-convert "$TARGET_ICON_PATH" -define icon:auto-resize=16,32,48,64,128,256 "$ICO_PATH"
+convert "$TARGET_ICON_PATH" -alpha on -background none -define icon:auto-resize=16,32,48,64,128,256 "$ICO_PATH"
 
 # Create macOS ICNS file
 # First create temporary directory with required sizes
 TEMP_DIR=$(mktemp -d)
 mkdir -p "$TEMP_DIR/icon.iconset"
 
-# Generate the required sizes for ICNS
-convert "$TARGET_ICON_PATH" -resize 16x16 "$TEMP_DIR/icon.iconset/icon_16x16.png"
-convert "$TARGET_ICON_PATH" -resize 32x32 "$TEMP_DIR/icon.iconset/icon_16x16@2x.png"
-convert "$TARGET_ICON_PATH" -resize 32x32 "$TEMP_DIR/icon.iconset/icon_32x32.png"
-convert "$TARGET_ICON_PATH" -resize 64x64 "$TEMP_DIR/icon.iconset/icon_32x32@2x.png"
-convert "$TARGET_ICON_PATH" -resize 128x128 "$TEMP_DIR/icon.iconset/icon_128x128.png"
-convert "$TARGET_ICON_PATH" -resize 256x256 "$TEMP_DIR/icon.iconset/icon_128x128@2x.png"
-convert "$TARGET_ICON_PATH" -resize 256x256 "$TEMP_DIR/icon.iconset/icon_256x256.png"
-convert "$TARGET_ICON_PATH" -resize 512x512 "$TEMP_DIR/icon.iconset/icon_256x256@2x.png"
-convert "$TARGET_ICON_PATH" -resize 512x512 "$TEMP_DIR/icon.iconset/icon_512x512.png"
-convert "$TARGET_ICON_PATH" -resize 1024x1024 "$TEMP_DIR/icon.iconset/icon_512x512@2x.png"
+# Generate the required sizes for ICNS - ensure RGBA format
+convert "$TARGET_ICON_PATH" -resize 16x16 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_16x16.png"
+convert "$TARGET_ICON_PATH" -resize 32x32 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_16x16@2x.png"
+convert "$TARGET_ICON_PATH" -resize 32x32 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_32x32.png"
+convert "$TARGET_ICON_PATH" -resize 64x64 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_32x32@2x.png"
+convert "$TARGET_ICON_PATH" -resize 128x128 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_128x128.png"
+convert "$TARGET_ICON_PATH" -resize 256x256 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_128x128@2x.png"
+convert "$TARGET_ICON_PATH" -resize 256x256 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_256x256.png"
+convert "$TARGET_ICON_PATH" -resize 512x512 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_256x256@2x.png"
+convert "$TARGET_ICON_PATH" -resize 512x512 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_512x512.png"
+convert "$TARGET_ICON_PATH" -resize 1024x1024 -alpha on -background none "$TEMP_DIR/icon.iconset/icon_512x512@2x.png"
 
 # Check if iconutil is available (macOS)
 if command -v iconutil &> /dev/null; then
@@ -89,8 +90,19 @@ else
             "$TEMP_DIR/icon.iconset/icon_128x128.png" \
             "$TEMP_DIR/icon.iconset/icon_256x256.png" \
             "$TEMP_DIR/icon.iconset/icon_512x512.png" \
-            "$ICNS_PATH"
+            -alpha on -background none "$ICNS_PATH"
 fi
+
+# Verify all PNGs have alpha channel
+echo "Verifying all icons have RGBA format..."
+for icon in "$TAURI_DIR"/icons/*.png; do
+    # Use identify to check if the image has an alpha channel
+    if ! identify -format "%[channels]" "$icon" | grep -q "rgba"; then
+        echo "Warning: $icon does not have an alpha channel. Fixing..."
+        # Force alpha channel
+        convert "$icon" -alpha on -background none "$icon"
+    fi
+done
 
 # Clean up temporary directory
 rm -rf "$TEMP_DIR"
