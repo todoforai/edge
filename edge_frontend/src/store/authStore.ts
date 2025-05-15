@@ -12,7 +12,7 @@ interface AuthState {
   isLoading: boolean;
 
   // Actions
-  login: (credentials: { email: string; password: string } | { apiKey: string }) => Promise<void>;
+  login: (credentials: { email: string; password: string; apiUrl?: string } | { apiKey: string; apiUrl?: string }) => Promise<void>;
   logout: () => void;
   clearError: () => void;
   initializeWithCachedAuth: () => Promise<void>;
@@ -32,9 +32,9 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
     try {
       if ('email' in credentials) {
-        await authService.loginWithCredentials(credentials.email, credentials.password);
+        await authService.loginWithCredentials(credentials.email, credentials.password, credentials.apiUrl);
       } else {
-        await authService.loginWithApiKey(credentials.apiKey);
+        await authService.loginWithApiKey(credentials.apiKey, credentials.apiUrl);
       }
 
       // The actual user update will happen via the auth_success event

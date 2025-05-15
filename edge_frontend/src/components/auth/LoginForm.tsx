@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useAuthStore } from '../../store/authStore';
+import { getApiBase } from '../../config/api-config';
 
 export const LoginForm = () => {
   const { login, isLoading, error, clearError } = useAuthStore();
@@ -9,6 +10,9 @@ export const LoginForm = () => {
   const [password, setPassword] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [apiUrl, setApiUrl] = useState('');
+  const [clickCount, setClickCount] = useState(0);
+  const [isApiUrlEditable, setIsApiUrlEditable] = useState(false);
 
   // Pre-fill credentials in development mode
   useEffect(() => {
@@ -18,14 +22,33 @@ export const LoginForm = () => {
     }
   }, []);
 
+  // Fetch and set the current API URL
+  useEffect(() => {
+    const fetchApiUrl = async () => {
+      const url = await getApiBase();
+      setApiUrl(url);
+    };
+    fetchApiUrl();
+  }, []);
+
+  const handleApiUrlClick = useCallback(() => {
+    const newCount = clickCount + 1;
+    setClickCount(newCount);
+    
+    if (newCount >= 7) {
+      setIsApiUrlEditable(true);
+      setClickCount(0);
+    }
+  }, [clickCount]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
 
     if (loginMethod === 'credentials') {
-      login({ email, password });
+      login({ email, password, apiUrl: isApiUrlEditable ? apiUrl : undefined });
     } else {
-      login({ apiKey });
+      login({ apiKey, apiUrl: isApiUrlEditable ? apiUrl : undefined });
     }
   };
 
@@ -100,6 +123,21 @@ export const LoginForm = () => {
           <SwitchButton type="button" onClick={() => setLoginMethod(loginMethod === 'credentials' ? 'apiKey' : 'credentials')}>
             {loginMethod === 'credentials' ? 'Login with API Key instead' : 'Login with Email & Password instead'}
           </SwitchButton>
+          
+          <ApiUrlContainer>
+            {isApiUrlEditable ? (
+              <ApiUrlInput 
+                type="text" 
+                value={apiUrl} 
+                onChange={(e) => setApiUrl(e.target.value)}
+                placeholder="API URL"
+              />
+            ) : (
+              <ApiUrlText onClick={handleApiUrlClick}>
+                API: {apiUrl}
+              </ApiUrlText>
+            )}
+          </ApiUrlContainer>
         </LoginFooter>
       </LoginCard>
     </LoginContainer>
@@ -111,10 +149,11 @@ const LoginContainer = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  height: 100vh;
   padding: 20px;
   background-color: ${(props) => props.theme.colors.background};
   width: 100%;
+  box-sizing: border-box;
 `;
 
 const LoginCard = styled.div`
@@ -156,17 +195,7 @@ const TabButton = styled.button<{ $active: boolean }>`
   background: transparent;
   text-shadow: none;
   margin: 0 10px;
-
-  &:after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background-color: ${(props) => (props.$active ? props.theme.colors.primary : 'transparent')};
-    transition: all 0.2s ease;
-  }
+  position: relative;
 
   &:hover {
     color: ${(props) => props.theme.colors.primary};
@@ -271,4 +300,27 @@ const SwitchButton = styled.button`
   &:hover {
     text-decoration: underline;
   }
+`;
+
+const ApiUrlContainer = styled.div`
+  margin-top: 15px;
+  text-align: center;
+`;
+
+const ApiUrlText = styled.div`
+  font-size: 12px;
+  color: ${(props) => props.theme.colors.muted};
+  cursor: pointer;
+  user-select: none;
+`;
+
+const ApiUrlInput = styled.input`
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  background-color: ${(props) => props.theme.colors.cardBackground};
+  border: 1px solid ${(props) => props.theme.colors.borderColor};
+  border-radius: ${(props) => props.theme.radius.md};
+  color: ${(props) => props.theme.colors.foreground};
+  text-align: center;
 `;
