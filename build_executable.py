@@ -173,7 +173,7 @@ exe = EXE(
     
     # Build the executable with the spec file
     print("Building WebSocket sidecar executable...")
-    run_command(["pyinstaller", "--clean", spec_file])
+    run_command([sys.executable, "-m", "PyInstaller", "--clean", spec_file])
     
     # Clean up
     os.unlink(spec_file)
