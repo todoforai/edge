@@ -122,18 +122,11 @@ jobs:
         echo "Sidecar prepared at: edge_frontend/src-tauri/binaries/$TARGET_NAME"
       shell: bash
 
-    # Build the Tauri application
-    - name: Build Tauri application
-      run: make tauri-build
-      env:
-        TAURI_SKIP_UPDATE_CHECK: 1
-      shell: bash
-
     # ─── 🍏 Create simplified entitlements file for macOS ─────────────────────
     - name: Write entitlements (macOS)
       if: startsWith(matrix.os, 'macos')
       run: |
-        cat > entitlements.plist <<'EOF'
+        cat > edge_frontend/src-tauri/entitlements.plist <<'EOF'
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -143,7 +136,7 @@ jobs:
         </dict>
         </plist>
         EOF
-        cat entitlements.plist
+        cat edge_frontend/src-tauri/entitlements.plist
 
     # ─── 🍏 1. Import the certificate ───────────────────────────────────────
     - name: Import Code‑Signing Certificates (macOS)
@@ -172,6 +165,23 @@ jobs:
         fi
         echo "SHA=$SHA" >> $GITHUB_OUTPUT
         echo "Found Developer ID Application certificate: $SHA"
+
+    # Build the Tauri application
+    - name: Build Tauri application
+      run: make tauri-build
+      env:
+        TAURI_SKIP_UPDATE_CHECK: 1
+      shell: bash
+
+    # Notarize and staple the macOS application
+    - name: Notarize & staple (macOS)
+      if: startsWith(matrix.os, 'macos')
+      uses: apple-actions/notary-tools@v1
+      with:
+        product-path: edge_frontend/src-tauri/target/release/bundle/dmg/todoforai-edge.dmg
+        apple-id: ${{ secrets.APPLE_ID }}
+        team-id: ${{ secrets.APPLE_TEAM_ID }}
+        password: ${{ secrets.APPLE_APP_PASSWORD }}
 
     # Determine the Tauri app bundle path based on OS
     - name: Set Tauri bundle path

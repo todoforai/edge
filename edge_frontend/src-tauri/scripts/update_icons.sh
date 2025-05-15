@@ -58,12 +58,28 @@ mkdir -p "$TMP/icon.iconset"
 for s in 16 32 128 256 512 1024; do
   mkpng "$s" "$TMP/icon.iconset/icon_${s}x${s}.png"
 done
+
+# Check for iconutil (macOS) or icnsutil (Linux)
 if command -v iconutil &>/dev/null; then
+  # macOS native tool
+  echo "Using macOS iconutil to create .icns file"
   iconutil -c icns "$TMP/icon.iconset" -o "$ICNS_PATH"
+elif command -v icnsutil &>/dev/null; then
+  # Linux equivalent
+  echo "Using Linux icnsutil to create .icns file"
+  icnsutil -c icns "$TMP/icon.iconset" -o "$ICNS_PATH"
 else
-  # minimal fallback – single-res ICNS
+  # Check if we're on Linux
+  if [[ "$(uname)" == "Linux" ]]; then
+    echo "⚠️  For better .icns generation on Linux, install icnsutils:"
+    echo "    sudo apt update && sudo apt install icnsutils"
+  fi
+  
+  # Fallback method using ImageMagick
+  echo "Using ImageMagick fallback to create .icns file (less efficient)"
   convert "$TMP/icon.iconset/icon_512x512.png" PNG32:"$ICNS_PATH"
 fi
+
 rm -rf "$TMP"
 
 ## ── verify everything is RGBA8 ────────────────────────────────────────────────
