@@ -149,16 +149,16 @@ jobs:
         security find-identity -v -p codesigning
         echo "::endgroup::"
         
-        # Look for any valid certificate - we'll use what's available
-        SHA=$(security find-identity -v -p codesigning | grep -E 'valid identit(y|ies) found' -B 1 | head -n 1 | awk '{print $1}')
+        # Look specifically for the DiabTrend certificate
+        SHA=$(security find-identity -v -p codesigning | grep "DiabTrend AI" | head -n 1 | awk '{print $2}')
         if [ -z "$SHA" ]; then
-          echo "::error::No valid codesigning certificate found in keychain"
+          echo "::error::Developer ID Application certificate not found in keychain"
           echo "Make sure you've exported the correct certificate from Keychain Access"
           echo "and updated the APPLE_CERTIFICATE secret with its base64 content."
           exit 1
         fi
         echo "SHA=$SHA" >> $GITHUB_OUTPUT
-        echo "Found codesigning certificate: $SHA"
+        echo "Found Developer ID Application certificate: $SHA"
         
         # Get the full name of the certificate for Tauri config
         CERT_NAME=$(security find-identity -v -p codesigning | grep "$SHA" | sed -E 's/.*"([^"]+)".*/\1/')
@@ -171,6 +171,7 @@ jobs:
       run: make tauri-build
       env:
         TAURI_SKIP_UPDATE_CHECK: 1
+        APPLE_SIGNING_IDENTITY: ${{ steps.dev-id.outputs.CERT_NAME }}
       shell: bash
 
     # Notarize and staple the macOS application using manual commands
