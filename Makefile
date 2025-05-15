@@ -1,6 +1,6 @@
 # Makefile for todoforai-edge
 
-.PHONY: install build-sidecar copy-sidecar tauri-dev tauri-build clean help run run-test deploy-prod bump-version
+.PHONY: install build-sidecar copy-sidecar tauri-dev tauri-build clean help run run-test deploy-prod bump-version update-icons
 
 help:
 	@echo "Available commands:"
@@ -9,6 +9,7 @@ help:
 	@echo "  make bump-version      - Bump the version number by 0.0.1"
 	@echo "  make deploy-latest     - Bump version, commit, push to main, then deploy main to latest"
 	@echo "  make deploy-tag        - Create a GitHub release tag for the current version"
+	@echo "  make update-icons      - Update icons with 'Edge' text"
 
 run:
 	@echo "Running TodoForAI Edge client..."
@@ -48,6 +49,11 @@ deploy-latest: bump-version
 	@git push origin prod
 	@git checkout -
 	@echo "Deployment complete!"
+
+# Update icons with 'Edge' text
+update-icons:
+	@echo "Updating icons with 'Edge' text..."
+	@bash edge_frontend/src-tauri/scripts/update_icons.sh
 
 # Install dependencies
 install:
