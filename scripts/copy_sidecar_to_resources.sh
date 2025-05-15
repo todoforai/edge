@@ -75,12 +75,4 @@ else
     echo "Note: No executable was copied. The application will use the Python script at runtime."
 fi
 
-# Ensure the Python script is in the resources directory
-RESOURCES_DIR="./edge_frontend/src-tauri/resources/python"
-mkdir -p "$RESOURCES_DIR"
-
-# Copy the Python script
-echo "Copying Python script to resources..."
-cp "./edge_frontend/src-tauri/python/ws_sidecar.py" "$RESOURCES_DIR/"
-
 echo "Setup complete!"
