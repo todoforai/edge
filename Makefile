@@ -61,7 +61,7 @@ build-sidecar:
 
 # Copy the sidecar executable to the Tauri resources directory
 copy-sidecar:
-	bash copy_sidecar_to_resources.sh
+	bash scripts/copy_sidecar_to_resources.sh
 
 # Run Tauri in development mode
 tauri-dev:
@@ -80,7 +80,7 @@ clean:
 
 # Test the sidecar build
 test-sidecar: clean
-	bash test_build_executable.sh
+	bash scripts/test_sidecar_setup.sh
 
 # Default target
 all: install build-sidecar copy-sidecar tauri-build
