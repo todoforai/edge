@@ -255,46 +255,64 @@ jobs:
           if [ -d "$DIR" ]; then
             TARGET_TRIPLE=$(echo $DIR | sed 's/todoforai-edge-//')
             
-            # Process based on platform
+            # Map target triple to user-friendly platform name
             if [[ "$TARGET_TRIPLE" == *windows* ]]; then
+              PLATFORM="windows"
+              ARCH="x64"
+              if [[ "$TARGET_TRIPLE" == *aarch64* ]]; then
+                ARCH="arm64"
+              fi
+              
               # For Windows, find and copy the MSI installer
-              find "$DIR" -name "*.msi" -exec cp {} "uploads/todoforai-edge-$TARGET_TRIPLE.msi" \;
+              find "$DIR" -name "*.msi" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" \;
               
               # Upload the MSI
-              if [ -f "uploads/todoforai-edge-$TARGET_TRIPLE.msi" ]; then
-                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-$TARGET_TRIPLE.msi" \
-                  --file "uploads/todoforai-edge-$TARGET_TRIPLE.msi" \
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" ]; then
+                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.msi" \
+                  --file "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" \
                   --content-type application/octet-stream \
                   --remote
               fi
             elif [[ "$TARGET_TRIPLE" == *linux* ]]; then
+              PLATFORM="linux"
+              ARCH="x64"
+              if [[ "$TARGET_TRIPLE" == *aarch64* ]]; then
+                ARCH="arm64"
+              fi
+              
               # For Linux, find and copy both AppImage and DEB
-              find "$DIR" -name "*.AppImage" -exec cp {} "uploads/todoforai-edge-$TARGET_TRIPLE.AppImage" \;
-              find "$DIR" -name "*.deb" -exec cp {} "uploads/todoforai-edge-$TARGET_TRIPLE.deb" \;
+              find "$DIR" -name "*.AppImage" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" \;
+              find "$DIR" -name "*.deb" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" \;
               
               # Upload the AppImage
-              if [ -f "uploads/todoforai-edge-$TARGET_TRIPLE.AppImage" ]; then
-                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-$TARGET_TRIPLE.AppImage" \
-                  --file "uploads/todoforai-edge-$TARGET_TRIPLE.AppImage" \
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" ]; then
+                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" \
+                  --file "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" \
                   --content-type application/octet-stream \
                   --remote
               fi
               
               # Upload the DEB
-              if [ -f "uploads/todoforai-edge-$TARGET_TRIPLE.deb" ]; then
-                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-$TARGET_TRIPLE.deb" \
-                  --file "uploads/todoforai-edge-$TARGET_TRIPLE.deb" \
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" ]; then
+                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.deb" \
+                  --file "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" \
                   --content-type application/octet-stream \
                   --remote
               fi
             elif [[ "$TARGET_TRIPLE" == *darwin* || "$TARGET_TRIPLE" == *apple* ]]; then
+              PLATFORM="macos"
+              ARCH="x64"
+              if [[ "$TARGET_TRIPLE" == *aarch64* ]]; then
+                ARCH="arm64"
+              fi
+              
               # For macOS, prioritize DMG installer
-              find "$DIR" -name "*.dmg" -exec cp {} "uploads/todoforai-edge-$TARGET_TRIPLE.dmg" \;
+              find "$DIR" -name "*.dmg" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" \;
               
               # Upload the DMG if found
-              if [ -f "uploads/todoforai-edge-$TARGET_TRIPLE.dmg" ]; then
-                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-$TARGET_TRIPLE.dmg" \
-                  --file "uploads/todoforai-edge-$TARGET_TRIPLE.dmg" \
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" ]; then
+                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.dmg" \
+                  --file "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" \
                   --content-type application/octet-stream \
                   --remote
               fi
