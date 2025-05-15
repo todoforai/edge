@@ -181,11 +181,13 @@ jobs:
           echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle/msi" >> $GITHUB_OUTPUT
           echo "BUNDLE_EXTENSION=msi" >> $GITHUB_OUTPUT
         elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle/appimage" >> $GITHUB_OUTPUT
-          echo "BUNDLE_EXTENSION=AppImage" >> $GITHUB_OUTPUT
+          # For Linux, we'll collect both AppImage and DEB
+          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle" >> $GITHUB_OUTPUT
+          echo "BUNDLE_EXTENSION=*" >> $GITHUB_OUTPUT
         else
-          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle/macos" >> $GITHUB_OUTPUT
-          echo "BUNDLE_EXTENSION=app" >> $GITHUB_OUTPUT
+          # For macOS, we'll collect both .app and .dmg
+          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle" >> $GITHUB_OUTPUT
+          echo "BUNDLE_EXTENSION=*" >> $GITHUB_OUTPUT
         fi
       shell: bash
 
@@ -253,7 +255,7 @@ jobs:
           if [ -d "$DIR" ]; then
             TARGET_TRIPLE=$(echo $DIR | sed 's/todoforai-edge-//')
             
-            # Create a zip of the bundle for each platform
+            # Process based on platform
             if [[ "$TARGET_TRIPLE" == *windows* ]]; then
               # For Windows, find and copy the MSI installer
               find "$DIR" -name "*.msi" -exec cp {} "uploads/todoforai-edge-$TARGET_TRIPLE.msi" \;
@@ -266,8 +268,9 @@ jobs:
                   --remote
               fi
             elif [[ "$TARGET_TRIPLE" == *linux* ]]; then
-              # For Linux, find and copy the AppImage
+              # For Linux, find and copy both AppImage and DEB
               find "$DIR" -name "*.AppImage" -exec cp {} "uploads/todoforai-edge-$TARGET_TRIPLE.AppImage" \;
+              find "$DIR" -name "*.deb" -exec cp {} "uploads/todoforai-edge-$TARGET_TRIPLE.deb" \;
               
               # Upload the AppImage
               if [ -f "uploads/todoforai-edge-$TARGET_TRIPLE.AppImage" ]; then
@@ -276,18 +279,24 @@ jobs:
                   --content-type application/octet-stream \
                   --remote
               fi
+              
+              # Upload the DEB
+              if [ -f "uploads/todoforai-edge-$TARGET_TRIPLE.deb" ]; then
+                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-$TARGET_TRIPLE.deb" \
+                  --file "uploads/todoforai-edge-$TARGET_TRIPLE.deb" \
+                  --content-type application/octet-stream \
+                  --remote
+              fi
             elif [[ "$TARGET_TRIPLE" == *darwin* || "$TARGET_TRIPLE" == *apple* ]]; then
-              # For macOS, zip the .app bundle
-              if [ -d "$DIR/todoforai-edge.app" ]; then
-                (cd "$DIR" && zip -r "../uploads/todoforai-edge-$TARGET_TRIPLE.zip" "todoforai-edge.app")
-                
-                # Upload the zip
-                if [ -f "uploads/todoforai-edge-$TARGET_TRIPLE.zip" ]; then
-                  wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-$TARGET_TRIPLE.zip" \
-                    --file "uploads/todoforai-edge-$TARGET_TRIPLE.zip" \
-                    --content-type application/zip \
-                    --remote
-                fi
+              # For macOS, prioritize DMG installer
+              find "$DIR" -name "*.dmg" -exec cp {} "uploads/todoforai-edge-$TARGET_TRIPLE.dmg" \;
+              
+              # Upload the DMG if found
+              if [ -f "uploads/todoforai-edge-$TARGET_TRIPLE.dmg" ]; then
+                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-$TARGET_TRIPLE.dmg" \
+                  --file "uploads/todoforai-edge-$TARGET_TRIPLE.dmg" \
+                  --content-type application/octet-stream \
+                  --remote
               fi
             fi
           fi
