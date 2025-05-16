@@ -153,7 +153,7 @@ def login(credentials):
                         if not auth_success:
                             await broadcast_event({
                                 "type": "auth_error",
-                                "payload": {"message": "Authentication failed"}
+                                "payload": {"message": f"Authentication failed. Auth_success: {auth_success}"}
                             })
                             return
                         
@@ -182,7 +182,7 @@ def login(credentials):
                     log.error(f"Error in client thread: {e}")
                     traceback.print_exc()
                     await broadcast_event({
-                        "type": "error",
+                        "type": "auth_error",
                         "payload": {"message": str(e)}
                     })
             
@@ -195,11 +195,17 @@ def login(credentials):
         return {"status": "connecting", "message": "Client is connecting..."}
         
     except Exception as e:
-        log.error(f"Login error: {e}")
+        error_msg = f"Login error: {str(e)}"
+        log.error(error_msg)
         traceback.print_exc()
-        return {"status": "error", "message": str(e)}
-        traceback.print_exc()
-        return {"status": "error", "message": str(e)}
+        
+        # Broadcast the error to the frontend
+        asyncio.create_task(broadcast_event({
+            "type": "auth_error",
+            "payload": {"message": error_msg}
+        }))
+        
+        return {"status": "error", "message": error_msg}
 
 @rpc
 def register_file_sync_hooks(params=None):

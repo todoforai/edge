@@ -199,7 +199,6 @@ class TODOforAIEdge:
         try:
             logger.info(f"Authenticating with email: {self.email}")
             self.api_key = authenticate_and_get_api_key(self.email, self.password, self.api_url)
-            print('self.api_key:', self.api_key)
             logger.info(f"Successfully authenticated as {self.email}")
             return True
         except Exception as e:

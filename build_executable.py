@@ -188,17 +188,17 @@ exe = EXE(
         print(f"Size: {size_mb:.2f} MB ({size_bytes:,} bytes)")
         
         # Try to compress with UPX if available
-        try:
-            print("\nAttempting further compression with UPX...")
-            run_command(["upx", "--best", str(exe_path)])
+        # try:
+        #     print("\nAttempting further compression with UPX...")
+        #     run_command(["upx", "--best", str(exe_path)])
             
-            # Show compressed size
-            size_bytes = exe_path.stat().st_size
-            size_mb = size_bytes / (1024 * 1024)
-            print(f"Compressed size: {size_mb:.2f} MB ({size_bytes:,} bytes)")
-        except Exception as e:
-            print(f"UPX compression not available or failed: {e}")
-            print("Install UPX for further size reduction.")
+        #     # Show compressed size
+        #     size_bytes = exe_path.stat().st_size
+        #     size_mb = size_bytes / (1024 * 1024)
+        #     print(f"Compressed size: {size_mb:.2f} MB ({size_bytes:,} bytes)")
+        # except Exception as e:
+        #     print(f"UPX compression not available or failed: {e}")
+        #     print("Install UPX for further size reduction.")
             
         print("\nUsage:")
         print(f"  {output_name} --host 127.0.0.1 --port 9528 [--debug]")

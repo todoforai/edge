@@ -41,6 +41,7 @@ class AuthService {
     });
 
     pythonService.addEventListener('auth_error', (data) => {
+      console.log('Auth error:', data)
       this.handleAuthError(data);
     });
   }
@@ -138,7 +139,7 @@ class AuthService {
 
   private handleAuthError(data: {type: string, payload: { message: string }}): void {
     const payload = data.payload;
-    const errorMessage = payload.message || 'Authentication failed';
+    const errorMessage = payload.message || 'Authentication failed without message';
     log.error('Authentication error:', errorMessage);
     // Update the auth store with the error
     useAuthStore.setState({ error: errorMessage });
