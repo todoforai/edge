@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useAuthStore } from '../../store/authStore';
 import { getApiBase } from '../../config/api-config';
+import { getAppVersion } from '../../lib/tauri-api';
 
 export const LoginForm = () => {
   const { login, isLoading, error, clearError } = useAuthStore();
@@ -11,6 +12,7 @@ export const LoginForm = () => {
   const [apiKey, setApiKey] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [apiUrl, setApiUrl] = useState('');
+  const [appVersion, setAppVersion] = useState('');
   const [clickCount, setClickCount] = useState(0);
   const [isApiUrlEditable, setIsApiUrlEditable] = useState(false);
 
@@ -22,13 +24,16 @@ export const LoginForm = () => {
     }
   }, []);
 
-  // Fetch and set the current API URL
+  // Fetch and set the current API URL and app version
   useEffect(() => {
-    const fetchApiUrl = async () => {
+    const fetchApiUrlAndVersion = async () => {
       const url = await getApiBase();
       setApiUrl(url);
+      
+      const version = await getAppVersion();
+      setAppVersion(version);
     };
-    fetchApiUrl();
+    fetchApiUrlAndVersion();
   }, []);
 
   const handleApiUrlClick = useCallback(() => {
@@ -137,6 +142,7 @@ export const LoginForm = () => {
                 API: {apiUrl}
               </ApiUrlText>
             )}
+            {appVersion && <VersionText>Version: {appVersion}</VersionText>}
           </ApiUrlContainer>
         </LoginFooter>
       </LoginCard>
@@ -323,4 +329,10 @@ const ApiUrlInput = styled.input`
   border-radius: ${(props) => props.theme.radius.md};
   color: ${(props) => props.theme.colors.foreground};
   text-align: center;
+`;
+
+const VersionText = styled.div`
+  font-size: 12px;
+  color: ${(props) => props.theme.colors.muted};
+  margin-top: 5px;
 `;

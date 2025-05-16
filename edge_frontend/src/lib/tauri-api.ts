@@ -180,6 +180,23 @@ export const browserFallbacks = {
   }
 };
 
+// Get app version function
+export const getAppVersion = async (): Promise<string> => {
+  if (isTauri()) {
+    try {
+      // For Tauri v2
+      const { getVersion } = await import('@tauri-apps/api/app');
+      return await getVersion();
+    } catch (error) {
+      log.error('Error getting app version from Tauri:', error);
+      return 'Unknown';
+    }
+  }
+  
+  // For web or fallback
+  return import.meta.env.VITE_APP_VERSION || 'dev';
+};
+
 // ────────────────────────────────────────────────────────────────
 //  5.  Unified facade that just "does the right thing"
 // ────────────────────────────────────────────────────────────────
@@ -209,7 +226,8 @@ export const desktopApi = {
     isTauri() ? await tauriApi.startWebSocketSidecar() : browserFallbacks.startWebSocketSidecar(),
     
   getWebSocketPort: async (): Promise<number | null> =>
-    isTauri() ? await tauriApi.getWebSocketPort() : browserFallbacks.getWebSocketPort()
+    isTauri() ? await tauriApi.getWebSocketPort() : browserFallbacks.getWebSocketPort(),
+  getAppVersion,
 };
 
 // ────────────────────────────────────────────────────────────────

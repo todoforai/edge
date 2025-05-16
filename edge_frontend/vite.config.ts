@@ -1,12 +1,23 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
+import { readFileSync } from 'fs';
+
+// Read version from package.json
+const packageJson = JSON.parse(
+  readFileSync('./package.json', 'utf-8')
+);
 
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+
+  // Define environment variables
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(packageJson.version)
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

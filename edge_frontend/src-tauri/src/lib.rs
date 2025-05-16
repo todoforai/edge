@@ -140,19 +140,19 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
     let mut state_lock = websocket_state.0.lock().unwrap();
 
     // If already running in our process, return success
-    // if state_lock.is_some() {
-    //     info!("WebSocket sidecar already running in this process");
-    //     return Ok(WEBSOCKET_PORT);
-    // }
+    if state_lock.is_some() {
+        info!("WebSocket sidecar already running in this process");
+        return Ok(WEBSOCKET_PORT);
+    }
 
-    // // Check if the port is already in use (possibly by another process)
-    // if is_port_in_use(WEBSOCKET_PORT) {
-    //     info!(
-    //         "Port {} is already in use, assuming WebSocket sidecar is running",
-    //         WEBSOCKET_PORT
-    //     );
-    //     return Ok(WEBSOCKET_PORT);
-    // }
+    // Check if the port is already in use (possibly by another process)
+    if is_port_in_use(WEBSOCKET_PORT) {
+        info!(
+            "Port {} is already in use, assuming WebSocket sidecar is running",
+            WEBSOCKET_PORT
+        );
+        return Ok(WEBSOCKET_PORT);
+    }
 
     // Determine if we're in development or production mode
     #[cfg(debug_assertions)]
