@@ -11,11 +11,12 @@ from watchdog.events import FileSystemEventHandler
 
 from .constants import Edge2FrontAgent as EFA
 from .workspace_handler import get_filtered_files_and_folders
+from .observable import registry
 
 logger = logging.getLogger("todoforai-edge-sync")
 
 # Global registry to track active sync managers
-active_sync_managers = {}
+active_sync_managers = registry.create("active_sync_managers", {})
 
 class FileChangeHandler(FileSystemEventHandler):
     """Watches for file system changes and queues them for syncing"""
@@ -129,7 +130,7 @@ class WorkspaceSyncManager:
         
         # Register this sync manager in the global registry
         active_sync_managers[self.workspace_dir] = self
-    
+        
     async def initial_sync(self):
         """Perform initial sync of all project files"""
         logger.info("Starting initial sync of project files...")
@@ -225,6 +226,7 @@ class WorkspaceSyncManager:
         # Remove from global registry
         if self.workspace_dir in active_sync_managers:
             del active_sync_managers[self.workspace_dir]
+            
     
     async def process_sync_queue(self):
         """Process the sync queue"""
@@ -361,7 +363,6 @@ class WorkspaceSyncManager:
 # Function to start syncing a workspace
 async def start_workspace_sync(client, workspace_dir):
     """Start syncing a workspace directory"""
-    workspace_dir = os.path.abspath(workspace_dir)
     
     # Check if we're already syncing this workspace
     if workspace_dir in active_sync_managers:
@@ -388,11 +389,12 @@ async def start_workspace_sync(client, workspace_dir):
 # Function to stop syncing a workspace
 async def stop_workspace_sync(workspace_dir):
     """Stop syncing a workspace directory"""
-    workspace_dir = os.path.abspath(workspace_dir)
     
     if workspace_dir in active_sync_managers:
         sync_manager = active_sync_managers[workspace_dir]
         await sync_manager.stop()
+        # Remove from active_sync_managers after stopping
+        del active_sync_managers[workspace_dir]
         logger.info(f"Stopped syncing workspace: {workspace_dir}")
         return True
     
@@ -402,7 +404,37 @@ async def stop_workspace_sync(workspace_dir):
 # Function to stop all active sync managers
 async def stop_all_syncs():
     """Stop all active workspace syncs"""
-    for workspace_dir, sync_manager in list(active_sync_managers.items()):
+    # Create a copy of the keys to avoid modifying the dictionary during iteration
+    workspace_dirs = list(active_sync_managers.keys())
+    
+    for workspace_dir in workspace_dirs:
+        sync_manager = active_sync_managers[workspace_dir]
         await sync_manager.stop()
+        # Remove from active_sync_managers
+        del active_sync_managers[workspace_dir]
     
     logger.info("Stopped all workspace syncs")
+
+# Function to check if a path is in a workspace and ensure that workspace is synced
+async def ensure_workspace_synced(client, file_path):
+    """
+    Ensure that the workspace containing the given file path is being synced.
+    Returns True if sync was started, False if already syncing or not in a workspace.
+    """
+    file_path = os.path.abspath(file_path)
+    
+    # Check if the file is in one of the configured workspaces
+    for workspace_dir in client.edge_config.workspacepaths:
+        
+        # Check if the file is in this workspace
+        if file_path.startswith(workspace_dir):
+            # Check if this workspace is already being synced
+            if workspace_dir in active_sync_managers:
+                return False  # Already syncing
+            
+            # Start syncing this workspace
+            logger.info(f"Lazy-initializing sync for workspace: {workspace_dir}")
+            await start_workspace_sync(client, workspace_dir)
+            return True
+    
+    return False  # Not in any workspace

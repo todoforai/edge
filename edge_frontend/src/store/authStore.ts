@@ -43,38 +43,17 @@ interface AuthState {
   loginWithApiKey: (apiKey: string, apiUrl?: string, debug?: boolean) => Promise<void>;
   logout: () => void;
   clearError: () => void;
-  initializeWithCachedAuth: (apiUrl: string) => Promise<void>;
-  restoreUserForApiUrl: (apiUrl: string) => void;
+  initializeWithCachedAuth: (user: User) => Promise<void>;
   isAuthenticated: () => boolean;
   isSessionValid: () => boolean;
   setApiUrl: (apiUrl: string) => void;
+  setUser: (user: User) => void;
+  setError: (error: string | null) => void;
   getCurrentUser: () => User;
 }
 
-// Utility functions outside the store
-const saveUserToStorage = (user: User): void => {
-  try {
-    if (user.isAuthenticated && user.apiUrl) {
-      // Only store what we need to restore the session
-      const storageData = {
-        apiKey: user.apiKey,
-        email: user.email,
-        name: user.name,
-        lastLoginTime: user.lastLoginTime,
-        apiUrl: user.apiUrl,
-      };
-      localStorage.setItem(`currentUser_${user.apiUrl}`, JSON.stringify(storageData));
-      log.info(`User data saved to storage for API URL: ${user.apiUrl}`);
-    } else {
-      // If no API URL or not authenticated, we can't save properly
-      log.info('User not authenticated or missing API URL, not saving to storage');
-    }
-  } catch (error) {
-    log.error('Failed to save user to storage:', error);
-  }
-};
-
-const restoreUserFromStorage = (apiUrl: string): User | null => {
+// Utility function to restore user from storage
+export const restoreUserFromStorage = (apiUrl: string | null): User | null => {
   if (!apiUrl) {
     log.info('No API URL provided, cannot restore user');
     return null;
@@ -116,38 +95,7 @@ const restoreUserFromStorage = (apiUrl: string): User | null => {
   return null;
 };
 
-// Initialize the store with event listeners
-const setupAuthEventListeners = (set: any, get: any) => {
-  pythonService.addEventListener('auth_success', async (data) => {
-    const payload = data.payload;
-    const apiUrl = get().apiUrl || (await getApiBase());
-
-    const updatedUser = {
-      apiKey: payload.apiKey,
-      email: payload.email,
-      name: payload.name,
-      isAuthenticated: true,
-      lastLoginTime: Date.now(),
-      apiUrl: apiUrl,
-    };
-
-    saveUserToStorage(updatedUser);
-    log.info('User authenticated successfully');
-    set({ user: updatedUser });
-  });
-
-  pythonService.addEventListener('auth_error', (data) => {
-    const payload = data.payload;
-    const errorMessage = payload.message || 'Authentication failed without message';
-    log.error('Authentication error:', errorMessage);
-    set({ error: errorMessage });
-  });
-};
-
 export const useAuthStore = create<AuthState>()((set, get) => {
-  // Setup event listeners
-  setupAuthEventListeners(set, get);
-
   return {
     user: null,
     error: null,
@@ -211,29 +159,9 @@ export const useAuthStore = create<AuthState>()((set, get) => {
 
     clearError: () => set({ error: null }),
 
-    restoreUserForApiUrl: (apiUrl: string) => {
-      if (!apiUrl) return;
-
-      const user = restoreUserFromStorage(apiUrl);
-      if (user) {
-        set({ user, apiUrl });
-        log.info(`Restored user for API URL: ${apiUrl}, authenticated: ${user.isAuthenticated}`);
-      } else {
-        set({ user: { isAuthenticated: false }, apiUrl });
-        log.info(`No valid user found for API URL: ${apiUrl}`);
-      }
-    },
-
-    initializeWithCachedAuth: async (apiUrl: string) => {
+    initializeWithCachedAuth: async (user: User) => {
       try {
-        // Get the API URL first
-        set({ apiUrl });
-
-        // Restore user for this API URL
-        const user = restoreUserFromStorage(apiUrl);
         if (user) {
-          set({ user });
-
           // If we have a valid session, initialize Python service
           if (user.isAuthenticated && user.apiKey) {
             // Initialize Python service and login with cached API key
@@ -242,8 +170,9 @@ export const useAuthStore = create<AuthState>()((set, get) => {
             // Login with the cached API key
             await pythonService.login({
               apiKey: user.apiKey,
-              apiUrl,
+              apiUrl: get().apiUrl,
             });
+            set({ user });
 
             // User will be updated via auth_success event
             log.info('Initialized with cached authentication');
@@ -277,9 +206,19 @@ export const useAuthStore = create<AuthState>()((set, get) => {
       const sessionAge = Date.now() - user.lastLoginTime;
       return sessionAge < SESSION_MAX_AGE;
     },
+
     setApiUrl: (apiUrl: string) => {
       set({ apiUrl });
     },
+
+    setUser: (user: User) => {
+      set({ user });
+    },
+
+    setError: (error: string | null) => {
+      set({ error });
+    },
+
     getCurrentUser: () => {
       const { user } = get();
       return user || { isAuthenticated: false };

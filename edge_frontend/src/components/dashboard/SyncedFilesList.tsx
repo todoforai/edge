@@ -92,17 +92,24 @@ const SyncedFilesList: React.FC = () => {
   };
 
   return (
-    <MessageListCard
-      title="Synced Files"
-      messages={syncedFiles}
-      renderItem={renderFileItem}
-      itemSize={50}
-      emptyMessage="No files have been synced yet"
-    />
+    <SyncedFilesContainer>
+      <MessageListCard
+        title="Synced Files"
+        messages={syncedFiles}
+        renderItem={renderFileItem}
+        itemSize={50}
+        emptyMessage="No files have been synced yet"
+      />
+    </SyncedFilesContainer>
   );
 };
 
 // Styled Components
+const SyncedFilesContainer = styled.div`
+  width: 100%;
+  min-width: 700px; /* Set minimum width */
+`;
+
 const FileItem = styled.div`
   display: flex;
   justify-content: space-between;

@@ -15,6 +15,8 @@ from .messages import (
 from .constants import Edge2Front as EF, Edge2Agent as EA
 from .workspace_handler import is_path_allowed
 from .shell_handler import ShellProcess
+# Add this import at the top of the file
+from .file_sync import ensure_workspace_synced
 
 logger = logging.getLogger("todoforai-edge")
 
@@ -292,6 +294,9 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
     
     try:
         logger.info(f"File chunk request received for path: {path}")
+        
+        # Ensure the workspace containing this file is being synced
+        await ensure_workspace_synced(client, path)
         
         # Check if file exists
         file_path = Path(path)

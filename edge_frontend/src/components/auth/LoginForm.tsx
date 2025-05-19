@@ -1,8 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { useAuthStore } from '../../store/authStore';
-import { getApiBase } from '../../config/api-config';
-import { getAppVersion } from '../../lib/tauri-api';
+import { 
+  useDevAuthEffect, 
+  useApiVersionEffect, 
+  useCachedLoginEffect,
+  useAuthEventListenersEffect
+} from '../../hooks/auth-hooks';
 
 export const LoginForm = () => {
   const { login, isLoading, error, clearError } = useAuthStore();
@@ -11,30 +15,14 @@ export const LoginForm = () => {
   const [password, setPassword] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [apiUrl, setApiUrl] = useState('');
-  const [appVersion, setAppVersion] = useState('');
   const [clickCount, setClickCount] = useState(0);
   const [isApiUrlEditable, setIsApiUrlEditable] = useState(false);
 
-  // Pre-fill credentials in development mode
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      setEmail('lfg@todofor.ai');
-      setPassword('Test123');
-    }
-  }, []);
-
-  // Fetch and set the current API URL and app version
-  useEffect(() => {
-    const fetchApiUrlAndVersion = async () => {
-      const url = await getApiBase();
-      setApiUrl(url);
-      
-      const version = await getAppVersion();
-      setAppVersion(version);
-    };
-    fetchApiUrlAndVersion();
-  }, []);
+  // Use custom hooks
+  useDevAuthEffect(setEmail, setPassword);
+  const { apiUrl, setApiUrl, appVersion } = useApiVersionEffect();
+  useCachedLoginEffect();
+  useAuthEventListenersEffect();
 
   const handleApiUrlClick = useCallback(() => {
     const newCount = clickCount + 1;

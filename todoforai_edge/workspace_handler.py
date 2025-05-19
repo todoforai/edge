@@ -248,7 +248,7 @@ async def handle_ctx_workspace_request(payload, client):
         # Check if path is allowed
         if not is_path_allowed(path, client.edge_config.workspacepaths):
             raise PermissionError(f"Access to path '{path}' is not allowed")
-
+            
         # Get filtered files - use global constants directly
         project_files, filtered_files, filtered_dirs = get_filtered_files_and_folders(path)
 

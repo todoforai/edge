@@ -284,6 +284,67 @@ def register_file_sync_hooks(params=None):
         return {"status": "error", "message": str(e)}
 
 @rpc
+def toggle_workspace_sync(params):
+    """Toggle sync for a specific workspace path"""
+    try:
+        if not todo_client:
+            return {"status": "error", "message": "Client not initialized"}
+            
+        workspace_path = os.path.abspath(params.get("path", ""))
+        if not workspace_path:
+            return {"status": "error", "message": "No workspace path provided"}
+        
+        # Import sync functions
+        from todoforai_edge.file_sync import start_workspace_sync, stop_workspace_sync, active_sync_managers
+        
+        # Check if this workspace is already being synced
+        is_active = workspace_path in active_sync_managers
+        
+        if is_active:
+            # Stop syncing
+            asyncio.create_task(stop_workspace_sync(workspace_path))
+            return {"status": "success", "isActive": False}
+        else:
+            # Start syncing if in configured workspaces
+            if workspace_path not in todo_client.edge_config.workspacepaths:
+                return {"status": "error", "message": "Path not in configured workspaces"}
+                
+            asyncio.create_task(start_workspace_sync(todo_client, workspace_path))
+            return {"status": "success", "isActive": True}
+            
+    except Exception as e:
+        log.error(f"Error toggling workspace sync: {e}")
+        return {"status": "error", "message": str(e)}
+
+@rpc
+def register_edge_config_hooks(params=None):
+    print('register_edge_config_hooks:')
+    """Register hooks to monitor edge config changes"""
+    try:
+        # Check if client exists
+        if not todo_client:
+            return {"status": "error", "message": "Client not initialized"}
+            
+        # The hook is already set up in the client initialization
+        # Just trigger it with current config to ensure frontend is updated
+        if todo_client.edge_config.config.value:
+            # Create a task to send the current edge config
+            async def send_current_config():
+                # Send edge config directly to frontend
+                await broadcast_event({
+                    "type": "edge:config_update",
+                    "payload": todo_client.edge_config.config.value
+                })
+                
+            asyncio.create_task(send_current_config())
+            
+        return {"status": "success", "message": "Edge config hooks registered"}
+    except Exception as e:
+        log.error(f"Error registering edge config hooks: {e}")
+        traceback.print_exc()
+        return {"status": "error", "message": str(e)}
+
+@rpc
 def register_workspace_paths_hooks(params=None):
     """Register hooks to monitor workspace paths changes"""
     try:
@@ -309,6 +370,31 @@ def register_workspace_paths_hooks(params=None):
         return {"status": "success", "message": "Workspace paths hooks registered"}
     except Exception as e:
         log.error(f"Error registering workspace paths hooks: {e}")
+        traceback.print_exc()
+        return {"status": "error", "message": str(e)}
+
+@rpc
+def register_active_workspaces_hooks(params=None):
+    """Register hooks to monitor active workspace changes"""
+    try:
+        from todoforai_edge.file_sync import active_sync_managers
+        
+        # Define the callback function
+        async def on_active_workspaces_change(active_workspaces_dict):
+            # Send event about active workspaces change
+            await broadcast_event({
+                "type": "active_workspaces_change",
+                "payload": {
+                    "activeWorkspaces": list(active_workspaces_dict.keys())
+                }
+            })
+            
+        # Register the callback with the observable
+        active_sync_managers.subscribe_async(on_active_workspaces_change)
+        
+        return {"status": "success", "message": "Active workspaces hooks registered"}
+    except Exception as e:
+        log.error(f"Error registering active workspaces hooks: {e}")
         traceback.print_exc()
         return {"status": "error", "message": str(e)}
 

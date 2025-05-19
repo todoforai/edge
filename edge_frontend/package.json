@@ -12,6 +12,10 @@
     "install:deb": "tauri build --bundles deb && sudo dpkg -i \"src-tauri/target/release/bundle/deb/todoforai-edge_$(node -p \"require('./package.json').version\")_amd64.deb\""
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@iconify/react": "^6.0.0",
+    "@mui/material": "^7.1.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-deep-link": "~2",
     "@tauri-apps/plugin-opener": "^2",

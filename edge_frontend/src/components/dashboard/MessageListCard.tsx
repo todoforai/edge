@@ -10,15 +10,17 @@ interface MessageListCardProps {
   itemSize?: number;
   emptyMessage?: string;
   actions?: React.ReactNode;
+  customCount?: string; // New prop for custom count display
 }
 
 const MessageListCard: React.FC<MessageListCardProps> = ({
   title,
-  messages,
+  messages = [],
   renderItem,
   itemSize = 50,
   emptyMessage = 'No messages to display',
-  actions
+  actions,
+  customCount
 }) => {
   const listRef = useRef<List>(null);
 
@@ -34,10 +36,13 @@ const MessageListCard: React.FC<MessageListCardProps> = ({
     return renderItem(messages[index], index, style);
   };
 
+  // Display count based on whether customCount is provided
+  const displayTitle = customCount ? `${title} (${customCount})` : `${title} (${messages.length})`;
+
   return (
     <Card>
       <CardTitle>
-        {title} ({messages.length})
+        {displayTitle}
         {actions && <ButtonGroup>{actions}</ButtonGroup>}
       </CardTitle>
       

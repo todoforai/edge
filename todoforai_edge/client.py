@@ -19,6 +19,7 @@ from .constants import (
 from .utils import generate_machine_fingerprint, async_request
 from .messages import edge_status_msg
 from .apikey import authenticate_and_get_api_key
+from .observable import registry
 
 # Configure logging
 logger = logging.getLogger("todoforai-client")
@@ -39,6 +40,7 @@ from .handlers import (
     handle_get_folders
 )
 from .workspace_handler import handle_ctx_workspace_request
+from .file_sync import ensure_workspace_synced
 
 # Type for callback functions
 T = TypeVar('T')
@@ -55,65 +57,105 @@ def invoke_callback(callback: CallbackType, arg: Any) -> None:
         cast(Callable[[Any], None], callback)(arg)
 
 class EdgeConfig:
-    """Edge configuration class with proper type annotations"""
+    """Edge configuration class with observable pattern"""
     def __init__(self, data: Optional[Dict[str, Any]] = None):
         data = data or {}
-        self.id: str = data.get("id", "")
-        self.name: str = data.get("name", "Unknown Edge")
-        self._workspacepaths: List[str] = data.get("workspacepaths", [])
-        self.owner_id: str = data.get("ownerId", "")
-        self.status: str = data.get("status", "OFFLINE")
-        self.is_shell_enabled: bool = data.get("isShellEnabled", False)
-        self.is_filesystem_enabled: bool = data.get("isFileSystemEnabled", False)
-        self.created_at: Optional[str] = data.get("createdAt", None)
         
-        # Callback for workspace paths changes
-        self._on_workspacepaths_change: Optional[CallbackType[List[str]]] = None
+        # Create an observable for the entire config
+        self.config = registry.create("edge_config", {
+            "id": data.get("id", ""),
+            "name": data.get("name", "Unknown Edge"),
+            "workspacepaths": data.get("workspacepaths", []),
+            "ownerId": data.get("ownerId", ""),
+            "status": data.get("status", "OFFLINE"),
+            "isShellEnabled": data.get("isShellEnabled", False),
+            "isFileSystemEnabled": data.get("isFileSystemEnabled", False),
+            "createdAt": data.get("createdAt", None)
+        })
     
     def update(self, data: Dict[str, Any]) -> None:
         """Update configuration with new data"""
         if not data:
             return
             
+        # Create a new dictionary with updated values
+        current = self.config.value
+        updated = current.copy()
+        
+        # Update only the fields that are present in the data
         if "id" in data:
-            self.id = data["id"]
+            updated["id"] = data["id"]
         if "name" in data:
-            self.name = data["name"]
+            updated["name"] = data["name"]
         if "workspacepaths" in data:
-            self.workspacepaths = data["workspacepaths"]
+            updated["workspacepaths"] = data["workspacepaths"]
         if "ownerId" in data:
-            self.owner_id = data["ownerId"]
+            updated["ownerId"] = data["ownerId"]
         if "status" in data:
-            self.status = data["status"]
+            updated["status"] = data["status"]
         if "isShellEnabled" in data:
-            self.is_shell_enabled = data["isShellEnabled"]
+            updated["isShellEnabled"] = data["isShellEnabled"]
         if "isFileSystemEnabled" in data:
-            self.is_filesystem_enabled = data["isFileSystemEnabled"]
+            updated["isFileSystemEnabled"] = data["isFileSystemEnabled"]
         if "createdAt" in data:
-            self.created_at = data["createdAt"]
+            updated["createdAt"] = data["createdAt"]
+        
+        # Set the new value to trigger notifications
+        self.config.value = updated
+    
+    @property
+    def id(self) -> str:
+        """Get edge ID"""
+        return self.config.value.get("id", "")
+    
+    @property
+    def name(self) -> str:
+        """Get edge name"""
+        return self.config.value.get("name", "Unknown Edge")
     
     @property
     def workspacepaths(self) -> List[str]:
         """Get workspace paths"""
-        return self._workspacepaths
+        return self.config.value.get("workspacepaths", [])
     
-    @workspacepaths.setter
-    def workspacepaths(self, paths: List[str]) -> None:
-        """Set workspace paths and trigger callback if defined"""
-        self._workspacepaths = paths
-        invoke_callback(self._on_workspacepaths_change, self._workspacepaths)
+    @property
+    def owner_id(self) -> str:
+        """Get owner ID"""
+        return self.config.value.get("ownerId", "")
     
-    def set_workspacepaths_change_callback(self, callback: CallbackType[List[str]]) -> None:
-        """Set callback for workspace paths changes"""
-        self._on_workspacepaths_change = callback
-        # Trigger callback with current paths to initialize
-        invoke_callback(callback, self._workspacepaths)
+    @property
+    def status(self) -> str:
+        """Get status"""
+        return self.config.value.get("status", "OFFLINE")
+    
+    @property
+    def is_shell_enabled(self) -> bool:
+        """Get shell enabled flag"""
+        return self.config.value.get("isShellEnabled", False)
+    
+    @property
+    def is_filesystem_enabled(self) -> bool:
+        """Get filesystem enabled flag"""
+        return self.config.value.get("isFileSystemEnabled", False)
+    
+    @property
+    def created_at(self) -> Optional[str]:
+        """Get created at timestamp"""
+        return self.config.value.get("createdAt", None)
     
     def add_workspace_path(self, path: str) -> bool:
         """Add a workspace path if it doesn't already exist"""
-        if path not in self._workspacepaths:
-            self._workspacepaths.append(path)
-            invoke_callback(self._on_workspacepaths_change, self._workspacepaths)
+        current_paths = self.workspacepaths
+        if path not in current_paths:
+            # Create a new list with the added path
+            new_paths = current_paths.copy()
+            new_paths.append(path)
+            
+            # Update the config with the new paths
+            current = self.config.value
+            updated = current.copy()
+            updated["workspacepaths"] = new_paths
+            self.config.value = updated
             return True
         return False
 
@@ -143,8 +185,8 @@ class TODOforAIEdge:
         self.ws_url = client_config.get_ws_url()
         self.edge_config = EdgeConfig()
         
-        # Set up the workspace paths change callback
-        self.edge_config.set_workspacepaths_change_callback(self._on_workspacepaths_change)
+        # Subscribe to config changes
+        self.edge_config.config.subscribe_async(self._on_config_change)
         
         self.agent_id = ""
         self.user_id = ""
@@ -157,18 +199,11 @@ class TODOforAIEdge:
         if self.debug:
             logger.setLevel(logging.DEBUG)
     
-    async def _on_workspacepaths_change(self, paths: List[str]) -> None:
-        """Callback when workspace paths change - broadcasts to frontend"""
-        logger.info(f"Workspace paths changed: {paths}")
-        
-        # Broadcast the updated paths to connected clients
-        await self._send_response({
-            "type": "edge:workspace_paths",
-            "payload": {
-                "workspacePaths": paths
-            }
-        })
-        
+    async def _on_config_change(self, config: Dict[str, Any]) -> None:
+        """Callback when config changes"""
+        logger.info("Edge config changed")
+        paths = config.get("workspacepaths", [])
+
         # If we have an edge_id, update the server
         if self.edge_id and self.connected:
             try:
@@ -180,11 +215,11 @@ class TODOforAIEdge:
                 )
                 
                 if response:
-                    logger.info("Updated workspace paths on server")
+                    logger.info("Updated edge config on server")
                 else:
-                    logger.error("Failed to update workspace paths on server")
+                    logger.error("Failed to update edge config on server")
             except Exception as e:
-                logger.error(f"Error updating workspace paths on server: {str(e)}")
+                logger.error(f"Error updating edge config on server: {str(e)}")
         
     async def authenticate(self):
         """Authenticate with email and password to get API key"""
@@ -230,9 +265,8 @@ class TODOforAIEdge:
             # Update edge status to ONLINE
             await self._update_edge_status(EdgeStatus.ONLINE)
             
-            # Start file syncing for all workspace paths
-            if self.edge_config.workspacepaths:
-                await self._start_workspace_syncs()
+            # We no longer start file syncing for all workspace paths here
+            # It will be done lazily when files are requested
             
             return True
             
@@ -352,6 +386,8 @@ class TODOforAIEdge:
                 asyncio.create_task(handle_ctx_julia_request(payload, self))
             
             elif msg_type == AE.CTX_WORKSPACE_REQUEST:
+                path = payload.get("path", ".")
+                asyncio.create_task(ensure_workspace_synced(self, path))
                 asyncio.create_task(handle_ctx_workspace_request(payload, self))
             
             elif msg_type == AE.FILE_CHUNK_REQUEST:

@@ -7,7 +7,7 @@ const log = createLogger('tauri-api-v2');
 //  1.  Environment-level detector (compile-time, zero cost at run)
 // ────────────────────────────────────────────────────────────────
 
-export const isTauri = () => (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window);
+export const isTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 // ────────────────────────────────────────────────────────────────
 //  2.  Safe invoke that loads @tauri-apps/api only when we're in Tauri
@@ -130,7 +130,7 @@ export const tauriApi = {
       log.error('Failed to get WebSocket port:', error);
       return null;
     }
-  }
+  },
 };
 
 // ────────────────────────────────────────────────────────────────
@@ -164,7 +164,7 @@ export const browserFallbacks = {
 
   // Environment variable fallback
   getEnvVar: (name: string) => {
-    log.info(`Environment variable "${name}" not available in browser`);
+    // log.info(`Environment variable "${name}" not available in browser`);
     return null;
   },
 
@@ -173,11 +173,11 @@ export const browserFallbacks = {
     log.info('WebSocket sidecar is not available in browser');
     return null;
   },
-  
+
   getWebSocketPort: () => {
     log.info('WebSocket port is not available in browser');
     return null;
-  }
+  },
 };
 
 // Get app version function
@@ -192,7 +192,7 @@ export const getAppVersion = async (): Promise<string> => {
       return 'Unknown';
     }
   }
-  
+
   // For web or fallback
   return import.meta.env.VITE_APP_VERSION || 'dev';
 };
@@ -224,7 +224,7 @@ export const desktopApi = {
   // WebSocket sidecar with fallback
   startWebSocketSidecar: async (): Promise<number | null> =>
     isTauri() ? await tauriApi.startWebSocketSidecar() : browserFallbacks.startWebSocketSidecar(),
-    
+
   getWebSocketPort: async (): Promise<number | null> =>
     isTauri() ? await tauriApi.getWebSocketPort() : browserFallbacks.getWebSocketPort(),
   getAppVersion,

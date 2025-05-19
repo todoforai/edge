@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
-
 import { ThemeProvider } from 'styled-components';
 import { LoginForm } from './components/auth/LoginForm';
 import { Dashboard } from './components/dashboard/Dashboard';
@@ -9,19 +7,12 @@ import { theme } from './styles/theme';
 import './App.css';
 
 function App() {
-  const { user, initializeWithCachedAuth } = useAuthStore();
-
-  // Initialize Python service with cached credentials on app start
-  useEffect(() => {
-    if (user.isAuthenticated) {
-      initializeWithCachedAuth();
-    }
-  }, [user.isAuthenticated, initializeWithCachedAuth]);
+  const { user } = useAuthStore();
 
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyles />
-      {user.isAuthenticated ? <Dashboard user={user} /> : <LoginForm />}
+      {user && user.isAuthenticated ? <Dashboard /> : <LoginForm />}
     </ThemeProvider>
   );
 }

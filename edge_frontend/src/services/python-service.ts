@@ -15,11 +15,14 @@ export const wsClient = {
   ws: null as WebSocket | null,
   connected: false,
   connecting: false,
-  pendingRequests: new Map<string, {
-    resolve: (value: any) => void,
-    reject: (reason: any) => void,
-    timeout: any
-  }>(),
+  pendingRequests: new Map<
+    string,
+    {
+      resolve: (value: any) => void;
+      reject: (reason: any) => void;
+      timeout: any;
+    }
+  >(),
   reconnectAttempts: 0,
   maxReconnectAttempts: 10,
   reconnectTimer: null as ReturnType<typeof setTimeout> | null,
@@ -70,7 +73,7 @@ export const wsClient = {
             reject(new Error('WebSocket connection closed'));
           });
           this.pendingRequests.clear();
-          
+
           // Attempt to reconnect unless this was a normal closure
           if (event.code !== 1000) {
             this.scheduleReconnect();
@@ -109,13 +112,15 @@ export const wsClient = {
             }
           } catch (error) {
             // Log the raw message (truncated if too long) to help with debugging
-            const rawData = typeof event.data === 'string'
-              ? (event.data.length > 400 ? event.data.substring(0, 400) + '...' : event.data)
-              : '[binary data]';
+            const rawData =
+              typeof event.data === 'string'
+                ? event.data.length > 400
+                  ? event.data.substring(0, 400) + '...'
+                  : event.data
+                : '[binary data]';
             log.error(`Error processing WebSocket message: ${error}. Raw message: ${rawData}`);
           }
         };
-        
       } catch (error) {
         log.error('Failed to connect to WebSocket sidecar:', error);
         this.connecting = false;
@@ -142,8 +147,8 @@ export const wsClient = {
     const delay = Math.min(this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts), 30000);
     this.reconnectAttempts++;
 
-    log.info(`Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay/1000} seconds...`);
-    
+    log.info(`Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay / 1000} seconds...`);
+
     this.reconnectTimer = setTimeout(async () => {
       log.info(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
       try {
@@ -176,7 +181,7 @@ export const wsClient = {
           jsonrpc: '2.0',
           id: requestId,
           method,
-          params
+          params,
         };
 
         // Set timeout for request
@@ -195,24 +200,24 @@ export const wsClient = {
       }
     });
   },
-  
+
   disconnect() {
     // Cancel any pending reconnection
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    
+
     // Close the connection if it exists
     if (this.ws) {
-      this.ws.close(1000, "Normal closure");
+      this.ws.close(1000, 'Normal closure');
       this.ws = null;
     }
-    
+
     this.connected = false;
     this.connecting = false;
     this.reconnectAttempts = 0;
-  }
+  },
 };
 
 class PythonService {
@@ -222,8 +227,7 @@ class PythonService {
   private credentials: any = null;
   private nonverbose_types = new Set(['file_sync']);
 
-  constructor() {
-  }
+  constructor() {}
 
   // This method is called by wsClient when it receives an event
   handlePythonEvent(event: any): void {
@@ -269,15 +273,13 @@ class PythonService {
       if (isTauri()) {
         // In Tauri mode, start the WebSocket sidecar through Rust
         await desktopApi.startWebSocketSidecar();
-      } 
+      }
       // Try to connect to the started websocket sidecar server
       const connected = await wsClient.connect();
+      console.log('connected:', connected);
       if (!connected) {
         log.warn('Could not connect to WebSocket sidecar. Make sure it is running.');
       }
-
-      // Force Python process to start by sending a ping
-      await this.ping('initialize');
 
       // Register hooks
       await this.registerHooks();
@@ -333,6 +335,24 @@ class PythonService {
       log.warn('Failed to register workspace paths hooks:', error);
       // Continue initialization even if hooks fail
     }
+
+    // Register active workspaces hooks
+    try {
+      await this.callPython('register_active_workspaces_hooks', {});
+      log.info('Active workspaces hooks registered');
+    } catch (error) {
+      log.warn('Failed to register active workspaces hooks:', error);
+      // Continue initialization even if hooks fail
+    }
+
+    // Register edge config hooks
+    try {
+      await this.callPython('register_edge_config_hooks', {});
+      log.info('Edge config hooks registered');
+    } catch (error) {
+      log.warn('Failed to register edge config hooks:', error);
+      // Continue initialization even if hooks fail
+    }
   }
 
   async callPython<T = any>(method: string, params: any = {}): Promise<T> {
@@ -384,11 +404,16 @@ class PythonService {
       this.connectionListener();
       this.connectionListener = null;
     }
-    
+
     // If in browser mode, disconnect WebSocket
     if (!isTauri()) {
       wsClient.disconnect();
     }
+  }
+
+  // Add this method to the PythonService class
+  async toggleWorkspaceSync(path: string): Promise<any> {
+    return this.callPython('toggle_workspace_sync', { path });
   }
 }
 
