@@ -39,9 +39,9 @@ export const LoginForm = () => {
     clearError();
 
     if (loginMethod === 'credentials') {
-      login({ email, password, apiUrl: isApiUrlEditable ? apiUrl : undefined });
+      login({ email, password, apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined });
     } else {
-      login({ apiKey, apiUrl: isApiUrlEditable ? apiUrl : undefined });
+      login({ apiKey, apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined });
     }
   };
 
@@ -121,13 +121,13 @@ export const LoginForm = () => {
             {isApiUrlEditable ? (
               <ApiUrlInput 
                 type="text" 
-                value={apiUrl} 
+                value={apiUrl || ''} 
                 onChange={(e) => setApiUrl(e.target.value)}
                 placeholder="API URL"
               />
             ) : (
               <ApiUrlText onClick={handleApiUrlClick}>
-                API: {apiUrl}
+                API: {apiUrl || ''}
               </ApiUrlText>
             )}
             {appVersion && <VersionText>Version: {appVersion}</VersionText>}

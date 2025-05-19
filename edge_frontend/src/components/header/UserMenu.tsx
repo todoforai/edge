@@ -91,12 +91,6 @@ const DropdownItem = styled.div`
   }
 `;
 
-const DropdownSeparator = styled.div`
-  height: 1px;
-  background: ${props => props.theme.colors.borderColor};
-  margin: 0.5rem 0;
-`;
-
 const HeaderContainer = styled.div`
   display: flex;
   justify-content: space-between;

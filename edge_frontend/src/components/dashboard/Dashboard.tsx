@@ -1,17 +1,11 @@
 import React from 'react';
-import styled from 'styled-components';
-import { useAuthStore } from '../../store/authStore';
 import WSMessageViewer from './WSMessageViewer';
 import WorkspacePathsList from './WorkspacePathsList';
 import SyncedFilesList from './SyncedFilesList';
-import { Card, CardContent, CardHeader, CardTitle } from '@mui/material';
-import { List, ListItem, ListItemText, Typography } from '@mui/material';
-import { Grid } from '@mui/material';
+import { Typography, Grid } from '@mui/material';
 import UserMenu from '../header/UserMenu';
 
 export const Dashboard: React.FC = () => {
-  const { user } = useAuthStore();
-
   return (
     <div>
       <UserMenu />

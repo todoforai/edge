@@ -163,7 +163,7 @@ export const browserFallbacks = {
   },
 
   // Environment variable fallback
-  getEnvVar: (name: string) => {
+  getEnvVar: (_name: string) => {
     // log.info(`Environment variable "${name}" not available in browser`);
     return null;
   },
