@@ -91,5 +91,15 @@ clean:
 test-sidecar: clean
 	bash scripts/test_sidecar_setup.sh
 
+# Sign a .deb package
+sign-deb:
+	@echo "Signing .deb package..."
+	@if [ -z "$(DEB_FILE)" ]; then \
+		echo "Error: No .deb file specified. Use 'make sign-deb DEB_FILE=path/to/file.deb'"; \
+		exit 1; \
+	fi; \
+	chmod +x edge_frontend/src-tauri/scripts/sign_deb.sh && \
+	GPG_PRIVATE_KEY=$$(cat ~/.todoforai/todoforai_edge_gpg_private_key.b64) edge_frontend/src-tauri/scripts/sign_deb.sh "$(DEB_FILE)"
+
 # Default target
 all: install build-sidecar copy-sidecar tauri-build
