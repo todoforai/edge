@@ -2,7 +2,6 @@ import React from 'react';
 import WSMessageViewer from './WSMessageViewer';
 import WorkspacePathsList from './WorkspacePathsList';
 import SyncedFilesList from './SyncedFilesList';
-import { Typography } from '@mui/material';
 import Grid from '@mui/material/Grid'; // Grid v2
 import UserMenu from '../header/UserMenu';
 import styled from 'styled-components';

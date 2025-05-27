@@ -1,7 +1,7 @@
 // Define the color keys type
 export type ColorKey = 'background' | 'foreground' | 'cardBackground' | 'cardHover' | 
   'sidebarBg' | 'navbarBg' | 'primary' | 'primaryHover' | 
-  'success' | 'warning' | 'danger' | 'muted' | 'borderColor';
+  'success' | 'warning' | 'danger' | 'muted' | 'mutedForeground' | 'borderColor';
 
 export const theme = {
   colors: {
@@ -17,6 +17,7 @@ export const theme = {
     warning: '#f59e0b',
     danger: '#ef4444',
     muted: '#6b7280',
+    mutedForeground: '#9ca3af',
     borderColor: 'rgba(255, 255, 255, 0.1)'
   },
   fonts: {

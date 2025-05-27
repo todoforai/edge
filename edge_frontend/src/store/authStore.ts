@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getApiBase, getApiUrlWithProtocol } from '../config/api-config';
+import { getApiBase } from '../config/api-config';
 import { createLogger } from '../utils/logger';
 import pythonService from '../services/python-service';
 
