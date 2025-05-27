@@ -5,7 +5,7 @@
     "build:edge": "python build_executable.py",
     "lint": "cd edge_frontend && yarn lint",
     "preview": "cd edge_frontend && yarn preview",
-    "tauri": "cd edge_frontend && yarn tauri",
+    "tauri": "cd edge_frontend && yarn tauri:dev",
     "install": "cd edge_frontend && yarn install"
   }
 }

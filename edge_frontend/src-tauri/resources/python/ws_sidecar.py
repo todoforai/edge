@@ -22,11 +22,7 @@ from todoforai_edge.config import Config
 from todoforai_edge import file_sync
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stderr
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 log = logging.getLogger('ws_sidecar')
 
 # Dictionary to store available functions
@@ -44,13 +40,52 @@ connected_clients = set()
 
 def rpc(func):
     """Decorator to register functions that can be called from the frontend"""
-    handlers[func.__name__] = func
-    return func
+    def wrapper(*args, **kwargs):
+        # Call the original function
+        return func(*args, **kwargs)
+    
+    handlers[func.__name__] = wrapper
+    return wrapper
 
 @rpc
 def ping(message):
     """Simple ping function that returns a pong with the message"""
     return {"response": f"pong: {message}"}
+
+@rpc
+def validate_stored_credentials(credentials):
+    """Validate stored credentials with the server"""
+    try:
+        import requests
+        
+        api_url = credentials.get("apiUrl")
+        api_key = credentials.get("apiKey")
+        
+        if not api_url or not api_key:
+            return {"valid": False, "error": "Missing API URL or API key"}
+        
+        # Ensure proper URL format
+        if api_url.startswith("localhost"):
+            api_url = f"http://{api_url}"
+        elif not api_url.startswith(("http://", "https://")):
+            api_url = f"https://{api_url}"
+        
+        validation_url = f"{api_url}/token/v1/users/apikeys/validate"
+        
+        response = requests.get(validation_url, headers={
+            'x-api-key': api_key,
+            'Content-Type': 'application/json',
+        }, timeout=10)
+        
+        if response.status_code == 200:
+            validation_result = response.json()
+            return {"valid": validation_result.get("valid", False)}
+        else:
+            return {"valid": False, "error": f"Validation failed with status {response.status_code}"}
+            
+    except Exception as e:
+        log.error(f"Error validating credentials: {e}")
+        return {"valid": False, "error": str(e)}
 
 @rpc
 def login(credentials):
@@ -174,6 +209,9 @@ def login(credentials):
                                 "email": todo_client.email
                             }
                         })
+                    
+                    # Register all hooks after successful authentication
+                    await register_all_hooks()
                         
                     # Start the client
                     log.info("Starting client...")
@@ -206,80 +244,167 @@ def login(credentials):
         }))
         
         return {"status": "error", "message": error_msg}
+async def register_all_hooks():
+    """Register all hooks automatically"""
+    try:
+        # Register file sync hooks
+        try:
+            await register_file_sync_hooks_internal()
+            log.info("File sync hooks registered")
+        except Exception as e:
+            log.warn(f"Failed to register file sync hooks: {e}")
 
+        # Register active workspaces hooks
+        try:
+            await register_active_workspaces_hooks_internal()
+            log.info("Active workspaces hooks registered")
+        except Exception as e:
+            log.warn(f"Failed to register active workspaces hooks: {e}")
+
+        # Register edge config hooks
+        try:
+            await register_edge_config_hooks_internal()
+            log.info("Edge config hooks registered")
+        except Exception as e:
+            log.warn(f"Failed to register edge config hooks: {e}")
+            
+    except Exception as e:
+        log.error(f"Error registering hooks: {e}")
+
+async def register_file_sync_hooks_internal():
+    """Internal function to register file sync hooks"""
+    # Store original methods to hook into
+    original_sync_file = file_sync.WorkspaceSyncManager.sync_file
+    original_delete_file = file_sync.WorkspaceSyncManager.delete_file
+    
+    async def sync_file_hook(self, action, abs_path):
+        # Call original method first
+        result = await original_sync_file(self, action, abs_path)
+        
+        # Send event about the file sync
+        try:
+            # Get file size for logging
+            payload = {
+                "action": action,
+                "path": abs_path,
+                "workspace": self.workspace_dir
+            }
+            if os.path.exists(abs_path):
+                payload["size"] = os.path.getsize(abs_path)
+
+            await broadcast_event({
+                "type": "file_sync",
+                "payload": payload,
+                "timestamp": int(time.time() * 1000)  # Add timestamp in milliseconds
+            })
+        except Exception as e:
+            log.error(f"Error in sync_file_hook: {e}")
+        
+        return result
+        
+    async def delete_file_hook(self, abs_path):
+        # Send event before deletion
+        await broadcast_event({
+            "type": "file_sync",
+            "payload": {
+                "action": "delete",
+                "path": abs_path,
+                "workspace": self.workspace_dir
+            },
+            "timestamp": int(time.time() * 1000)  # Add timestamp in milliseconds
+        })
+        
+        # Call original method
+        return await original_delete_file(self, abs_path)
+    
+    # Replace the methods with our hooked versions
+    file_sync.WorkspaceSyncManager.sync_file = sync_file_hook
+    file_sync.WorkspaceSyncManager.delete_file = delete_file_hook
+    
+    # Also hook into the initial sync complete signal
+    original_send_sync_complete = file_sync.WorkspaceSyncManager._send_sync_complete_signal
+    
+    async def send_sync_complete_hook(self):
+        # Call original method
+        result = await original_send_sync_complete(self)
+        
+        # Send event about sync completion
+        await broadcast_event({
+            "type": "file_sync_complete",
+            "payload": {
+                "workspace": self.workspace_dir,
+                "file_count": len(self.project_files_abs)
+            }
+        })
+        
+        return result
+        
+    file_sync.WorkspaceSyncManager._send_sync_complete_signal = send_sync_complete_hook
+
+async def register_active_workspaces_hooks_internal():
+    """Internal function to register active workspace hooks"""
+    from todoforai_edge.file_sync import active_sync_managers
+    
+    # Define the callback function
+    async def on_active_workspaces_change(active_workspaces_dict):
+        # Send event about active workspaces change
+        await broadcast_event({
+            "type": "active_workspaces_change",
+            "payload": {
+                "activeWorkspaces": list(active_workspaces_dict.keys())
+            }
+        })
+        
+    # Register the callback with the observable using a named callback
+    active_sync_managers.subscribe_async(on_active_workspaces_change, name="ws_sidecar_workspaces_hook")
+
+async def register_edge_config_hooks_internal():
+    """Internal function to register edge config hooks"""
+    # Check if client exists
+    if not todo_client:
+        raise Exception("Client not initialized")
+    
+    # Subscribe to config changes to broadcast them to frontend
+    async def on_config_change_hook(config_value):
+        await broadcast_event({
+            "type": "edge:config_update",
+            "payload": config_value
+        })
+    
+    # Subscribe to the observable
+    todo_client.edge_config.config.subscribe_async(on_config_change_hook, name="ws_sidecar_config_hook")
+
+# Keep the RPC functions for backward compatibility, but make them simple wrappers
 @rpc
 def register_file_sync_hooks(params=None):
     """Register hooks to monitor file sync events"""
     try:
-        # Store original methods to hook into
-        original_sync_file = file_sync.WorkspaceSyncManager.sync_file
-        original_delete_file = file_sync.WorkspaceSyncManager.delete_file
-        
-        async def sync_file_hook(self, action, abs_path):
-            # Call original method first
-            result = await original_sync_file(self, action, abs_path)
-            
-            # Send event about the file sync
-            try:
-                # Get file size for logging
-                payload = {
-                    "action": action,
-                    "path": abs_path,
-                    "workspace": self.workspace_dir
-                }
-                if os.path.exists(abs_path):
-                    payload["size"] = os.path.getsize(abs_path)
-
-                await broadcast_event({
-                    "type": "file_sync",
-                    "payload": payload
-                })
-            except Exception as e:
-                log.error(f"Error in sync_file_hook: {e}")
-            
-            return result
-            
-        async def delete_file_hook(self, abs_path):
-            # Send event before deletion
-            await broadcast_event({
-                "type": "file_sync",
-                "payload": {
-                    "action": "delete",
-                    "path": abs_path,
-                    "workspace": self.workspace_dir
-                }
-            })
-            
-            # Call original method
-            return await original_delete_file(self, abs_path)
-        
-        # Replace the methods with our hooked versions
-        file_sync.WorkspaceSyncManager.sync_file = sync_file_hook
-        file_sync.WorkspaceSyncManager.delete_file = delete_file_hook
-        
-        # Also hook into the initial sync complete signal
-        original_send_sync_complete = file_sync.WorkspaceSyncManager._send_sync_complete_signal
-        
-        async def send_sync_complete_hook(self):
-            # Call original method
-            result = await original_send_sync_complete(self)
-            
-            # Send event about sync completion
-            await broadcast_event({
-                "type": "file_sync_complete",
-                "payload": {
-                    "workspace": self.workspace_dir,
-                    "file_count": len(self.project_files_abs)
-                }
-            })
-            
-            return result
-            
-        file_sync.WorkspaceSyncManager._send_sync_complete_signal = send_sync_complete_hook
-        
+        asyncio.create_task(register_file_sync_hooks_internal())
         return {"status": "success", "message": "File sync hooks registered"}
     except Exception as e:
         log.error(f"Error registering file sync hooks: {e}")
+        traceback.print_exc()
+        return {"status": "error", "message": str(e)}
+
+@rpc
+def register_active_workspaces_hooks(params=None):
+    """Register hooks to monitor active workspace changes"""
+    try:
+        asyncio.create_task(register_active_workspaces_hooks_internal())
+        return {"status": "success", "message": "Active workspaces hooks registered"}
+    except Exception as e:
+        log.error(f"Error registering active workspaces hooks: {e}")
+        traceback.print_exc()
+        return {"status": "error", "message": str(e)}
+
+@rpc
+def register_edge_config_hooks(params=None):
+    """Register hooks to monitor edge config changes"""
+    try:
+        asyncio.create_task(register_edge_config_hooks_internal())
+        return {"status": "success", "message": "Edge config hooks registered"}
+    except Exception as e:
+        log.error(f"Error registering edge config hooks: {e}")
         traceback.print_exc()
         return {"status": "error", "message": str(e)}
 
@@ -317,90 +442,39 @@ def toggle_workspace_sync(params):
         return {"status": "error", "message": str(e)}
 
 @rpc
-def register_edge_config_hooks(params=None):
-    print('register_edge_config_hooks:')
-    """Register hooks to monitor edge config changes"""
+def remove_workspace_path(params):
+    """Remove a workspace path from the edge configuration"""
     try:
-        # Check if client exists
         if not todo_client:
             return {"status": "error", "message": "Client not initialized"}
             
-        # The hook is already set up in the client initialization
-        # Just trigger it with current config to ensure frontend is updated
-        if todo_client.edge_config.config.value:
-            # Create a task to send the current edge config
-            async def send_current_config():
-                # Send edge config directly to frontend
-                await broadcast_event({
-                    "type": "edge:config_update",
-                    "payload": todo_client.edge_config.config.value
-                })
-                
-            asyncio.create_task(send_current_config())
+        workspace_path = os.path.abspath(params.get("path", ""))
+        if not workspace_path:
+            return {"status": "error", "message": "No workspace path provided"}
+        
+        # Remove the path from the configuration
+        removed = todo_client.edge_config.remove_workspace_path(workspace_path)
+        
+        if removed:
+            log.info(f"Removed workspace path: {workspace_path}")
             
-        return {"status": "success", "message": "Edge config hooks registered"}
+            # Stop file sync for this path if it's active
+            from todoforai_edge.file_sync import stop_workspace_sync
+            asyncio.create_task(stop_workspace_sync(workspace_path))
+            
+            return {"status": "success", "message": f"Workspace path removed: {workspace_path}"}
+        else:
+            return {"status": "error", "message": "Workspace path not found"}
+            
     except Exception as e:
-        log.error(f"Error registering edge config hooks: {e}")
-        traceback.print_exc()
+        log.error(f"Error removing workspace path: {e}")
         return {"status": "error", "message": str(e)}
 
-@rpc
-def register_workspace_paths_hooks(params=None):
-    """Register hooks to monitor workspace paths changes"""
-    try:
-        # Check if client exists
-        if not todo_client:
-            return {"status": "error", "message": "Client not initialized"}
-            
-        # The hook is already set up in the client initialization
-        # Just trigger it with current paths to ensure frontend is updated
-        if todo_client.edge_config.workspacepaths:
-            # Create a task to send the current workspace paths
-            async def send_current_paths():
-                # Send workspace paths directly to frontend
-                await broadcast_event({
-                    "type": "edge:workspace_paths",
-                    "payload": {
-                        "workspacePaths": todo_client.edge_config.workspacepaths
-                    }
-                })
-                
-            asyncio.create_task(send_current_paths())
-            
-        return {"status": "success", "message": "Workspace paths hooks registered"}
-    except Exception as e:
-        log.error(f"Error registering workspace paths hooks: {e}")
-        traceback.print_exc()
-        return {"status": "error", "message": str(e)}
-
-@rpc
-def register_active_workspaces_hooks(params=None):
-    """Register hooks to monitor active workspace changes"""
-    try:
-        from todoforai_edge.file_sync import active_sync_managers
-        
-        # Define the callback function
-        async def on_active_workspaces_change(active_workspaces_dict):
-            # Send event about active workspaces change
-            await broadcast_event({
-                "type": "active_workspaces_change",
-                "payload": {
-                    "activeWorkspaces": list(active_workspaces_dict.keys())
-                }
-            })
-            
-        # Register the callback with the observable
-        active_sync_managers.subscribe_async(on_active_workspaces_change)
-        
-        return {"status": "success", "message": "Active workspaces hooks registered"}
-    except Exception as e:
-        log.error(f"Error registering active workspaces hooks: {e}")
-        traceback.print_exc()
-        return {"status": "error", "message": str(e)}
 
 async def broadcast_event(event):
     """Send an event to all connected WebSocket clients"""
     if not connected_clients:
+        log.warning("No connected clients to broadcast to")
         return
         
     event_envelope = {
@@ -408,7 +482,7 @@ async def broadcast_event(event):
         "method": "_event", 
         "params": event
     }
-    message = json.dumps(event_envelope)
+    message = json.dumps(event_envelope, ensure_ascii=False)
     
     # Make a copy to avoid modification during iteration
     clients = connected_clients.copy()
@@ -416,10 +490,10 @@ async def broadcast_event(event):
         try:
             await websocket.send(message)
         except websockets.exceptions.ConnectionClosed:
-            # Client disconnected, will be removed in the handler
-            pass
+            log.warning(f"Client {id(websocket)} disconnected, removing from connected_clients")
+            connected_clients.discard(websocket)
         except Exception as e:
-            log.error(f"Error sending event to client: {e}")
+            log.error(f"Error sending event to client {id(websocket)}: {e}")
 
 async def handle_websocket(websocket):
     """Handle a WebSocket connection"""

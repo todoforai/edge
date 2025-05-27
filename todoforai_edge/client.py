@@ -81,7 +81,6 @@ class EdgeConfig:
         # Create a new dictionary with updated values
         current = self.config.value
         updated = current.copy()
-        
         # Update only the fields that are present in the data
         if "id" in data:
             updated["id"] = data["id"]
@@ -101,7 +100,7 @@ class EdgeConfig:
             updated["createdAt"] = data["createdAt"]
         
         # Set the new value to trigger notifications
-        self.config.value = updated
+        self.config.set_value(updated)
     
     @property
     def id(self) -> str:
@@ -159,6 +158,21 @@ class EdgeConfig:
             return True
         return False
 
+    def remove_workspace_path(self, path: str) -> bool:
+        """Remove a workspace path if it exists"""
+        current_paths = self.workspacepaths
+        if path in current_paths:
+            # Create a new list without the removed path
+            new_paths = [p for p in current_paths if p != path]
+            
+            # Update the config with the new paths
+            current = self.config.value
+            updated = current.copy()
+            updated["workspacepaths"] = new_paths
+            self.config.value = updated
+            return True
+        return False
+
 class TODOforAIEdge:
     def __init__(self, client_config):
         """
@@ -186,7 +200,7 @@ class TODOforAIEdge:
         self.edge_config = EdgeConfig()
         
         # Subscribe to config changes
-        self.edge_config.config.subscribe_async(self._on_config_change)
+        self.edge_config.config.subscribe_async(self._on_config_change, name="edge2backend_on_config_change")
         
         self.agent_id = ""
         self.user_id = ""

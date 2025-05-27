@@ -5,8 +5,8 @@ import { useEdgeConfigStore } from '../../store/edgeConfigStore';
 import { Icon } from '@iconify/react';
 
 const ProfileButton = styled.button`
-  background: ${props => props.theme.colors.cardBackground};
-  border: 1px solid ${props => props.theme.colors.borderColor};
+  background: ${(props) => props.theme.colors.cardBackground};
+  border: 1px solid ${(props) => props.theme.colors.borderColor};
   padding: 0;
   width: 2.5rem;
   height: 2.5rem;
@@ -14,7 +14,7 @@ const ProfileButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: ${props => props.theme.colors.foreground};
+  color: ${(props) => props.theme.colors.foreground};
   border-radius: 50%;
   transition: all 0.3s ease;
   overflow: hidden;
@@ -53,13 +53,13 @@ const DropdownContent = styled.div`
   position: absolute;
   right: 0;
   min-width: 220px;
-  background: ${props => props.theme.colors.cardBackground};
-  border-radius: ${props => props.theme.radius.lg};
+  background: ${(props) => props.theme.colors.cardBackground};
+  border-radius: ${(props) => props.theme.radius.lg};
   padding: 0.5rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-  border: 1px solid ${props => props.theme.colors.borderColor};
+  border: 1px solid ${(props) => props.theme.colors.borderColor};
   z-index: 100;
-  
+
   ${DropdownContainer}:hover & {
     display: block;
   }
@@ -67,9 +67,9 @@ const DropdownContent = styled.div`
 
 const EmailHeader = styled.div`
   padding: 0.75rem 1rem;
-  color: ${props => props.theme.colors.foreground};
+  color: ${(props) => props.theme.colors.foreground};
   font-size: 0.9rem;
-  border-bottom: 1px solid ${props => props.theme.colors.borderColor};
+  border-bottom: 1px solid ${(props) => props.theme.colors.borderColor};
   margin-bottom: 0.5rem;
   opacity: 0.8;
   display: flex;
@@ -83,9 +83,9 @@ const DropdownItem = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: ${props => props.theme.colors.foreground};
-  border-radius: ${props => props.theme.radius.md};
-  
+  color: ${(props) => props.theme.colors.foreground};
+  border-radius: ${(props) => props.theme.radius.md};
+
   &:hover {
     background: rgba(255, 255, 255, 0.1);
   }
@@ -95,15 +95,15 @@ const HeaderContainer = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 1rem;
-  background: ${props => props.theme.colors.cardBackground};
-  border-bottom: 1px solid ${props => props.theme.colors.borderColor};
+  padding: 1rem 1rem;
+  background: ${(props) => props.theme.colors.cardBackground};
+  border-bottom: 1px solid ${(props) => props.theme.colors.borderColor};
   margin-bottom: 1rem;
 `;
 
 export const UserMenu = () => {
   const { user, logout } = useAuthStore();
-  
+
   const handleLogout = () => {
     logout();
   };
@@ -139,14 +139,14 @@ export const UserMenu = () => {
 const EdgeInfoDisplay: React.FC = () => {
   const { user, apiUrl } = useAuthStore();
   const { config } = useEdgeConfigStore();
-  
+
   // Use either the API URL from the user object or from the store
   const displayUrl = user?.apiUrl || apiUrl || 'Unknown';
-  
+
   // Get edge name from config
   const edgeName = config.name || 'Unknown Edge';
   const edgeStatus = config.status || 'OFFLINE';
-  
+
   return (
     <InfoContainer>
       <InfoItem>
@@ -179,10 +179,8 @@ const StatusIndicator: React.FC<{ status: string }> = ({ status }) => {
         return '#9E9E9E'; // Grey
     }
   };
-  
-  return (
-    <StatusDot style={{ backgroundColor: getStatusColor() }} />
-  );
+
+  return <StatusDot style={{ backgroundColor: getStatusColor() }} />;
 };
 
 const InfoContainer = styled.div`
@@ -190,9 +188,9 @@ const InfoContainer = styled.div`
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  background-color: ${props => props.theme.colors.cardBackground};
-  border-radius: ${props => props.theme.radius.md};
-  border: 1px solid ${props => props.theme.colors.borderColor};
+  background-color: ${(props) => props.theme.colors.cardBackground};
+  border-radius: ${(props) => props.theme.radius.md};
+  border: 1px solid ${(props) => props.theme.colors.borderColor};
 `;
 
 const InfoItem = styled.div`
@@ -204,18 +202,18 @@ const InfoItem = styled.div`
 const Separator = styled.div`
   width: 1px;
   height: 16px;
-  background-color: ${props => props.theme.colors.borderColor};
+  background-color: ${(props) => props.theme.colors.borderColor};
   margin: 0 4px;
 `;
 
 const Label = styled.span`
   font-size: 12px;
-  color: ${props => props.theme.colors.muted};
+  color: ${(props) => props.theme.colors.muted};
 `;
 
 const Value = styled.span`
   font-size: 12px;
-  color: ${props => props.theme.colors.foreground};
+  color: ${(props) => props.theme.colors.foreground};
   font-weight: 500;
   display: flex;
   align-items: center;

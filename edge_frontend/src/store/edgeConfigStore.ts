@@ -18,16 +18,16 @@ interface EdgeConfig {
 interface EdgeConfigState {
   // The edge configuration
   config: EdgeConfig;
-  
+
   // Initialize the store and set up event listeners
   initialize: () => void;
-  
+
   // Clean up event listeners
   cleanup: () => void;
-  
+
   // Update the entire config
   setConfig: (config: EdgeConfig) => void;
-  
+
   // Getters for common properties
   getWorkspacePaths: () => string[];
 }
@@ -41,12 +41,12 @@ const defaultConfig: EdgeConfig = {
   status: 'OFFLINE',
   isShellEnabled: false,
   isFileSystemEnabled: false,
-  createdAt: null
+  createdAt: null,
 };
 
 export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
   config: defaultConfig,
-  
+
   initialize: () => {
     // Set up event listener for edge config changes
     const unsubscribe = pythonService.addEventListener('edge:config_update', (event) => {
@@ -54,13 +54,13 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
       log.info('Edge config updated:', config);
       set({ config });
     });
-    
+
     // Store the unsubscribe function for cleanup
     (get() as any).unsubscribe = unsubscribe;
-    
+
     log.info('Edge config store initialized');
   },
-  
+
   cleanup: () => {
     // Clean up event listeners
     const unsubscribe = (get() as any).unsubscribe;
@@ -70,14 +70,14 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
     }
     log.info('Edge config store cleaned up');
   },
-  
+
   setConfig: (config: EdgeConfig) => {
     set({ config });
   },
-  
+
   getWorkspacePaths: () => {
     return get().config.workspacepaths || [];
-  }
+  },
 }));
 
 // Initialize the store when this module is imported

@@ -14,7 +14,7 @@
       {
         "title": "todoforai-edge",
         "width": 800,
-        "height": 600
+        "height": 1000
       }
     ],
     "security": {
@@ -25,7 +25,8 @@
     "active": true,
     "targets": "all",
     "resources": [
-      "resources/python/ws_sidecar.py"
+      "resources/python/ws_sidecar.py",
+      "resources/python/watch_sidecar.py"
     ],
     "externalBin": [
       "binaries/todoforai-edge-sidecar"

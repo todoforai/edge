@@ -237,13 +237,13 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
                 CommandEvent::Stdout(line) => {
                     info!(
                         "WebSocket sidecar stdout: {}",
-                        String::from_utf8_lossy(&line)
+                        String::from_utf8_lossy(&line).trim_end()
                     );
                 }
                 CommandEvent::Stderr(line) => {
                     info!(
                         "WebSocket sidecar stderr: {}",
-                        String::from_utf8_lossy(&line)
+                        String::from_utf8_lossy(&line).trim_end()
                     );
                 }
                 _ => {}
@@ -270,6 +270,75 @@ fn get_websocket_port() -> u16 {
     WEBSOCKET_PORT
 }
 
+// Cross-platform function to kill process on port
+fn kill_process_on_port(port: u16) -> Result<(), String> {
+    info!("Attempting to kill process on port {}", port);
+
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: Use netstat and taskkill
+        let output = std::process::Command::new("netstat")
+            .args(["-ano"])
+            .output()
+            .map_err(|e| format!("Failed to run netstat: {}", e))?;
+
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        for line in output_str.lines() {
+            if line.contains(&format!(":{}", port)) && line.contains("LISTENING") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if let Some(pid) = parts.last() {
+                    let _ = std::process::Command::new("taskkill")
+                        .args(["/F", "/PID", pid])
+                        .output();
+                    info!("Killed process with PID: {}", pid);
+                }
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        // Unix-like: Use lsof and kill
+        let output = std::process::Command::new("lsof")
+            .args(["-t", &format!("-i:{}", port)])
+            .output();
+
+        if let Ok(output) = output {
+            let pids = String::from_utf8_lossy(&output.stdout);
+            for pid in pids.lines() {
+                if !pid.trim().is_empty() {
+                    let _ = std::process::Command::new("kill")
+                        .args(["-9", pid.trim()])
+                        .output();
+                    info!("Killed process with PID: {}", pid.trim());
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn stop_websocket_sidecar(app: AppHandle) -> Result<(), String> {
+    let websocket_state = app.state::<WebSocketState>();
+    let mut state_lock = websocket_state.0.lock().unwrap();
+
+    // Kill our managed process
+    if let Some(mut sidecar) = state_lock.take() {
+        if let Some(child) = sidecar.child.take() {
+            let _ = child.kill();
+            info!("Terminated managed WebSocket sidecar process");
+        }
+    }
+
+    // Also kill any process using the port (cleanup orphaned processes)
+    kill_process_on_port(WEBSOCKET_PORT)?;
+
+    info!("WebSocket sidecar cleanup completed");
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -292,6 +361,18 @@ pub fn run() {
                     let _ = main.set_size(PhysicalSize::new(size.width, size.height));
                 }
             }
+
+            // Add window close event handler for cleanup
+            if let Some(main_window) = app.get_webview_window("main") {
+                let app_handle = app.handle().clone();
+                main_window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { .. } = event {
+                        info!("Window close requested, cleaning up WebSocket sidecar");
+                        let _ = stop_websocket_sidecar(app_handle.clone());
+                    }
+                });
+            }
+
             // Only in debug
             #[cfg(debug_assertions)]
             {
@@ -309,6 +390,7 @@ pub fn run() {
             get_current_working_directory,
             get_env_var,
             start_websocket_sidecar,
+            stop_websocket_sidecar,
             get_websocket_port
         ])
         .run(tauri::generate_context!())

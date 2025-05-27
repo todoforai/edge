@@ -8,8 +8,8 @@ logger = logging.getLogger("todoforai-edge")
 
 # Constants from the Julia code
 PROJECT_FILES = {
-    "dockerfile", "docker-compose.yml", "makefile", "license", "package.json",
-    "app.json", ".gitignore", "gemfile", "cargo.toml", ".eslintrc.json",
+    "dockerfile", "Dockerfile", "docker-compose.yml", "makefile", "Makefile", "license", "LICENSE", "package.json",
+    "app.json", ".gitignore", "gemfile", "Gemfile", "cargo.toml", "Cargo.toml", ".eslintrc.json",
     "requirements.txt", "requirements", "tsconfig.json", ".env.example",
     "tsconfig.node.json"
 }
@@ -20,7 +20,7 @@ FILE_EXTENSIONS = {
     "py", "pyw", "ipynb", "rb", "rake", "gemspec", "java", "kt", "kts", "groovy", "scala",
     "clj", "c", "h", "cpp", "hpp", "cc", "cxx", "cs", "csx", "go", "rs", "swift", "m", "mm",
     "pl", "pm", "lua", "hs", "lhs", "erl", "hrl", "ex", "exs", "lisp", "lsp", "l", "cl",
-    "fasl", "jl", "r", "R", "rmd", "mat", "asm", "s", "dart", "sql", "md", "mdx", "markdown",
+    "fasl", "jl", "r", "R", "rmd", "Rmd", "mat", "asm", "s", "dart", "sql", "md", "mdx", "markdown",
     "rst", "adoc", "tex", "sty", "gradle", "sbt", "xml", "properties", "plist",
     "proto", "proto3", "graphql", "prisma", "yml", "yaml", "svg",
     "code-workspace", "txt", "json", "desktop"
@@ -39,7 +39,7 @@ FILTERED_FOLDERS = {
 }
 
 IGNORED_FILE_PATTERNS = [
-    ".log", "config.ini", "secrets.yaml", "manifest.toml", "package-lock.json",
+    ".log", "config.ini", "secrets.yaml", "manifest.toml", "Manifest.toml", "package-lock.json",
     ".aishignore", ".env"
 ]
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useWSMessageStore } from '@/store/wsMessageStore';
 import MessageListCard from './MessageListCard';
@@ -33,6 +33,68 @@ const formatTimeDiff = (timestamp: number) => {
   return `${Math.floor(diffSeconds / 86400)} days ago`;
 };
 
+// Individual FileItem component with its own timestamp management
+const FileItem: React.FC<{ file: SyncedFile; style: React.CSSProperties }> = ({ file, style }) => {
+  const [_currentTime, setCurrentTime] = useState(Date.now()); // Renamed to avoid conflict if currentTime was used directly
+
+  useEffect(() => {
+    const updateTimestamp = () => {
+      const now = Date.now();
+      setCurrentTime(now);
+      
+      // Determine next update interval based on file age
+      const diffSeconds = Math.floor((now - file.timestamp) / 1000);
+      
+      let nextInterval: number;
+      if (diffSeconds < 60) {
+        // Update every 5 seconds for files less than 1 minute old
+        nextInterval = 5000;
+      } else if (diffSeconds < 3600) {
+        // Update every 30 seconds for files less than 1 hour old
+        nextInterval = 30000;
+      } else {
+        // Update every 5 minutes for older files
+        nextInterval = 300000;
+      }
+      
+      const timeoutId = setTimeout(updateTimestamp, nextInterval);
+      return () => clearTimeout(timeoutId);
+    };
+    
+    // Start the update cycle
+    const cleanup = updateTimestamp();
+    
+    return cleanup;
+  }, [file.timestamp]);
+
+  // Get action icon/color
+  const getActionIndicator = (action: string): { icon: string; color: ColorKey } => {
+    switch (action) {
+      case 'create':
+        return { icon: '+', color: 'success' as ColorKey };
+      case 'modify':
+        return { icon: '✎', color: 'warning' as ColorKey };
+      case 'delete':
+        return { icon: '−', color: 'danger' as ColorKey };
+      default:
+        return { icon: '•', color: 'muted' as ColorKey };
+    }
+  };
+
+  const { icon, color } = getActionIndicator(file.action);
+
+  return (
+    <FileItemContainer style={style}>
+      <FileDetails>
+        <ActionIndicator color={color}>{icon}</ActionIndicator>
+        <FileName>{file.filename}</FileName>
+        {file.size !== undefined && <FileSize>{formatFileSize(file.size)}</FileSize>}
+      </FileDetails>
+      <FileTimestamp>{formatTimeDiff(file.timestamp)}</FileTimestamp>
+    </FileItemContainer>
+  );
+};
+
 const SyncedFilesList: React.FC = () => {
   const { messages } = useWSMessageStore();
 
@@ -61,34 +123,9 @@ const SyncedFilesList: React.FC = () => {
     })
     .sort((a, b) => b.timestamp - a.timestamp); // Sort by most recent first
 
-  // Get action icon/color
-  const getActionIndicator = (action: string): { icon: string; color: ColorKey } => {
-    switch (action) {
-      case 'create':
-        return { icon: '+', color: 'success' as ColorKey };
-      case 'modify':
-        return { icon: '✎', color: 'warning' as ColorKey };
-      case 'delete':
-        return { icon: '−', color: 'danger' as ColorKey };
-      default:
-        return { icon: '•', color: 'muted' as ColorKey };
-    }
-  };
-
   // Render a file item
   const renderFileItem = (file: SyncedFile, _index: number, style: React.CSSProperties) => {
-    const { icon, color } = getActionIndicator(file.action);
-
-    return (
-      <FileItem style={style}>
-        <FileDetails>
-          <ActionIndicator color={color}>{icon}</ActionIndicator>
-          <FileName>{file.filename}</FileName>
-          {file.size !== undefined && <FileSize>{formatFileSize(file.size)}</FileSize>}
-        </FileDetails>
-        <FileTimestamp>{formatTimeDiff(file.timestamp)}</FileTimestamp>
-      </FileItem>
-    );
+    return <FileItem file={file} style={style} />;
   };
 
   return (
@@ -107,10 +144,9 @@ const SyncedFilesList: React.FC = () => {
 // Styled Components
 const SyncedFilesContainer = styled.div`
   width: 100%;
-  min-width: 700px; /* Set minimum width */
 `;
 
-const FileItem = styled.div`
+const FileItemContainer = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;

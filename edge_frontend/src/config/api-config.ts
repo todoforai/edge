@@ -25,8 +25,21 @@ export async function getApiBase(): Promise<string> {
   return DEFAULT_API_BASE;
 }
 
+// Utility function to convert API base to full URL with protocol
+export function getApiUrlWithProtocol(apiBase: string): string {
+  // If already has protocol, return as is
+  if (apiBase.startsWith('http://') || apiBase.startsWith('https://')) {
+    return apiBase;
+  }
+  
+  // Determine protocol based on host
+  const isLocalhost = apiBase.includes('localhost') || apiBase.includes('127.0.0.1');
+  const protocol = isLocalhost ? 'http' : 'https';
+  return `${protocol}://${apiBase}`;
+}
+
 export async function getApiBaseUrl(): Promise<string> {
   const apiBase = await getApiBase();
-  const is_no_https = apiBase.includes('localhost') || apiBase.includes('127.0.0.1');
-  return `${is_no_https ? 'http' : 'https'}://${apiBase}/token/v1`;
+  const fullUrl = getApiUrlWithProtocol(apiBase);
+  return `${fullUrl}/token/v1`;
 }

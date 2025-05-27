@@ -5,6 +5,7 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 
 interface MessageListCardProps {
   title: string;
+  subtitle?: string; // New prop for subtitle
   messages: any[];
   renderItem: (item: any, index: number, style: React.CSSProperties) => React.ReactNode;
   itemSize?: number;
@@ -15,6 +16,7 @@ interface MessageListCardProps {
 
 const MessageListCard: React.FC<MessageListCardProps> = ({
   title,
+  subtitle,
   messages = [],
   renderItem,
   itemSize = 50,
@@ -37,14 +39,20 @@ const MessageListCard: React.FC<MessageListCardProps> = ({
   };
 
   // Display count based on whether customCount is provided
-  const displayTitle = customCount ? `${title} (${customCount})` : `${title} (${messages.length})`;
+  const displayCount = customCount || messages.length.toString();
 
   return (
     <Card>
-      <CardTitle>
-        {displayTitle}
-        {actions && <ButtonGroup>{actions}</ButtonGroup>}
-      </CardTitle>
+      <Header>
+        <TitleSection>
+          <Title>{title}</Title>
+          {subtitle && <Subtitle>{subtitle}</Subtitle>}
+        </TitleSection>
+        <HeaderRight>
+          <Count>{displayCount}</Count>
+          {actions && <ButtonGroup>{actions}</ButtonGroup>}
+        </HeaderRight>
+      </Header>
       
       <ListContainer>
         {messages.length > 0 ? (
@@ -88,16 +96,44 @@ const Card = styled.div`
   }
 `;
 
-const CardTitle = styled.h2`
-  margin-top: 0;
-  margin-bottom: 16px;
-  font-size: 18px;
-  color: ${props => props.theme.colors.foreground};
-  border-bottom: 1px solid ${props => props.theme.colors.borderColor};
-  padding-bottom: 12px;
+const Header = styled.div`
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  border-bottom: 1px solid ${props => props.theme.colors.borderColor};
+  padding-bottom: 12px;
+`;
+
+const TitleSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+`;
+
+const Title = styled.h2`
+  margin: 0;
+  font-size: 18px;
+  color: ${props => props.theme.colors.foreground};
+`;
+
+const Subtitle = styled.span`
+  font-size: 12px;
+  color: ${props => props.theme.colors.mutedForeground};
+  font-weight: normal;
+`;
+
+const HeaderRight = styled.div`
+  display: flex;
   align-items: center;
+  gap: 12px;
+`;
+
+const Count = styled.span`
+  font-size: 14px;
+  color: ${props => props.theme.colors.mutedForeground};
+  font-weight: 500;
 `;
 
 const ButtonGroup = styled.div`

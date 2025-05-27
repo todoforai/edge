@@ -72,7 +72,7 @@ copy-sidecar:
 
 # Run Tauri in development mode
 tauri-dev:
-	cd edge_frontend && npm run tauri dev
+	cd edge_frontend && npm run tauri:dev
 
 # Build Tauri application with the sidecar
 tauri-build: copy-sidecar

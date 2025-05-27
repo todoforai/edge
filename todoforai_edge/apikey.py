@@ -3,10 +3,7 @@ import logging
 import sys
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("todoforai-auth")
 
 
@@ -14,7 +11,7 @@ def authenticate_and_get_api_key(email, password, api_url):
     """Authenticate with the server and get an API key"""
     # Login only, no registration
     login_url = f"{api_url}/token/v1/auth/login"
-    print(f"Attempting to login weweat: {login_url}")
+    print(f"Attempting to login at: {login_url}")
     response = requests.post(login_url, json={"email": email, "password": password})
     
     if response.status_code != 200:
@@ -50,7 +47,7 @@ def authenticate_and_get_api_key(email, password, api_url):
         if not api_key:
             raise ValueError(f"Server returned invalid API key response: {data}")
             
-        print(f"API Key: {api_key}")
+        print(f"Created new API key (first 8 chars): {api_key[:8] if api_key else 'None'}...")
         return api_key
     else:
         if response.status_code != 200:
@@ -59,7 +56,7 @@ def authenticate_and_get_api_key(email, password, api_url):
         data = response.json()
         api_key = data.get("id")
             
-        print(f"API Key: {api_key}")
+        print(f"Retrieved existing API key (first 8 chars): {api_key[:8] if api_key else 'None'}...")
         
         return api_key
 

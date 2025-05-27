@@ -119,6 +119,12 @@ export const wsClient = {
                   : event.data
                 : '[binary data]';
             log.error(`Error processing WebSocket message: ${error}. Raw message: ${rawData}`);
+
+            // Log the first and last 100 characters to see if it's truncation
+            if (typeof event.data === 'string' && event.data.length > 200) {
+              log.error(`Message start: ${event.data.substring(0, 100)}`);
+              log.error(`Message end: ${event.data.substring(event.data.length - 100)}`);
+            }
           }
         };
       } catch (error) {
@@ -281,8 +287,7 @@ class PythonService {
         log.warn('Could not connect to WebSocket sidecar. Make sure it is running.');
       }
 
-      // Register hooks
-      await this.registerHooks();
+      // No need to register hooks here since they're registered automatically after login
 
       this.initialized = true;
       log.info('Python service initialized');
@@ -299,13 +304,7 @@ class PythonService {
     }
 
     try {
-      // Force Python process to start by sending a ping
-      await this.ping('reinitialize');
-
-      // Register hooks
-      await this.registerHooks();
-
-      // If we have stored credentials, relogin
+      // If we have stored credentials, relogin (which will automatically register hooks)
       if (this.credentials) {
         await this.login(this.credentials);
       }
@@ -318,41 +317,9 @@ class PythonService {
   }
 
   private async registerHooks(): Promise<void> {
-    // Register file sync hooks
-    try {
-      await this.callPython('register_file_sync_hooks', {});
-      log.info('File sync hooks registered');
-    } catch (error) {
-      log.warn('Failed to register file sync hooks:', error);
-      // Continue initialization even if hooks fail
-    }
-
-    // Register workspace paths hooks
-    try {
-      await this.callPython('register_workspace_paths_hooks', {});
-      log.info('Workspace paths hooks registered');
-    } catch (error) {
-      log.warn('Failed to register workspace paths hooks:', error);
-      // Continue initialization even if hooks fail
-    }
-
-    // Register active workspaces hooks
-    try {
-      await this.callPython('register_active_workspaces_hooks', {});
-      log.info('Active workspaces hooks registered');
-    } catch (error) {
-      log.warn('Failed to register active workspaces hooks:', error);
-      // Continue initialization even if hooks fail
-    }
-
-    // Register edge config hooks
-    try {
-      await this.callPython('register_edge_config_hooks', {});
-      log.info('Edge config hooks registered');
-    } catch (error) {
-      log.warn('Failed to register edge config hooks:', error);
-      // Continue initialization even if hooks fail
-    }
+    // This method is no longer needed since hooks are registered automatically after login
+    // Keeping it for backward compatibility but it's now a no-op
+    log.info('Hook registration is now automatic after login');
   }
 
   async callPython<T = any>(method: string, params: any = {}): Promise<T> {
@@ -414,6 +381,10 @@ class PythonService {
   // Add this method to the PythonService class
   async toggleWorkspaceSync(path: string): Promise<any> {
     return this.callPython('toggle_workspace_sync', { path });
+  }
+
+  async removeWorkspacePath(path: string): Promise<any> {
+    return this.callPython('remove_workspace_path', { path });
   }
 }
 

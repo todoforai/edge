@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getApiBase } from '../config/api-config';
+import { getApiBase, getApiUrlWithProtocol } from '../config/api-config';
 import { createLogger } from '../utils/logger';
 import pythonService from '../services/python-service';
 
@@ -53,7 +53,7 @@ interface AuthState {
 }
 
 // Utility function to restore user from storage
-export const restoreUserFromStorage = (apiUrl: string | null): User | null => {
+export const restoreUserFromStorage = async (apiUrl: string | null): Promise<User | null> => {
   if (!apiUrl) {
     log.info('No API URL provided, cannot restore user');
     return null;
@@ -72,11 +72,33 @@ export const restoreUserFromStorage = (apiUrl: string | null): User | null => {
         const sessionAge = Date.now() - (userData.lastLoginTime || 0);
 
         if (sessionAge < SESSION_MAX_AGE) {
-          log.info(`User session restored from storage for API URL: ${apiUrl}`);
-          return {
-            ...userData,
-            isAuthenticated: true,
-          };
+          // Validate the stored API key with the Python backend
+          try {
+            // Initialize Python service if needed
+            await pythonService.initialize();
+
+            const validationResult = await pythonService.callPython('validate_stored_credentials', {
+              apiUrl: apiUrl,
+              apiKey: userData.apiKey,
+            });
+
+            if (validationResult.valid) {
+              log.info(`User session restored from storage for API URL: ${apiUrl}`);
+              return {
+                ...userData,
+                isAuthenticated: true,
+              };
+            } else {
+              log.info(
+                `Stored API key is invalid for API URL: ${apiUrl}, removing from storage. Error: ${validationResult.error || 'Unknown'}`
+              );
+            }
+          } catch (error) {
+            log.error(`Failed to validate stored API key for API URL: ${apiUrl}:`, error);
+          }
+
+          // Remove invalid session
+          localStorage.removeItem(storageKey);
         } else {
           // Session expired
           localStorage.removeItem(storageKey);

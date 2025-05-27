@@ -42,10 +42,16 @@ export const useCachedLoginEffect = () => {
   const { initializeWithCachedAuth, apiUrl } = useAuthStore();
 
   useEffect(() => {
-    const loadedUser = restoreUserFromStorage(apiUrl);
+    const loadCachedUser = async () => {
+      const loadedUser = await restoreUserFromStorage(apiUrl);
 
-    if (loadedUser?.apiUrl) {
-      initializeWithCachedAuth(loadedUser);
+      if (loadedUser?.apiUrl) {
+        initializeWithCachedAuth(loadedUser);
+      }
+    };
+
+    if (apiUrl) {
+      loadCachedUser();
     }
   }, [apiUrl]);
 };

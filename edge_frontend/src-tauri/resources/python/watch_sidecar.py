@@ -9,6 +9,7 @@ import sys
 import time
 import subprocess
 import signal
+import atexit
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -32,6 +33,26 @@ class RestartHandler(FileSystemEventHandler):
         self.process = None
         self.last_restart = 0
         self.start_process()
+        
+    def cleanup(self):
+        """Clean up the current process"""
+        if self.process:
+            print("\n----- Cleaning up process -----")
+            try:
+                # Try to terminate gracefully
+                self.process.terminate()
+                self.process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                # Force kill if it doesn't terminate
+                print("Process didn't terminate gracefully, force killing...")
+                self.process.kill()
+            except Exception as e:
+                print(f"Error during cleanup: {e}")
+            finally:
+                self.process = None
+        
+        # Also kill any process using the port
+        kill_process_on_port(DEFAULT_PORT)
         
     def start_process(self):
         # First, kill any processes using the port
@@ -71,7 +92,35 @@ class RestartHandler(FileSystemEventHandler):
             print(f"\nNew Python file: {event.src_path}")
             self.start_process()
 
+# Global reference to event handler for cleanup
+event_handler = None
+
+def signal_handler(signum, frame):
+    """Handle termination signals gracefully"""
+    print(f"\n----- Received signal {signum}, shutting down -----")
+    cleanup_and_exit()
+
+def cleanup_and_exit():
+    """Clean up resources and exit"""
+    global event_handler
+    if event_handler:
+        event_handler.cleanup()
+    
+    # Final cleanup - kill any remaining processes on the port
+    kill_process_on_port(DEFAULT_PORT)
+    print("Cleanup completed, exiting...")
+    sys.exit(0)
+
 def main():
+    global event_handler
+    
+    # Set up signal handlers for graceful shutdown
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    
+    # Register cleanup function to run on exit
+    atexit.register(cleanup_and_exit)
+    
     # Get the directory to watch (parent directory of the script)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
@@ -116,12 +165,7 @@ def main():
     except KeyboardInterrupt:
         print("\n----- Stopping -----")
         observer.stop()
-        if event_handler.process:
-            event_handler.process.terminate()
-            try:
-                event_handler.process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                event_handler.process.kill()
+        cleanup_and_exit()
     
     observer.join()
     

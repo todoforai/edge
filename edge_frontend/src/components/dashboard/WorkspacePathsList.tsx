@@ -16,6 +16,7 @@ const WorkspacePathsList: React.FC = () => {
   const workspacePaths = useEdgeConfigStore(state => state.config.workspacepaths || []);
   const activeWorkspaces = useWorkspaceStore(state => state.activeWorkspaces);
   const [isToggling, setIsToggling] = useState<Record<string, boolean>>({});
+  const [isRemoving, setIsRemoving] = useState<Record<string, boolean>>({});
   
   // Format workspace paths for display with active status and sort active to top
   const formattedPaths: WorkspacePath[] = React.useMemo(() => {
@@ -51,14 +52,38 @@ const WorkspacePathsList: React.FC = () => {
     }
   };
 
+  // Handle removing workspace path
+  const handleRemovePath = async (path: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent any parent click handlers from firing
+    
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to remove this workspace path?\n\n${path}\n\nThis will revoke access to this directory and all its subdirectories.`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      setIsRemoving(prev => ({ ...prev, [path]: true }));
+      await pythonService.removeWorkspacePath(path);
+      // The workspace paths will be updated via the WebSocket event
+    } catch (error) {
+      console.error('Error removing workspace path:', error);
+      alert('Failed to remove workspace path. Please try again.');
+    } finally {
+      setIsRemoving(prev => ({ ...prev, [path]: false }));
+    }
+  };
+
   // Render a workspace path item
   const renderPathItem = (item: WorkspacePath, _index: number, style: React.CSSProperties) => {
     return (
       <PathItem style={style}>
         <StatusButton 
-          isActive={item.isActive} 
+          $isActive={item.isActive} 
           onClick={(e) => handleToggleSync(item.path, e)}
-          disabled={isToggling[item.path]}
+          disabled={isToggling[item.path] || isRemoving[item.path]}
+          title={item.isActive ? "Stop syncing this workspace" : "Start syncing this workspace"}
         >
           {isToggling[item.path] ? (
             <Icon icon="lucide:loader" className="spin" />
@@ -68,7 +93,18 @@ const WorkspacePathsList: React.FC = () => {
             <Icon icon="lucide:circle" />
           )}
         </StatusButton>
-        <PathText>{item.path}</PathText>
+        <PathText title={item.path}>{item.path}</PathText>
+        <RemoveButton
+          onClick={(e) => handleRemovePath(item.path, e)}
+          disabled={isRemoving[item.path] || isToggling[item.path]}
+          title="Remove this workspace path (revokes access)"
+        >
+          {isRemoving[item.path] ? (
+            <Icon icon="lucide:loader" className="spin" />
+          ) : (
+            <Icon icon="lucide:trash-2" />
+          )}
+        </RemoveButton>
       </PathItem>
     );
   };
@@ -76,12 +112,13 @@ const WorkspacePathsList: React.FC = () => {
   return (
     <WorkspacePathsContainer>
       <MessageListCard
-        title="Workspaces"
+        title="Allowed Workspace Paths"
         customCount={`${activeCount}/${totalCount}`}
         messages={formattedPaths}
         renderItem={renderPathItem}
         itemSize={50}
-        emptyMessage="No workspace paths configured"
+        emptyMessage="No workspace paths configured. Add paths to allow agent access to directories."
+        subtitle="These directories are accessible by agents for file operations"
       />
     </WorkspacePathsContainer>
   );
@@ -90,7 +127,7 @@ const WorkspacePathsList: React.FC = () => {
 // Styled Components
 const WorkspacePathsContainer = styled.div`
   width: 100%;
-  min-width: 700px; /* Set minimum width */
+  /* Removed min-width: 700px to allow flexible sizing */
 `;
 
 const PathItem = styled.div`
@@ -99,13 +136,13 @@ const PathItem = styled.div`
   padding: 10px;
   border-bottom: 1px solid ${(props) => props.theme.colors.borderColor};
   width: 100%;
+  gap: 10px;
 `;
 
-const StatusButton = styled.button<{ isActive: boolean }>`
+const StatusButton = styled.button<{ $isActive: boolean }>`
   background: transparent;
   border: none;
-  color: ${(props) => props.isActive ? '#4CAF50' : '#9E9E9E'};
-  margin-right: 10px;
+  color: ${(props) => props.$isActive ? '#4CAF50' : '#9E9E9E'};
   display: flex;
   align-items: center;
   font-size: 16px;
@@ -113,8 +150,9 @@ const StatusButton = styled.button<{ isActive: boolean }>`
   padding: 4px;
   border-radius: 50%;
   transition: background-color 0.2s;
+  flex-shrink: 0;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background-color: rgba(255, 255, 255, 0.1);
   }
 
@@ -143,6 +181,44 @@ const PathText = styled.span`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+`;
+
+const RemoveButton = styled.button`
+  background: transparent;
+  border: none;
+  color: #f44336;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    background-color: rgba(244, 67, 54, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
 `;
 
 export default WorkspacePathsList;

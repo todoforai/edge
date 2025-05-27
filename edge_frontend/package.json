@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "tauri": "tauri",
+    "tauri:dev": "tauri dev",
     "install:deb": "tauri build --bundles deb && sudo dpkg -i \"src-tauri/target/release/bundle/deb/todoforai-edge_$(node -p \"require('./package.json').version\")_amd64.deb\""
   },
   "dependencies": {
