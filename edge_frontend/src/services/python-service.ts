@@ -316,12 +316,6 @@ class PythonService {
     }
   }
 
-  private async registerHooks(): Promise<void> {
-    // This method is no longer needed since hooks are registered automatically after login
-    // Keeping it for backward compatibility but it's now a no-op
-    log.info('Hook registration is now automatic after login');
-  }
-
   async callPython<T = any>(method: string, params: any = {}): Promise<T> {
     try {
       return await wsClient.callPython<T>(method, params);
