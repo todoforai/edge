@@ -272,27 +272,6 @@ jobs:
         name: todoforai-edge-${{ matrix.target_triple }}
         path: ${{ steps.bundle-path.outputs.BUNDLE_PATH }}
 
-    # Sign the Debian package (Linux only)
-    - name: Sign Debian package
-      if: matrix.os == 'ubuntu-latest'
-      env:
-        GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-      run: |
-        # Make the signing script executable
-        chmod +x edge_frontend/src-tauri/scripts/sign_deb.sh
-        
-        # Find the .deb file
-        DEB_FILE=$(find edge_frontend/src-tauri/target/release/bundle/deb -name "*.deb" | head -n 1)
-        
-        if [ -n "$DEB_FILE" ]; then
-          echo "Found .deb file: $DEB_FILE"
-          # Run the signing script
-          edge_frontend/src-tauri/scripts/sign_deb.sh "$DEB_FILE"
-        else
-          echo "No .deb file found to sign"
-        fi
-      shell: bash
-
   # ─────────────────────────── Deployment ───────────────────────────
   deploy:
     needs: build
