@@ -10,11 +10,12 @@ import sys, os, time
 import traceback
 import argparse
 import logging
-from typing import Any, Dict, Callable, Optional
+from typing import Any, Dict, Callable, Optional, Set
 import threading
 import websockets
+import requests
 
-# Import TODOforAIEdge client
+# Import TODOforAI Edge client
 from todoforai_edge.client import TODOforAIEdge
 from todoforai_edge.config import Config
 
@@ -25,57 +26,56 @@ from todoforai_edge import file_sync
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 log = logging.getLogger('ws_sidecar')
 
-# Dictionary to store available functions
-handlers: dict[str, Callable[[Any], Any]] = {}
-# Global client instance
-todo_client = None
-# Client thread
-client_thread = None
-# Default API URL
-default_api_url = None
-# Lock for client operations
-client_lock = threading.Lock()
-# Connected WebSocket clients
-connected_clients = set()
+class WebSocketSidecar:
+    def __init__(self):
+        self.handlers: Dict[str, Callable[[Any], Any]] = {}
+        self.todo_client = None
+        self.client_thread = None
+        self.default_api_url = None
+        self.client_lock = threading.Lock()
+        self.connected_clients: Set = set()
+        self.nonverbose_types = {'file_sync'}
+        
+    def rpc(self, func):
+        """Decorator to register RPC functions"""
+        self.handlers[func.__name__] = func
+        return func
 
-def rpc(func):
-    """Decorator to register functions that can be called from the frontend"""
-    def wrapper(*args, **kwargs):
-        # Call the original function
-        return func(*args, **kwargs)
-    
-    handlers[func.__name__] = wrapper
-    return wrapper
+# Global instance
+sidecar = WebSocketSidecar()
 
-@rpc
+def normalize_api_url(api_url: str) -> str:
+    """Normalize API URL format"""
+    if api_url.startswith("localhost"):
+        return f"http://{api_url}"
+    elif not api_url.startswith(("http://", "https://")):
+        return f"https://{api_url}"
+    return api_url
+
+@sidecar.rpc
 def ping(message):
     """Simple ping function that returns a pong with the message"""
     return {"response": f"pong: {message}"}
 
-@rpc
+@sidecar.rpc
 def validate_stored_credentials(credentials):
     """Validate stored credentials with the server"""
     try:
-        import requests
-        
         api_url = credentials.get("apiUrl")
         api_key = credentials.get("apiKey")
         
         if not api_url or not api_key:
             return {"valid": False, "error": "Missing API URL or API key"}
         
-        # Ensure proper URL format
-        if api_url.startswith("localhost"):
-            api_url = f"http://{api_url}"
-        elif not api_url.startswith(("http://", "https://")):
-            api_url = f"https://{api_url}"
-        
+        # Normalize URL
+        api_url = normalize_api_url(api_url)
         validation_url = f"{api_url}/token/v1/users/apikeys/validate"
         
-        response = requests.get(validation_url, headers={
-            'x-api-key': api_key,
-            'Content-Type': 'application/json',
-        }, timeout=10)
+        response = requests.get(
+            validation_url,
+            headers={'x-api-key': api_key, 'Content-Type': 'application/json'},
+            timeout=10
+        )
         
         if response.status_code == 200:
             validation_result = response.json()
@@ -83,15 +83,16 @@ def validate_stored_credentials(credentials):
         else:
             return {"valid": False, "error": f"Validation failed with status {response.status_code}"}
             
+    except requests.RequestException as e:
+        log.error(f"Network error validating credentials: {e}")
+        return {"valid": False, "error": f"Network error: {str(e)}"}
     except Exception as e:
         log.error(f"Error validating credentials: {e}")
         return {"valid": False, "error": str(e)}
 
-@rpc
+@sidecar.rpc
 def login(credentials):
     """Login with email and password or API key"""
-    global todo_client, client_thread
-    
     try:
         # Create a configuration object
         config = Config()
@@ -107,128 +108,45 @@ def login(credentials):
         # Use API URL from credentials or default
         if "apiUrl" in credentials and credentials["apiUrl"]:
             config.api_url = credentials["apiUrl"]
-        elif default_api_url:
-            config.api_url = default_api_url
+        elif sidecar.default_api_url:
+            config.api_url = sidecar.default_api_url
             
-        # Ensure proper URL format
+        # Normalize URL format
         if config.api_url:
-            # Normalize URL format
-            if config.api_url.startswith("localhost"):
-                config.api_url = f"http://{config.api_url}"
-            elif not config.api_url.startswith(("http://", "https://")):
-                config.api_url = f"https://{config.api_url}"
+            config.api_url = normalize_api_url(config.api_url)
             
         # Debug mode
         config.debug = credentials.get("debug", False)
         
         log.info(f"Using API URL: {config.api_url}")
         
-        with client_lock:
+        with sidecar.client_lock:
             # Check if we're already connected with the same credentials
-            if todo_client and todo_client.connected:
-                same_credentials = False
-                
-                # Check if API key matches
-                if config.api_key and todo_client.api_key and config.api_key == todo_client.api_key:
-                    same_credentials = True
-                    
-                # Or check if email/password match
-                elif (config.email and config.password and 
-                      todo_client.email and todo_client.password and
-                      config.email == todo_client.email and 
-                      config.password == todo_client.password):
-                    same_credentials = True
-                
-                if same_credentials:
+            if sidecar.todo_client and sidecar.todo_client.connected:
+                if _has_same_credentials(config):
                     log.info("Already connected with the same credentials, sending auth_success")
-                    # Create a task to send auth_success event
                     asyncio.create_task(broadcast_event({
                         "type": "auth_success",
                         "payload": {
-                            "apiKey": todo_client.api_key,
-                            "email": todo_client.email,
+                            "apiKey": sidecar.todo_client.api_key,
+                            "email": sidecar.todo_client.email,
                         }
                     }))
                     return {"status": "success", "message": "Already connected with the same credentials"}
                 else:
                     log.info("Disconnecting existing client to connect with new credentials")
-                    # Different credentials, disconnect current client
-                    if todo_client.connected:
-                        todo_client.connected = False
-                        if todo_client.heartbeat_task:
-                            todo_client.heartbeat_task.cancel()
-                    if client_thread and client_thread.is_alive():
-                        client_thread.join(timeout=2)
+                    _disconnect_existing_client()
             
             # Create the client
-            todo_client = TODOforAIEdge(config)
-
-            # Hooks into todo_client
-            # Add message handler to forward messages to frontend
-            original_handle_message = todo_client._handle_message
+            sidecar.todo_client = TODOforAIEdge(config)
+            _setup_client_hooks()
             
-            async def handle_message_wrapper(message):
-                # Forward message to frontend
-                await broadcast_event({
-                    "type": "ws_message",
-                    "payload": json.loads(message)
-                })
-                # Call original handler
-                await original_handle_message(message)
-                
-            todo_client._handle_message = handle_message_wrapper
-            
-            # Define the async function to run in the thread
-            async def run_client():
-                try:
-                    # Authenticate if needed
-                    if not todo_client.api_key and (todo_client.email and todo_client.password):
-                        log.info(f"Authenticating with email: {todo_client.email}")
-                        response = await todo_client.authenticate()
-                        if not response["valid"]:
-                            await broadcast_event({
-                                "type": "auth_error",
-                                "payload": {"message": f"Authentication failed. Result: {response}"}
-                            })
-                            return
-                        
-                        # Add the API key and user info to the event queue
-                        await broadcast_event({
-                            "type": "auth_success",
-                            "payload": {
-                                "apiKey": todo_client.api_key,
-                                "email": todo_client.email,
-                            }
-                        })
-                    elif todo_client.api_key:
-                        # If we already have an API key, send auth success
-                        await broadcast_event({
-                            "type": "auth_success",
-                            "payload": {
-                                "apiKey": todo_client.api_key,
-                                "email": todo_client.email
-                            }
-                        })
-                    
-                    # Register all hooks after successful authentication
-                    await register_all_hooks()
-                        
-                    # Start the client
-                    log.info("Starting client...")
-                    await todo_client.start()
-                except Exception as e:
-                    log.error(f"Error in client thread: {e}")
-                    traceback.print_exc()
-                    await broadcast_event({
-                        "type": "auth_error",
-                        "payload": {"message": str(e)}
-                    })
-            
+            # Start client in separate thread
             def thread_target():
-                asyncio.run(run_client())
+                asyncio.run(_run_client())
                 
-            client_thread = threading.Thread(target=thread_target, daemon=True)
-            client_thread.start()
+            sidecar.client_thread = threading.Thread(target=thread_target, daemon=True)
+            sidecar.client_thread.start()
         
         return {"status": "connecting", "message": "Client is connecting..."}
         
@@ -244,6 +162,99 @@ def login(credentials):
         }))
         
         return {"status": "error", "message": error_msg}
+
+def _has_same_credentials(config: Config) -> bool:
+    """Check if the new config has the same credentials as the current client"""
+    if not sidecar.todo_client:
+        return False
+        
+    # Check if API key matches
+    if config.api_key and sidecar.todo_client.api_key and config.api_key == sidecar.todo_client.api_key:
+        return True
+        
+    # Or check if email/password match
+    if (config.email and config.password and 
+        sidecar.todo_client.email and sidecar.todo_client.password and
+        config.email == sidecar.todo_client.email and 
+        config.password == sidecar.todo_client.password):
+        return True
+        
+    return False
+
+def _disconnect_existing_client():
+    """Disconnect the existing client"""
+    if sidecar.todo_client and sidecar.todo_client.connected:
+        sidecar.todo_client.connected = False
+        if sidecar.todo_client.heartbeat_task:
+            sidecar.todo_client.heartbeat_task.cancel()
+    if sidecar.client_thread and sidecar.client_thread.is_alive():
+        sidecar.client_thread.join(timeout=2)
+
+def _setup_client_hooks():
+    """Setup hooks for the client"""
+    if not sidecar.todo_client:
+        return
+        
+    # Add message handler to forward messages to frontend
+    original_handle_message = sidecar.todo_client._handle_message
+    
+    async def handle_message_wrapper(message):
+        # Forward message to frontend
+        await broadcast_event({
+            "type": "ws_message",
+            "payload": json.loads(message)
+        })
+        # Call original handler
+        await original_handle_message(message)
+        
+    sidecar.todo_client._handle_message = handle_message_wrapper
+
+async def _run_client():
+    """Run the client in async context"""
+    try:
+        # Authenticate if needed
+        if not sidecar.todo_client.api_key and (sidecar.todo_client.email and sidecar.todo_client.password):
+            log.info(f"Authenticating with email: {sidecar.todo_client.email}")
+            response = await sidecar.todo_client.authenticate()
+            if not response["valid"]:
+                await broadcast_event({
+                    "type": "auth_error",
+                    "payload": {"message": f"Authentication failed. Result: {response}"}
+                })
+                return
+            
+            # Add the API key and user info to the event queue
+            await broadcast_event({
+                "type": "auth_success",
+                "payload": {
+                    "apiKey": sidecar.todo_client.api_key,
+                    "email": sidecar.todo_client.email,
+                }
+            })
+        elif sidecar.todo_client.api_key:
+            # If we already have an API key, send auth success
+            await broadcast_event({
+                "type": "auth_success",
+                "payload": {
+                    "apiKey": sidecar.todo_client.api_key,
+                    "email": sidecar.todo_client.email
+                }
+            })
+        
+        # Register all hooks after successful authentication
+        await register_all_hooks()
+            
+        # Start the client
+        log.info("Starting client...")
+        await sidecar.todo_client.start()
+    except Exception as e:
+        log.error(f"Error in client thread: {e}")
+        traceback.print_exc()
+        await broadcast_event({
+            "type": "auth_error",
+            "payload": {"message": str(e)}
+        })
+
 async def register_all_hooks():
     """Register all hooks automatically"""
     try:
@@ -252,21 +263,21 @@ async def register_all_hooks():
             await register_file_sync_hooks_internal()
             log.info("File sync hooks registered")
         except Exception as e:
-            log.warn(f"Failed to register file sync hooks: {e}")
+            log.warning(f"Failed to register file sync hooks: {e}")
 
         # Register active workspaces hooks
         try:
             await register_active_workspaces_hooks_internal()
             log.info("Active workspaces hooks registered")
         except Exception as e:
-            log.warn(f"Failed to register active workspaces hooks: {e}")
+            log.warning(f"Failed to register active workspaces hooks: {e}")
 
         # Register edge config hooks
         try:
             await register_edge_config_hooks_internal()
             log.info("Edge config hooks registered")
         except Exception as e:
-            log.warn(f"Failed to register edge config hooks: {e}")
+            log.warning(f"Failed to register edge config hooks: {e}")
             
     except Exception as e:
         log.error(f"Error registering hooks: {e}")
@@ -361,7 +372,7 @@ async def register_active_workspaces_hooks_internal():
 async def register_edge_config_hooks_internal():
     """Internal function to register edge config hooks"""
     # Check if client exists
-    if not todo_client:
+    if not sidecar.todo_client:
         raise Exception("Client not initialized")
     
     # Subscribe to config changes to broadcast them to frontend
@@ -372,10 +383,10 @@ async def register_edge_config_hooks_internal():
         })
     
     # Subscribe to the observable
-    todo_client.edge_config.config.subscribe_async(on_config_change_hook, name="ws_sidecar_config_hook")
+    sidecar.todo_client.edge_config.config.subscribe_async(on_config_change_hook, name="ws_sidecar_config_hook")
 
 # Keep the RPC functions for backward compatibility, but make them simple wrappers
-@rpc
+@sidecar.rpc
 def register_file_sync_hooks(params=None):
     """Register hooks to monitor file sync events"""
     try:
@@ -386,7 +397,7 @@ def register_file_sync_hooks(params=None):
         traceback.print_exc()
         return {"status": "error", "message": str(e)}
 
-@rpc
+@sidecar.rpc
 def register_active_workspaces_hooks(params=None):
     """Register hooks to monitor active workspace changes"""
     try:
@@ -397,7 +408,7 @@ def register_active_workspaces_hooks(params=None):
         traceback.print_exc()
         return {"status": "error", "message": str(e)}
 
-@rpc
+@sidecar.rpc
 def register_edge_config_hooks(params=None):
     """Register hooks to monitor edge config changes"""
     try:
@@ -408,11 +419,11 @@ def register_edge_config_hooks(params=None):
         traceback.print_exc()
         return {"status": "error", "message": str(e)}
 
-@rpc
+@sidecar.rpc
 def toggle_workspace_sync(params):
     """Toggle sync for a specific workspace path"""
     try:
-        if not todo_client:
+        if not sidecar.todo_client:
             return {"status": "error", "message": "Client not initialized"}
             
         workspace_path = os.path.abspath(params.get("path", ""))
@@ -431,21 +442,21 @@ def toggle_workspace_sync(params):
             return {"status": "success", "isActive": False}
         else:
             # Start syncing if in configured workspaces
-            if workspace_path not in todo_client.edge_config.workspacepaths:
+            if workspace_path not in sidecar.todo_client.edge_config.workspacepaths:
                 return {"status": "error", "message": "Path not in configured workspaces"}
                 
-            asyncio.create_task(start_workspace_sync(todo_client, workspace_path))
+            asyncio.create_task(start_workspace_sync(sidecar.todo_client, workspace_path))
             return {"status": "success", "isActive": True}
             
     except Exception as e:
         log.error(f"Error toggling workspace sync: {e}")
         return {"status": "error", "message": str(e)}
 
-@rpc
+@sidecar.rpc
 def remove_workspace_path(params):
     """Remove a workspace path from the edge configuration"""
     try:
-        if not todo_client:
+        if not sidecar.todo_client:
             return {"status": "error", "message": "Client not initialized"}
             
         workspace_path = os.path.abspath(params.get("path", ""))
@@ -453,7 +464,7 @@ def remove_workspace_path(params):
             return {"status": "error", "message": "No workspace path provided"}
         
         # Remove the path from the configuration
-        removed = todo_client.edge_config.remove_workspace_path(workspace_path)
+        removed = sidecar.todo_client.edge_config.remove_workspace_path(workspace_path)
         
         if removed:
             log.info(f"Removed workspace path: {workspace_path}")
@@ -470,10 +481,9 @@ def remove_workspace_path(params):
         log.error(f"Error removing workspace path: {e}")
         return {"status": "error", "message": str(e)}
 
-
 async def broadcast_event(event):
     """Send an event to all connected WebSocket clients"""
-    if not connected_clients:
+    if not sidecar.connected_clients:
         log.warning("No connected clients to broadcast to")
         return
         
@@ -485,96 +495,81 @@ async def broadcast_event(event):
     message = json.dumps(event_envelope, ensure_ascii=False)
     
     # Make a copy to avoid modification during iteration
-    clients = connected_clients.copy()
+    clients = sidecar.connected_clients.copy()
     for websocket in clients:
         try:
             await websocket.send(message)
         except websockets.exceptions.ConnectionClosed:
             log.warning(f"Client {id(websocket)} disconnected, removing from connected_clients")
-            connected_clients.discard(websocket)
+            sidecar.connected_clients.discard(websocket)
         except Exception as e:
             log.error(f"Error sending event to client {id(websocket)}: {e}")
+
+async def handle_websocket_message(websocket, message: str):
+    """Handle individual WebSocket message"""
+    try:
+        request = json.loads(message)
+        method = request.get("method")
+        params = request.get("params")
+        req_id = request.get("id")
+        
+        log.info(f"Received request: {method}")
+        
+        if method in sidecar.handlers:
+            try:
+                result = sidecar.handlers[method](params)
+                response = {"jsonrpc": "2.0", "id": req_id, "result": result}
+            except Exception as e:
+                log.error(f"Error handling method {method}: {e}")
+                traceback.print_exc()
+                response = {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "error": {"code": -32000, "message": str(e)}
+                }
+        else:
+            response = {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "error": {"code": -32601, "message": f"Method '{method}' not found"}
+            }
+        
+        await websocket.send(json.dumps(response))
+        
+    except json.JSONDecodeError:
+        log.error(f"Invalid JSON received: {message}")
+        await websocket.send(json.dumps({
+            "jsonrpc": "2.0",
+            "error": {"code": -32700, "message": "Parse error"}
+        }))
+    except Exception as e:
+        log.error(f"Error processing message: {e}")
+        traceback.print_exc()
+        try:
+            await websocket.send(json.dumps({
+                "jsonrpc": "2.0",
+                "error": {"code": -32603, "message": f"Internal error: {str(e)}"}
+            }))
+        except:
+            pass
 
 async def handle_websocket(websocket):
     """Handle a WebSocket connection"""
     client_id = id(websocket)
     log.info(f"Client connected: {client_id}")
-    connected_clients.add(websocket)
+    sidecar.connected_clients.add(websocket)
     
     try:
         async for message in websocket:
-            try:
-                # Parse the request
-                request = json.loads(message)
-                method = request.get("method")
-                params = request.get("params")
-                req_id = request.get("id")
-                
-                log.info(f"Received request: {method}")
-                
-                # Handle the request
-                if method in handlers:
-                    try:
-                        result = handlers[method](params)
-                        response = {
-                            "jsonrpc": "2.0",
-                            "id": req_id,
-                            "result": result
-                        }
-                    except Exception as e:
-                        log.error(f"Error handling method {method}: {e}")
-                        traceback.print_exc()
-                        response = {
-                            "jsonrpc": "2.0",
-                            "id": req_id,
-                            "error": {
-                                "code": -32000,
-                                "message": str(e)
-                            }
-                        }
-                else:
-                    response = {
-                        "jsonrpc": "2.0",
-                        "id": req_id,
-                        "error": {
-                            "code": -32601,
-                            "message": f"Method '{method}' not found"
-                        }
-                    }
-                
-                # Send the response
-                await websocket.send(json.dumps(response))
-                
-            except json.JSONDecodeError:
-                log.error(f"Invalid JSON received: {message}")
-                await websocket.send(json.dumps({
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32700,
-                        "message": "Parse error"
-                    }
-                }))
-            except Exception as e:
-                log.error(f"Error processing message: {e}")
-                traceback.print_exc()
-                try:
-                    await websocket.send(json.dumps({
-                        "jsonrpc": "2.0",
-                        "error": {
-                            "code": -32603,
-                            "message": f"Internal error: {str(e)}"
-                        }
-                    }))
-                except:
-                    pass
+            await handle_websocket_message(websocket, message)
     except websockets.exceptions.ConnectionClosed:
         log.info(f"Client disconnected: {client_id}")
     except Exception as e:
         log.error(f"WebSocket handler error: {e}")
         traceback.print_exc()
     finally:
-        connected_clients.discard(websocket)
-        log.info(f"Client removed: {client_id}, {len(connected_clients)} clients remaining")
+        sidecar.connected_clients.discard(websocket)
+        log.info(f"Client removed: {client_id}, {len(sidecar.connected_clients)} clients remaining")
 
 async def start_server(host='127.0.0.1', port=9528):
     """Start the WebSocket server"""
@@ -583,7 +578,6 @@ async def start_server(host='127.0.0.1', port=9528):
     # Maximum retry attempts
     max_retries = 5
     retry_count = 0
-    
     retry_delay = 1  # Start with 1 second delay
     
     while retry_count < max_retries:

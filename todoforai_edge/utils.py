@@ -6,6 +6,7 @@ import subprocess
 import asyncio
 import requests
 import logging
+import traceback
 
 logger = logging.getLogger("todoforai-edge")
 
@@ -55,8 +56,7 @@ def generate_machine_fingerprint():
 async def async_request(client, method, endpoint, data=None):
     """Make an async request to the API"""
     if not client.api_key:
-        logger.warning("Cannot make API request: missing API key")
-        return None
+        raise ValueError("Cannot make API request: missing API key")
         
     url = f"{client.api_url}{endpoint}"
     headers = {
@@ -83,5 +83,6 @@ async def async_request(client, method, endpoint, data=None):
             
         return response
     except Exception as e:
-        logging.error(f"API request error: {str(e)}")
+        stack_trace = traceback.format_exc()
+        logger.error(f"API request error: {str(e)}\nStacktrace:\n{stack_trace}")
         return None
