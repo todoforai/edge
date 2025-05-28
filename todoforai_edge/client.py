@@ -239,20 +239,20 @@ class TODOforAIEdge:
         """Authenticate with email and password to get API key"""
         if self.api_key:
             logger.info("Already have API key, skipping authentication")
-            return True
+            return {"valid": True, }
             
         if not self.email or not self.password:
             logger.error("Email and password are required for authentication")
-            return False
+            return {"valid": False, "error": "Email and password are required for authentication"}
             
         try:
             logger.info(f"Authenticating with email: {self.email}")
             self.api_key = authenticate_and_get_api_key(self.email, self.password, self.api_url)
             logger.info(f"Successfully authenticated as {self.email}")
-            return True
+            return {"valid": True, }
         except Exception as e:
             logger.error(f"Authentication failed: {str(e)}")
-            return False
+            return {"valid": False, "error": str(e)}
         
     async def _load_edge_config(self):
         """Load edge configuration from the API"""

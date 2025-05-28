@@ -184,11 +184,11 @@ def login(credentials):
                     # Authenticate if needed
                     if not todo_client.api_key and (todo_client.email and todo_client.password):
                         log.info(f"Authenticating with email: {todo_client.email}")
-                        auth_success = await todo_client.authenticate()
-                        if not auth_success:
+                        response = await todo_client.authenticate()
+                        if not response["valid"]:
                             await broadcast_event({
                                 "type": "auth_error",
-                                "payload": {"message": f"Authentication failed. Auth_success: {auth_success}"}
+                                "payload": {"message": f"Authentication failed. Result: {response}"}
                             })
                             return
                         
