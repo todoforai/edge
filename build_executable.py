@@ -75,7 +75,7 @@ def main():
         'watchdog.events',
         'threading',
         'logging',
-        'argparse',        
+        'argparse',
         
         # SSL and crypto modules - critical for Windows
         'ssl',
@@ -127,18 +127,19 @@ def main():
     todoforai_edge_path = script_dir
     
     # Convert paths to strings with proper format for the platform
-    sidecar_path_str = str(sidecar_path).replace('\\', '/')
-    script_dir_str = str(script_dir).replace('\\', '/')
+    sidecar_path_str = str(sidecar_path).replace('\\', '\\\\')
+    script_dir_str = str(script_dir).replace('\\', '\\\\')
     
-    # Get SSL certificate bundle path for Windows
+    # Get SSL certificate bundle path for Windows - properly escaped
     ssl_datas = ""
     if system == "windows":
         try:
             import certifi
-            cert_path = certifi.where()
+            cert_path = certifi.where().replace('\\', '\\\\')
             ssl_datas = f"('{cert_path}', 'certifi'),"
+            print(f"Including SSL certificates from: {cert_path}")
         except ImportError:
-            pass
+            print("certifi not available, SSL certificates may not work")
     
     with open(spec_file, "w") as f:
         f.write(f"""# -*- mode: python ; coding: utf-8 -*-
@@ -185,7 +186,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=True,
