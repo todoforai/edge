@@ -77,6 +77,16 @@ def main():
         'logging',
         'argparse',        
         
+        # SSL and crypto modules - critical for Windows
+        'ssl',
+        '_ssl',
+        'hashlib',
+        '_hashlib',
+        'urllib3',
+        'urllib3.util.ssl_',
+        'urllib3.contrib.pyopenssl',
+        'certifi',
+        
         # Ensure all todoforai_edge modules are included
         'todoforai_edge',
         'todoforai_edge.client',
@@ -95,7 +105,12 @@ def main():
     
     # Add platform-specific imports
     if system == "windows":
-        hidden_imports.append('winreg')
+        hidden_imports.extend([
+            'winreg',
+            '_winapi',
+            'msvcrt',
+            'winsound'
+        ])
     elif system == "darwin":
         hidden_imports.append('plistlib')
     
@@ -115,13 +130,25 @@ def main():
     sidecar_path_str = str(sidecar_path).replace('\\', '/')
     script_dir_str = str(script_dir).replace('\\', '/')
     
+    # Get SSL certificate bundle path for Windows
+    ssl_datas = ""
+    if system == "windows":
+        try:
+            import certifi
+            cert_path = certifi.where()
+            ssl_datas = f"('{cert_path}', 'certifi'),"
+        except ImportError:
+            pass
+    
     with open(spec_file, "w") as f:
         f.write(f"""# -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
 
 # Include data files
-datas = []
+datas = [
+    {ssl_datas}
+]
 
 a = Analysis(
     ['{sidecar_path_str}'],
@@ -134,7 +161,7 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[
         'matplotlib', 'numpy', 'pandas', 'PIL', 'PyQt5', 
-        'PySide2', 'IPython', 'notebook', 'scipy', 'cryptography',
+        'PySide2', 'IPython', 'notebook', 'scipy',
         'unittest', 'pydoc', 'doctest', 'pdb', 
         'pydoc_data', 'test', 'distutils', 'setuptools', 'curses', 
         'lib2to3', 'pkg_resources'
@@ -157,7 +184,7 @@ exe = EXE(
     name='{output_name}',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True,
+    strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
@@ -187,19 +214,6 @@ exe = EXE(
         print(f"\nWebSocket sidecar executable created successfully: {exe_path}")
         print(f"Size: {size_mb:.2f} MB ({size_bytes:,} bytes)")
         
-        # Try to compress with UPX if available
-        # try:
-        #     print("\nAttempting further compression with UPX...")
-        #     run_command(["upx", "--best", str(exe_path)])
-            
-        #     # Show compressed size
-        #     size_bytes = exe_path.stat().st_size
-        #     size_mb = size_bytes / (1024 * 1024)
-        #     print(f"Compressed size: {size_mb:.2f} MB ({size_bytes:,} bytes)")
-        # except Exception as e:
-        #     print(f"UPX compression not available or failed: {e}")
-        #     print("Install UPX for further size reduction.")
-            
         print("\nUsage:")
         print(f"  {output_name} --host 127.0.0.1 --port 9528 [--debug]")
         print("\nThis executable runs the WebSocket sidecar that communicates with the Tauri frontend.")
