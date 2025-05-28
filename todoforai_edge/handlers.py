@@ -93,13 +93,16 @@ async def handle_get_folders(payload, client):
     path = payload.get("path", ".")
     
     try:
+        # Check if path is allowed before proceeding
+        if not is_path_allowed(path, client.edge_config.workspacepaths):
+            raise PermissionError("No permission to access the given path")
+        
         # Normalize path
         target_path = Path(path).expanduser().resolve()
         
         # Check if path exists
         if not target_path.exists():
-            logger.warning(f"Path does not exist: {path}")
-            return
+            raise FileNotFoundError(f"Path does not exist: {path}")
         
         # If path is a file, use its parent directory
         if target_path.is_file():
@@ -199,6 +202,10 @@ async def handle_block_save(payload, client):
         if rootpath and not filepath.startswith(rootpath):
             filepath = os.path.join(rootpath, filepath)
         
+        # Check if path is allowed before proceeding
+        if not is_path_allowed(filepath, client.edge_config.workspacepaths):
+            raise PermissionError("No permission to save file to the given path")
+        
         # Only create directory if filepath has a directory component
         dirname = os.path.dirname(filepath)
         if dirname:  # Check if dirname is not empty
@@ -233,6 +240,10 @@ async def handle_block_diff(payload, client):
     content = payload.get("content", "")
     
     try:
+        # Check if path is allowed before proceeding
+        if not is_path_allowed(filepath, client.edge_config.workspacepaths):
+            raise PermissionError("No permission to access the given file")
+        
         # Check if the file exists
         file_path = Path(filepath)
         if not file_path.exists():
@@ -295,6 +306,10 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
     try:
         logger.info(f"File chunk request received for path: {path}")
         
+        # Check if path is allowed before proceeding
+        if not is_path_allowed(path, client.edge_config.workspacepaths):
+            raise PermissionError("No permission to access the given file")
+        
         # Ensure the workspace containing this file is being synced
         await ensure_workspace_synced(client, path)
         
@@ -308,12 +323,7 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
             with open(path, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
         except UnicodeDecodeError:
-            logger.error(f"Error decoding file: {path}")
-            # If we get a decode error, it's likely a binary file
-            await client._send_response(
-                file_chunk_result_msg(response_type, path=path, error=f"Cannot read binary file.")
-            )
-            return
+            raise ValueError("Cannot read binary file")
         
         # Send the response using the message formatter
         await client._send_response(
@@ -321,8 +331,9 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
         )
         
     except Exception as error:
-        logger.error(f"Error processing file chunk request: {str(error)}, path: {path}")
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error processing file chunk request: {str(error)}, path: {path}\nStacktrace:\n{stack_trace}")
         # Send error response using the message formatter
         await client._send_response(
-            file_chunk_result_msg(response_type, path=path, error=str(error))
+            file_chunk_result_msg(response_type, path=path, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}")
         )
