@@ -142,11 +142,11 @@ export const useAuthStore = create<AuthState>()((set, get) => {
           credentials.apiUrl = await getApiBase();
         }
 
-        set({ apiUrl: credentials.apiUrl });
-
         // Call login method on Python service
         const response = await pythonService.login(credentials);
         log.info(`Login request sent: ${response.status} - ${response.message}`);
+
+        set({ apiUrl: credentials.apiUrl });
 
         // The actual user update will happen via the auth_success event
       } catch (error) {
