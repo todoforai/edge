@@ -160,12 +160,12 @@ async def handle_todo_cd(payload: Dict[str, Any], client: Any) -> None:
     
     try:
         # Validate that the path exists and is a directory
-        dir_path = Path(path)
+        dir_path = Path(path).expanduser().resolve()
         if not dir_path.exists() or not dir_path.is_dir():
             raise ValueError(f"Path does not exist or is not a directory: {path}")
         
         # Update workspace paths if this is a new path
-        abs_path = os.path.abspath(path)
+        abs_path = str(dir_path)
         if hasattr(client, 'edge_config'):
             # Use the new add_workspace_path method which handles the callback
             path_added = client.edge_config.add_workspace_path(abs_path)

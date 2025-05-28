@@ -47,10 +47,10 @@ def main():
         print("Installing PyInstaller...")
         run_command([sys.executable, "-m", "pip", "install", "PyInstaller"])
     
-    # Install required dependencies
+    # Install required dependencies first
     print("Installing required dependencies...")
-    run_command([sys.executable, "-m", "pip", "install", "-e", "."])
     run_command([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+    run_command([sys.executable, "-m", "pip", "install", "-e", "."])
     
     # Path to the WebSocket sidecar script - use Path for proper cross-platform handling
     sidecar_path = script_dir / "edge_frontend" / "src-tauri" / "resources" / "python" / "ws_sidecar.py"
@@ -99,7 +99,7 @@ def main():
         'todoforai_edge.utils',
         'todoforai_edge.constants',
         'todoforai_edge.apikey',
-        'todoforai_edge.protocol_handler',
+        'todoforai_edge.observable',
         'todoforai_edge.arg_parser'
     ]
     
@@ -109,10 +109,15 @@ def main():
             'winreg',
             '_winapi',
             'msvcrt',
-            'winsound'
+            'winsound',
         ])
     elif system == "darwin":
-        hidden_imports.append('plistlib')
+        hidden_imports.extend([
+            'plistlib',
+        ])
+    else:  # Linux
+        hidden_imports.extend([
+        ])
     
     # Create a spec file with optimizations
     spec_file = "todoforai_edge_sidecar.spec"

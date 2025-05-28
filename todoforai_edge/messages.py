@@ -124,15 +124,19 @@ def dir_list_response_msg(todo_id, paths):
     }
 
 
-def cd_response_msg(edge_id, path, request_id, success=True):
+def cd_response_msg(edge_id, path, request_id, success=True, error=None):
+    payload = {
+        "edgeId": edge_id,
+        "path": path,
+        "success": success,
+        "request_id": request_id,
+    }
+    if error:
+        payload["error"] = error
+    
     return {
         "type": EF.EDGE_CD_RESPONSE,
-        "payload": {
-            "edgeId": edge_id,
-            "path": path,
-            "success": success,
-            "request_id": request_id,
-        }
+        "payload": payload
     }
 
 
