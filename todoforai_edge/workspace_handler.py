@@ -135,6 +135,11 @@ def is_ignored_by_patterns_in_file(file_path, ignore_patterns, root):
         return False
 
     rel_path = os.path.relpath(file_path, root)
+    
+    # Gitignore patterns always use forward slashes, regardless of OS
+    if os.sep != '/':
+        rel_path = rel_path.replace(os.sep, '/')
+    
     should_ignore = False
 
     # Process all patterns in order - last matching pattern wins
