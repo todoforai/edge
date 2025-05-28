@@ -229,7 +229,6 @@ export const wsClient = {
 class PythonService {
   private initialized = false;
   private eventListeners: Map<string, Set<EventCallback>> = new Map();
-  private connectionListener: (() => void) | null = null;
   private credentials: any = null;
   private nonverbose_types = new Set(['file_sync']);
 
@@ -282,7 +281,8 @@ class PythonService {
       }
       // Try to connect to the started websocket sidecar server
       const connected = await wsClient.connect();
-      console.log('connected:', connected);
+      log.info('WebSocket connection result:', connected);
+      
       if (!connected) {
         log.warn('Could not connect to WebSocket sidecar. Make sure it is running.');
       }
@@ -290,7 +290,7 @@ class PythonService {
       // No need to register hooks here since they're registered automatically after login
 
       this.initialized = true;
-      log.info('Python service initialized');
+      log.info('Python service initialized successfully');
     } catch (error) {
       log.error('Failed to initialize Python service:', error);
       throw error;
@@ -317,6 +317,10 @@ class PythonService {
   }
 
   async callPython<T = any>(method: string, params: any = {}): Promise<T> {
+    if (!this.initialized) {
+      throw new Error('Python service not initialized');
+    }
+
     try {
       return await wsClient.callPython<T>(method, params);
     } catch (error) {
@@ -361,11 +365,6 @@ class PythonService {
 
   // Cleanup method for component unmounting
   cleanup() {
-    if (this.connectionListener) {
-      this.connectionListener();
-      this.connectionListener = null;
-    }
-
     // If in browser mode, disconnect WebSocket
     if (!isTauri()) {
       wsClient.disconnect();
