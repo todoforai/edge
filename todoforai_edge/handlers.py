@@ -93,10 +93,6 @@ async def handle_get_folders(payload, client):
     path = payload.get("path", ".")
     
     try:
-        # Check if path is allowed before proceeding
-        if not is_path_allowed(path, client.edge_config.workspacepaths):
-            raise PermissionError("No permission to access the given path")
-        
         # Normalize path
         target_path = Path(path).expanduser().resolve()
         
@@ -127,10 +123,9 @@ async def handle_get_folders(payload, client):
         await client._send_response(get_folders_response_msg(request_id, edge_id, folders, files))
         
     except Exception as error:
-        stack_trace = traceback.format_exc()
-        logger.error(f"Error getting folders: {str(error)}\nStacktrace:\n{stack_trace}")
+        logger.error(f"Error getting folders: {str(error)}")
         await client._send_response(get_folders_response_msg(
-            request_id, edge_id, [], [], f"{str(error)}\n\nStacktrace:\n{stack_trace}"
+            request_id, edge_id, [], [], f"{str(error)}"
         ))
 
 # Handler functions
