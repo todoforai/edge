@@ -141,9 +141,6 @@ async def handle_todo_dir_list(payload, client):
     todo_id = payload.get("todoId", "")
     
     try:
-        if not is_path_allowed(path, client.edge_config.workspacepaths):
-            raise PermissionError(f"Access to path '{path}' is not allowed")
-            
         items = []
         paths = []
         for item in Path(path).iterdir():
