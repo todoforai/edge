@@ -31,7 +31,8 @@ bump-version:
 	sed -i "s/version = \"$$VERSION\"/version = \"$$NEW_VERSION\"/" pyproject.toml && \
 	sed -i "s/\"version\": \"$$MAJOR.$$MINOR.[0-9]*\"/\"version\": \"$$NEW_VERSION\"/" edge_frontend/package.json && \
 	sed -i "s/version = \"$$MAJOR.$$MINOR.[0-9]*\"/version = \"$$NEW_VERSION\"/" edge_frontend/src-tauri/Cargo.toml && \
-	git add pyproject.toml edge_frontend/package.json edge_frontend/src-tauri/Cargo.toml && \
+	sed -i "s/version: '$$MAJOR.$$MINOR.[0-9]*'/version: '$$NEW_VERSION'/" snap/snapcraft.yaml && \
+	git add pyproject.toml edge_frontend/package.json edge_frontend/src-tauri/Cargo.toml snap/snapcraft.yaml && \
 	git commit -m "Bump version to $$NEW_VERSION" && \
 	git push origin main && \
 	echo "Version updated to $$NEW_VERSION"

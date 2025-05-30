@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "todoforai-edge",
+        "title": "TodoForAI Edge",
         "width": 800,
         "height": 1000
       }
