@@ -90,6 +90,21 @@ jobs:
       run: make build-sidecar
       shell: bash
 
+    # Sign the sidecar executable on Windows
+    - name: Sign sidecar executable
+      if: matrix.os == 'windows-latest'
+      run: |
+        if (Test-Path "dist/todoforai-edge-sidecar.exe") {
+          Write-Host "Signing sidecar executable..."
+          powershell.exe -ExecutionPolicy Bypass -File "scripts/sign_exe.ps1" -ExePath "dist/todoforai-edge-sidecar.exe" -Thumbprint "${{ secrets.WINDOWS_CERT_THUMBPRINT }}"
+        } else {
+          Write-Warning "Sidecar executable not found at dist/todoforai-edge-sidecar.exe"
+        }
+      shell: powershell
+
+    # Prepare sidecar for Tauri with correct target triple
+    - name: Prepare sidecar for Tauri
+      run: |
     # Prepare sidecar for Tauri with correct target triple
     - name: Prepare sidecar for Tauri
       run: |
