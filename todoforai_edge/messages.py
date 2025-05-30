@@ -174,11 +174,13 @@ def workspace_result_msg(request_id, user_id, agent_id, project_files, filtered_
         }
     }
 
-def file_chunk_result_msg(response_type, content=None, error=None, **payload):
+def file_chunk_result_msg(response_type, content=None, error=None, full_path=None, **payload):
     if content is not None:
         payload["content"] = content
     if error is not None:
         payload["error"] = error
+    if full_path is not None:
+        payload["full_path"] = full_path
     
     return {
         "type": response_type,
