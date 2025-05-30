@@ -294,38 +294,49 @@ async def handle_ctx_julia_request(payload, client):
 async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK_RESULT):
     """Handle file chunk request - reads a file and returns its content"""
     path = payload.get("path", "")
+    root_path = payload.get("rootPath", "")
     
     try:
-        logger.info(f"File chunk request received for path: {path}")
+        logger.info(f"File chunk request received for path: {path}, rootPath: {root_path}")
+        
+        # Construct the full file path if rootPath is provided
+        if root_path and not os.path.isabs(path):
+            full_path = os.path.join(root_path, path)
+        else:
+            full_path = path
+        
+        # Normalize the path
+        full_path = os.path.expanduser(full_path)
+        full_path = os.path.abspath(full_path)
         
         # Check if path is allowed before proceeding
-        if not is_path_allowed(path, client.edge_config.workspacepaths):
+        if not is_path_allowed(full_path, client.edge_config.workspacepaths):
             raise PermissionError("No permission to access the given file")
         
         # Ensure the workspace containing this file is being synced
-        await ensure_workspace_synced(client, path)
+        await ensure_workspace_synced(client, full_path)
         
         # Check if file exists
-        file_path = Path(path)
+        file_path = Path(full_path)
         if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {path}")
+            raise FileNotFoundError(f"File not found: {full_path}")
         
         # Try to read file content as text
         try:
-            with open(path, 'r', encoding='utf-8', errors='replace') as f:
+            with open(full_path, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
         except UnicodeDecodeError:
             raise ValueError("Cannot read binary file")
         
         # Send the response using the message formatter
         await client._send_response(
-            file_chunk_result_msg(response_type, **payload, content=content)
+            file_chunk_result_msg(response_type, full_path=full_path, content=content)
         )
         
     except Exception as error:
         stack_trace = traceback.format_exc()
-        logger.error(f"Error processing file chunk request: {str(error)}, path: {path}\nStacktrace:\n{stack_trace}")
+        logger.error(f"Error processing file chunk request: {str(error)}, path: {path}, rootPath: {root_path}\nStacktrace:\n{stack_trace}")
         # Send error response using the message formatter
         await client._send_response(
-            file_chunk_result_msg(response_type, path=path, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}")
+            file_chunk_result_msg(response_type, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}")
         )
