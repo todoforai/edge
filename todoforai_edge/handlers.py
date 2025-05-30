@@ -330,7 +330,7 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
         
         # Send the response using the message formatter
         await client._send_response(
-            file_chunk_result_msg(response_type, full_path=full_path, content=content)
+            file_chunk_result_msg(response_type, **payload, full_path=full_path, content=content)
         )
         
     except Exception as error:
@@ -338,5 +338,5 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
         logger.error(f"Error processing file chunk request: {str(error)}, path: {path}, rootPath: {root_path}\nStacktrace:\n{stack_trace}")
         # Send error response using the message formatter
         await client._send_response(
-            file_chunk_result_msg(response_type, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}")
+            file_chunk_result_msg(response_type, **payload, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}")
         )
