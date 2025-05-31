@@ -34,7 +34,7 @@ NONVERBOSE_FILTERED_EXTENSIONS = {
 }
 
 FILTERED_FOLDERS = {
-    "build", "dist", "benchmarks", "node_modules", "__pycache__",
+    "build", "benchmarks", "node_modules", "__pycache__",
     "conversations", "archived", "archive", "test_cases", ".git", "playground", ".vscode", "aish_executable", ".idea"
 }
 

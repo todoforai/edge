@@ -6,6 +6,44 @@ param(
     [string]$Thumbprint = $env:WINDOWS_CERT_THUMBPRINT
 )
 
+# Function to find signtool.exe
+function Find-SignTool {
+    # Common locations for signtool.exe
+    $possiblePaths = @(
+        "${env:ProgramFiles(x86)}\Windows Kits\10\bin\x64\signtool.exe",
+        "${env:ProgramFiles(x86)}\Windows Kits\10\bin\x86\signtool.exe",
+        "${env:ProgramFiles}\Windows Kits\10\bin\x64\signtool.exe",
+        "${env:ProgramFiles}\Windows Kits\10\bin\x86\signtool.exe"
+    )
+    
+    # Also search in subdirectories of Windows Kits
+    $windowsKitsPath = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+    if (Test-Path $windowsKitsPath) {
+        $subDirs = Get-ChildItem -Path $windowsKitsPath -Directory | Where-Object { $_.Name -match "^\d+\.\d+\.\d+\.\d+$" }
+        foreach ($subDir in $subDirs) {
+            $possiblePaths += "$($subDir.FullName)\x64\signtool.exe"
+            $possiblePaths += "$($subDir.FullName)\x86\signtool.exe"
+        }
+    }
+    
+    # Find the first existing signtool.exe
+    foreach ($path in $possiblePaths) {
+        if (Test-Path $path) {
+            Write-Host "Found signtool.exe at: $path"
+            return $path
+        }
+    }
+    
+    # Try to find it in PATH
+    $signToolInPath = Get-Command signtool.exe -ErrorAction SilentlyContinue
+    if ($signToolInPath) {
+        Write-Host "Found signtool.exe in PATH: $($signToolInPath.Source)"
+        return $signToolInPath.Source
+    }
+    
+    return $null
+}
+
 # Check if file exists
 if (-not (Test-Path $FilePath)) {
     Write-Error "File not found: $FilePath"
@@ -30,9 +68,20 @@ if ($extension -notin $supportedExtensions) {
 Write-Host "Signing $extension file: $FilePath"
 Write-Host "Using certificate thumbprint: $Thumbprint"
 
+# Find signtool.exe
+$signTool = Find-SignTool
+if (-not $signTool) {
+    Write-Error "signtool.exe not found. Please ensure Windows SDK is installed."
+    Write-Host "Searched locations:"
+    Write-Host "  - ${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe"
+    Write-Host "  - ${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x86\signtool.exe"
+    Write-Host "  - PATH environment variable"
+    exit 1
+}
+
 # Sign the file using signtool
 try {
-    $signResult = & signtool.exe sign /sha1 $Thumbprint /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /v $FilePath
+    $signResult = & $signTool sign /sha1 $Thumbprint /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /v $FilePath
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Successfully signed: $FilePath" -ForegroundColor Green
@@ -49,7 +98,7 @@ try {
 # Verify the signature
 Write-Host "Verifying signature..."
 try {
-    $verifyResult = & signtool.exe verify /pa /v $FilePath
+    $verifyResult = & $signTool verify /pa /v $FilePath
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Signature verification successful" -ForegroundColor Green

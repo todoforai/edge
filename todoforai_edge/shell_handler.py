@@ -21,11 +21,23 @@ class ShellProcess:
         global _processes
         self.processes = _processes
         
-    async def execute_block(self, block_id: str, content: str, client, todo_id: str, request_id: str, timeout: float):
+    async def execute_block(self, block_id: str, content: str, client, todo_id: str, request_id: str, timeout: float, root_path: str = ""):
         """Execute a shell command block and stream results back to client."""
         logger.info(f"Executing shell block {block_id} with content: {content[:50]}...")
-        
+  
         try:
+            # Determine working directory
+            cwd = None
+            logger.info(f'root_path: {root_path}')
+            if root_path:
+                # Validate and use the provided root_path
+                root_path = os.path.expanduser(root_path)
+                if os.path.isdir(root_path):
+                    cwd = root_path
+                    logger.info(f"Using working directory: {cwd}")
+                else:
+                    logger.warning(f"Invalid root_path provided: {root_path}, using current directory")
+            
             # Create process with pipes for stdin/stdout/stderr
             process = subprocess.Popen(
                 ['/bin/bash', '-c', content],  # Use bash to execute the shell commands
@@ -35,6 +47,7 @@ class ShellProcess:
                 text=True,
                 bufsize=1,
                 universal_newlines=True,
+                cwd=cwd,  # Add working directory
                 preexec_fn=os.setsid  # Create a new process group for better signal handling
             )
             
