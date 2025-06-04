@@ -37,7 +37,8 @@ from .handlers import (
     handle_task_action_new,
     handle_ctx_julia_request,
     handle_file_chunk_request,
-    handle_get_folders
+    handle_get_folders,
+    handle_function_call_request
 )
 from .workspace_handler import handle_ctx_workspace_request
 from .file_sync import ensure_workspace_synced
@@ -412,6 +413,9 @@ class TODOforAIEdge:
             
             elif msg_type == FE.GET_FOLDERS:
                 asyncio.create_task(handle_get_folders(payload, self))
+            
+            elif msg_type == "FUNCTION_CALL_REQUEST":
+                asyncio.create_task(handle_function_call_request(payload, self))
             
             else:
                 logger.warning(f"Unknown message type: {msg_type}")

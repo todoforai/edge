@@ -5,8 +5,11 @@ import traceback
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 
+import platform
+import subprocess
+
 from .messages import (
-    edge_status_msg, block_message_result_msg, block_error_result_msg, 
+    edge_status_msg, block_message_result_msg, block_error_result_msg,
     block_diff_result_msg, block_start_result_msg, block_done_result_msg,
     block_save_result_msg, task_action_update_msg, dir_list_response_msg,
     cd_response_msg, ctx_julia_result_msg,
@@ -20,6 +23,43 @@ from .file_sync import ensure_workspace_synced
 
 logger = logging.getLogger("todoforai-edge")
 
+def resolve_file_path(path: str, root_path: Optional[str] = None, fallback_root_paths: List[str] = None) -> str:
+    """Resolve file path using root path and fallback paths"""
+    path = os.path.expanduser(path)
+
+    if fallback_root_paths:
+        all_paths = [root_path] + fallback_root_paths if root_path else fallback_root_paths
+        found_path = find_file_in_workspaces(path, all_paths, root_path)
+        if found_path:
+            return found_path
+
+    # Fallback to root_path if available and path is relative
+    if root_path and not os.path.isabs(path):
+        return os.path.join(root_path, path)
+
+    return path
+
+def find_file_in_workspaces(path: str, workspace_paths: List[str], primary_path: Optional[str] = None) -> Optional[str]:
+    """Find a file in workspace paths, with optional primary path priority"""
+    # Check primary path first if provided
+    if primary_path:
+        candidate_path = os.path.join(primary_path, path) if not os.path.isabs(path) else path
+        candidate_path = os.path.expanduser(candidate_path)
+        candidate_path = os.path.abspath(candidate_path)
+        if Path(candidate_path).exists():
+            return candidate_path
+
+    # Search in other workspace paths
+    for workspace_path in workspace_paths:
+        candidate_path = os.path.join(workspace_path, path)
+        candidate_path = os.path.expanduser(candidate_path)
+        candidate_path = os.path.abspath(candidate_path)
+
+        if Path(candidate_path).exists():
+            return candidate_path
+
+    return None
+
 # Handler functions for external use
 async def handle_block_execute(payload, client):
     """Handle code execution request"""
@@ -27,21 +67,22 @@ async def handle_block_execute(payload, client):
     message_id = payload.get("messageId", "")
     content = payload.get("content", "")
     todo_id = payload.get("todoId", "")
-    print("handle_block_execute", payload)
-    
+    root_path = payload.get("rootPath", "")
+    logger.info(f"handle_block_execute: {payload}")
+
     # Send start message
     await client._send_response(block_start_result_msg(todo_id, block_id, "execute", message_id))
-    
+
     try:
         shell = ShellProcess()
-        
-        print(f"DEBUG: Executing shell block with content: {content[:100]}...")
+
+        logger.debug(f"Executing shell block with content: {content[:20]}...")
 
         # Start the execution in a separate task so we don't block
         asyncio.create_task(
-            shell.execute_block(block_id, content, client, todo_id, message_id, 30)
+            shell.execute_block(block_id, content, client, todo_id, message_id, 30, root_path)  # Pass root_path
         )
-        
+
         # Return immediately without waiting for the command to complete
         return
     except Exception as error:
@@ -54,11 +95,11 @@ async def handle_block_keyboard(payload, client):
     print("""Handle keyboard events""")
     block_id = payload.get("blockId")
     input_text = payload.get("content", "")
-    
+
     try:
-        
+
         logger.info(f"Keyboard event received: {input_text} for block {block_id}")
-        
+
         shell = ShellProcess()
         await shell.send_input(block_id, input_text)
     except Exception as error:
@@ -71,13 +112,13 @@ async def handle_block_signal(payload, client):
     """Handle signal events (like SIGINT, SIGTERM)"""
     print("""Handle signal events (like SIGINT, SIGTERM)""")
     block_id = payload.get("blockId")
-    
+
     try:
         # Default to interrupt signal
         signal_type = "interrupt"
-        
+
         logger.info(f"Signal received: {signal_type} for block {block_id}")
-        
+
         # Send interrupt to the shell
         shell = ShellProcess()
         shell.interrupt_block(block_id)
@@ -91,37 +132,37 @@ async def handle_get_folders(payload, client):
     request_id = payload.get("requestId")
     edge_id = payload.get("edgeId")
     path = payload.get("path", ".")
-    
+
     try:
         # Normalize path
         target_path = Path(path).expanduser().resolve()
-        
+
         # Check if path exists
         if not target_path.exists():
             raise FileNotFoundError(f"Path does not exist: {path}")
-        
+
         # If path is a file, use its parent directory
         if target_path.is_file():
             target_path = target_path.parent
-        
+
         # Get all folders at depth 1
         folders = []
         files = []
-        
+
         for item in target_path.iterdir():
             if item.is_dir():
                 folders.append(str(item))
             else:
                 files.append(str(item))
-        
+
         # Sort the lists for consistent output
         folders.sort()
         files.sort()
 
-        
+
         # Send the response
         await client._send_response(get_folders_response_msg(request_id, edge_id, folders, files))
-        
+
     except Exception as error:
         logger.error(f"Error getting folders: {str(error)}")
         await client._send_response(get_folders_response_msg(
@@ -134,7 +175,7 @@ async def handle_todo_dir_list(payload, client):
     request_id = payload.get("requestId")
     path = payload.get("path", ".")
     todo_id = payload.get("todoId", "")
-    
+
     try:
         items = []
         paths = []
@@ -142,7 +183,7 @@ async def handle_todo_dir_list(payload, client):
             item_type = "directory" if item.is_dir() else "file"
             items.append({"name": item.name, "type": item_type})
             paths.append(str(item))
-        
+
         # Use the new protocol structure
         await client._send_response(dir_list_response_msg(todo_id, paths))
     except Exception as error:
@@ -157,22 +198,22 @@ async def handle_todo_cd(payload: Dict[str, Any], client: Any) -> None:
     request_id = payload.get("requestId")
     edge_id = payload.get("edgeId")
     path = payload.get("path", ".")
-    
+
     try:
         # Validate that the path exists and is a directory
         dir_path = Path(path).expanduser().resolve()
         if not dir_path.exists() or not dir_path.is_dir():
             raise ValueError(f"Path does not exist or is not a directory: {path}")
-        
+
         # Update workspace paths if this is a new path
         abs_path = str(dir_path)
         if hasattr(client, 'edge_config'):
             # Use the new add_workspace_path method which handles the callback
             path_added = client.edge_config.add_workspace_path(abs_path)
-            
+
             if path_added:
                 logger.info(f"Added new workspace path: {abs_path}")
-        
+
         await client._send_response(cd_response_msg(edge_id, path, request_id, True))
     except Exception as error:
         stack_trace = traceback.format_exc()
@@ -185,30 +226,27 @@ async def handle_block_save(payload, client):
     todo_id = payload.get("todoId")
     filepath = payload.get("filepath")
     rootpath = payload.get("rootPath")
+    fallback_root_paths = payload.get("fallbackRootPaths", [])
     content = payload.get("content")
-    
+
     try:
-        filepath = os.path.expanduser(filepath)
-        
-        # Only prepend rootpath if the expanded path doesn't already start with it
-        if rootpath and not filepath.startswith(rootpath):
-            filepath = os.path.join(rootpath, filepath)
-        
+        filepath = resolve_file_path(filepath, rootpath, fallback_root_paths)
+
         # Check if path is allowed before proceeding
         if not is_path_allowed(filepath, client.edge_config.workspacepaths):
             raise PermissionError("No permission to save file to the given path")
-        
+
         # Only create directory if filepath has a directory component
         dirname = os.path.dirname(filepath)
         if dirname:  # Check if dirname is not empty
             os.makedirs(dirname, exist_ok=True)
-        
+
         # Write content to file
         with open(filepath, 'w') as f:
             f.write(content)
-            
+
         await client._send_response(block_save_result_msg(block_id, todo_id, "SUCCESS"))
-            
+
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error saving file: {str(error)}\nStacktrace:\n{stack_trace}")
@@ -220,7 +258,7 @@ async def handle_block_refresh(payload, client):
     block_id = payload.get("blockId")
     todo_id = payload.get("todoId", "")
     data = payload.get("data", "")
-    
+
     await client._send_response(block_message_result_msg(todo_id, block_id, "REFRESHING"))
 
 
@@ -230,12 +268,12 @@ async def handle_block_diff(payload, client):
     todo_id = payload.get("todoId", "")
     filepath = payload.get("filepath", "")
     content = payload.get("content", "")
-    
+
     try:
         # Check if path is allowed before proceeding
         if not is_path_allowed(filepath, client.edge_config.workspacepaths):
             raise PermissionError("No permission to access the given file")
-        
+
         # Check if the file exists
         file_path = Path(filepath)
         if not file_path.exists():
@@ -245,7 +283,7 @@ async def handle_block_diff(payload, client):
             # Read the original file content
             with open(filepath, 'r') as f:
                 original_content = f.read()
-            
+
             # Send the diff result using the new protocol structure
             await client._send_response(block_diff_result_msg(todo_id, block_id, original_content, content))
     except Exception as error:
@@ -259,12 +297,12 @@ async def handle_task_action_new(payload, client):
     task_id = payload.get("taskId")
     edge_id = payload.get("edgeId")
     agent_id = payload.get("agentId")
-    
+
     try:
         # This is a placeholder - implementation depends on specific requirements
         # Typically this would involve starting a new task or process
         logger.info(f"New task action received: {task_id} for agent {agent_id}")
-        
+
         await client._send_response(task_action_update_msg(task_id, edge_id, "started"))
     except Exception as error:
         logger.error(f"Error starting task: {str(error)}")
@@ -276,12 +314,12 @@ async def handle_ctx_julia_request(payload, client):
     request_id = payload.get("requestId")
     query = payload.get("query", "")
     todo_id = payload.get("todoId", "")
-    
+
     try:
         # This is a placeholder - implementation depends on specific requirements
         # Typically this would involve executing a Julia query or search
         logger.info(f"Julia context request received: {query}")
-        
+
         # Example implementation - could be replaced with actual Julia integration
         await client._send_response(
             ctx_julia_result_msg(todo_id, request_id, ["example/file.jl"], ["# This is a placeholder Julia result"])
@@ -295,44 +333,40 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
     """Handle file chunk request - reads a file and returns its content"""
     path = payload.get("path", "")
     root_path = payload.get("rootPath", "")
-    
+    fallback_root_paths = payload.get("fallbackRootPaths", [])
+    requestId = payload.get("requestId", "")
+
     try:
-        logger.info(f"File chunk request received for path: {path}, rootPath: {root_path}")
-        
-        # Construct the full file path if rootPath is provided
-        if root_path and not os.path.isabs(path):
-            full_path = os.path.join(root_path, path)
-        else:
-            full_path = path
-        
+        logger.info(f"File chunk request received for path: {path}, rootPath: {root_path}, fallbackRootPaths: {fallback_root_paths}, requestId: {requestId}")
+
+        full_path = resolve_file_path(path, root_path, fallback_root_paths)
+
         # Normalize the path
-        full_path = os.path.expanduser(full_path)
         full_path = os.path.abspath(full_path)
-        
+
         # Check if path is allowed before proceeding
         if not is_path_allowed(full_path, client.edge_config.workspacepaths):
             raise PermissionError("No permission to access the given file")
-        
+
         # Ensure the workspace containing this file is being synced
         await ensure_workspace_synced(client, full_path)
-        
-        # Check if file exists
+
         file_path = Path(full_path)
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {full_path}")
-        
+
         # Try to read file content as text
         try:
             with open(full_path, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
         except UnicodeDecodeError:
             raise ValueError("Cannot read binary file")
-        
+
         # Send the response using the message formatter
         await client._send_response(
             file_chunk_result_msg(response_type, **payload, full_path=full_path, content=content)
         )
-        
+
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error processing file chunk request: {str(error)}, path: {path}, rootPath: {root_path}\nStacktrace:\n{stack_trace}")
@@ -340,3 +374,111 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
         await client._send_response(
             file_chunk_result_msg(response_type, **payload, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}")
         )
+
+async def handle_function_call_request(payload, client):
+    """Handle function call requests from agent"""
+    request_id = payload.get("requestId")
+    function_name = payload.get("functionName")
+    args = payload.get("args", {})
+    agent_id = payload.get("agentId")
+    edge_id = payload.get("edgeId")
+
+    try:
+        logger.info(f"Function call request received: {function_name} with args: {args}")
+
+        if function_name == "get_system_info":
+            result = await get_system_info()
+
+            # Send success response
+            response = {
+                "type": "FUNCTION_CALL_RESULT",
+                "payload": {
+                    "requestId": request_id,
+                    "agentId": agent_id,
+                    "edgeId": edge_id,
+                    "success": True,
+                    "result": result
+                }
+            }
+        else:
+            # Unknown function
+            response = {
+                "type": "FUNCTION_CALL_RESULT",
+                "payload": {
+                    "requestId": request_id,
+                    "agentId": agent_id,
+                    "edgeId": edge_id,
+                    "success": False,
+                    "error": f"Unknown function: {function_name}"
+                }
+            }
+
+        await client._send_response(response)
+
+    except Exception as error:
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error processing function call: {str(error)}\nStacktrace:\n{stack_trace}")
+
+        # Send error response
+        response = {
+            "type": "FUNCTION_CALL_RESULT",
+            "payload": {
+                "requestId": request_id,
+                "agentId": agent_id,
+                "edge_id": edge_id,
+                "success": False,
+                "error": f"{str(error)}\n\nStacktrace:\n{stack_trace}"
+            }
+        }
+        await client._send_response(response)
+
+async def get_system_info():
+    """Get system information including OS and shell"""
+    try:
+        # Get OS information
+        system_info = platform.system()
+        if system_info == "Darwin":
+            system_name = "macOS"
+        elif system_info == "Linux":
+            # Try to get more specific Linux distribution info
+            try:
+                with open('/etc/os-release', 'r') as f:
+                    lines = f.readlines()
+                    for line in lines:
+                        if line.startswith('PRETTY_NAME='):
+                            system_name = line.split('=')[1].strip().strip('"')
+                            break
+                    else:
+                        system_name = "Linux"
+            except:
+                system_name = "Linux"
+        elif system_info == "Windows":
+            system_name = f"Windows {platform.release()}"
+        else:
+            system_name = system_info
+
+        # Get shell information
+        shell_info = "Unknown shell"
+        try:
+            # Try to get shell from environment
+            shell_env = os.environ.get('SHELL', '')
+            if shell_env:
+                shell_info = os.path.basename(shell_env)
+            else:
+                # Fallback: try to detect shell on Windows
+                if system_info == "Windows":
+                    shell_info = "cmd.exe"
+        except:
+            pass
+
+        return {
+            "system": system_name,
+            "shell": shell_info
+        }
+
+    except Exception as error:
+        logger.error(f"Error getting system info: {str(error)}")
+        return {
+            "system": f"Unknown system (error: {str(error)})",
+            "shell": "Unknown shell"
+        }

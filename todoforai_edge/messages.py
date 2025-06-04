@@ -129,7 +129,7 @@ def cd_response_msg(edge_id, path, request_id, success=True, error=None):
         "edgeId": edge_id,
         "path": path,
         "success": success,
-        "request_id": request_id,
+        "requestId": request_id,
     }
     if error:
         payload["error"] = error

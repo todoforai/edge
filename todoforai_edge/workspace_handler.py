@@ -23,12 +23,38 @@ FILE_EXTENSIONS = {
     "fasl", "jl", "r", "R", "rmd", "Rmd", "mat", "asm", "s", "dart", "sql", "md", "mdx", "markdown",
     "rst", "adoc", "tex", "sty", "gradle", "sbt", "xml", "properties", "plist",
     "proto", "proto3", "graphql", "prisma", "yml", "yaml", "svg",
-    "code-workspace", "txt", "json", "desktop"
+    "code-workspace", "txt", "json", "desktop",
+    # Shell and scripting
+    "ps1", "psm1", "psd1", "bat", "cmd", "vbs", "ahk",
+    # Configuration and data
+    "env", "envrc", "editorconfig", "gitattributes", "gitmodules", "hgignore",
+    "dockerignore", "helmignore", "terraformignore", "eslintignore", "prettierignore",
+    "browserslistrc", "nvmrc", "nodemon", "babelrc", "postcssrc", "stylelintrc",
+    # Build and deployment
+    "dockerfile", "containerfile", "procfile", "buildfile", "rakefile", "justfile",
+    "cmake", "cmakelist", "meson", "ninja", "bazel", "buck", "pants",
+    # Documentation and markup
+    "org", "wiki", "textile", "creole", "pod", "rdoc", "asciidoc",
+    # Data formats
+    "jsonl", "ndjson", "hjson", "json5", "ron", "kdl", "hocon",
+    # Language-specific configs
+    "cabal", "stack", "mix", "rebar", "dune", "opam", "nimble", "shards",
+    "pubspec", "podspec", "cartfile", "brewfile", "flake", "default",
+    # Web and frontend
+    "postcss", "tailwind", "windicss", "unocss", "astro", "nuxt", "next",
+    "remix", "gatsby", "vite", "rollup", "webpack", "parcel", "snowpack",
+    # Testing and quality
+    "spec", "test", "feature", "cucumber", "gherkin", "robot",
+    # Infrastructure as code
+    "tf", "tfvars", "hcl", "nomad", "consul", "vault", "packer",
+    "ansible", "playbook", "inventory", "helm", "kustomization",
+    # Database and query
+    "cql", "cypher", "sparql", "gql", "hql", "pig", "hive", "csv", "tsv"
 }
 
 NONVERBOSE_FILTERED_EXTENSIONS = {
     "jld2", "png", "jpg", "jpeg", "ico", "gif", "pdf", "zip", "tar", "tgz", "lock", "gz", "bz2", "xz",
-    "doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv", "tsv", "db", "sqlite", "sqlite3",
+    "doc", "docx", "ppt", "pptx", "xls", "xlsx", "db", "sqlite", "sqlite3",
     "mp3", "mp4", "wav", "avi", "mov", "mkv", "webm", "ttf", "otf", "woff", "woff2", "eot",
     "lock", "arrow", "exe"
 }

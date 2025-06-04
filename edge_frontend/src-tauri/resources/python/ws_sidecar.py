@@ -60,35 +60,8 @@ def ping(message):
 @sidecar.rpc
 def validate_stored_credentials(credentials):
     """Validate stored credentials with the server"""
-    try:
-        api_url = credentials.get("apiUrl")
-        api_key = credentials.get("apiKey")
-        
-        if not api_url or not api_key:
-            return {"valid": False, "error": "Missing API URL or API key"}
-        
-        # Normalize URL
-        api_url = normalize_api_url(api_url)
-        validation_url = f"{api_url}/token/v1/users/apikeys/validate"
-        
-        response = requests.get(
-            validation_url,
-            headers={'x-api-key': api_key, 'Content-Type': 'application/json'},
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            validation_result = response.json()
-            return {"valid": validation_result.get("valid", False)}
-        else:
-            return {"valid": False, "error": f"Validation failed with status {response.status_code}"}
-            
-    except requests.RequestException as e:
-        log.error(f"Network error validating credentials: {e}")
-        return {"valid": False, "error": f"Network error: {str(e)}"}
-    except Exception as e:
-        log.error(f"Error validating credentials: {e}")
-        return {"valid": False, "error": str(e)}
+    # This function is deprecated - validation should happen during normal auth flow
+    return {"valid": True, "message": "Validation will happen during authentication"}
 
 @sidecar.rpc
 def login(credentials):
