@@ -72,33 +72,11 @@ export const restoreUserFromStorage = async (apiUrl: string | null): Promise<Use
         const sessionAge = Date.now() - (userData.lastLoginTime || 0);
 
         if (sessionAge < SESSION_MAX_AGE) {
-          // Validate the stored API key with the Python backend
-          try {
-            // Initialize Python service if needed
-            await pythonService.initialize();
-
-            const validationResult = await pythonService.callPython('validate_stored_credentials', {
-              apiUrl: apiUrl,
-              apiKey: userData.apiKey,
-            });
-
-            if (validationResult.valid) {
-              log.info(`User session restored from storage for API URL: ${apiUrl}`);
-              return {
-                ...userData,
-                isAuthenticated: true,
-              };
-            } else {
-              log.info(
-                `Stored API key is invalid for API URL: ${apiUrl}, removing from storage. Error: ${validationResult.error || 'Unknown'}`
-              );
-            }
-          } catch (error) {
-            log.error(`Failed to validate stored API key for API URL: ${apiUrl}:`, error);
-          }
-
-          // Remove invalid session
-          localStorage.removeItem(storageKey);
+          log.info(`User session restored from storage for API URL: ${apiUrl}`);
+          return {
+            ...userData,
+            isAuthenticated: true,
+          };
         } else {
           // Session expired
           localStorage.removeItem(storageKey);

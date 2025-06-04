@@ -98,16 +98,19 @@ jobs:
         choco install windows-sdk-10-version-2004-all -y
       shell: powershell
 
-    # Sign the sidecar executable on Windows
+    # Sign the sidecar executable on Windows using remote signing service
     - name: Sign sidecar executable
       if: matrix.os == 'windows-latest'
       run: |
         if (Test-Path "dist/todoforai-edge-sidecar.exe") {
-          Write-Host "Signing sidecar executable..."
-          powershell.exe -ExecutionPolicy Bypass -File "scripts/sign_file.ps1" -FilePath "dist/todoforai-edge-sidecar.exe" -Thumbprint "${{ secrets.WINDOWS_CERT_THUMBPRINT }}"
+          Write-Host "Signing sidecar executable using remote service..."
+          powershell.exe -ExecutionPolicy Bypass -File "scripts/remote_sign.ps1" -FilePath "dist/todoforai-edge-sidecar.exe"
         } else {
           Write-Warning "Sidecar executable not found at dist/todoforai-edge-sidecar.exe"
         }
+      env:
+        SIGNING_SERVICE_URL: ${{ secrets.SIGNING_SERVICE_URL }}
+        SIGNING_API_KEY: ${{ secrets.SIGNING_API_KEY }}
       shell: powershell
 
     # Prepare sidecar for Tauri with correct target triple
@@ -206,17 +209,20 @@ jobs:
         APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
       shell: bash
 
-    # Sign MSI installer on Windows
+    # Sign MSI installer using remote signing service
     - name: Sign MSI installer
       if: matrix.os == 'windows-latest'
       run: |
         $msiPath = Get-ChildItem -Path "edge_frontend/src-tauri/target/release/bundle/msi" -Filter "*.msi" | Select-Object -First 1 -ExpandProperty FullName
         if ($msiPath) {
-          Write-Host "Signing MSI installer: $msiPath"
-          powershell.exe -ExecutionPolicy Bypass -File "scripts/sign_file.ps1" -FilePath "$msiPath" -Thumbprint "${{ secrets.WINDOWS_CERT_THUMBPRINT }}"
+          Write-Host "Signing MSI installer using remote service: $msiPath"
+          powershell.exe -ExecutionPolicy Bypass -File "scripts/remote_sign.ps1" -FilePath "$msiPath"
         } else {
           Write-Warning "MSI installer not found in edge_frontend/src-tauri/target/release/bundle/msi"
         }
+      env:
+        SIGNING_SERVICE_URL: ${{ secrets.SIGNING_SERVICE_URL }}
+        SIGNING_API_KEY: ${{ secrets.SIGNING_API_KEY }}
       shell: powershell
 
     # Notarize and staple the macOS application using manual commands
