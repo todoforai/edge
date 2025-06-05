@@ -139,13 +139,30 @@ export const UserMenu = () => {
 const EdgeInfoDisplay: React.FC = () => {
   const { user, apiUrl } = useAuthStore();
   const { config } = useEdgeConfigStore();
+  const [showEdgeId, setShowEdgeId] = React.useState(false);
 
   // Use either the API URL from the user object or from the store
   const displayUrl = user?.apiUrl || apiUrl || 'Unknown';
 
-  // Get edge name from config
+  // Get edge info from config
+  const edgeId = config.id || 'Unknown';
   const edgeName = config.name || 'Unknown Edge';
   const edgeStatus = config.status || 'OFFLINE';
+
+  const handleEdgeNameDoubleClick = () => {
+    setShowEdgeId(!showEdgeId);
+  };
+
+  const handleEdgeIdDoubleClick = async () => {
+    if (edgeId && edgeId !== 'Unknown') {
+      try {
+        await navigator.clipboard.writeText(edgeId);
+        // You could add a toast notification here if needed
+      } catch (err) {
+        console.error('Failed to copy edge ID to clipboard:', err);
+      }
+    }
+  };
 
   return (
     <InfoContainer>
@@ -158,9 +175,22 @@ const EdgeInfoDisplay: React.FC = () => {
         <Label>Edge:</Label>
         <Value>
           <StatusIndicator status={edgeStatus} />
-          {edgeName}
+          <CopyableValue onDoubleClick={handleEdgeNameDoubleClick} title="Double-click to show/hide Edge ID">
+            {edgeName}
+          </CopyableValue>
         </Value>
       </InfoItem>
+      {showEdgeId && (
+        <>
+          <Separator />
+          <InfoItem>
+            <Label>ID:</Label>
+            <CopyableValue onDoubleClick={handleEdgeIdDoubleClick} title="Double-click to copy">
+              {edgeId}
+            </CopyableValue>
+          </InfoItem>
+        </>
+      )}
     </InfoContainer>
   );
 };
@@ -218,6 +248,24 @@ const Value = styled.span`
   display: flex;
   align-items: center;
   gap: 4px;
+`;
+
+const CopyableValue = styled.span`
+  font-size: 12px;
+  color: ${(props) => props.theme.colors.foreground};
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: all;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin: -2px -4px;
+  }
 `;
 
 const StatusDot = styled.div`

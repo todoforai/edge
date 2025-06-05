@@ -235,14 +235,14 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line) => {
-                    info!(
-                        "WebSocket sidecar stdout: {}",
+                    println!(
+                        "Py stdout: {}",
                         String::from_utf8_lossy(&line).trim_end()
                     );
                 }
                 CommandEvent::Stderr(line) => {
-                    info!(
-                        "WebSocket sidecar stderr: {}",
+                    println!(
+                        "Py stderr: {}",
                         String::from_utf8_lossy(&line).trim_end()
                     );
                 }

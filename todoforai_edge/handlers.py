@@ -375,63 +375,40 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
             file_chunk_result_msg(response_type, **payload, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}")
         )
 
-async def handle_function_call_request(payload, client):
-    """Handle function call requests from agent"""
-    request_id = payload.get("requestId")
-    function_name = payload.get("functionName")
-    args = payload.get("args", {})
-    agent_id = payload.get("agentId")
-    edge_id = payload.get("edgeId")
+# Function registry for dynamic function calls
+FUNCTION_REGISTRY = {}
 
-    try:
-        logger.info(f"Function call request received: {function_name} with args: {args}")
+def register_function(name: str):
+    """Decorator to register functions for dynamic calling"""
+    def decorator(func):
+        FUNCTION_REGISTRY[name] = func
+        return func
+    return decorator
 
-        if function_name == "get_system_info":
-            result = await get_system_info()
+@register_function("list_available_functions")
+async def list_available_functions():
+    """List all available functions in the registry"""
+    return {
+        "functions": list(FUNCTION_REGISTRY.keys()),
+        "count": len(FUNCTION_REGISTRY)
+    }
 
-            # Send success response
-            response = {
-                "type": "FUNCTION_CALL_RESULT",
-                "payload": {
-                    "requestId": request_id,
-                    "agentId": agent_id,
-                    "edgeId": edge_id,
-                    "success": True,
-                    "result": result
-                }
-            }
-        else:
-            # Unknown function
-            response = {
-                "type": "FUNCTION_CALL_RESULT",
-                "payload": {
-                    "requestId": request_id,
-                    "agentId": agent_id,
-                    "edgeId": edge_id,
-                    "success": False,
-                    "error": f"Unknown function: {function_name}"
-                }
-            }
+@register_function("get_current_directory")
+async def get_current_directory():
+    """Get the current working directory"""
+    return {
+        "current_directory": os.getcwd()
+    }
 
-        await client._send_response(response)
+@register_function("get_environment_variable")
+async def get_environment_variable(var_name: str):
+    """Get an environment variable value"""
+    return {
+        "variable": var_name,
+        "value": os.environ.get(var_name, None)
+    }
 
-    except Exception as error:
-        stack_trace = traceback.format_exc()
-        logger.error(f"Error processing function call: {str(error)}\nStacktrace:\n{stack_trace}")
-
-        # Send error response
-        response = {
-            "type": "FUNCTION_CALL_RESULT",
-            "payload": {
-                "requestId": request_id,
-                "agentId": agent_id,
-                "edge_id": edge_id,
-                "success": False,
-                "error": f"{str(error)}\n\nStacktrace:\n{stack_trace}"
-            }
-        }
-        await client._send_response(response)
-
+@register_function("get_system_info")
 async def get_system_info():
     """Get system information including OS and shell"""
     try:
@@ -482,3 +459,70 @@ async def get_system_info():
             "system": f"Unknown system (error: {str(error)})",
             "shell": "Unknown shell"
         }
+
+async def handle_function_call_request(payload, client):
+    """Handle function call requests from agent using dynamic function registry"""
+    request_id = payload.get("requestId")
+    function_name = payload.get("functionName")
+    args = payload.get("args", {})
+    agent_id = payload.get("agentId")
+    edge_id = payload.get("edgeId")
+
+    try:
+        logger.info(f"Function call request received: {function_name} with args: {args}")
+
+        # Check if function exists in registry
+        if function_name in FUNCTION_REGISTRY:
+            func = FUNCTION_REGISTRY[function_name]
+            
+            # Call function with args if it accepts them, otherwise call without args
+            import inspect
+            sig = inspect.signature(func)
+            if len(sig.parameters) > 0:
+                result = await func(**args) if asyncio.iscoroutinefunction(func) else func(**args)
+            else:
+                result = await func() if asyncio.iscoroutinefunction(func) else func()
+
+            # Send success response
+            response = {
+                "type": EA.FUNCTION_CALL_RESULT,
+                "payload": {
+                    "requestId": request_id,
+                    "agentId": agent_id,
+                    "edgeId": edge_id,
+                    "success": True,
+                    "result": result
+                }
+            }
+        else:
+            # Unknown function
+            available_functions = list(FUNCTION_REGISTRY.keys())
+            response = {
+                "type": EA.FUNCTION_CALL_RESULT,
+                "payload": {
+                    "requestId": request_id,
+                    "agentId": agent_id,
+                    "edgeId": edge_id,
+                    "success": False,
+                    "error": f"Unknown function: {function_name}. Available functions: {available_functions}"
+                }
+            }
+
+        await client._send_response(response)
+
+    except Exception as error:
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error processing function call: {str(error)}\nStacktrace:\n{stack_trace}")
+
+        # Send error response
+        response = {
+            "type": EA.FUNCTION_CALL_RESULT,
+            "payload": {
+                "requestId": request_id,
+                "agentId": agent_id,
+                "edgeId": edge_id,
+                "success": False,
+                "error": f"{str(error)}\n\nStacktrace:\n{stack_trace}"
+            }
+        }
+        await client._send_response(response)

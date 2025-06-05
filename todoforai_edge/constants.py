@@ -39,6 +39,7 @@ class Agent2Edge:
     CTX_JULIA_REQUEST = 'ctx:julia_request'
     CTX_WORKSPACE_REQUEST = 'ctx:workspace_request'
     FILE_CHUNK_REQUEST = 'file:chunk_request'
+    FUNCTION_CALL_REQUEST = 'FUNCTION_CALL_REQUEST'
 
 
 # Edge to Agent Messages
@@ -46,6 +47,7 @@ class Edge2Agent:
     CTX_JULIA_RESULT = 'ctx:julia_result'
     CTX_WORKSPACE_RESULT = 'ctx:workspace_result'
     FILE_CHUNK_RESULT = 'file:chunk_result'
+    FUNCTION_CALL_RESULT = 'FUNCTION_CALL_RESULT'
 
 
 # Edge to Frontend Messages

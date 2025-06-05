@@ -414,7 +414,7 @@ class TODOforAIEdge:
             elif msg_type == FE.GET_FOLDERS:
                 asyncio.create_task(handle_get_folders(payload, self))
             
-            elif msg_type == "FUNCTION_CALL_REQUEST":
+            elif msg_type == AE.FUNCTION_CALL_REQUEST:
                 asyncio.create_task(handle_function_call_request(payload, self))
             
             else:
