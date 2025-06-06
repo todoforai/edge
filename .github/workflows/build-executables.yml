@@ -104,7 +104,13 @@ jobs:
       run: |
         if (Test-Path "dist/todoforai-edge-sidecar.exe") {
           Write-Host "Signing sidecar executable using remote service..."
-          powershell.exe -ExecutionPolicy Bypass -File "scripts/remote_sign.ps1" -FilePath "dist/todoforai-edge-sidecar.exe"
+          curl -X POST -H "Authorization: Bearer ${{ secrets.SIGNING_API_KEY }}" -F "file=@dist/todoforai-edge-sidecar.exe" "${{ secrets.SIGNING_SERVICE_URL }}/sign" -o "dist/todoforai-edge-sidecar.signed.exe"
+          if ($LASTEXITCODE -eq 0) {
+            Move-Item "dist/todoforai-edge-sidecar.signed.exe" "dist/todoforai-edge-sidecar.exe" -Force
+            Write-Host "Successfully signed sidecar executable"
+          } else {
+            Write-Error "Failed to sign sidecar executable"
+          }
         } else {
           Write-Warning "Sidecar executable not found at dist/todoforai-edge-sidecar.exe"
         }
@@ -215,8 +221,16 @@ jobs:
       run: |
         $msiPath = Get-ChildItem -Path "edge_frontend/src-tauri/target/release/bundle/msi" -Filter "*.msi" | Select-Object -First 1 -ExpandProperty FullName
         if ($msiPath) {
+          $msiName = [System.IO.Path]::GetFileName($msiPath)
+          $signedMsiPath = [System.IO.Path]::ChangeExtension($msiPath, ".signed.msi")
           Write-Host "Signing MSI installer using remote service: $msiPath"
-          powershell.exe -ExecutionPolicy Bypass -File "scripts/remote_sign.ps1" -FilePath "$msiPath"
+          curl -X POST -H "Authorization: Bearer ${{ secrets.SIGNING_API_KEY }}" -F "file=@$msiPath" "${{ secrets.SIGNING_SERVICE_URL }}/sign" -o "$signedMsiPath"
+          if ($LASTEXITCODE -eq 0) {
+            Move-Item "$signedMsiPath" "$msiPath" -Force
+            Write-Host "Successfully signed MSI installer"
+          } else {
+            Write-Error "Failed to sign MSI installer"
+          }
         } else {
           Write-Warning "MSI installer not found in edge_frontend/src-tauri/target/release/bundle/msi"
         }

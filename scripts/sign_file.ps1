@@ -3,8 +3,16 @@ param(
     [string]$FilePath,
     
     [Parameter(Mandatory=$false)]
-    [string]$Thumbprint = $env:WINDOWS_CERT_THUMBPRINT
+    [string]$Thumbprint = $WINDOWS_CERTIFICATE_THUMBPRINT
 )
+
+# Windows Code Signing Certificate Thumbprint
+$WINDOWS_CERTIFICATE_THUMBPRINT = "85D687F0208F3EAF31CEEE893C303102C4F918FC"
+
+# Use the constant if no parameter provided
+if ([string]::IsNullOrEmpty($Thumbprint)) {
+    $Thumbprint = $WINDOWS_CERTIFICATE_THUMBPRINT
+}
 
 # Function to find signtool.exe
 function Find-SignTool {
@@ -50,12 +58,6 @@ if (-not (Test-Path $FilePath)) {
     exit 1
 }
 
-# Check if thumbprint is provided
-if ([string]::IsNullOrEmpty($Thumbprint)) {
-    Write-Error "Certificate thumbprint not provided. Set WINDOWS_CERT_THUMBPRINT environment variable or pass -Thumbprint parameter."
-    exit 1
-}
-
 # Get file extension to determine type
 $extension = [System.IO.Path]::GetExtension($FilePath).ToLower()
 $supportedExtensions = @('.exe', '.msi', '.dll')
@@ -66,7 +68,7 @@ if ($extension -notin $supportedExtensions) {
 }
 
 Write-Host "Signing $extension file: $FilePath"
-Write-Host "Using certificate thumbprint: $Thumbprint"
+Write-Host "Using Windows code signing certificate thumbprint: $Thumbprint"
 
 # Find signtool.exe
 $signTool = Find-SignTool

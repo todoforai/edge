@@ -11,8 +11,9 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 # Security: Use API key authentication
-API_KEY = os.environ.get('SIGNING_API_KEY', 'your-secret-api-key')
+API_KEY = 'win_signer_todoforai_2025_api_key'
 ALLOWED_EXTENSIONS = {'.exe', '.msi', '.dll'}
+# curl -X POST -H "Authorization: Bearer your-secret-api-key" -F "file=@todoforai-edge-windows-x64 (9).msi" http://signer.sixzero.xyz/sign -o "todoforai-edge-windows-x64 (9).signed.msi"
 
 def verify_api_key():
     auth_header = request.headers.get('Authorization')
@@ -51,10 +52,20 @@ def sign_file():
         app.logger.info(f"Signing file: {file.filename} (hash: {original_hash[:16]}...)")
         
         # Sign the file using PowerShell script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        sign_script = os.path.join(script_dir, 'sign_file.ps1')
+        
+        if not os.path.exists(sign_script):
+            app.logger.error(f"Sign script not found: {sign_script}")
+            os.unlink(temp_path)
+            return jsonify({'error': f'Sign script not found: {sign_script}'}), 500
+        
+        app.logger.info(f"Using sign script: {sign_script}")
+        
         result = subprocess.run([
             'powershell.exe', '-ExecutionPolicy', 'Bypass', '-File', 
-            'scripts/sign_file.ps1', '-FilePath', temp_path
-        ], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__)))
+            sign_script, '-FilePath', temp_path
+        ], capture_output=True, text=True)
         
         if result.returncode != 0:
             app.logger.error(f"Signing failed: {result.stderr}")
@@ -83,4 +94,9 @@ def health_check():
     return jsonify({'status': 'healthy', 'service': 'code-signing'})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    print(f"🔐 Code Signing Server Starting")
+    print(f"📋 Required API Key: {API_KEY}")
+    print(f"🌐 Server will run on: http://0.0.0.0:9999")
+    print(f"💡 Usage: curl -X POST -H \"Authorization: Bearer {API_KEY}\" -F \"file=@yourfile.exe\" http://localhost:9999/sign -o signed_file.exe")
+    print("-" * 80)
+    app.run(host='0.0.0.0', port=9999, debug=False)
