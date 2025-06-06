@@ -1,6 +1,6 @@
 # Makefile for todoforai-edge
 
-.PHONY: install build-sidecar copy-sidecar tauri-dev tauri-build clean help run run-test deploy-prod bump-version update-icons
+.PHONY: install build-sidecar copy-sidecar tauri-dev tauri-build clean help run run-test deploy-prod bump-version update-icons start-signer start-tunnel start-services stop-signer stop-tunnel stop-services
 
 help:
 	@echo "Available commands:"
@@ -52,6 +52,45 @@ deploy-latest: bump-version
 	@git push origin prod
 	@git checkout -
 	@echo "Deployment complete!"
+
+
+# Start signing server only if not running
+start-signer:
+	@if netstat -an | findstr ":9999" > nul 2>&1; then \
+		echo "✅ Signing server already running on port 9999"; \
+	else \
+		echo "🔐 Starting Code Signing Server..."; \
+		cd scripts && start /B python signing_server.py; \
+		echo "✅ Signing server started in background"; \
+	fi
+
+# Start cloudflared tunnel only if not running
+start-tunnel:
+	@if tasklist | findstr "cloudflared.exe" > nul 2>&1; then \
+		echo "✅ Cloudflared tunnel already running"; \
+	else \
+		echo "🌐 Starting Cloudflared Tunnel..."; \
+		start /B C:\Cloudflared\bin\cloudflared.exe tunnel --config C:\Users\%USERNAME%\.cloudflared\config.yml run SixComp; \
+		echo "✅ Cloudflared tunnel started in background"; \
+	fi
+
+# Start both services (smart - only if not already running)
+start-services: start-signer start-tunnel
+	@echo "🚀 All services checked/started!"
+
+# Stop signing server
+stop-signer:
+	@for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":9999"') do taskkill /PID %%a /F > nul 2>&1 || echo "No process found on port 9999"
+	@echo "🛑 Signing server stopped"
+
+# Stop cloudflared tunnel
+stop-tunnel:
+	@taskkill /IM cloudflared.exe /F > nul 2>&1 || echo "Cloudflared not running"
+	@echo "🛑 Cloudflared tunnel stopped"
+
+# Stop all services
+stop-services: stop-signer stop-tunnel
+	@echo "🛑 All services stopped!"
 
 # Update icons with 'Edge' text
 update-icons:
