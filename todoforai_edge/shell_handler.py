@@ -7,6 +7,8 @@ import select
 import logging
 from typing import Dict
 import traceback
+import threading
+import queue
 
 from .messages import block_message_result_msg, block_done_result_msg
 
@@ -102,31 +104,80 @@ class ShellProcess:
             await client._send_response(block_message_result_msg(
                 todo_id, block_id, f"Execution timed out after {timeout} seconds", request_id
             ))
-            
+
+    def _read_stream_thread(self, stream, output_queue, block_id):
+        """Thread function to read from a stream and put data into a queue."""
+        try:
+            while block_id in self.processes:
+                # Read a line from the stream
+                line = stream.readline()
+                if not line:  # EOF
+                    break
+                output_queue.put(line)
+        except Exception as e:
+            logger.error(f"Error in stream reader thread: {str(e)}")
+        finally:
+            # Signal that this thread is done
+            output_queue.put(None)
+
     async def _stream_output(self, stream, client, todo_id: str, request_id: str, block_id: str, stream_type: str):
         """Stream output from process to client."""
         logger.debug(f"Starting to stream {stream_type} for block {block_id}")
         
-        # Use non-blocking reads to get data as it becomes available
-        while block_id in self.processes:
-            try:
-                # Check if data is available without blocking (shorter timeout for more responsiveness)
-                if select.select([stream], [], [], 0.3)[0]:
-                    # Read available data (smaller chunks for more responsiveness)
-                    data = os.read(stream.fileno(), 1024).decode('utf-8', errors='replace')
+        if os.name == 'nt':  # Windows - use threading approach
+            # Create a queue for thread-safe communication
+            output_queue = queue.Queue()
+            
+            # Start a thread to read from the stream
+            reader_thread = threading.Thread(
+                target=self._read_stream_thread,
+                args=(stream, output_queue, block_id),
+                daemon=True
+            )
+            reader_thread.start()
+            
+            # Read from the queue in the async context
+            while block_id in self.processes:
+                try:
+                    # Try to get data from the queue with a timeout
+                    try:
+                        data = output_queue.get(timeout=0.1)
+                    except queue.Empty:
+                        # No data available, check if process is still running
+                        await asyncio.sleep(0.01)
+                        continue
                     
-                    if not data:  # EOF
+                    if data is None:  # Thread signaled completion
                         break
                     
                     # Send the data immediately
                     await client._send_response(block_message_result_msg(todo_id, block_id, data, request_id))
-                else:
-                    # Small sleep to prevent CPU spinning
-                    await asyncio.sleep(0.01)
-            except Exception as e:
-                stack_trace = traceback.format_exc()
-                logger.error(f"Error reading from {stream_type}: {str(e)}\nStacktrace:\n{stack_trace}")
-                break
+                    
+                except Exception as e:
+                    stack_trace = traceback.format_exc()
+                    logger.error(f"Error processing output from {stream_type}: {str(e)}\nStacktrace:\n{stack_trace}")
+                    break
+                    
+        else:  # Unix-like systems - use select
+            while block_id in self.processes:
+                try:
+                    # Check if data is available without blocking
+                    if select.select([stream], [], [], 0.3)[0]:
+                        # Read available data
+                        data = os.read(stream.fileno(), 1024).decode('utf-8', errors='replace')
+                        
+                        if not data:  # EOF
+                            break
+                        
+                        # Send the data immediately
+                        await client._send_response(block_message_result_msg(todo_id, block_id, data, request_id))
+                    else:
+                        # Small sleep to prevent CPU spinning
+                        await asyncio.sleep(0.01)
+                except Exception as e:
+                    stack_trace = traceback.format_exc()
+                    logger.error(f"Error reading from {stream_type}: {str(e)}\nStacktrace:\n{stack_trace}")
+                    break
         
         logger.debug(f"Stream {stream_type} for block {block_id} finished")
 
