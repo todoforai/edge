@@ -38,9 +38,17 @@ class ShellProcess:
                 else:
                     logger.warning(f"Invalid root_path provided: {root_path}, using current directory")
             
+            # Determine shell and preexec_fn based on platform
+            if os.name == 'nt':  # Windows
+                shell_cmd = ['cmd', '/c', content]
+                preexec_fn = None
+            else:  # Unix-like systems
+                shell_cmd = ['/bin/bash', '-c', content]
+                preexec_fn = os.setsid
+            
             # Create process with pipes for stdin/stdout/stderr
             process = subprocess.Popen(
-                ['/bin/bash', '-c', content],  # Use bash to execute the shell commands
+                shell_cmd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -48,7 +56,7 @@ class ShellProcess:
                 bufsize=1,
                 universal_newlines=True,
                 cwd=cwd,  # Add working directory
-                preexec_fn=os.setsid  # Create a new process group for better signal handling
+                preexec_fn=preexec_fn  # Only use setsid on Unix systems
             )
             
             logger.debug(f"Process created with PID {process.pid}")
@@ -156,24 +164,35 @@ class ShellProcess:
             process = self.processes[block_id]
             logger.info(f"Interrupting process for block {block_id}")
             try:
-                # Send interrupt signal to the entire process group
-                # This ensures all child processes receive the signal
-                pgid = os.getpgid(process.pid)
-                os.killpg(pgid, signal.SIGINT)
-                
-                # Give it a moment to handle the signal
-                process.wait(timeout=1)
+                if os.name == 'nt':  # Windows
+                    # On Windows, use terminate() as SIGINT is not reliable
+                    process.terminate()
+                    process.wait(timeout=1)
+                else:  # Unix-like systems
+                    # Send interrupt signal to the entire process group
+                    # This ensures all child processes receive the signal
+                    pgid = os.getpgid(process.pid)
+                    os.killpg(pgid, signal.SIGINT)
+                    
+                    # Give it a moment to handle the signal
+                    process.wait(timeout=1)
             except subprocess.TimeoutExpired:
                 logger.warning(f"Process did not respond to interrupt, terminating")
-                # Force terminate the entire process group
+                # Force terminate the process
                 try:
-                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                    process.wait(timeout=1)
+                    if os.name == 'nt':  # Windows
+                        process.kill()
+                    else:  # Unix-like systems
+                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                        process.wait(timeout=1)
                 except (subprocess.TimeoutExpired, ProcessLookupError):
                     logger.warning(f"Process did not respond to terminate, killing")
                     # Kill as last resort
                     try:
-                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                        if os.name == 'nt':  # Windows
+                            process.kill()
+                        else:  # Unix-like systems
+                            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                     except ProcessLookupError:
                         pass
             except ProcessLookupError:
