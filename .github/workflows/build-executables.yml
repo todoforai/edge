@@ -104,7 +104,8 @@ jobs:
       run: |
         if (Test-Path "dist/todoforai-edge-sidecar.exe") {
           Write-Host "Signing sidecar executable using remote service..."
-          curl -X POST -H "Authorization: Bearer ${{ secrets.SIGNING_API_KEY }}" -F "file=@dist/todoforai-edge-sidecar.exe" "${{ secrets.SIGNING_SERVICE_URL }}/sign" -o "dist/todoforai-edge-sidecar.signed.exe"
+          # Use curl.exe explicitly to avoid PowerShell alias
+          & curl.exe -X POST -H "Authorization: Bearer $env:SIGNING_API_KEY" -F "file=@dist/todoforai-edge-sidecar.exe" "$env:SIGNING_SERVICE_URL/sign" -o "dist/todoforai-edge-sidecar.signed.exe"
           if ($LASTEXITCODE -eq 0) {
             Move-Item "dist/todoforai-edge-sidecar.signed.exe" "dist/todoforai-edge-sidecar.exe" -Force
             Write-Host "Successfully signed sidecar executable"
@@ -224,7 +225,8 @@ jobs:
           $msiName = [System.IO.Path]::GetFileName($msiPath)
           $signedMsiPath = [System.IO.Path]::ChangeExtension($msiPath, ".signed.msi")
           Write-Host "Signing MSI installer using remote service: $msiPath"
-          curl -X POST -H "Authorization: Bearer ${{ secrets.SIGNING_API_KEY }}" -F "file=@$msiPath" "${{ secrets.SIGNING_SERVICE_URL }}/sign" -o "$signedMsiPath"
+          # Use curl.exe explicitly to avoid PowerShell alias
+          & curl.exe -X POST -H "Authorization: Bearer $env:SIGNING_API_KEY" -F "file=@$msiPath" "$env:SIGNING_SERVICE_URL/sign" -o "$signedMsiPath"
           if ($LASTEXITCODE -eq 0) {
             Move-Item "$signedMsiPath" "$msiPath" -Force
             Write-Host "Successfully signed MSI installer"
