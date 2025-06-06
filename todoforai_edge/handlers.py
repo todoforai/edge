@@ -242,7 +242,7 @@ async def handle_block_save(payload, client):
             os.makedirs(dirname, exist_ok=True)
 
         # Write content to file
-        with open(filepath, 'w') as f:
+        with open(filepath, 'w', encoding='utf-8') as f:
             f.write(content)
 
         await client._send_response(block_save_result_msg(block_id, todo_id, "SUCCESS"))
