@@ -395,12 +395,13 @@ jobs:
               # For Windows, find and copy the MSI installer
               find "$DIR" -name "*.msi" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" \;
               
-              # Upload the MSI
+              # Upload the MSI using stdin pipe to avoid Wrangler bug
               if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" ]; then
-                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.msi" \
-                  --file "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" \
-                  --content-type application/octet-stream \
-                  --remote
+                cat "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" | \
+                  wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.msi" \
+                    --pipe \
+                    --content-type application/octet-stream \
+                    --remote
               fi
             elif [[ "$TARGET_TRIPLE" == *linux* ]]; then
               PLATFORM="linux"
@@ -413,20 +414,22 @@ jobs:
               find "$DIR" -name "*.AppImage" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" \;
               find "$DIR" -name "*.deb" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" \;
               
-              # Upload the AppImage
+              # Upload the AppImage using stdin pipe to avoid Wrangler bug
               if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" ]; then
-                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" \
-                  --file "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" \
-                  --content-type application/octet-stream \
-                  --remote
+                cat "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" | \
+                  wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" \
+                    --pipe \
+                    --content-type application/octet-stream \
+                    --remote
               fi
               
-              # Upload the DEB
+              # Upload the DEB using stdin pipe to avoid Wrangler bug
               if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" ]; then
-                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.deb" \
-                  --file "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" \
-                  --content-type application/octet-stream \
-                  --remote
+                cat "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" | \
+                  wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.deb" \
+                    --pipe \
+                    --content-type application/octet-stream \
+                    --remote
               fi
             elif [[ "$TARGET_TRIPLE" == *darwin* || "$TARGET_TRIPLE" == *apple* ]]; then
               PLATFORM="macos"
@@ -438,26 +441,28 @@ jobs:
               # For macOS, prioritize DMG installer
               find "$DIR" -name "*.dmg" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" \;
               
-              # Upload the DMG if found
+              # Upload the DMG using stdin pipe to avoid Wrangler bug
               if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" ]; then
-                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.dmg" \
-                  --file "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" \
-                  --content-type application/octet-stream \
-                  --remote
+                cat "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" | \
+                  wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.dmg" \
+                    --pipe \
+                    --content-type application/octet-stream \
+                    --remote
               fi
             fi
           fi
         done
         
-        # If this is a tag release, also copy to latest
+        # If this is a tag release, also copy to latest using stdin pipe
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
           for FILE in uploads/*; do
             if [ -f "$FILE" ]; then
               FILENAME=$(basename "$FILE")
-              wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/$FILENAME" \
-                --file "$FILE" \
-                --content-type application/octet-stream \
-                --remote
+              cat "$FILE" | \
+                wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/$FILENAME" \
+                  --pipe \
+                  --content-type application/octet-stream \
+                  --remote
             fi
           done
         fi
