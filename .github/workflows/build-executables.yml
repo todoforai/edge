@@ -104,16 +104,37 @@ jobs:
       run: |
         if (Test-Path "dist/todoforai-edge-sidecar.exe") {
           Write-Host "Signing sidecar executable using remote service..."
+          $originalSize = (Get-Item "dist/todoforai-edge-sidecar.exe").Length
+          Write-Host "Original sidecar size: $($originalSize / 1MB) MB"
+          
           # Use curl.exe explicitly to avoid PowerShell alias
           & curl.exe -X POST -H "Authorization: Bearer $env:SIGNING_API_KEY" -F "file=@dist/todoforai-edge-sidecar.exe" "$env:SIGNING_SERVICE_URL/sign" -o "dist/todoforai-edge-sidecar.signed.exe"
-          if ($LASTEXITCODE -eq 0) {
+          
+          if ($LASTEXITCODE -eq 0 -and (Test-Path "dist/todoforai-edge-sidecar.signed.exe")) {
+            $signedSize = (Get-Item "dist/todoforai-edge-sidecar.signed.exe").Length
+            Write-Host "Signed sidecar size: $($signedSize / 1MB) MB"
+            
             Move-Item "dist/todoforai-edge-sidecar.signed.exe" "dist/todoforai-edge-sidecar.exe" -Force
             Write-Host "Successfully signed sidecar executable"
+            
+            # Verify the signature using Windows built-in tools
+            Write-Host "Verifying sidecar signature..."
+            $sig = Get-AuthenticodeSignature "dist/todoforai-edge-sidecar.exe"
+            Write-Host "Signature Status: $($sig.Status)"
+            Write-Host "Signer Certificate Subject: $($sig.SignerCertificate.Subject)"
+            
+            if ($sig.Status -eq "Valid") {
+              Write-Host "✅ Sidecar signature is valid" -ForegroundColor Green
+            } else {
+              Write-Warning "⚠️ Sidecar signature status: $($sig.Status)"
+            }
           } else {
             Write-Error "Failed to sign sidecar executable"
+            exit 1
           }
         } else {
           Write-Warning "Sidecar executable not found at dist/todoforai-edge-sidecar.exe"
+          exit 1
         }
       env:
         SIGNING_SERVICE_URL: ${{ secrets.SIGNING_SERVICE_URL }}
@@ -122,28 +143,7 @@ jobs:
 
     # Prepare sidecar for Tauri with correct target triple
     - name: Prepare sidecar for Tauri
-      run: |
-        # Create binaries directory
-        mkdir -p edge_frontend/src-tauri/binaries
-        
-        # Determine source and target names based on OS
-        if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          SOURCE_NAME="todoforai-edge-sidecar.exe"
-          TARGET_NAME="todoforai-edge-sidecar-${{ matrix.target_triple }}.exe"
-        else
-          SOURCE_NAME="todoforai-edge-sidecar"
-          TARGET_NAME="todoforai-edge-sidecar-${{ matrix.target_triple }}"
-        fi
-        
-        # Copy the executable with the correct target triple
-        cp dist/$SOURCE_NAME edge_frontend/src-tauri/binaries/$TARGET_NAME
-        
-        # Make it executable on Unix-like systems
-        if [ "${{ matrix.os }}" != "windows-latest" ]; then
-          chmod +x edge_frontend/src-tauri/binaries/$TARGET_NAME
-        fi
-
-        echo "Sidecar prepared at: edge_frontend/src-tauri/binaries/$TARGET_NAME"
+      run: make copy-sidecar
       shell: bash
 
     # ─── 🍏 Create simplified entitlements file for macOS ─────────────────────
