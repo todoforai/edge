@@ -95,11 +95,20 @@ class MCPClient:
         
         try:
             # Call the tool using the MCP client library
-            # Using call_tool instead of run_tool
             response = await self.session.call_tool(tool_name, arguments)
             
-            # Return the result
-            return response.content
+            # Return the result - handle both content list and direct content
+            if hasattr(response, 'content') and response.content:
+                # Extract text content from MCP response
+                result = []
+                for content in response.content:
+                    if hasattr(content, 'text'):
+                        result.append(content.text)
+                    elif hasattr(content, 'data'):
+                        result.append(content.data)
+                return {"result": "\n".join(str(r) for r in result) if result else "No content"}
+            else:
+                return {"result": str(response)}
                 
         except Exception as e:
             logger.error(f"Error invoking tool {tool_name}: {str(e)}")
@@ -110,16 +119,16 @@ class MCPCollector:
     """Manages multiple MCP clients"""
     def __init__(self):
         self.clients: Dict[str, MCPClient] = {}
-        self.tools_by_name: Dict[str, List[Tool]] = {}
+        self.tools_by_name: Dict[str, List[tuple]] = {}
 
-    async def add_server(self, server_id: str, server_path: str) -> bool:
+    async def add_server(self, server_id: str, server_path: str, env: Optional[Dict[str, str]] = None) -> bool:
         """Add and connect to a new MCP server"""
         if server_id in self.clients:
             logger.warning(f"Server with ID {server_id} already exists, replacing")
             await self.remove_server(server_id)
         
         client = MCPClient(server_id)
-        success = await client.connect(server_path)
+        success = await client.connect(server_path, env)
         
         if success:
             self.clients[server_id] = client
