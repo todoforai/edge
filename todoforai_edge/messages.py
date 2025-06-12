@@ -199,3 +199,49 @@ def get_folders_response_msg(request_id, edge_id, folders, files, error=None):
             "error": error
         }
     }
+def mcp_list_tools_request_msg(request_id: str, edge_id: str, agent_id: str):
+    """Request to list MCP tools from edge"""
+    return {
+        "type": EA.MCP_LIST_TOOLS_REQUEST,
+        "payload": {
+            "requestId": request_id,
+            "edgeId": edge_id,
+            "agentId": agent_id
+        }
+    }
+
+def mcp_list_tools_result_msg(request_id: str, tools: list, error: str = None):
+    """Response with MCP tools list"""
+    return {
+        "type": EA.MCP_LIST_TOOLS_RESULT,
+        "payload": {
+            "requestId": request_id,
+            "tools": tools,
+            "error": error
+        }
+    }
+
+def mcp_call_tool_request_msg(request_id: str, edge_id: str, agent_id: str, server_id: str, tool_name: str, arguments: dict):
+    """Request to call MCP tool on edge"""
+    return {
+        "type": EA.MCP_CALL_TOOL_REQUEST,
+        "payload": {
+            "requestId": request_id,
+            "edgeId": edge_id,
+            "agentId": agent_id,
+            "serverId": server_id,
+            "toolName": tool_name,
+            "arguments": arguments
+        }
+    }
+
+def mcp_call_tool_result_msg(request_id: str, result: dict, error: str = None):
+    """Response with MCP tool call result"""
+    return {
+        "type": EA.MCP_CALL_TOOL_RESULT,
+        "payload": {
+            "requestId": request_id,
+            "result": result,
+            "error": error
+        }
+    }

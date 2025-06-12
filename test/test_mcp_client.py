@@ -216,7 +216,7 @@ if __name__ == "__main__":
     try:
         # Test loading from file
         mcp_collector = MCPCollector()
-        results = await mcp_collector.load_from_config_file(config_file_path)
+        results = await mcp_collector.load_servers(config_file_path)
         
         print(f"Connection results: {results}")
         
@@ -300,7 +300,7 @@ if __name__ == "__main__":
     
     try:
         mcp_collector = MCPCollector()
-        results = await mcp_collector.load_from_config_file(config_file_path)
+        results = await mcp_collector.load_servers(config_file_path)
         
         print(f"Server connection results: {results}")
         

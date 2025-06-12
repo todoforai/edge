@@ -521,6 +521,7 @@ async def mcp_call_tool(tool_name: str, arguments: Dict[str, Any] = None, server
         return {
             "success": True,
             "tool_name": tool_name,
+            "server_id": server_id,
             "arguments_used": arguments,
             "result": result
         }
@@ -538,11 +539,10 @@ async def mcp_load_config(config_path: str, client_instance=None):
     """Load MCP servers from a configuration file"""
     try:
         if not hasattr(client_instance, 'mcp_collector'):
-            # Initialize MCP collector if it doesn't exist
             from .mcp_client import MCPCollector
             client_instance.mcp_collector = MCPCollector()
         
-        results = await client_instance.mcp_collector.load_from_config_file(config_path)
+        results = await client_instance.mcp_collector.load_servers(config_path)
         
         return {
             "success": True,
