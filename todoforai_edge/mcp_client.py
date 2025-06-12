@@ -23,13 +23,8 @@ class MCPCollector:
                 logger.warning(f"MCP config file not found: {config_file}")
                 return {}
             
-            with open(config_file, 'r') as f:
-                config = json.load(f)
-            
-            if not config.get("mcpServers"):
-                logger.error("No MCP servers configured")
-                return {}
-            
+            config = {"mcpServers": self._parse_config_file(config_file)}
+
             logger.info(f"Loading MCP config with {len(config['mcpServers'])} servers")
             
             # Create unified client with simple config
@@ -46,6 +41,21 @@ class MCPCollector:
             logger.error(f"Error loading MCP servers: {e}")
             return {}
     
+    def _parse_config_file(self, config_path: str) -> Dict:
+        """Parse MCP config file"""
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        
+        # Handle both {"mcp": {"servers": ...}} and {"servers": ...} formats
+        if "mcp" in config:
+            return config["mcp"].get("servers", {})
+        elif "mcpServers" in config:
+            return config["mcpServers"]
+        elif "servers" in config:
+            return config["servers"]
+        else:
+            logger.warning(f"No recognized server configuration found in {config_path}")
+            return {}
     
     async def call_tool(self, tool_name: str, server_id: Optional[str], arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call tool using unified client"""
