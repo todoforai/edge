@@ -503,6 +503,9 @@ async def mcp_list_tools(client_instance=None):
             "count": len(formatted_tools),
             "description": "Available MCP tools with parameters and documentation"
         }
+    except Exception as e:
+        logger.error(f"Error in mcp_list_tools: {e}")
+        return {"error": str(e)}
 
 @register_function("mcp_call_tool")
 async def mcp_call_tool(tool_name: str, arguments: Dict[str, Any] = None, server_id: str = None, client_instance=None):
