@@ -12,3 +12,5 @@ build/
 ./build/
 ./dist/
 dist/
+
+edge_frontend/src-tauri/Cargo.lock
