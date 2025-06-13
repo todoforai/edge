@@ -65,14 +65,13 @@ start-signer:
 	fi
 
 start-tunnel:
-	@cmd /C ^\
-	if cloudflared tunnel info SixComp --output json >nul 2>&1 ^&^& ( ^\
-		echo ✅ Cloudflared tunnel already running ^\
-	) else ( ^\
-		echo 🌐 Starting Cloudflared tunnel… ^&^\
-		start "" /B C:\Cloudflared\bin\cloudflared.exe tunnel run SixComp --config "$(USERPROFILE)\.cloudflared\config.yml" ^&^\
-		echo ✅ Tunnel started in background ^\
-	)
+	@if pgrep -f "cloudflared.*tunnel.*run.*SixComp" > /dev/null 2>&1; then \
+		echo "✅ Cloudflared tunnel already running"; \
+	else \
+		echo "🌐 Starting Cloudflared tunnel..."; \
+		nohup /c/Cloudflared/bin/cloudflared.exe tunnel run SixComp --config "$$HOME/.cloudflared/config.yml" > /dev/null 2>&1 & \
+		echo "✅ Tunnel started in background"; \
+	fi
 
 # Start both services (smart - only if not already running)
 start-services: start-signer start-tunnel
