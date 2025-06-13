@@ -1,11 +1,11 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "todoforai_edge"
-version = "0.10.68"
-description = "TODO for AI service client"
+name = "todoforai_edge_cli"
+version = "0.10.69"
+description = "TODO for AI service console client"
 readme = "README.md"
 authors = [
     {name = "TODO for AI Team"}
@@ -27,7 +27,7 @@ dependencies = [
 "Bug Tracker" = "https://github.com/todoforai/edge/issues"
 
 [project.scripts]
-todoforai-edge = "todoforai_edge.app:main"
+todoforai-edge-cli = "todoforai_edge.app:main"
 
 [tool.setuptools]
 packages = ["todoforai_edge"]
