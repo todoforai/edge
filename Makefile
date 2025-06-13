@@ -64,15 +64,15 @@ start-signer:
 		echo "✅ Signing server started in background"; \
 	fi
 
-# Start cloudflared tunnel only if not running
 start-tunnel:
-	@if tasklist | findstr "cloudflared.exe" > nul 2>&1; then \
-		echo "✅ Cloudflared tunnel already running"; \
-	else \
-		echo "🌐 Starting Cloudflared Tunnel..."; \
-		start /B C:\Cloudflared\bin\cloudflared.exe tunnel --config C:\Users\%USERNAME%\.cloudflared\config.yml run SixComp; \
-		echo "✅ Cloudflared tunnel started in background"; \
-	fi
+	@cmd /C ^\
+	if cloudflared tunnel info SixComp --output json >nul 2>&1 ^&^& ( ^\
+		echo ✅ Cloudflared tunnel already running ^\
+	) else ( ^\
+		echo 🌐 Starting Cloudflared tunnel… ^&^\
+		start "" /B C:\Cloudflared\bin\cloudflared.exe tunnel run SixComp --config "$(USERPROFILE)\.cloudflared\config.yml" ^&^\
+		echo ✅ Tunnel started in background ^\
+	)
 
 # Start both services (smart - only if not already running)
 start-services: start-signer start-tunnel
