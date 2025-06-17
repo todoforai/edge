@@ -80,7 +80,7 @@ async def handle_block_execute(payload, client):
 
         # Start the execution in a separate task so we don't block
         asyncio.create_task(
-            shell.execute_block(block_id, content, client, todo_id, message_id, 30, root_path)  # Pass root_path
+            shell.execute_block(block_id, content, client, todo_id, message_id, 120, root_path)
         )
 
         # Return immediately without waiting for the command to complete
