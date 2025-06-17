@@ -5,6 +5,11 @@
       "args": [
         "@gongrzhe/server-gmail-autoauth-mcp"
       ]
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "puppeteer-mcp-server"],
+      "env": {}
     }
   }
 }
