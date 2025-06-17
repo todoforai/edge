@@ -6,7 +6,7 @@ from setuptools import setup
 setup(
 entry_points={
     'console_scripts': [
-        'todoforai-edge=todoforai_edge.app:main',  # Changed from cli:main to app:main
+        'todoforai-edge-cli=todoforai_edge.app:main',
     ],
 },
 )
