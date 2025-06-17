@@ -216,6 +216,13 @@ jobs:
         APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
       shell: bash
 
+    # Build Python distribution (console-based edge client)
+    - name: Build Python distribution
+      run: |
+        python -m pip install build
+        python -m build --wheel --sdist
+      shell: bash
+
     # Sign MSI installer using remote signing service
     - name: Sign MSI installer
       if: matrix.os == 'windows-latest'
@@ -327,6 +334,14 @@ jobs:
         name: todoforai-edge-${{ matrix.target_triple }}
         path: ${{ steps.bundle-path.outputs.BUNDLE_PATH }}
 
+    # Upload Python distribution artifacts (only from one runner to avoid duplicates)
+    - name: Upload Python distribution
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: todoforai-edge-python-dist
+        path: dist/
+
   # ─────────────────────────── Deployment ───────────────────────────
   deploy:
     needs: build
@@ -379,9 +394,28 @@ jobs:
         # Create a directory for each platform's artifacts
         mkdir -p uploads
         
+        # Handle Python distribution artifacts
+        if [ -d "todoforai-edge-python-dist" ]; then
+          echo "Processing Python distribution artifacts..."
+          find todoforai-edge-python-dist -name "*.whl" -exec cp {} uploads/ \;
+          find todoforai-edge-python-dist -name "*.tar.gz" -exec cp {} uploads/ \;
+          
+          # Upload Python wheel and source distribution
+          for FILE in uploads/*.whl uploads/*.tar.gz; do
+            if [ -f "$FILE" ]; then
+              FILENAME=$(basename "$FILE")
+              cat "$FILE" | \
+                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/$FILENAME" \
+                  --pipe \
+                  --content-type application/octet-stream \
+                  --remote
+            fi
+          done
+        fi
+        
         # Find and prepare all Tauri app bundles for upload
         for DIR in todoforai-edge-*; do
-          if [ -d "$DIR" ]; then
+          if [ -d "$DIR" ] && [ "$DIR" != "todoforai-edge-python-dist" ]; then
             TARGET_TRIPLE=$(echo $DIR | sed 's/todoforai-edge-//')
             
             # Map target triple to user-friendly platform name

@@ -463,45 +463,18 @@ async def get_system_info():
 # MCP-specific function registry
 @register_function("mcp_list_tools")
 async def mcp_list_tools(client_instance=None):
-    """List all available MCP tools with full documentation"""
+    """List all available MCP tools with raw MCP structure"""
     try:
         if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
             return {"error": "No MCP collector available"}
         
+        # Return raw tools from MCP collector
         tools = await client_instance.mcp_collector.list_tools()
         
-        # Format tools with complete documentation
-        formatted_tools = []
-        for tool in tools:
-            tool_info = {
-                "name": tool.name,
-                "description": tool.description,
-                "parameters": {},
-                "required": [],
-                "server": getattr(tool, 'server_id', 'unknown')
-            }
-            
-            # Extract parameter information from inputSchema
-            if hasattr(tool, 'inputSchema') and tool.inputSchema:
-                schema = tool.inputSchema
-                if isinstance(schema, dict):
-                    # Get properties (parameters)
-                    if 'properties' in schema:
-                        tool_info["parameters"] = schema['properties']
-                    
-                    # Get required parameters
-                    if 'required' in schema:
-                        tool_info["required"] = schema['required']
-                    
-                    # Add type information
-                    tool_info["schema_type"] = schema.get('type', 'object')
-            
-            formatted_tools.append(tool_info)
-        
         return {
-            "tools": formatted_tools,
-            "count": len(formatted_tools),
-            "description": "Available MCP tools with parameters and documentation"
+            "tools": tools,  # Raw MCP tool objects
+            "count": len(tools),
+            "description": "Available MCP tools (raw MCP format)"
         }
     except Exception as e:
         logger.error(f"Error in mcp_list_tools: {e}")
@@ -560,7 +533,7 @@ async def mcp_load_config(config_path: str, client_instance=None):
 
 @register_function("mcp_list_servers")
 async def mcp_list_servers(client_instance=None):
-    """List all connected MCP servers"""
+    """List all connected MCP servers with raw MCP structure"""
     try:
         if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
             return {"error": "No MCP collector available"}
