@@ -67,6 +67,7 @@ class EdgeConfig:
             "id": data.get("id", ""),
             "name": data.get("name", "Unknown Edge"),
             "workspacepaths": data.get("workspacepaths", []),
+            "edgeMCPs": data.get("edgeMCPs", []),
             "ownerId": data.get("ownerId", ""),
             "status": data.get("status", "OFFLINE"),
             "isShellEnabled": data.get("isShellEnabled", False),
@@ -89,6 +90,8 @@ class EdgeConfig:
             updated["name"] = data["name"]
         if "workspacepaths" in data:
             updated["workspacepaths"] = data["workspacepaths"]
+        if "edgeMCPs" in data:
+            updated["edgeMCPs"] = data["edgeMCPs"]
         if "ownerId" in data:
             updated["ownerId"] = data["ownerId"]
         if "status" in data:
@@ -174,6 +177,13 @@ class EdgeConfig:
             return True
         return False
 
+    def set_edge_mcps(self, mcps: List[str]) -> None:
+        """Set the complete list of edge MCPs"""
+        current = self.config.value
+        updated = current.copy()
+        updated["edgeMCPs"] = mcps
+        self.config.set_value(updated)
+
 class TODOforAIEdge:
     def __init__(self, client_config):
         """
@@ -218,6 +228,7 @@ class TODOforAIEdge:
         """Callback when config changes"""
         logger.info("Edge config changed")
         paths = config.get("workspacepaths", [])
+        mcps = config.get("edgeMCPs", [])
 
         # If we have an edge_id, update the server
         if self.edge_id and self.connected:
@@ -226,7 +237,7 @@ class TODOforAIEdge:
                     self,
                     'patch',
                     f"/api/v1/edges/{self.edge_id}",
-                    {"workspacepaths": paths}
+                    {"workspacepaths": paths, "edgeMCPs": mcps}
                 )
                 
                 if response:
@@ -277,12 +288,11 @@ class TODOforAIEdge:
             logger.info(f"Shell enabled: {self.edge_config.is_shell_enabled}")
             logger.info(f"Filesystem enabled: {self.edge_config.is_filesystem_enabled}")
             
+            # Simple MCP auto-load: just check if mcp.json exists
+            await self._load_mcp_if_exists()
             # Update edge status to ONLINE
             await self._update_edge_status(EdgeStatus.ONLINE)
-            
-            # We no longer start file syncing for all workspace paths here
-            # It will be done lazily when files are requested
-            
+             
             return True
             
         except Exception as e:
@@ -305,6 +315,19 @@ class TODOforAIEdge:
                     logger.warning(f"Workspace path does not exist: {workspace_path}")
             except Exception as e:
                 logger.error(f"Failed to start file sync for {workspace_path}: {str(e)}")
+
+    async def _load_mcp_if_exists(self):
+        """Load MCP config if mcp.json exists in current directory"""
+        if os.path.exists("mcp.json"):
+            try:
+                from .mcp_client import setup_mcp_from_config
+                logger.info("Found mcp.json, loading MCP configuration")
+                self.mcp_collector = await setup_mcp_from_config("mcp.json", self)
+                logger.info("MCP client initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to load MCP configuration: {str(e)}")
+        else:
+            logger.debug("No mcp.json found in current directory")
 
     async def _update_edge_status(self, status):
         """Update edge status in the API"""

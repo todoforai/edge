@@ -464,93 +464,46 @@ async def get_system_info():
 @register_function("mcp_list_tools")
 async def mcp_list_tools(client_instance=None):
     """List all available MCP tools with raw MCP structure"""
-    try:
-        if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
-            return {"error": "No MCP collector available"}
-        
-        # Return raw tools from MCP collector
-        tools = await client_instance.mcp_collector.list_tools()
-        
-        return {
-            "tools": tools,  # Raw MCP tool objects
-            "count": len(tools),
-            "description": "Available MCP tools (raw MCP format)"
-        }
-    except Exception as e:
-        logger.error(f"Error in mcp_list_tools: {e}")
-        return {"error": str(e)}
+    if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
+        raise ValueError("No MCP collector available")
+    
+    # Return raw tools from MCP collector
+    tools = await client_instance.mcp_collector.list_tools()
+    
+    return {
+        "tools": tools,  # Raw MCP tool objects
+        "count": len(tools),
+        "description": "Available MCP tools (raw MCP format)"
+    }
 
 @register_function("mcp_call_tool")
-async def mcp_call_tool(tool_name: str, arguments: Dict[str, Any] = None, server_id: str = None, client_instance=None):
+async def mcp_call_tool(tool_name: str, arguments: Dict[str, Any] = None, client_instance=None):
     """Call an MCP tool with given arguments"""
-    try:
-        if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
-            return {"error": "No MCP collector available"}
-        
-        if arguments is None:
-            arguments = {}
-        
-        result = await client_instance.mcp_collector.call_tool(tool_name, server_id, arguments)
-        return {
-            "success": True,
-            "tool_name": tool_name,
-            "server_id": server_id,
-            "arguments_used": arguments,
-            "result": result
-        }
-    except Exception as e:
-        logger.error(f"Error calling MCP tool {tool_name}: {e}")
-        return {
-            "success": False,
-            "error": str(e),
-            "tool_name": tool_name,
-            "arguments_used": arguments
-        }
-
-@register_function("mcp_load_config")
-async def mcp_load_config(config_path: str, client_instance=None):
-    """Load MCP servers from a configuration file"""
-    try:
-        if not hasattr(client_instance, 'mcp_collector'):
-            from .mcp_client import MCPCollector
-            client_instance.mcp_collector = MCPCollector()
-        
-        results = await client_instance.mcp_collector.load_servers(config_path)
-        
-        return {
-            "success": True,
-            "config_path": config_path,
-            "servers_loaded": results,
-            "count": len([k for k, v in results.items() if v])
-        }
-    except Exception as e:
-        logger.error(f"Error loading MCP config from {config_path}: {e}")
-        return {
-            "success": False,
-            "error": str(e),
-            "config_path": config_path
-        }
+    if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
+        raise ValueError("No MCP collector available")
+    
+    if arguments is None:
+        arguments = {}
+    
+    result = await client_instance.mcp_collector.call_tool(tool_name, arguments)
+    return result
 
 @register_function("mcp_list_servers")
 async def mcp_list_servers(client_instance=None):
     """List all connected MCP servers with raw MCP structure"""
-    try:
-        if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
-            return {"error": "No MCP collector available"}
-        
-        # Get server information from the collector
-        servers = []
-        if hasattr(client_instance.mcp_collector, 'clients'):
-            servers = list(client_instance.mcp_collector.clients.keys())
-        
-        return {
-            "servers": servers,
-            "count": len(servers),
-            "description": "List of connected MCP servers"
-        }
-    except Exception as e:
-        logger.error(f"Error listing MCP servers: {e}")
-        return {"error": str(e)}
+    if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
+        raise ValueError("No MCP collector available")
+    
+    # Get server information from the collector
+    servers = []
+    if hasattr(client_instance.mcp_collector, 'clients'):
+        servers = list(client_instance.mcp_collector.clients.keys())
+    
+    return {
+        "servers": servers,
+        "count": len(servers),
+        "description": "List of connected MCP servers"
+    }
 
 async def handle_function_call_request(payload, client):
     """Handle function call requests from agent using dynamic function registry"""
