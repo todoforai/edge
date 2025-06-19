@@ -23,12 +23,62 @@ from .file_sync import ensure_workspace_synced
 
 logger = logging.getLogger("todoforai-edge")
 
+def get_parent_directory_if_needed(path: str, root_path: Optional[str], fallback_root_paths: List[str]) -> Optional[str]:
+    """
+    Get the parent directory of any workspace path if it should be added to search paths.
+    
+    This handles cases where a relative path starts with any workspace folder name,
+    indicating the user wants to reference files relative to the parent of that workspace.
+    
+    Example:
+        root_path = "/home/user/projects/myproject"
+        fallback_root_paths = ["/home/user/other/myproject"]
+        path = "myproject/src/main.py"
+        
+        Since path starts with "myproject" (the last folder of any workspace path),
+        returns the parent directory of the first matching workspace.
+        
+    Returns:
+        str: Parent directory path if it should be added, None otherwise
+    """
+    if os.path.isabs(path):
+        return None
+    
+    # Collect all workspace paths to check
+    all_workspace_paths = []
+    if root_path:
+        all_workspace_paths.append(root_path)
+    if fallback_root_paths:
+        all_workspace_paths.extend(fallback_root_paths)
+    
+    # Check each workspace path
+    for workspace_path in all_workspace_paths:
+        if not workspace_path:
+            continue
+            
+        # Extract the last folder name from workspace_path
+        workspace_folder_name = os.path.basename(workspace_path.rstrip(os.sep))
+        
+        # Check if path starts with the workspace folder name
+        if path.startswith(workspace_folder_name + os.sep) or path == workspace_folder_name:
+            workspace_parent = os.path.dirname(workspace_path)
+            if workspace_parent:
+                return workspace_parent
+    
+    return None
+
 def resolve_file_path(path: str, root_path: Optional[str] = None, fallback_root_paths: List[str] = None) -> str:
     """Resolve file path using root path and fallback paths"""
     path = os.path.expanduser(path)
 
     if fallback_root_paths:
         all_paths = [root_path] + fallback_root_paths if root_path else fallback_root_paths
+        
+        # Add parent directory of any workspace as last resort for relative paths
+        parent_dir = get_parent_directory_if_needed(path, root_path, fallback_root_paths)
+        if parent_dir and parent_dir not in all_paths:
+            all_paths.append(parent_dir)
+        
         found_path = find_file_in_workspaces(path, all_paths, root_path)
         if found_path:
             return found_path
