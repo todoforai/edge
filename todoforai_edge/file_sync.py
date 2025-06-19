@@ -2,12 +2,12 @@ import os
 import hashlib
 import asyncio
 import logging
-import time
-import queue
-import threading
+from pathlib import Path
+from typing import Dict, Set, Optional, Tuple, List
+import aiofiles
+from concurrent.futures import ThreadPoolExecutor
 
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+from watchfiles import awatch, Change
 
 from .constants import Edge2FrontAgent as EFA
 from .workspace_handler import get_filtered_files_and_folders
@@ -18,83 +18,57 @@ logger = logging.getLogger("todoforai-edge-sync")
 # Global registry to track active sync managers
 active_sync_managers = registry.create("active_sync_managers", {})
 
-class FileChangeHandler(FileSystemEventHandler):
-    """Watches for file system changes and queues them for syncing"""
+# Thread pool for CPU-bound operations
+_hash_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="hash_worker")
+
+
+class FileState:
+    """Represents the state of a file for efficient change detection"""
+    __slots__ = ('mtime', 'size', 'hash')
     
-    def __init__(self, sync_manager):
-        self.sync_manager = sync_manager
-        self.last_events = {}  # Track last event time per file
-        self.debounce_time = 0.5  # seconds
-        
-    def on_created(self, event):
-        if event.is_directory:
-            return
-        self._debounced_queue("create", event.src_path)
-    
-    def on_modified(self, event):
-        if event.is_directory:
-            return
-        self._debounced_queue("modify", event.src_path)
-    
-    def on_deleted(self, event):
-        if event.is_directory:
-            return
-        self.queue_change("delete", event.src_path)
-    
-    
-    def _debounced_queue(self, action, path):
-        """Queue a change with debouncing to avoid multiple events for the same file"""
-        current_time = time.time()
-        
-        # If we've seen this file recently, update the action but don't queue yet
-        if path in self.last_events and (current_time - self.last_events[path][1] < self.debounce_time):
-            self.last_events[path] = (action, current_time)
-            return
-            
-        # Otherwise, queue it and update the timestamp
-        self.last_events[path] = (action, current_time)
-        self.queue_change(action, path)
-    
-    def queue_change(self, action, path):
-        """Queue a file change for processing"""
-        abs_path = os.path.abspath(path)
-        
-        # Use the thread-safe queue instead of directly interacting with asyncio
-        self.sync_manager.thread_queue.put({
-            "action": action,
-            "abs_path": abs_path,
-        })
+    def __init__(self, mtime: float, size: int, hash: str):
+        self.mtime = mtime
+        self.size = size
+        self.hash = hash
+
 
 class WorkspaceSyncManager:
     """Manages synchronization of workspace files with the server"""
     
-    def __init__(self, client, workspace_dir):
+    def __init__(self, client, workspace_dir: str):
         self.client = client
         self.workspace_dir = os.path.abspath(workspace_dir)
-        self.sync_queue = asyncio.Queue()
-        self.thread_queue = queue.Queue()  # Thread-safe queue for file events
-        self.observer = None
-        self.sync_task = None
-        self.queue_task = None  # Task to process the thread queue
+        self.watch_task: Optional[asyncio.Task] = None
         self.is_running = False
-        self.file_cache = {}  # Cache of file metadata and content hashes
-        
+        self.file_cache: Dict[str, FileState] = {}
         
         # Track which files we should sync
-        self.project_files_abs = set()
-        self.filtered_files_abs = set()
-        self.filtered_dirs_abs = set()
+        self.project_files_abs: Set[str] = set()
+        self.filtered_files_abs: Set[str] = set()
+        self.filtered_dirs_abs: Set[str] = set()
         
         # Track initial sync progress
         self.initial_sync_complete = False
+        
+        # Batch processing
+        self.pending_changes: Dict[str, Tuple[Change, float]] = {}
+        self.batch_task: Optional[asyncio.Task] = None
+        self.batch_interval = 0.5  # Process batches every 500ms
+        
+        # Performance tracking
+        self.sync_stats = {
+            'files_synced': 0,
+            'files_skipped': 0,
+            'sync_errors': 0,
+            'bytes_synced': 0
+        }
 
-    
     async def initialize_file_lists(self):
         """Initialize the lists of files to sync based on workspace filtering"""
         # Use the workspace handler to get filtered files and folders
         project_files, filtered_files, filtered_dirs = get_filtered_files_and_folders(self.workspace_dir)
         
-        # Store as sets of absolute paths for easier lookup
+        # Store as sets of absolute paths for O(1) lookup
         self.project_files_abs = set(project_files)
         self.filtered_files_abs = set(filtered_files)
         self.filtered_dirs_abs = set(filtered_dirs)
@@ -111,17 +85,11 @@ class WorkspaceSyncManager:
         # Initialize file lists
         await self.initialize_file_lists()
         
+        # Start batch processing task
+        self.batch_task = asyncio.create_task(self._batch_processor())
+        
         # Start file watcher
-        self.observer = Observer()
-        event_handler = FileChangeHandler(self)
-        self.observer.schedule(event_handler, self.workspace_dir, recursive=True)
-        self.observer.start()
-        
-        # Start sync processor
-        self.sync_task = asyncio.create_task(self.process_sync_queue())
-        
-        # Start thread queue processor
-        self.queue_task = asyncio.create_task(self.process_thread_queue())
+        self.watch_task = asyncio.create_task(self._watch_files())
         
         logger.info(f"Started workspace sync for {self.workspace_dir}")
         
@@ -131,51 +99,213 @@ class WorkspaceSyncManager:
         # Register this sync manager in the global registry
         active_sync_managers[self.workspace_dir] = self
         
+    async def _watch_files(self):
+        """Watch for file changes using watchfiles with better error handling"""
+        try:
+            # Configure watch parameters for better performance
+            async for changes in awatch(
+                self.workspace_dir,
+                recursive=True,
+                step=50,  # Check every 50ms
+                yield_on_timeout=True,  # Yield empty set on timeout
+                stop_event=asyncio.Event() if not self.is_running else None
+            ):
+                if not self.is_running:
+                    break
+                
+                # Skip empty change sets (from timeout)
+                if not changes:
+                    continue
+                    
+                # Add changes to pending queue with timestamp
+                current_time = asyncio.get_event_loop().time()
+                for change, path in changes:
+                    abs_path = os.path.abspath(path)
+                    
+                    # Quick filter check before adding to queue
+                    if abs_path not in self.project_files_abs and change != Change.deleted:
+                        # Check if this might be a new project file
+                        if not self._is_potential_project_file(abs_path):
+                            continue
+                    
+                    self.pending_changes[abs_path] = (change, current_time)
+                        
+        except asyncio.CancelledError:
+            logger.info("File watcher cancelled")
+        except Exception as e:
+            logger.error(f"Error in file watcher: {str(e)}")
+            # Attempt to restart watcher after error
+            if self.is_running:
+                await asyncio.sleep(5)
+                self.watch_task = asyncio.create_task(self._watch_files())
+    
+    def _is_potential_project_file(self, abs_path: str) -> bool:
+        """Quick check if a file might be a project file without full workspace scan"""
+        # Check if it's in a filtered directory
+        for filtered_dir in self.filtered_dirs_abs:
+            if abs_path.startswith(filtered_dir + os.sep):
+                return False
+        return True
+    
+    async def _batch_processor(self):
+        """Process pending changes in batches for better performance"""
+        while self.is_running:
+            try:
+                await asyncio.sleep(self.batch_interval)
+                
+                if not self.pending_changes:
+                    continue
+                
+                # Process all pending changes
+                changes_to_process = self.pending_changes.copy()
+                self.pending_changes.clear()
+                
+                # Group changes by type for efficient processing
+                creates_modifies = []
+                deletes = []
+                
+                for abs_path, (change, timestamp) in changes_to_process.items():
+                    if change == Change.deleted:
+                        deletes.append(abs_path)
+                    else:
+                        creates_modifies.append((change, abs_path))
+                
+                # Process in parallel
+                tasks = []
+                
+                # Handle creates/modifies
+                if creates_modifies:
+                    tasks.append(self._process_file_batch(creates_modifies))
+                
+                # Handle deletes
+                for abs_path in deletes:
+                    tasks.append(self.delete_file(abs_path))
+                
+                if tasks:
+                    await asyncio.gather(*tasks, return_exceptions=True)
+                    
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error in batch processor: {str(e)}")
+    
+    async def _process_file_batch(self, file_changes: List[Tuple[Change, str]]):
+        """Process a batch of file creates/modifies"""
+        # Read all files in parallel
+        read_tasks = []
+        for change, abs_path in file_changes:
+            if os.path.exists(abs_path):
+                read_tasks.append(self._read_file_async(abs_path))
+            else:
+                read_tasks.append(None)
+        
+        results = await asyncio.gather(*read_tasks, return_exceptions=True)
+        
+        # Process results
+        for i, result in enumerate(results):
+            change, abs_path = file_changes[i]
+            
+            if isinstance(result, Exception):
+                logger.error(f"Error reading file {abs_path}: {result}")
+                self.sync_stats['sync_errors'] += 1
+                continue
+                
+            if result is None:
+                logger.debug(f"File no longer exists: {abs_path}")
+                continue
+            
+            content, file_hash, size, mtime = result
+            
+            # Check cache
+            if abs_path in self.file_cache:
+                cached = self.file_cache[abs_path]
+                if cached.hash == file_hash:
+                    logger.debug(f"File unchanged (same hash): {abs_path}")
+                    self.sync_stats['files_skipped'] += 1
+                    # Update metadata
+                    self.file_cache[abs_path] = FileState(mtime, size, file_hash)
+                    continue
+            
+            # Update cache
+            self.file_cache[abs_path] = FileState(mtime, size, file_hash)
+            self.project_files_abs.add(abs_path)
+            
+            # Send to server
+            action = "create" if change == Change.added else "modify"
+            await self._send_file_sync(action, abs_path, content)
+            
+            self.sync_stats['files_synced'] += 1
+            self.sync_stats['bytes_synced'] += size
+    
+    async def _read_file_async(self, file_path: str) -> Optional[Tuple[str, str, int, float]]:
+        """Read file asynchronously and compute hash"""
+        try:
+            # Get file stats first
+            stat = os.stat(file_path)
+            
+            # Read file asynchronously
+            async with aiofiles.open(file_path, mode='rb') as f:
+                data = await f.read()
+            
+            # Compute hash in thread pool to avoid blocking
+            file_hash = await asyncio.get_event_loop().run_in_executor(
+                _hash_executor, hashlib.md5, data
+            )
+            
+            # Decode content
+            try:
+                content = data.decode('utf-8')
+            except UnicodeDecodeError:
+                content = data.decode('utf-8', errors='replace')
+            
+            return content, file_hash.hexdigest(), len(data), stat.st_mtime
+            
+        except Exception as e:
+            logger.error(f"Error reading file {file_path}: {str(e)}")
+            raise
+    
     async def initial_sync(self):
-        """Perform initial sync of all project files"""
+        """Perform initial sync of all project files with improved performance"""
         logger.info("Starting initial sync of project files...")
         
         # Reset sync flag
         self.initial_sync_complete = False
         
-        # Create tasks for parallel syncing of all files
-        sync_tasks = []
-        for abs_path in self.project_files_abs:
-            sync_tasks.append(asyncio.create_task(self.sync_file("create", abs_path)))
+        # Process files in batches for better performance
+        batch_size = 50
+        file_list = list(self.project_files_abs)
         
-        logger.info(f"Started parallel sync of {len(self.project_files_abs)} files")
+        for i in range(0, len(file_list), batch_size):
+            batch = file_list[i:i + batch_size]
+            
+            # Create sync tasks for this batch
+            tasks = []
+            for abs_path in batch:
+                if os.path.exists(abs_path):
+                    tasks.append(self.sync_file("create", abs_path))
+            
+            # Process batch
+            if tasks:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Log any errors
+                for j, result in enumerate(results):
+                    if isinstance(result, Exception):
+                        logger.error(f"Error syncing file {batch[j]}: {result}")
+            
+            # Small delay between batches to avoid overwhelming the system
+            if i + batch_size < len(file_list):
+                await asyncio.sleep(0.1)
         
-        # Wait for all sync tasks to complete
-        if sync_tasks:
-            await asyncio.gather(*sync_tasks)
-    
         # Send completion signal
         await self._send_sync_complete_signal()
         
-    async def process_thread_queue(self):
-        """Process the thread queue and move items to the asyncio queue"""
-        while self.is_running:
-            try:
-                # Check if there are items in the thread queue
-                try:
-                    # Non-blocking get with timeout
-                    event = self.thread_queue.get(block=True, timeout=0.5)
-                    # Put the event in the asyncio queue
-                    await self.sync_queue.put(event)
-                    self.thread_queue.task_done()
-                except queue.Empty:
-                    # No items in queue, just continue
-                    await asyncio.sleep(0.1)
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error(f"Error processing thread queue: {str(e)}")
-                await asyncio.sleep(1)  # Prevent tight loop on error
+        logger.info(f"Initial sync complete. Stats: {self.sync_stats}")
     
     async def _send_sync_complete_signal(self):
         """Send a signal that sync is complete for this workspace"""
         if self.initial_sync_complete:
-            return  # Already sent
+            return
             
         self.initial_sync_complete = True
         
@@ -185,7 +315,8 @@ class WorkspaceSyncManager:
             "payload": {
                 "path": self.workspace_dir,
                 "edgeId": self.client.edge_id,
-                "userId": self.client.user_id
+                "userId": self.client.user_id,
+                "stats": self.sync_stats  # Include sync statistics
             }
         })
         
@@ -198,156 +329,75 @@ class WorkspaceSyncManager:
             
         self.is_running = False
         
-        # Stop the observer
-        if self.observer:
-            self.observer.stop()
-            self.observer.join()
-            self.observer = None
+        # Cancel tasks
+        for task in [self.watch_task, self.batch_task]:
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
         
-        # Cancel the sync task
-        if self.sync_task:
-            self.sync_task.cancel()
-            try:
-                await self.sync_task
-            except asyncio.CancelledError:
-                pass
-            self.sync_task = None
-            
-        if self.queue_task:
-            self.queue_task.cancel()
-            try:
-                await self.queue_task
-            except asyncio.CancelledError:
-                pass
-            self.queue_task = None
+        self.watch_task = None
+        self.batch_task = None
             
         logger.info(f"Stopped workspace sync for {self.workspace_dir}")
         
         # Remove from global registry
         if self.workspace_dir in active_sync_managers:
             del active_sync_managers[self.workspace_dir]
-            
     
-    async def process_sync_queue(self):
-        """Process the sync queue"""
-        while self.is_running:
-            try:
-                # Get the next item from the queue with a timeout
-                try:
-                    event = await asyncio.wait_for(self.sync_queue.get(), timeout=1.0)
-                except asyncio.TimeoutError:
-                    continue
-                
-                try:
-                    action = event["action"]
-                    abs_path = event["abs_path"]
-                    
-                    # Skip files that shouldn't be synced
-                    if abs_path not in self.project_files_abs:
-                        logger.debug(f"Skipping {action} for non-project file: {abs_path}")
-                        continue
-                    
-                    logger.info(f"Processing {action} for {abs_path}")
-                    
-                    if action in ("create", "modify"):
-                        await self.sync_file(action, abs_path)
-                    elif action == "delete":
-                        await self.delete_file(abs_path)
-                    else:
-                        logger.warning(f"Unhandled action type '{action}' for file: {abs_path}")
-                        
-                except Exception as e:
-                    logger.error(f"Error processing file: {str(e)}")
-                    
-                finally:
-                    self.sync_queue.task_done()
-                    
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error(f"Error in sync queue processor: {str(e)}")
-                await asyncio.sleep(1)  # Prevent tight loop on error
-    
-    def compute_file_hash(self, file_path):
-        """Compute a simple hash of file content"""
-        hash_md5 = hashlib.md5()
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                hash_md5.update(chunk)
-        return hash_md5.hexdigest()
-    
-    async def sync_file(self, action, abs_path):
-        """Sync a file to the server"""
+    async def sync_file(self, action: str, abs_path: str):
+        """Sync a single file to the server"""
         try:
-            # Check if file still exists
-            if not os.path.exists(abs_path):
-                logger.debug(f"File no longer exists: {abs_path}")
+            result = await self._read_file_async(abs_path)
+            if result is None:
                 return
-            
-            if action == "create" or action == "modify":
                 
-                # Get file stats
-                stats = os.stat(abs_path)
-                current_size = stats.st_size
-                current_mtime = stats.st_mtime
-                
-                # Check if file has changed since last sync
-                if abs_path in self.file_cache:
-                    cached = self.file_cache[abs_path]
-                    if cached["mtime"] == current_mtime:
-                        logger.debug(f"File unchanged (same mtime and size): {abs_path}")
-                        return
+            content, file_hash, size, mtime = result
             
-                    # Compute hash for the current file
-                    current_hash = self.compute_file_hash(abs_path)
-                    
-                    # Check if content has actually changed
-                    if (cached["hash"] == current_hash and cached["size"] == current_size):
-                        logger.debug(f"File unchanged (same hash): {abs_path}")
-                        # Update metadata but don't sync
-                        self.file_cache[abs_path].update({
-                            "mtime": current_mtime,
-                        })
-                        return
-                    
-                current_hash = self.compute_file_hash(abs_path)
-                self.project_files_abs.add(abs_path)
-                # Read file content
-                with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
-                    content = f.read()
-                
-                # Update cache
-                self.file_cache[abs_path] = {
-                    "size": current_size,
-                    "mtime": current_mtime,
-                    "hash": current_hash
-                }
+            # Check cache
+            if abs_path in self.file_cache:
+                cached = self.file_cache[abs_path]
+                if cached.hash == file_hash:
+                    logger.debug(f"File unchanged (same hash): {abs_path}")
+                    # Update metadata
+                    self.file_cache[abs_path] = FileState(mtime, size, file_hash)
+                    return
             
-                # Send file to server with appropriate message type
-                await self.client._send_response({
-                    "type": EFA.WORKSPACE_FILE_CREATE_SYNC if action == "create" else EFA.WORKSPACE_FILE_MODIFY_SYNC,
-                    "payload": {
-                        "path": abs_path,
-                        "content": content,
-                        "edgeId": self.client.edge_id,
-                        "userId": self.client.user_id
-                    }
-                })
+            # Update cache
+            self.file_cache[abs_path] = FileState(mtime, size, file_hash)
+            self.project_files_abs.add(abs_path)
             
-                # logger.info(f"Synced file: {action} {abs_path} ({current_size} bytes)")
+            # Send to server
+            await self._send_file_sync(action, abs_path, content)
             
         except UnicodeDecodeError:
-            # Skip binary files
             logger.warning(f"Skipping binary file: {abs_path}")
         except Exception as e:
             logger.error(f"Error syncing file {abs_path}: {str(e)}")
 
-    async def delete_file(self, abs_path):
+    async def _send_file_sync(self, action: str, abs_path: str, content: str):
+        """Send file sync message to server"""
+        message_type = EFA.WORKSPACE_FILE_CREATE_SYNC if action == "create" else EFA.WORKSPACE_FILE_MODIFY_SYNC
+        
+        await self.client._send_response({
+            "type": message_type,
+            "payload": {
+                "path": abs_path,
+                "content": content,
+                "edgeId": self.client.edge_id,
+                "userId": self.client.user_id
+            }
+        })
+
+    async def delete_file(self, abs_path: str):
         """Handle deletion of a file"""
         if abs_path in self.project_files_abs:
             if abs_path in self.file_cache:
                 del self.file_cache[abs_path]
             self.project_files_abs.remove(abs_path)
+            
             # Send delete notification
             await self.client._send_response({
                 "type": EFA.WORKSPACE_FILE_DELETE_SYNC,
@@ -359,10 +409,15 @@ class WorkspaceSyncManager:
             })
             logger.info(f"Deleted file: {abs_path}")
 
+    def get_sync_stats(self) -> Dict[str, int]:
+        """Get synchronization statistics"""
+        return self.sync_stats.copy()
+
 
 # Function to start syncing a workspace
-async def start_workspace_sync(client, workspace_dir):
+async def start_workspace_sync(client, workspace_dir: str) -> WorkspaceSyncManager:
     """Start syncing a workspace directory"""
+    workspace_dir = os.path.abspath(workspace_dir)
     
     # Check if we're already syncing this workspace
     if workspace_dir in active_sync_managers:
@@ -386,37 +441,36 @@ async def start_workspace_sync(client, workspace_dir):
         logger.error(f"Failed to start sync for {workspace_dir}: {str(e)}")
         raise
 
+
 # Function to stop syncing a workspace
-async def stop_workspace_sync(workspace_dir):
+async def stop_workspace_sync(workspace_dir: str) -> bool:
     """Stop syncing a workspace directory"""
+    workspace_dir = os.path.abspath(workspace_dir)
     
     if workspace_dir in active_sync_managers:
         sync_manager = active_sync_managers[workspace_dir]
         await sync_manager.stop()
-        # Remove from active_sync_managers after stopping
-        del active_sync_managers[workspace_dir]
         logger.info(f"Stopped syncing workspace: {workspace_dir}")
         return True
     
     logger.info(f"Workspace {workspace_dir} was not being synced")
     return False
 
+
 # Function to stop all active sync managers
 async def stop_all_syncs():
     """Stop all active workspace syncs"""
-    # Create a copy of the keys to avoid modifying the dictionary during iteration
+    # Create a copy of the keys to avoid modifying during iteration
     workspace_dirs = list(active_sync_managers.keys())
     
     for workspace_dir in workspace_dirs:
-        sync_manager = active_sync_managers[workspace_dir]
-        await sync_manager.stop()
-        # Remove from active_sync_managers
-        del active_sync_managers[workspace_dir]
+        await stop_workspace_sync(workspace_dir)
     
     logger.info("Stopped all workspace syncs")
 
+
 # Function to check if a path is in a workspace and ensure that workspace is synced
-async def ensure_workspace_synced(client, file_path):
+async def ensure_workspace_synced(client, file_path: str) -> bool:
     """
     Ensure that the workspace containing the given file path is being synced.
     Returns True if sync was started, False if already syncing or not in a workspace.
@@ -425,9 +479,10 @@ async def ensure_workspace_synced(client, file_path):
     
     # Check if the file is in one of the configured workspaces
     for workspace_dir in client.edge_config.workspacepaths:
+        workspace_dir = os.path.abspath(workspace_dir)
         
         # Check if the file is in this workspace
-        if file_path.startswith(workspace_dir):
+        if file_path.startswith(workspace_dir + os.sep) or file_path == workspace_dir:
             # Check if this workspace is already being synced
             if workspace_dir in active_sync_managers:
                 return False  # Already syncing
@@ -438,3 +493,9 @@ async def ensure_workspace_synced(client, file_path):
             return True
     
     return False  # Not in any workspace
+
+
+# Cleanup function for module shutdown
+def cleanup():
+    """Cleanup resources on module shutdown"""
+    _hash_executor.shutdown(wait=False)
