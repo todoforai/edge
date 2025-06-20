@@ -13,6 +13,18 @@ use tauri_plugin_shell::process::{CommandEvent, CommandChild};
 pub struct WindowState {
     pub width: u32,
     pub height: u32,
+    #[serde(default = "default_x")]
+    pub x: i32,
+    #[serde(default = "default_y")]
+    pub y: i32,
+}
+
+fn default_x() -> i32 {
+    100
+}
+
+fn default_y() -> i32 {
+    100
 }
 
 /// $APPCONFIG/window_state.json
@@ -26,17 +38,24 @@ fn state_file(app: &AppHandle) -> tauri::Result<PathBuf> {
 
 #[tauri::command]
 fn save_current_window_size(app: AppHandle, win: WebviewWindow) -> Result<(), String> {
-    // Get the current window size directly from the window
+    // Get the current window size and position
     let size = win.inner_size().map_err(|e| {
         error!("Failed to get window size: {}", e);
         e.to_string()
     })?;
 
-    info!("Saving window size: {}x{}", size.width, size.height);
+    let position = win.outer_position().map_err(|e| {
+        error!("Failed to get window position: {}", e);
+        e.to_string()
+    })?;
+
+    info!("Saving window size: {}x{} at position: ({}, {})", size.width, size.height, position.x, position.y);
     let path = state_file(&app).map_err(|e| e.to_string())?;
     let state = WindowState {
         width: size.width,
         height: size.height,
+        x: position.x,
+        y: position.y,
     };
 
     if let Some(parent) = path.parent() {
@@ -48,19 +67,24 @@ fn save_current_window_size(app: AppHandle, win: WebviewWindow) -> Result<(), St
 
 #[tauri::command]
 fn get_saved_window_size(app: AppHandle) -> Result<WindowState, String> {
-    info!("Getting saved window size");
+    info!("Getting saved window size and position");
     let path = state_file(&app).map_err(|e| e.to_string())?;
 
     if !path.exists() {
         return Ok(WindowState {
-            width: 800,
-            height: 600,
+            width: 1000,
+            height: 800,
+            x: 100,
+            y: 100,
         });
     }
 
     let json = fs::read_to_string(path).map_err(|e| e.to_string())?;
-    let state: WindowState = serde_json::from_str(&json).map_err(|e| e.to_string())?;
-    info!("Loaded window size: {}x{}", state.width, state.height);
+    let state: WindowState = serde_json::from_str(&json).map_err(|e| {
+        error!("Failed to parse window state JSON: {}", e);
+        e.to_string()
+    })?;
+    info!("Loaded window size: {}x{} at position: ({}, {})", state.width, state.height, state.x, state.y);
     Ok(state)
 }
 
@@ -355,10 +379,11 @@ pub fn run() {
             )?;
             info!("Logging initialized with tauri_plugin_log");
 
-            // restore size before the window shows up
-            if let Ok(size) = get_saved_window_size(app.handle().clone()) {
+            // restore size and position before the window shows up
+            if let Ok(state) = get_saved_window_size(app.handle().clone()) {
                 if let Some(main) = app.get_webview_window("main") {
-                    let _ = main.set_size(PhysicalSize::new(size.width, size.height));
+                    let _ = main.set_size(PhysicalSize::new(state.width, state.height));
+                    let _ = main.set_position(tauri::PhysicalPosition::new(state.x, state.y));
                 }
             }
 
