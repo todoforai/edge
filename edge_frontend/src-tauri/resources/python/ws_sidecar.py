@@ -472,7 +472,7 @@ async def broadcast_event(event):
     for websocket in clients:
         try:
             await websocket.send(message)
-        except websockets.exceptions.ConnectionClosed:
+        except websockets.ConnectionClosed:
             log.warning(f"Client {id(websocket)} disconnected, removing from connected_clients")
             sidecar.connected_clients.discard(websocket)
         except Exception as e:
@@ -535,7 +535,7 @@ async def handle_websocket(websocket):
     try:
         async for message in websocket:
             await handle_websocket_message(websocket, message)
-    except websockets.exceptions.ConnectionClosed:
+    except websockets.ConnectionClosed:
         log.info(f"Client disconnected: {client_id}")
     except Exception as e:
         log.error(f"WebSocket handler error: {e}")
