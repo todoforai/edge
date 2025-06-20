@@ -456,11 +456,14 @@ class TODOforAIEdge:
         """
         if self.ws and self.connected:
             message_json = json.dumps(message)
-            await self.ws.send(message_json)
+            message_size = len(message_json.encode('utf-8'))
+            
             if self.debug:
-                logger.debug(f"Sent response: {message['type']}")
-                if self.debug > 1:  # More verbose debugging
-                    logger.debug(f"Payload: {message['payload']}")
+                logger.debug(f"Sending response: {message['type']} (size: {message_size} bytes)")
+                if message_size > 100000:  # Log if message is larger than 100KB
+                    logger.warning(f"Large message detected: {message_size} bytes")
+                    
+            await self.ws.send(message_json)
 
     async def connect(self):
         """Connect to the WebSocket server"""
@@ -500,23 +503,25 @@ class TODOforAIEdge:
                 # Process messages
                 async for message in ws:
                     await self._handle_message(message)
-        except websockets.exceptions.InvalidStatusCode as error:
-            stack_trace = traceback.format_exc()
-            logger.error(f"WebSocket connection failed with status code: {error.status_code}\nStacktrace:\n{stack_trace}")
-            if error.status_code == 401:
-                logger.error("Authentication failed. Please check your API key.")
-            elif error.status_code == 403:
-                logger.error("Access forbidden. Your API key might not have the required permissions.")
-            else:
-                logger.error(f"Server returned error: {error}")
-        except websockets.exceptions.ConnectionClosedError as error:
+        except websockets.ConnectionClosedError as error:
             stack_trace = traceback.format_exc()
             logger.error(f"WebSocket connection closed unexpectedly: {error}\nStacktrace:\n{stack_trace}")
-        except websockets.exceptions.ConnectionClosedOK as error:
+        except websockets.ConnectionClosedOK as error:
             logger.info(f"WebSocket connection closed normally: {error}")
         except Exception as error:
             stack_trace = traceback.format_exc()
-            logger.error(f"WebSocket connection error: {str(error)}\nStacktrace:\n{stack_trace}")
+            
+            # Check if it's a status code related error (replaces deprecated InvalidStatusCode)
+            if hasattr(error, 'status_code'):
+                logger.error(f"WebSocket connection failed with status code: {error.status_code}\nStacktrace:\n{stack_trace}")
+                if error.status_code == 401:
+                    logger.error("Authentication failed. Please check your API key.")
+                elif error.status_code == 403:
+                    logger.error("Access forbidden. Your API key might not have the required permissions.")
+                else:
+                    logger.error(f"Server returned error: {error}")
+            else:
+                logger.error(f"WebSocket connection error: {str(error)}\nStacktrace:\n{stack_trace}")
         finally:
             self.connected = False
             self.ws = None
@@ -535,7 +540,7 @@ class TODOforAIEdge:
         attempt = 0
         
         while attempt < max_attempts:
-            logger.info(f"Connecting to server (attempt {attempt+1}/{max_attempts})")
+            logger.info(f"Connecting to server (attempt {attempt + 1}/{max_attempts})")
             
             try:
                 await self.connect()
