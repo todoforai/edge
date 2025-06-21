@@ -1,3 +1,6 @@
+logs/mcp*.log
+logs/mcp*.log.gz
+
 edge_frontend/yarn.lock
 
 *.egg-info
