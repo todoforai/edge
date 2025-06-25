@@ -5,13 +5,18 @@ This is a Python client for the TODO for AI service that runs as a background ta
 ## Features
 
 - WebSocket connection to TODO for AI server
-- Authentication with email/password
+- Authentication with email/password or API key
 - Automatic reconnection logic
 - File system operations (directory listing)
 - Shell script execution
 - Heartbeat mechanism to maintain connection
+- Graphical User Interface (GUI) and Command Line Interface (CLI) modes
+- Custom URL protocol handler for web integration
 
 ## Installation
+
+Recommended guide: [Connect PC](https://todofor.ai/connect-pc)
+
 
 ### Download Prebuilt Executables (Recommended)
 
@@ -36,6 +41,12 @@ cd edge
 pip install -e .
 ```
 
+### From Snap (Linux)
+
+```bash
+sudo snap install todoforai-edge
+```
+
 ## Usage
 
 ### Graphical User Interface (Default)
@@ -51,10 +62,9 @@ The UI provides:
 - Authentication via email/password or API key
 - Client status monitoring
 - Start/stop controls for the client
+### Command Line Interface (No UI Mode)
 
-### Command Line
-
-For automation or headless environments, you can run the client from the command line:
+For automation, headless environments, or server deployments:
 
 ```bash
 # Using email/password authentication
@@ -73,37 +83,16 @@ You can also set the following environment variables:
 
 ## URL Protocol Handler
 
-TODO for AI supports a custom URL protocol that allows you to start the client directly from a web browser. This is useful for authentication and quick access to the application.
-Use:
-
-### Installation
-
-First, register the protocol handler:
-
-```bash
-todoforai-edge --register-protocol
-```
-
-This only needs to be done once per machine.
+TODO for AI supports a custom URL protocol (`todoforai://`) that allows you to start the client directly from a web browser. This is useful for authentication and quick access to the application.
 
 ### Usage
 
 You can use the following URL formats:
 
 1. Authenticate with an API key:
-   ```
-   todoforai://auth/apikey/YOUR_API_KEY_HERE
-   ```
-
-### Web Integration
-
-You can add links to your website that will launch the TODO for AI client:
-
-```html
-<a href="todoforai://auth/apikey/YOUR_API_KEY_HERE">Start TODOforAI Client</a>
 ```
-
-For security reasons, you might want to generate these links dynamically with user-specific API keys.
+todoforai://auth/apikey/YOUR_API_KEY_HERE
+```
 
 ## Graphical User Interface
 
