@@ -281,6 +281,7 @@ async def handle_block_save(payload, client):
 
     try:
         filepath = resolve_file_path(filepath, rootpath, fallback_root_paths)
+        print('Saving file:', filepath)
 
         # Check if path is allowed before proceeding
         if not is_path_allowed(filepath, client.edge_config.workspacepaths):

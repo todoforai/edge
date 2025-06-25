@@ -3,6 +3,7 @@ import logging
 import re
 from pathlib import Path
 from .messages import workspace_result_msg
+import platform
 
 logger = logging.getLogger("todoforai-edge")
 
@@ -159,6 +160,10 @@ def is_ignored_by_patterns_in_file(file_path, ignore_patterns, root):
     """Check if a path is ignored by gitignore patterns in a specific file"""
     if not root or not ignore_patterns:
         return False
+
+    # Windows-specific: Check for device paths that cause relpath issues
+    if platform.system() == "Windows" and "\\\\.\\nul" in file_path:
+        return True
 
     rel_path = os.path.relpath(file_path, root)
     
