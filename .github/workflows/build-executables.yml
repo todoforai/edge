@@ -391,6 +391,32 @@ jobs:
         fi
         echo "Uploading to folder: $FOLDER"
         
+        # Function to upload with retry
+        upload_with_retry() {
+          local file="$1"
+          local remote_path="$2"
+          local max_retries=3
+          local retry_count=0
+          
+          while [ $retry_count -lt $max_retries ]; do
+            echo "Uploading $file to $remote_path (attempt $((retry_count + 1))/$max_retries)"
+            
+            if cat "$file" | wrangler r2 object put "$remote_path" --pipe --content-type application/octet-stream --remote; then
+              echo "✅ Successfully uploaded $file"
+              return 0
+            else
+              retry_count=$((retry_count + 1))
+              if [ $retry_count -lt $max_retries ]; then
+                echo "❌ Upload failed, retrying in 10 seconds..."
+                sleep 10
+              else
+                echo "❌ Upload failed after $max_retries attempts: $file"
+                return 1
+              fi
+            fi
+          done
+        }
+
         # Create a directory for each platform's artifacts
         mkdir -p uploads
         
@@ -404,11 +430,7 @@ jobs:
           for FILE in uploads/*.whl uploads/*.tar.gz; do
             if [ -f "$FILE" ]; then
               FILENAME=$(basename "$FILE")
-              cat "$FILE" | \
-                wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/$FILENAME" \
-                  --pipe \
-                  --content-type application/octet-stream \
-                  --remote
+              upload_with_retry "$FILE" "$R2_BUCKET_NAME/edge/$FOLDER/$FILENAME"
             fi
           done
         fi
@@ -429,13 +451,9 @@ jobs:
               # For Windows, find and copy the MSI installer
               find "$DIR" -name "*.msi" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" \;
               
-              # Upload the MSI using stdin pipe to avoid Wrangler bug
+              # Upload the MSI
               if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" ]; then
-                cat "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" | \
-                  wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.msi" \
-                    --pipe \
-                    --content-type application/octet-stream \
-                    --remote
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.msi"
               fi
             elif [[ "$TARGET_TRIPLE" == *linux* ]]; then
               PLATFORM="linux"
@@ -448,22 +466,15 @@ jobs:
               find "$DIR" -name "*.AppImage" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" \;
               find "$DIR" -name "*.deb" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" \;
               
-              # Upload the AppImage using stdin pipe to avoid Wrangler bug
+              # Upload the AppImage
               if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" ]; then
-                cat "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" | \
-                  wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" \
-                    --pipe \
-                    --content-type application/octet-stream \
-                    --remote
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.AppImage"
               fi
               
-              # Upload the DEB using stdin pipe to avoid Wrangler bug
+              # Upload the DEB with extra retry for this problematic file
               if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" ]; then
-                cat "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" | \
-                  wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.deb" \
-                    --pipe \
-                    --content-type application/octet-stream \
-                    --remote
+                echo "📦 DEB file size: $(du -h "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" | cut -f1)"
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.deb"
               fi
             elif [[ "$TARGET_TRIPLE" == *darwin* || "$TARGET_TRIPLE" == *apple* ]]; then
               PLATFORM="macos"
@@ -475,28 +486,21 @@ jobs:
               # For macOS, prioritize DMG installer
               find "$DIR" -name "*.dmg" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" \;
               
-              # Upload the DMG using stdin pipe to avoid Wrangler bug
+              # Upload the DMG
               if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" ]; then
-                cat "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" | \
-                  wrangler r2 object put "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.dmg" \
-                    --pipe \
-                    --content-type application/octet-stream \
-                    --remote
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.dmg"
               fi
             fi
           fi
         done
         
-        # If this is a tag release, also copy to latest using stdin pipe
+        # If this is a tag release, also copy to latest
         if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          echo "🔄 Copying files to latest folder..."
           for FILE in uploads/*; do
             if [ -f "$FILE" ]; then
               FILENAME=$(basename "$FILE")
-              cat "$FILE" | \
-                wrangler r2 object put "$R2_BUCKET_NAME/edge/latest/$FILENAME" \
-                  --pipe \
-                  --content-type application/octet-stream \
-                  --remote
+              upload_with_retry "$FILE" "$R2_BUCKET_NAME/edge/latest/$FILENAME"
             fi
           done
         fi
