@@ -10,8 +10,8 @@ import traceback
 
 logger = logging.getLogger("todoforai-edge")
 
-def generate_machine_fingerprint():
-    """Generate a unique fingerprint for this client"""
+def generate_machine_fingerprint(email: str):
+    """Generate a unique fingerprint for this client including user account info"""
     identifiers = {}
     
     # Basic system info (OS, architecture, hostname)
@@ -21,6 +21,11 @@ def generate_machine_fingerprint():
     
     # Add CPU info
     identifiers["processor"] = platform.processor()
+    
+    # Add user account information to make fingerprint unique per user
+    if email:
+        identifiers["user_email"] = email
+    logger.info(f'Fingerprint generated with email: {email}')
     
     # Add more stable identifiers based on OS
     if platform.system() == "Linux":
@@ -64,25 +69,20 @@ async def async_request(client, method, endpoint, data=None):
         "x-api-key": f"{client.api_key}"
         }
     
-    try:
-        if method.lower() == 'get':
-            response = requests.get(url, headers=headers)
-        elif method.lower() == 'post':
-            response = requests.post(url, headers=headers, json=data)
-        elif method.lower() == 'put':
-            response = requests.put(url, headers=headers, json=data)
-        elif method.lower() == 'patch':
-            response = requests.patch(url, headers=headers, json=data)
-        elif method.lower() == 'delete':
-            response = requests.delete(url, headers=headers)
-        else:
-            raise ValueError(f"Unsupported HTTP method: {method}")
-            
-        if response.status_code >= 400:
-            raise Exception(f"API request failed with status {response.status_code}: {response.text}")
-            
-        return response
-    except Exception as e:
-        stack_trace = traceback.format_exc()
-        logger.error(f"API request error: {str(e)}\nStacktrace:\n{stack_trace}")
-        return None
+    if method.lower() == 'get':
+        response = requests.get(url, headers=headers)
+    elif method.lower() == 'post':
+        response = requests.post(url, headers=headers, json=data)
+    elif method.lower() == 'put':
+        response = requests.put(url, headers=headers, json=data)
+    elif method.lower() == 'patch':
+        response = requests.patch(url, headers=headers, json=data)
+    elif method.lower() == 'delete':
+        response = requests.delete(url, headers=headers)
+    else:
+        raise ValueError(f"Unsupported HTTP method: {method}")
+        
+    if response.status_code >= 400:
+        raise Exception(f"API request failed with status {response.status_code}: {response.text}")
+        
+    return response

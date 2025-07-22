@@ -32,7 +32,10 @@ class Front2Edge:
     BLOCK_SIGNAL = 'block:signal'
     BLOCK_DIFF = 'block:diff'
     FRONTEND_FILE_CHUNK_REQUEST = 'frontend:file_chunk_request'
-
+    
+    # Function call operations
+    CALL_EDGE_METHOD = 'call_edge_method'
+    
 
 # Agent to Edge Messages
 class Agent2Edge:
@@ -69,6 +72,9 @@ class Edge2Front:
     BLOCK_META_RESULT = 'block:meta_result'
     BLOCK_DIFF_RESULT = 'block:diff_result'
     
+    # Function call responses
+    CALL_EDGE_METHOD_RESULT = 'call_edge_method_result'
+    
     # Shell block responses (updated to match protocol)
     BLOCK_SH_MSG_RESULT = 'block:sh_msg_result'
     BLOCK_SH_MSG_START = 'block:sh_msg_start'
@@ -82,6 +88,11 @@ class Edge2FrontAgent:
     WORKSPACE_FILE_DELETE_SYNC = "workspace:file_delete_sync"
     WORKSPACE_FILE_DONE = "workspace:file_done"
 
+
+class Server2Edge:
+    """Messages from server to edge"""
+    EDGE_CONFIG_UPDATE = 'edge:config_update'
+
 # Shorthand aliases
 AE = Agent2Edge
 FE = Front2Edge
@@ -89,3 +100,4 @@ EA = Edge2Agent
 EF = Edge2Front
 EFA = Edge2FrontAgent
 SR = ServerResponse
+S2E = Server2Edge

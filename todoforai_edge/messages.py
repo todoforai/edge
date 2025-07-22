@@ -1,4 +1,5 @@
 from .constants import Edge2Front as EF, Edge2Agent as EA
+from typing import Any
 
 
 # Edge status message
@@ -199,3 +200,31 @@ def get_folders_response_msg(request_id, edge_id, folders, files, error=None):
             "error": error
         }
     }
+
+def general_result_msg(response_type: str, request_id: str, edge_id: str, success: bool, result: Any = None, error: str = None, agent_id: str = None):
+    """Create a generic result message for function calls"""
+    payload = {
+        "requestId": request_id,
+        "edgeId": edge_id,
+        "success": success
+    }
+    
+    if agent_id is not None:
+        payload["agentId"] = agent_id
+    if result is not None:
+        payload["result"] = result
+    if error is not None:
+        payload["error"] = error
+    
+    return {
+        "type": response_type,
+        "payload": payload
+    }
+
+def call_edge_method_result_msg(request_id: str, edge_id: str, success: bool, result: Any = None, error: str = None):
+    """Create a call edge method result message (frontend)"""
+    return general_result_msg(EF.CALL_EDGE_METHOD_RESULT, request_id, edge_id, success, result, error)
+
+def function_call_result_msg(request_id: str, edge_id: str, success: bool, result: Any = None, error: str = None, agent_id: str = None):
+    """Create a function call result message (agent)"""
+    return general_result_msg(EA.FUNCTION_CALL_RESULT, request_id, edge_id, success, result, error, agent_id)

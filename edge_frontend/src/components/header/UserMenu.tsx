@@ -97,8 +97,6 @@ const HeaderContainer = styled.div`
   align-items: center;
   padding: 1rem 1rem;
   background: ${(props) => props.theme.colors.cardBackground};
-  border-bottom: 1px solid ${(props) => props.theme.colors.borderColor};
-  margin-bottom: 1rem;
 `;
 
 export const UserMenu = () => {

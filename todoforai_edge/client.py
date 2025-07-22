@@ -14,7 +14,7 @@ from typing import List, Optional, Dict, Any, Callable, Coroutine, Union, TypeVa
 # Import constants
 from .constants import (
     ServerResponse, Front2Edge, Edge2Agent, Agent2Edge, Edge2Front, EdgeStatus,
-    SR, FE, EA, AE, EF
+    SR, FE, EA, AE, EF, S2E
 )
 from .utils import generate_machine_fingerprint, async_request
 from .messages import edge_status_msg
@@ -38,7 +38,8 @@ from .handlers import (
     handle_ctx_julia_request,
     handle_file_chunk_request,
     handle_get_folders,
-    handle_function_call_request
+    handle_function_call_request,
+    handle_call_edge_method
 )
 from .workspace_handler import handle_ctx_workspace_request
 from .file_sync import ensure_workspace_synced
@@ -65,7 +66,7 @@ class EdgeConfig:
         # Create an observable for the entire config
         self.config = registry.create("edge_config", {
             "id": data.get("id", ""),
-            "name": data.get("name", "Unknown Edge"),
+            "name": data.get("name", "Name uninitialized"),
             "workspacepaths": data.get("workspacepaths", []),
             "edgeMCPs": data.get("edgeMCPs", []),
             "ownerId": data.get("ownerId", ""),
@@ -74,37 +75,6 @@ class EdgeConfig:
             "isFileSystemEnabled": data.get("isFileSystemEnabled", False),
             "createdAt": data.get("createdAt", None)
         })
-    
-    def update(self, data: Dict[str, Any]) -> None:
-        """Update configuration with new data"""
-        if not data:
-            return
-            
-        # Create a new dictionary with updated values
-        current = self.config.value
-        updated = current.copy()
-        # Update only the fields that are present in the data
-        if "id" in data:
-            updated["id"] = data["id"]
-        if "name" in data:
-            updated["name"] = data["name"]
-        if "workspacepaths" in data:
-            updated["workspacepaths"] = data["workspacepaths"]
-        if "edgeMCPs" in data:
-            updated["edgeMCPs"] = data["edgeMCPs"]
-        if "ownerId" in data:
-            updated["ownerId"] = data["ownerId"]
-        if "status" in data:
-            updated["status"] = data["status"]
-        if "isShellEnabled" in data:
-            updated["isShellEnabled"] = data["isShellEnabled"]
-        if "isFileSystemEnabled" in data:
-            updated["isFileSystemEnabled"] = data["isFileSystemEnabled"]
-        if "createdAt" in data:
-            updated["createdAt"] = data["createdAt"]
-        
-        # Set the new value to trigger notifications
-        self.config.set_value(updated)
     
     @property
     def id(self) -> str:
@@ -180,9 +150,8 @@ class EdgeConfig:
     def set_edge_mcps(self, mcps: List[str]) -> None:
         """Set the complete list of edge MCPs"""
         current = self.config.value
-        updated = current.copy()
-        updated["edgeMCPs"] = mcps
-        self.config.set_value(updated)
+        updated = {"edgeMCPs": mcps }
+        self.config.update_value(updated)
 
 class TODOforAIEdge:
     def __init__(self, client_config):
@@ -218,40 +187,45 @@ class TODOforAIEdge:
         self.edge_id = ""
         self.connected = False
         self.heartbeat_task = None
-        self.fingerprint = generate_machine_fingerprint()
+        self.fingerprint = None  # Will be generated when we have email
         
         # Set logging level based on config
         if self.debug:
             logger.setLevel(logging.DEBUG)
     
-    async def _on_config_change(self, config: Dict[str, Any]) -> None:
-        """Callback when config changes"""
-        logger.info("Edge config changed")
-        paths = config.get("workspacepaths", [])
-        mcps = config.get("edgeMCPs", [])
+    def _generate_fingerprint(self):
+        """Generate fingerprint with user email"""
+        if not self.email:
+            raise ValueError("Email is required to generate fingerprint")
+        self.fingerprint = generate_machine_fingerprint(self.email)
+        logger.info(f'self.fingerprint: {self.fingerprint}')
+        return self.fingerprint
 
-        # If we have an edge_id, update the server
+    async def _on_config_change(self, changes: Dict[str, Any]) -> None:
+        """Callback when config changes - receives only the changed fields"""
+        logger.info(f"Edge config changed: {list(changes.keys())}")
+        if 'name' in changes:
+            logger.info(f'changes: {changes["name"]}')
+        
+        # If we have an edge_id, update the server with workspace/MCP changes
         if self.edge_id and self.connected:
-            try:
-                response = await async_request(
-                    self,
-                    'patch',
-                    f"/api/v1/edges/{self.edge_id}",
-                    {"workspacepaths": paths, "edgeMCPs": mcps}
-                )
-                
-                if response:
-                    logger.info("Updated edge config on server")
-                else:
-                    logger.error("Failed to update edge config on server")
-            except Exception as e:
-                logger.error(f"Error updating edge config on server: {str(e)}")
+            sync_data = {k: v for k, v in changes.items() if k in {"workspacepaths", "edgeMCPs"}}
+            
+            if sync_data:
+                try:
+                    response = await async_request(self, 'patch', f"/api/v1/edges/{self.edge_id}", sync_data)
+                    if response:
+                        logger.info(f"Updated edge config on server: {list(sync_data.keys())}")
+                    else:
+                        logger.error("Failed to update edge config on server")
+                except Exception as e:
+                    logger.error(f"Error updating edge config on server: {str(e)}")
         
     async def authenticate(self):
         """Authenticate with email and password to get API key"""
-        if self.api_key:
-            logger.info("Already have API key, skipping authentication")
-            return {"valid": True, }
+        if self.api_key and self.email:
+            logger.info("Already have API key and email, skipping authentication")
+            return {"valid": True}
             
         if not self.email or not self.password:
             logger.error("Email and password are required for authentication")
@@ -261,43 +235,59 @@ class TODOforAIEdge:
             logger.info(f"Authenticating with email: {self.email}")
             self.api_key = authenticate_and_get_api_key(self.email, self.password, self.api_url)
             logger.info(f"Successfully authenticated as {self.email}")
-            return {"valid": True, }
+            return {"valid": True}
         except Exception as e:
             logger.error(f"Authentication failed: {str(e)}")
             return {"valid": False, "error": str(e)}
         
-    async def _load_edge_config(self):
-        """Load edge configuration from the API"""
-        if not self.edge_id:
-            logger.warning("Cannot load edge config: missing edge_id")
-            return False
-        
+    async def _handle_edge_config_update(self, payload):
+        """Handle edge config update from server"""
         try:
-            response = await async_request(self, 'get', f"/api/v1/edges/{self.edge_id}")
-            
-            if not response:
-                return False
+            edge_id = payload.get("edgeId")
+            if edge_id and edge_id != self.edge_id:
+                logger.warning(f"Received config update for different edge: {edge_id} vs {self.edge_id} - ignoring")
+                return
                 
-            data = response.json()
+            # Extract config data from payload and check for changes
+            config_data = {}
+            current_config = self.edge_config.config.value
+            has_changes = False
             
-            # Use the update method to update the config
-            self.edge_config.update(data)
+            if "workspacepaths" in payload:
+                if current_config.get("workspacepaths") != payload["workspacepaths"]:
+                    config_data["workspacepaths"] = payload["workspacepaths"]
+                    has_changes = True
+                    
+            if "isShellEnabled" in payload:
+                if current_config.get("isShellEnabled") != payload["isShellEnabled"]:
+                    config_data["isShellEnabled"] = payload["isShellEnabled"]
+                    has_changes = True
+                    
+            if "isFileSystemEnabled" in payload:
+                if current_config.get("isFileSystemEnabled") != payload["isFileSystemEnabled"]:
+                    config_data["isFileSystemEnabled"] = payload["isFileSystemEnabled"]
+                    has_changes = True
+                    
+            if "name" in payload:
+                if current_config.get("name") != payload["name"]:
+                    config_data["name"] = payload["name"]
+                    has_changes = True
             
-            logger.info(f"Loaded edge configuration: {self.edge_config.name}")
-            logger.info(f"Workspace paths: {self.edge_config.workspacepaths}")
-            logger.info(f"Shell enabled: {self.edge_config.is_shell_enabled}")
-            logger.info(f"Filesystem enabled: {self.edge_config.is_filesystem_enabled}")
+            if not has_changes:
+                logger.debug("No config changes detected, skipping update")
+                return
             
-            # Simple MCP auto-load: just check if mcp.json exists
-            await self._load_mcp_if_exists()
-            # Update edge status to ONLINE
-            await self._update_edge_status(EdgeStatus.ONLINE)
-             
-            return True
+            logger.info(f"Received edge config update for edge {self.edge_id}")
+            logger.info(f"Config changes: {config_data}")
+            
+            # Update the edge config with only the changed data, marking server as source
+            self.edge_config.config.update_value(config_data, source="edge2backend_on_config_change")
+            
+            logger.info("Edge config update processed successfully")
             
         except Exception as e:
-            logger.error(f"Error loading edge configuration: {str(e)}")
-            return False
+            logger.error(f"Error handling edge config update: {str(e)}")
+            traceback.print_exc()
 
     async def _start_workspace_syncs(self):
         """Start file synchronization for all workspace paths"""
@@ -389,9 +379,15 @@ class TODOforAIEdge:
                 self.edge_id = payload.get("edgeId", "")
                 self.user_id = payload.get("userId", "")
                 logger.info(f"Connected with edge ID: {self.edge_id} and user ID: {self.user_id}")
-        
-            # Load edge configuration after connection
-                asyncio.create_task(self._load_edge_config())
+                
+                # Load MCP if exists (only once on initial connection)
+                await self._load_mcp_if_exists()
+                
+                # Update edge status to ONLINE
+                await self._update_edge_status(EdgeStatus.ONLINE)
+                
+            elif msg_type == S2E.EDGE_CONFIG_UPDATE:  # Handle EDGE_CONFIG_UPDATE
+                asyncio.create_task(self._handle_edge_config_update(payload))
             
             elif msg_type == FE.EDGE_DIR_LIST:
                 asyncio.create_task(handle_todo_dir_list(payload, self))
@@ -437,6 +433,9 @@ class TODOforAIEdge:
             elif msg_type == FE.GET_FOLDERS:
                 asyncio.create_task(handle_get_folders(payload, self))
             
+            elif msg_type == FE.CALL_EDGE_METHOD:
+                asyncio.create_task(handle_call_edge_method(payload, self))
+
             elif msg_type == AE.FUNCTION_CALL_REQUEST:
                 asyncio.create_task(handle_function_call_request(payload, self))
             
@@ -469,8 +468,8 @@ class TODOforAIEdge:
         """Connect to the WebSocket server"""
         # Authenticate if needed
         if not self.api_key and (self.email and self.password):
-            auth_success = await self.authenticate()
-            if not auth_success:
+            auth_result = await self.authenticate()
+            if not auth_result["valid"]:
                 logger.error("Authentication failed, cannot connect")
                 return
                 
@@ -478,8 +477,11 @@ class TODOforAIEdge:
             logger.error("No API key available, cannot connect")
             return
             
-        fingerprint = generate_machine_fingerprint()
-        print(f"Fingerprint: {fingerprint}")
+        if not self.email:
+            logger.error("No email available for fingerprint generation, cannot connect")
+            return
+            
+        fingerprint = self._generate_fingerprint()
         
         # Only include fingerprint in URL
         ws_url = f"{self.ws_url}?fingerprint={fingerprint}"

@@ -11,7 +11,7 @@ def authenticate_and_get_api_key(email, password, api_url):
     """Authenticate with the server and get an API key"""
     # Login only, no registration
     login_url = f"{api_url}/token/v1/auth/login"
-    print(f"Attempting to login at: {login_url}")
+    logger.info(f"Attempting to login at: {login_url}")
     response = requests.post(login_url, json={"email": email, "password": password})
     
     if response.status_code != 200:
@@ -22,7 +22,7 @@ def authenticate_and_get_api_key(email, password, api_url):
     data = response.json()
     # print(f"Login response: {data}")
     token = data.get("token")
-    print(f"Successfully authenticated, received token")
+    logger.info(f"Successfully authenticated, received token")
     
     # Get or create API key
     headers = {"Authorization": f"Bearer {token}"}
@@ -30,13 +30,13 @@ def authenticate_and_get_api_key(email, password, api_url):
     
     # Try to get existing API key
     get_key_url = f"{api_url}/token/v1/users/apikeys/{api_key_name}"
-    print(f"Checking for existing API key at: {get_key_url}")
+    logger.info(f"Checking for existing API key at: {get_key_url}")
     response = requests.get(get_key_url, headers=headers)
     
     if response.status_code == 404:
         # Create new API key
         create_key_url = f"{api_url}/token/v1/users/apikeys"
-        print(f"Creating new API key at: {create_key_url}")
+        logger.info(f"Creating new API key at: {create_key_url}")
         response2 = requests.post(create_key_url, headers=headers, json={"name": api_key_name})
         
         if response2.status_code != 200:
@@ -47,7 +47,7 @@ def authenticate_and_get_api_key(email, password, api_url):
         if not api_key:
             raise ValueError(f"Server returned invalid API key response: {data}")
             
-        print(f"Created new API key (first 8 chars): {api_key[:8] if api_key else 'None'}...")
+        logger.info(f"Created new API key (first 8 chars): {api_key[:8] if api_key else 'None'}...")
         return api_key
     else:
         if response.status_code != 200:
@@ -56,7 +56,7 @@ def authenticate_and_get_api_key(email, password, api_url):
         data = response.json()
         api_key = data.get("id")
             
-        print(f"Retrieved existing API key (first 8 chars): {api_key[:8] if api_key else 'None'}...")
+        logger.info(f"Retrieved existing API key (first 8 chars): {api_key[:8] if api_key else 'None'}...")
         
         return api_key
 

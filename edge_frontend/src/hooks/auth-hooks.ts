@@ -77,8 +77,8 @@ export const useAuthEventListenersEffect = () => {
 
       // Save user to storage
       try {
-        if (updatedUser.isAuthenticated && updatedUser.apiUrl) {
-          // Only store what we need to restore the session
+        if (updatedUser.isAuthenticated && updatedUser.apiUrl && updatedUser.apiKey && updatedUser.email) {
+          // Store both apiKey and email as they're both required for fingerprint generation
           const storageData = {
             apiKey: updatedUser.apiKey,
             email: updatedUser.email,
@@ -88,6 +88,8 @@ export const useAuthEventListenersEffect = () => {
           };
           localStorage.setItem(`currentUser_${updatedUser.apiUrl}`, JSON.stringify(storageData));
           log.info(`User data saved to storage for API URL: ${updatedUser.apiUrl}`);
+        } else {
+          log.warning('Cannot save user to storage: missing required fields (apiKey, email, or apiUrl)');
         }
       } catch (error) {
         log.error('Failed to save user to storage:', error);

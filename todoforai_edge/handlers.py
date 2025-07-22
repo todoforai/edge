@@ -160,7 +160,7 @@ async def handle_block_keyboard(payload, client):
 
 async def handle_block_signal(payload, client):
     """Handle signal events (like SIGINT, SIGTERM)"""
-    print("""Handle signal events (like SIGINT, SIGTERM)""")
+    logger.info("""Handle signal events (like SIGINT, SIGTERM)""")
     block_id = payload.get("blockId")
 
     try:
@@ -281,7 +281,7 @@ async def handle_block_save(payload, client):
 
     try:
         filepath = resolve_file_path(filepath, rootpath, fallback_root_paths)
-        print('Saving file:', filepath)
+        logger.info(f'Saving file: {filepath}')
 
         # Check if path is allowed before proceeding
         if not is_path_allowed(filepath, client.edge_config.workspacepaths):
@@ -565,74 +565,78 @@ async def mcp_list_servers(client_instance=None):
         "description": "List of connected MCP servers"
     }
 
+class FunctionCallResponse:
+    """Encapsulates function call response logic"""
+    
+    def __init__(self, request_id: str, edge_id: str, agent_id: str = None):
+        self.request_id = request_id
+        self.edge_id = edge_id
+        self.agent_id = agent_id
+        self.is_agent_request = agent_id is not None
+    
+    def success_response(self, result):
+        """Create success response based on request type"""
+        if self.is_agent_request:
+            from .messages import function_call_result_msg
+            return function_call_result_msg(self.request_id, self.edge_id, True, result=result, agent_id=self.agent_id)
+        else:
+            from .messages import call_edge_method_result_msg
+            return call_edge_method_result_msg(self.request_id, self.edge_id, True, result=result)
+    
+    def error_response(self, error_message: str):
+        """Create error response based on request type"""
+        if self.is_agent_request:
+            from .messages import function_call_result_msg
+            return function_call_result_msg(self.request_id, self.edge_id, False, error=error_message, agent_id=self.agent_id)
+        else:
+            from .messages import call_edge_method_result_msg
+            return call_edge_method_result_msg(self.request_id, self.edge_id, False, error=error_message)
+
+async def _execute_function(function_name: str, args: dict, client) -> any:
+    """Execute a registered function with proper argument handling"""
+    if function_name not in FUNCTION_REGISTRY:
+        available_functions = list(FUNCTION_REGISTRY.keys())
+        raise ValueError(f"Unknown function: {function_name}. Available functions: {available_functions}")
+    
+    func = FUNCTION_REGISTRY[function_name]
+    
+    # For MCP functions, always pass the client instance
+    if function_name.startswith('mcp_'):
+        args['client_instance'] = client
+    
+    # Execute function based on its signature
+    import inspect
+    sig = inspect.signature(func)
+    
+    if len(sig.parameters) > 0:
+        result = await func(**args) if asyncio.iscoroutinefunction(func) else func(**args)
+    else:
+        result = await func() if asyncio.iscoroutinefunction(func) else func()
+    
+    return result
+
+async def handle_call_edge_method(payload, client):
+    await handle_function_call_request(payload, client)
+
 async def handle_function_call_request(payload, client):
-    """Handle function call requests from agent using dynamic function registry"""
+    """Unified handler for function calls from both agent and frontend"""
     request_id = payload.get("requestId")
     function_name = payload.get("functionName")
     args = payload.get("args", {})
-    agent_id = payload.get("agentId")
+    agent_id = payload.get("agentId")  # Only present for agent requests
     edge_id = payload.get("edgeId")
 
+    response_handler = FunctionCallResponse(request_id, edge_id, agent_id)
+    
     try:
         logger.info(f"Function call request received: {function_name} with args: {args}")
-
-        # Check if function exists in registry
-        if function_name in FUNCTION_REGISTRY:
-            func = FUNCTION_REGISTRY[function_name]
-            
-            # Call function with args if it accepts them, otherwise call without args
-            import inspect
-            sig = inspect.signature(func)
-            
-            # For MCP functions, always pass the client instance
-            if function_name.startswith('mcp_'):
-                args['client_instance'] = client
-            
-            if len(sig.parameters) > 0:
-                result = await func(**args) if asyncio.iscoroutinefunction(func) else func(**args)
-            else:
-                result = await func() if asyncio.iscoroutinefunction(func) else func()
-
-            # Send success response
-            response = {
-                "type": EA.FUNCTION_CALL_RESULT,
-                "payload": {
-                    "requestId": request_id,
-                    "agentId": agent_id,
-                    "edgeId": edge_id,
-                    "success": True,
-                    "result": result
-                }
-            }
-        else:
-            # Unknown function
-            available_functions = list(FUNCTION_REGISTRY.keys())
-            response = {
-                "type": EA.FUNCTION_CALL_RESULT,
-                "payload": {
-                    "requestId": request_id,
-                    "agentId": agent_id,
-                    "edgeId": edge_id,
-                    "success": False,
-                    "error": f"Unknown function: {function_name}. Available functions: {available_functions}"
-                }
-            }
-
-        await client._send_response(response)
-
+        
+        result = await _execute_function(function_name, args, client)
+        response = response_handler.success_response(result)
+        
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error processing function call: {str(error)}\nStacktrace:\n{stack_trace}")
-
-        # Send error response
-        response = {
-            "type": EA.FUNCTION_CALL_RESULT,
-            "payload": {
-                "requestId": request_id,
-                "agentId": agent_id,
-                "edgeId": edge_id,
-                "success": False,
-                "error": f"{str(error)}\n\nStacktrace:\n{stack_trace}"
-            }
-        }
-        await client._send_response(response)
+        response = response_handler.error_response(f"{str(error)}\n\nStacktrace:\n{stack_trace}")
+    
+    await client._send_response(response)

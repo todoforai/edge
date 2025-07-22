@@ -17,10 +17,10 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 requires-python = ">=3.7"
-dependencies = [
-    "websockets>=10.4",
-    "requests>=2.25.0",
-]
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
 
 [project.urls]
 "Homepage" = "https://todofor.ai"

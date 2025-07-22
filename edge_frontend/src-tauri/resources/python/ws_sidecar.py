@@ -71,8 +71,9 @@ def login(credentials):
         config = Config()
         
         # Set credentials from the request
-        if "email" in credentials and "password" in credentials:
+        if "email" in credentials:
             config.email = credentials["email"]
+        if "password" in credentials:
             config.password = credentials["password"]
         
         if "apiKey" in credentials:
@@ -186,7 +187,16 @@ async def _run_client():
     """Run the client in async context"""
     try:
         # Authenticate if needed
-        if not sidecar.todo_client.api_key and (sidecar.todo_client.email and sidecar.todo_client.password):
+        if sidecar.todo_client.api_key and sidecar.todo_client.email:
+            # If we already have an API key and email, send auth success
+            await broadcast_event({
+                "type": "auth_success",
+                "payload": {
+                    "apiKey": sidecar.todo_client.api_key,
+                    "email": sidecar.todo_client.email
+                }
+            })
+        elif sidecar.todo_client.email and sidecar.todo_client.password:
             log.info(f"Authenticating with email: {sidecar.todo_client.email}")
             response = await sidecar.todo_client.authenticate()
             if not response["valid"]:
@@ -204,21 +214,18 @@ async def _run_client():
                     "email": sidecar.todo_client.email,
                 }
             })
-        elif sidecar.todo_client.api_key:
-            # If we already have an API key, send auth success
+        else:
             await broadcast_event({
-                "type": "auth_success",
-                "payload": {
-                    "apiKey": sidecar.todo_client.api_key,
-                    "email": sidecar.todo_client.email
-                }
+                "type": "auth_error", 
+                "payload": {"message": "Missing required credentials (apiKey and email)"}
             })
+            return
         
         # Register all hooks after successful authentication
         await register_all_hooks()
             
         # Start the client
-        log.info("Starting client...")
+        log.info("Logging in with todo_client.start()")
         await sidecar.todo_client.start()
     except Exception as e:
         log.error(f"Error in client thread: {e}")
@@ -234,21 +241,21 @@ async def register_all_hooks():
         # Register file sync hooks
         try:
             await register_file_sync_hooks_internal()
-            log.info("File sync hooks registered")
+            log.info("Frontend file sync hooks registered")
         except Exception as e:
             log.warning(f"Failed to register file sync hooks: {e}")
 
         # Register active workspaces hooks
         try:
             await register_active_workspaces_hooks_internal()
-            log.info("Active workspaces hooks registered")
+            log.info("Frontend active workspaces hooks registered")
         except Exception as e:
             log.warning(f"Failed to register active workspaces hooks: {e}")
 
         # Register edge config hooks
         try:
             await register_edge_config_hooks_internal()
-            log.info("Edge config hooks registered")
+            log.info("Frontend edge config hooks registered")
         except Exception as e:
             log.warning(f"Failed to register edge config hooks: {e}")
             
@@ -364,7 +371,7 @@ def register_file_sync_hooks(params=None):
     """Register hooks to monitor file sync events"""
     try:
         asyncio.create_task(register_file_sync_hooks_internal())
-        return {"status": "success", "message": "File sync hooks registered"}
+        return {"status": "success", "message": "Frontend file sync hooks registered"}
     except Exception as e:
         log.error(f"Error registering file sync hooks: {e}")
         traceback.print_exc()
@@ -452,6 +459,31 @@ def remove_workspace_path(params):
             
     except Exception as e:
         log.error(f"Error removing workspace path: {e}")
+        return {"status": "error", "message": str(e)}
+
+@sidecar.rpc
+def setup_mcp_client(params):
+    """Setup MCP client with configuration"""
+    try:
+        if not sidecar.todo_client:
+            return {"status": "error", "message": "Client not initialized"}
+            
+        config_path = params.get("configPath", "mcp.json")
+        
+        # Import and setup MCP
+        from todoforai_edge.mcp_client import setup_mcp_from_config
+        
+        # Setup MCP with edge client reference
+        async def setup_mcp():
+            collector = await setup_mcp_from_config(config_path, sidecar.todo_client)
+            return collector
+            
+        asyncio.create_task(setup_mcp())
+        
+        return {"status": "success", "message": "MCP client setup initiated"}
+        
+    except Exception as e:
+        log.error(f"Error setting up MCP client: {e}")
         return {"status": "error", "message": str(e)}
 
 async def broadcast_event(event):
@@ -555,8 +587,13 @@ async def start_server(host='127.0.0.1', port=9528):
     
     while retry_count < max_retries:
         try:
-            # Create the WebSocket server
-            async with websockets.serve(handle_websocket, host, port):
+            # Create the WebSocket server with compression disabled
+            async with websockets.serve(
+                handle_websocket,
+                host,
+                port,
+                compression=None  # Disable compression to avoid frame compression issues
+            ):
                 # Keep the server running
                 await asyncio.Future()
                 return

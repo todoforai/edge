@@ -30,21 +30,20 @@ class Observable(Generic[T]):
 
     @value.setter
     def value(self, new_value: T) -> None:
-        self.set_value(new_value)
+        self.update_value(new_value)
 
-    def set_value(self, new_value: T) -> None:
-        """Synchronous setter that schedules notification"""
+    def update_value(self, new_value: T, source: str = None) -> None:
+        """Update value and notify observers with only the change"""
         if self._value == new_value:
             logger.warning(f"No change in value for observable '{self._name}'")
-            return  # No change, no notifications
+            return
 
         self._value = new_value
+        # For non-dict observables, we notify with the new value
+        self._notify(new_value, source)
 
-        # Notify observers
-        self._notify()
-
-    def _notify(self) -> None:
-        """Notify all observers about the current value"""
+    def _notify(self, notification_data: Any, source: str = None) -> None:
+        """Notify all observers about the change"""
         logger.debug(f"Observable '{self._name}' changed, notifying observers")
 
         # Cancel any pending debounced notifications
@@ -55,13 +54,20 @@ class Observable(Generic[T]):
         # Call synchronous callbacks
         for callback in self._sync_callbacks:
             try:
-                callback(self._value)
+                callback(notification_data)
             except Exception as e:
                 logger.error(f"Error in sync callback for observable '{self._name}': {str(e)}")
-        # Schedule async callbacks
+        
+        # Schedule async callbacks, but exclude the source
         for callback in self._async_callbacks:
             try:
-                asyncio.create_task(callback(self._value))
+                # Check if this callback should be excluded based on source
+                callback_name = getattr(callback, '_callback_name', None)
+                if source and callback_name and callback_name == source:
+                    logger.debug(f"Skipping callback '{callback_name}' as it's the source of the change")
+                    continue
+                    
+                asyncio.create_task(callback(notification_data))
             except Exception as e:
                 logger.error(f"Error scheduling async callback for observable '{self._name}': {str(e)}")
 
@@ -77,13 +83,13 @@ class Observable(Generic[T]):
             # Schedule a new notification
             async def delayed_notify():
                 await asyncio.sleep(self._debounce_time)
-                self._notify()
+                self._notify(self._value)
                 self._last_notification_time = time.time()
 
             self._notification_task = asyncio.create_task(delayed_notify())
         else:
             # It's been a while since the last notification, notify immediately
-            self._notify()
+            self._notify(self._value)
             self._last_notification_time = current_time
 
     def subscribe(self, callback: Callable[[T], None]) -> Callable[[], None]:
@@ -144,10 +150,10 @@ class Observable(Generic[T]):
 
         return unsubscribe
 
-    def update(self, update_fn: Callable[[T], T]) -> None:
+    def update_by_fn(self, update_fn: Callable[[T], T]) -> None:
         """Update the value using a function that receives the current value"""
         new_value = update_fn(self._value)
-        self.set_value(new_value)
+        self.update_value(new_value)
 
 
 class ObservableDictionary(Observable[Dict]):
@@ -158,6 +164,29 @@ class ObservableDictionary(Observable[Dict]):
 
     def __init__(self, initial_value: Dict = None, name: str = "unnamed"):
         super().__init__(initial_value or {}, name)
+
+    def update_value(self, updates: Dict[str, Any], source: str = None) -> None:
+        """Update specific fields and notify observers with only the changes"""
+        if not updates:
+            return
+
+        # Calculate actual changes
+        actual_changes = {}
+        for key, new_val in updates.items():
+            if self._value.get(key) != new_val:
+                actual_changes[key] = new_val
+
+        if not actual_changes:
+            logger.debug(f"No actual changes for observable '{self._name}'")
+            return
+
+        # Update the dictionary
+        new_dict = dict(self._value)
+        new_dict.update(actual_changes)
+        self._value = new_dict
+
+        # Notify observers with only the changes
+        self._notify(actual_changes, source)
 
     def __getitem__(self, key):
         """Get an item from the dictionary"""
@@ -171,7 +200,10 @@ class ObservableDictionary(Observable[Dict]):
         # Create a new dictionary to ensure proper change detection
         new_dict = dict(self._value)
         new_dict[key] = value
-        self.value = new_dict # assigning self.value will trigger a notification instead of assigning to self._value
+        self._value = new_dict
+        
+        # Notify with just the single change
+        self._notify({key: value})
 
     def __delitem__(self, key):
         """Delete an item from the dictionary and notify observers with debouncing"""

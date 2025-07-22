@@ -66,8 +66,8 @@ export const restoreUserFromStorage = async (apiUrl: string | null): Promise<Use
     if (storedUser) {
       const userData = JSON.parse(storedUser);
 
-      // Check if we have the required auth data
-      if (userData.apiKey) {
+      // Check if we have the required auth data (both apiKey and email are required)
+      if (userData.apiKey && userData.email) {
         // Check if the session is still valid (e.g., not expired)
         const sessionAge = Date.now() - (userData.lastLoginTime || 0);
 
@@ -163,19 +163,23 @@ export const useAuthStore = create<AuthState>()((set, get) => {
       try {
         if (user) {
           // If we have a valid session, initialize Python service
-          if (user.isAuthenticated && user.apiKey) {
-            // Initialize Python service and login with cached API key
+          if (user.isAuthenticated && user.apiKey && user.email) {
+            // Initialize Python service and login with cached API key and email
             await pythonService.initialize();
 
             // Login with the cached API key
             await pythonService.login({
               apiKey: user.apiKey,
+              email: user.email,
               apiUrl: get().apiUrl,
             });
             set({ user });
 
             // User will be updated via auth_success event
             log.info('Initialized with cached authentication');
+          } else {
+            log.info('Invalid cached session (missing apiKey or email)');
+            set({ user: { isAuthenticated: false } });
           }
         } else {
           log.info('No valid cached session found');

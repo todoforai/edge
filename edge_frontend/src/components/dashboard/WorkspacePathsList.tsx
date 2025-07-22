@@ -10,10 +10,10 @@ interface WorkspacePath {
   path: string;
   isActive: boolean;
 }
-
+const defaultArray: string[] = []
 const WorkspacePathsList: React.FC = () => {
   // Use specific selectors to only re-render when these values change
-  const workspacePaths = useEdgeConfigStore(state => state.config.workspacepaths || []);
+  const workspacePaths = useEdgeConfigStore(state => state.config.workspacepaths || defaultArray);
   const activeWorkspaces = useWorkspaceStore(state => state.activeWorkspaces);
   const [isToggling, setIsToggling] = useState<Record<string, boolean>>({});
   const [isRemoving, setIsRemoving] = useState<Record<string, boolean>>({});
