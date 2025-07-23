@@ -4,6 +4,18 @@ import { useAuthStore } from '../../store/authStore';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
 import { Icon } from '@iconify/react';
 
+// Status colors
+const STATUS_COLORS = {
+  ONLINE: '#4CAF50',      // Green
+  OFFLINE: '#F44336',     // Red  
+  CONNECTING: '#FFC107',  // Yellow
+  running: '#4CAF50',     // Green
+  installed: '#2196F3',   // Blue
+  stopped: '#FF9800',     // Orange
+  uninstalled: '#292222', // Dark grey
+  default: '#9E9E9E'      // Grey
+} as const;
+
 const ProfileButton = styled.button`
   background: ${(props) => props.theme.colors.cardBackground};
   border: 1px solid ${(props) => props.theme.colors.borderColor};
@@ -51,7 +63,7 @@ const DropdownContainer = styled.div`
 const DropdownContent = styled.div`
   display: none;
   position: absolute;
-  right: 0;
+  left: 0;
   min-width: 220px;
   background: ${(props) => props.theme.colors.cardBackground};
   border-radius: ${(props) => props.theme.radius.lg};
@@ -99,37 +111,108 @@ const HeaderContainer = styled.div`
   background: ${(props) => props.theme.colors.cardBackground};
 `;
 
-export const UserMenu = () => {
+const LeftSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+`;
+
+
+const RightSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+`;
+
+const ViewPicker = styled.div`
+  display: flex;
+  align-items: center;
+  background: ${(props) => props.theme.colors.cardBackground};
+  border: 1px solid ${(props) => props.theme.colors.borderColor};
+  border-radius: ${(props) => props.theme.radius.lg};
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+`;
+
+const ViewButton = styled.button<{ active?: boolean }>`
+  background: ${(props) => props.active ? props.theme.colors.primary : 'transparent'};
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${(props) => props.active ? '#ffffff' : props.theme.colors.muted};
+  transition: all 0.2s ease;
+  width: 2rem;
+  height: 2rem;
+
+  &:hover {
+    background: ${(props) => props.active ? props.theme.colors.primary : 'rgba(255, 255, 255, 0.1)'};
+    color: ${(props) => props.active ? '#ffffff' : props.theme.colors.foreground};
+  }
+`;
+
+interface UserMenuProps {
+  viewMode: 'visual' | 'json';
+  onViewModeChange: (mode: 'visual' | 'json') => void;
+}
+
+export const UserMenu: React.FC<UserMenuProps> = ({ viewMode, onViewModeChange }) => {
   const { user, logout } = useAuthStore();
 
   const handleLogout = () => {
     logout();
   };
 
+  const handleViewChange = (mode: 'visual' | 'json') => {
+    onViewModeChange(mode);
+  };
+
   if (!user) return null;
 
   return (
     <HeaderContainer>
-      <EdgeInfoDisplay />
-      <DropdownContainer>
-        <UserContainer>
-          <ProfileButton>
-            <ProfileImage>
-              <Icon icon="lucide:user" style={{ width: '1.5rem', height: '1.5rem' }} />
-            </ProfileImage>
-          </ProfileButton>
-        </UserContainer>
-        <DropdownContent>
-          <EmailHeader>
-            <Icon icon="lucide:mail" />
-            {user.email || 'User'}
-          </EmailHeader>
-          <DropdownItem onClick={handleLogout}>
-            <Icon icon="lucide:log-out" />
-            <span>Logout</span>
-          </DropdownItem>
-        </DropdownContent>
-      </DropdownContainer>
+      <LeftSection>
+        <DropdownContainer>
+          <UserContainer>
+            <ProfileButton>
+              <ProfileImage>
+                <Icon icon="lucide:user" style={{ width: '1.5rem', height: '1.5rem' }} />
+              </ProfileImage>
+            </ProfileButton>
+          </UserContainer>
+          <DropdownContent>
+            <EmailHeader>
+              <Icon icon="lucide:mail" />
+              {user.email || 'User'}
+            </EmailHeader>
+            <DropdownItem onClick={handleLogout}>
+              <Icon icon="lucide:log-out" />
+              <span>Logout</span>
+            </DropdownItem>
+          </DropdownContent>
+        </DropdownContainer>
+        <EdgeInfoDisplay />
+      </LeftSection>
+      <RightSection>
+        <ViewPicker>
+          <ViewButton
+            active={viewMode === 'visual'}
+            onClick={() => handleViewChange('visual')}
+            title="Visual View"
+          >
+            <Icon icon="mdi:eye" style={{ width: '1.2rem', height: '1.2rem' }} />
+          </ViewButton>
+          <ViewButton
+            active={viewMode === 'json'}
+            onClick={() => handleViewChange('json')}
+            title="JSON View"
+          >
+            <Icon icon="mdi:code-json" style={{ width: '1.2rem', height: '1.2rem' }} />
+          </ViewButton>
+        </ViewPicker>
+      </RightSection>
     </HeaderContainer>
   );
 };
@@ -145,7 +228,6 @@ const EdgeInfoDisplay: React.FC = () => {
   // Get edge info from config
   const edgeId = config.id || 'Unknown';
   const edgeName = config.name || 'Unknown Edge';
-  const edgeStatus = config.status || 'OFFLINE';
 
   const handleEdgeNameDoubleClick = () => {
     setShowEdgeId(!showEdgeId);
@@ -155,7 +237,6 @@ const EdgeInfoDisplay: React.FC = () => {
     if (edgeId && edgeId !== 'Unknown') {
       try {
         await navigator.clipboard.writeText(edgeId);
-        // You could add a toast notification here if needed
       } catch (err) {
         console.error('Failed to copy edge ID to clipboard:', err);
       }
@@ -172,7 +253,6 @@ const EdgeInfoDisplay: React.FC = () => {
       <InfoItem>
         <Label>Edge:</Label>
         <Value>
-          <StatusIndicator status={edgeStatus} />
           <CopyableValue onDoubleClick={handleEdgeNameDoubleClick} title="Double-click to show/hide Edge ID">
             {edgeName}
           </CopyableValue>
@@ -191,24 +271,6 @@ const EdgeInfoDisplay: React.FC = () => {
       )}
     </InfoContainer>
   );
-};
-
-// Status indicator component
-const StatusIndicator: React.FC<{ status: string }> = ({ status }) => {
-  const getStatusColor = () => {
-    switch (status) {
-      case 'ONLINE':
-        return '#4CAF50'; // Green
-      case 'OFFLINE':
-        return '#F44336'; // Red
-      case 'CONNECTING':
-        return '#FFC107'; // Yellow
-      default:
-        return '#9E9E9E'; // Grey
-    }
-  };
-
-  return <StatusDot style={{ backgroundColor: getStatusColor() }} />;
 };
 
 const InfoContainer = styled.div`
@@ -257,20 +319,13 @@ const CopyableValue = styled.span`
   gap: 4px;
   cursor: pointer;
   user-select: all;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
     padding: 2px 4px;
     margin: -2px -4px;
   }
-`;
-
-const StatusDot = styled.div`
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 2px;
 `;
 
 export default UserMenu;
