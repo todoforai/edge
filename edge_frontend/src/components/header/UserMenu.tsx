@@ -153,20 +153,11 @@ const ViewButton = styled.button<{ active?: boolean }>`
   }
 `;
 
-interface UserMenuProps {
-  viewMode: 'visual' | 'json';
-  onViewModeChange: (mode: 'visual' | 'json') => void;
-}
-
-export const UserMenu: React.FC<UserMenuProps> = ({ viewMode, onViewModeChange }) => {
+export const UserMenu: React.FC = () => {
   const { user, logout } = useAuthStore();
 
   const handleLogout = () => {
     logout();
-  };
-
-  const handleViewChange = (mode: 'visual' | 'json') => {
-    onViewModeChange(mode);
   };
 
   if (!user) return null;
@@ -195,24 +186,6 @@ export const UserMenu: React.FC<UserMenuProps> = ({ viewMode, onViewModeChange }
         </DropdownContainer>
         <EdgeInfoDisplay />
       </LeftSection>
-      <RightSection>
-        <ViewPicker>
-          <ViewButton
-            active={viewMode === 'visual'}
-            onClick={() => handleViewChange('visual')}
-            title="Visual View"
-          >
-            <Icon icon="mdi:eye" style={{ width: '1.2rem', height: '1.2rem' }} />
-          </ViewButton>
-          <ViewButton
-            active={viewMode === 'json'}
-            onClick={() => handleViewChange('json')}
-            title="JSON View"
-          >
-            <Icon icon="mdi:code-json" style={{ width: '1.2rem', height: '1.2rem' }} />
-          </ViewButton>
-        </ViewPicker>
-      </RightSection>
     </HeaderContainer>
   );
 };

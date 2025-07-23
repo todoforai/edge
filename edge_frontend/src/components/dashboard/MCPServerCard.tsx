@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import { MCPServer } from './types/MCPServer';
+import type { MCPServer } from './types/MCPServer';
 
 interface MCPServerCardProps {
   server: MCPServer;
@@ -82,7 +82,6 @@ const ServerIcon = styled.div`
   border-radius: 6px;
   background: rgba(59, 130, 246, 0.1);
 `;
-
 const ServerTitleRow = styled.div`
   display: flex;
   align-items: center;
@@ -99,13 +98,22 @@ const ServerName = styled.h3`
   min-width: 0;
 `;
 
+const ServerCategory = styled.span`
+  font-size: 12px;
+  color: ${props => props.theme.colors.mutedForeground};
+  background: rgba(59, 130, 246, 0.1);
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: inline-block;
+  flex-shrink: 0;
+`;
+
 const ServerActions = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
 `;
-
 const ActionButton = styled.button`
   display: flex;
   align-items: center;
@@ -166,15 +174,6 @@ const StatusSelect = styled.select<{ $status: MCPServer['status'] }>`
   }
 `;
 
-const ServerCategory = styled.span`
-  font-size: 12px;
-  color: ${props => props.theme.colors.mutedForeground};
-  background: rgba(59, 130, 246, 0.1);
-  padding: 2px 8px;
-  border-radius: 12px;
-  display: inline-block;
-  flex-shrink: 0;
-`;
 
 const ServerDescription = styled.p`
   font-size: 14px;

@@ -12,9 +12,9 @@ export const Dashboard: React.FC = () => {
 
   return (
     <DashboardContainer>
-      <UserMenu viewMode={viewMode} onViewModeChange={handleViewModeChange} />
+      <UserMenu />
       <DashboardContent>
-        <MCPServersList viewMode={viewMode} />
+        <MCPServersList viewMode={viewMode} onViewModeChange={handleViewModeChange} />
       </DashboardContent>
     </DashboardContainer>
   );

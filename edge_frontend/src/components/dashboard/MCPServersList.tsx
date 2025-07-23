@@ -11,9 +11,10 @@ import { MCPServerJSONView } from './MCPServerJSONView';
 
 interface MCPServersListProps {
   viewMode: 'visual' | 'json';
+  onViewModeChange: (mode: 'visual' | 'json') => void;
 }
 
-const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode }) => {
+const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeChange }) => {
   const [servers, setServers] = useState<MCPServer[]>(FAKE_MCP_SERVERS);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -22,6 +23,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode }) => {
   const [showSettingsModal, setShowSettingsModal] = useState<MCPServer | null>(null);
   const [showLogsModal, setShowLogsModal] = useState<MCPServer | null>(null);
   const [showExtensionsModal, setShowExtensionsModal] = useState<boolean>(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState<boolean>(false);
 
   const handleStatusChange = (serverId: string, newStatus: MCPServer['status']) => {
     setServers(prev => prev.map(server => 
@@ -74,15 +76,6 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode }) => {
   const availableServers = servers.filter(server => server.status === 'uninstalled');
   const availableCategories = ['All', ...Array.from(new Set(availableServers.map(s => s.category)))];
 
-  if (viewMode === 'json') {
-    return (
-      <MCPServerJSONView 
-        servers={servers} 
-        onServersChange={setServers} 
-      />
-    );
-  }
-
   return (
     <Container>
       <Header>
@@ -91,15 +84,39 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode }) => {
       </Header>
 
       <Controls>
-        <SearchAndFilterContainer>
-          <SearchContainer>
-            <Icon icon="lucide:search" />
-            <SearchInput
-              type="text"
-              placeholder="Search MCP servers..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <ActionBar>
+          <SearchContainer $expanded={isSearchExpanded}>
+            {!isSearchExpanded ? (
+              <SearchButton onClick={() => setIsSearchExpanded(true)}>
+                <Icon icon="lucide:search" />
+              </SearchButton>
+            ) : (
+              <>
+                <Icon icon="lucide:search" />
+                <SearchInput
+                  type="text"
+                  placeholder="Search MCP servers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onBlur={() => {
+                    if (!searchTerm) {
+                      setIsSearchExpanded(false);
+                    }
+                  }}
+                  autoFocus
+                />
+                {searchTerm && (
+                  <ClearButton 
+                    onClick={() => {
+                      setSearchTerm('');
+                      setIsSearchExpanded(false);
+                    }}
+                  >
+                    <Icon icon="lucide:x" />
+                  </ClearButton>
+                )}
+              </>
+            )}
           </SearchContainer>
 
           <FilterContainer>
@@ -127,33 +144,58 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode }) => {
                 ))}
               </FilterDropdown>
             )}
+
           </FilterContainer>
-        </SearchAndFilterContainer>
+
+          <ViewPicker>
+            <ViewButton
+              $active={viewMode === 'visual'}
+              onClick={() => onViewModeChange('visual')}
+              title="Visual View"
+            >
+              <Icon icon="mdi:eye" />
+            </ViewButton>
+            <ViewButton
+              $active={viewMode === 'json'}
+              onClick={() => onViewModeChange('json')}
+              title="JSON View"
+            >
+              <Icon icon="mdi:code-json" />
+            </ViewButton>
+          </ViewPicker>
+        </ActionBar>
       </Controls>
 
-      <ServersGrid>
-        {filteredServers.map(server => (
-          <MCPServerCard
-            key={server.id}
-            server={server}
-            onStatusChange={handleStatusChange}
-            onViewLogs={handleViewLogs}
-            onOpenSettings={handleOpenSettings}
-          />
-        ))}
-        
-        <AddExtensionCard onClick={() => setShowExtensionsModal(true)}>
-          <AddExtensionIcon>
-            <Icon icon="lucide:plus" width={48} height={48} />
-          </AddExtensionIcon>
-          <AddExtensionContent>
-            <AddExtensionTitle>Add new Extension</AddExtensionTitle>
-            <AddExtensionDescription>
-              Browse and install MCP servers from the registry to extend your AI capabilities
-            </AddExtensionDescription>
-          </AddExtensionContent>
-        </AddExtensionCard>
-      </ServersGrid>
+      {viewMode === 'json' ? (
+        <MCPServerJSONView 
+          servers={servers} 
+          onServersChange={setServers} 
+        />
+      ) : (
+        <ServersGrid>
+          {filteredServers.map(server => (
+            <MCPServerCard
+              key={server.id}
+              server={server}
+              onStatusChange={handleStatusChange}
+              onViewLogs={handleViewLogs}
+              onOpenSettings={handleOpenSettings}
+            />
+          ))}
+          
+          <AddExtensionCard onClick={() => setShowExtensionsModal(true)}>
+            <AddExtensionIcon>
+              <Icon icon="lucide:plus" width={48} height={48} />
+            </AddExtensionIcon>
+            <AddExtensionContent>
+              <AddExtensionTitle>Add new Extension</AddExtensionTitle>
+              <AddExtensionDescription>
+                Browse and install MCP servers from the registry to extend your AI capabilities
+              </AddExtensionDescription>
+            </AddExtensionContent>
+          </AddExtensionCard>
+        </ServersGrid>
+      )}
 
       {showSettingsModal && (
         <MCPServerSettingsModal
@@ -203,6 +245,7 @@ const ExtensionsModal: React.FC<{
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState<boolean>(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState<boolean>(false);
 
   const filteredServers = servers.filter(server => {
     const matchesCategory = selectedCategory === 'All' || server.category === selectedCategory;
@@ -223,15 +266,39 @@ const ExtensionsModal: React.FC<{
 
         <ModalContent>
           <ModalControls>
-            <SearchAndFilterContainer>
-              <SearchContainer>
-                <Icon icon="lucide:search" />
-                <SearchInput
-                  type="text"
-                  placeholder="Search available extensions..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+            <ActionBar>
+              <SearchContainer $expanded={isSearchExpanded}>
+                {!isSearchExpanded ? (
+                  <SearchButton onClick={() => setIsSearchExpanded(true)}>
+                    <Icon icon="lucide:search" />
+                  </SearchButton>
+                ) : (
+                  <>
+                    <Icon icon="lucide:search" />
+                    <SearchInput
+                      type="text"
+                      placeholder="Search available extensions..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onBlur={() => {
+                        if (!searchTerm) {
+                          setIsSearchExpanded(false);
+                        }
+                      }}
+                      autoFocus
+                    />
+                    {searchTerm && (
+                      <ClearButton 
+                        onClick={() => {
+                          setSearchTerm('');
+                          setIsSearchExpanded(false);
+                        }}
+                      >
+                        <Icon icon="lucide:x" />
+                      </ClearButton>
+                    )}
+                  </>
+                )}
               </SearchContainer>
 
               <FilterContainer>
@@ -260,7 +327,7 @@ const ExtensionsModal: React.FC<{
                   </FilterDropdown>
                 )}
               </FilterContainer>
-            </SearchAndFilterContainer>
+            </ActionBar>
           </ModalControls>
 
           <ExtensionsGrid>
@@ -296,6 +363,7 @@ const Container = styled.div`
 
 const Header = styled.div`
   margin-bottom: 30px;
+  text-align: center;
 `;
 
 const Title = styled.h1`
@@ -318,18 +386,19 @@ const Controls = styled.div`
   margin-bottom: 30px;
 `;
 
-const SearchAndFilterContainer = styled.div`
+const ActionBar = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: 500px;
+  max-width: 600px;
 `;
 
-const SearchContainer = styled.div`
+const SearchContainer = styled.div<{ $expanded: boolean }>`
   position: relative;
   display: flex;
   align-items: center;
-  flex: 1;
+  flex: ${props => props.$expanded ? '1' : '0 0 auto'};
+  transition: all 0.3s ease;
 
   svg {
     position: absolute;
@@ -339,9 +408,34 @@ const SearchContainer = styled.div`
   }
 `;
 
+const SearchButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid ${props => props.theme.colors.borderColor};
+  border-radius: 8px;
+  background: ${props => props.theme.colors.background};
+  color: ${props => props.theme.colors.foreground};
+  cursor: pointer;
+  transition: all 0.2s;
+
+  svg {
+    position: static !important;
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    border-color: ${props => props.theme.colors.primary};
+    background: rgba(59, 130, 246, 0.1);
+  }
+`;
+
 const SearchInput = styled.input`
   width: 100%;
-  padding: 12px 12px 12px 40px;
+  padding: 12px 40px 12px 40px;
   border: 1px solid ${props => props.theme.colors.borderColor};
   border-radius: 8px;
   background: ${props => props.theme.colors.background};
@@ -351,6 +445,27 @@ const SearchInput = styled.input`
   &:focus {
     outline: none;
     border-color: ${props => props.theme.colors.primary};
+  }
+`;
+
+const ClearButton = styled.button`
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: ${props => props.theme.colors.mutedForeground};
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: ${props => props.theme.colors.foreground};
   }
 `;
 
@@ -419,6 +534,39 @@ const FilterOption = styled.div<{ $active: boolean }>`
 
   &:last-child {
     border-radius: 0 0 8px 8px;
+  }
+`;
+
+const ViewPicker = styled.div`
+  display: flex;
+  align-items: center;
+  background: ${props => props.theme.colors.background};
+  border: 1px solid ${props => props.theme.colors.borderColor};
+  border-radius: 8px;
+  overflow: hidden;
+`;
+
+const ViewButton = styled.button<{ $active?: boolean }>`
+  background: ${props => props.$active ? props.theme.colors.primary : 'transparent'};
+  border: none;
+  padding: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${props => props.$active ? '#ffffff' : props.theme.colors.mutedForeground};
+  transition: all 0.2s ease;
+  width: 40px;
+  height: 40px;
+
+  &:hover {
+    background: ${props => props.$active ? props.theme.colors.primary : 'rgba(59, 130, 246, 0.1)'};
+    color: ${props => props.$active ? '#ffffff' : props.theme.colors.primary};
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
   }
 `;
 
