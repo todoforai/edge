@@ -24,6 +24,15 @@ from .observable import registry
 # Configure logging
 logger = logging.getLogger("todoforai-client")
 
+# ANSI color codes for terminal output
+class Colors:
+    GREEN = '\033[92m'
+    BLUE = '\033[94m'
+    YELLOW = '\033[93m'
+    CYAN = '\033[96m'
+    BOLD = '\033[1m'
+    END = '\033[0m'
+
 # Import handlers
 from .handlers import (
     handle_todo_dir_list,
@@ -198,7 +207,7 @@ class TODOforAIEdge:
         if not self.email:
             raise ValueError("Email is required to generate fingerprint")
         self.fingerprint = generate_machine_fingerprint(self.email)
-        logger.info(f'self.fingerprint: {self.fingerprint}')
+        logger.info(f'{Colors.CYAN}{Colors.BOLD}Generated fingerprint: {self.fingerprint}{Colors.END}')
         return self.fingerprint
 
     async def _on_config_change(self, changes: Dict[str, Any]) -> None:
@@ -378,7 +387,7 @@ class TODOforAIEdge:
             if msg_type == SR.CONNECTED_EDGE:
                 self.edge_id = payload.get("edgeId", "")
                 self.user_id = payload.get("userId", "")
-                logger.info(f"Connected with edge ID: {self.edge_id} and user ID: {self.user_id}")
+                logger.info(f"{Colors.GREEN}{Colors.BOLD}🔗 Connected with edge ID: {self.edge_id} and user ID: {self.user_id}{Colors.END}")
                 
                 # Load MCP if exists (only once on initial connection)
                 await self._load_mcp_if_exists()

@@ -19,8 +19,69 @@ import requests
 from todoforai_edge.client import TODOforAIEdge
 from todoforai_edge.config import Config
 
+async def _broadcast_auth_success():
+    """Helper to broadcast auth success event"""
+    asyncio.create_task(broadcast_event({
+        "type": "auth_success",
+        "payload": {
+            "apiKey": sidecar.todo_client.api_key,
+            "email": sidecar.todo_client.email,
+        }
+    }))
+
+async def _broadcast_config_update():
+    """Helper to broadcast config update event"""
+    asyncio.create_task(broadcast_event({
+        "type": "edge:config_update",
+        "payload": sidecar.todo_client.edge_config.config.value
+    }))
+
+async def _broadcast_active_workspaces():
+    """Helper to broadcast active workspaces event"""
+    asyncio.create_task(broadcast_event({
+        "type": "active_workspaces_change",
+        "payload": {
+            "activeWorkspaces": list(active_sync_managers.value.keys())
+        }
+    }))
+
+# Helper functions for common broadcast patterns
+async def _broadcast_auth_error(message: str):
+    """Helper to broadcast auth error event"""
+    asyncio.create_task(broadcast_event({
+        "type": "auth_error",
+        "payload": {"message": message}
+    }))
+
+async def _broadcast_file_sync(action: str, abs_path: str, workspace_dir: str, size: int = None):
+    """Helper to broadcast file sync event"""
+    payload = {
+        "action": action,
+        "path": abs_path,
+        "workspace": workspace_dir
+    }
+    if size is not None:
+        payload["size"] = size
+        
+    asyncio.create_task(broadcast_event({
+        "type": "file_sync",
+        "payload": payload,
+        "timestamp": int(time.time() * 1000)
+    }))
+
+async def _broadcast_file_sync_complete(workspace_dir: str, file_count: int):
+    """Helper to broadcast file sync complete event"""
+    asyncio.create_task(broadcast_event({
+        "type": "file_sync_complete",
+        "payload": {
+            "workspace": workspace_dir,
+            "file_count": file_count
+        }
+    }))
+
 # Import the file_sync module
 from todoforai_edge import file_sync
+from todoforai_edge.file_sync import active_sync_managers
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -63,35 +124,19 @@ def validate_stored_credentials(credentials):
     # This function is deprecated - validation should happen during normal auth flow
     return {"valid": True, "message": "Validation will happen during authentication"}
 
+async def _send_initial_state_events():
+    """Send all initial state events for reconnected clients"""
+    if not sidecar.todo_client:
+        return
+        
+    await _broadcast_config_update()
+    await _broadcast_active_workspaces()
+  
 @sidecar.rpc
 def login(credentials):
     """Login with email and password or API key"""
     try:
-        # Create a configuration object
-        config = Config()
-        
-        # Set credentials from the request
-        if "email" in credentials:
-            config.email = credentials["email"]
-        if "password" in credentials:
-            config.password = credentials["password"]
-        
-        if "apiKey" in credentials:
-            config.api_key = credentials["apiKey"]
-            
-        # Use API URL from credentials or default
-        if "apiUrl" in credentials and credentials["apiUrl"]:
-            config.api_url = credentials["apiUrl"]
-        elif sidecar.default_api_url:
-            config.api_url = sidecar.default_api_url
-            
-        # Normalize URL format
-        if config.api_url:
-            config.api_url = normalize_api_url(config.api_url)
-            
-        # Debug mode
-        config.debug = credentials.get("debug", False)
-        
+        config = _create_config_from_credentials(credentials)
         log.info(f"Using API URL: {config.api_url}")
         
         with sidecar.client_lock:
@@ -99,28 +144,14 @@ def login(credentials):
             if sidecar.todo_client and sidecar.todo_client.connected:
                 if _has_same_credentials(config):
                     log.info("Already connected with the same credentials, sending auth_success")
-                    asyncio.create_task(broadcast_event({
-                        "type": "auth_success",
-                        "payload": {
-                            "apiKey": sidecar.todo_client.api_key,
-                            "email": sidecar.todo_client.email,
-                        }
-                    }))
+                    asyncio.create_task(_broadcast_auth_success())
+                    asyncio.create_task(_send_initial_state_events())
                     return {"status": "success", "message": "Already connected with the same credentials"}
                 else:
                     log.info("Disconnecting existing client to connect with new credentials")
                     _disconnect_existing_client()
             
-            # Create the client
-            sidecar.todo_client = TODOforAIEdge(config)
-            _setup_client_hooks()
-            
-            # Start client in separate thread
-            def thread_target():
-                asyncio.run(_run_client())
-                
-            sidecar.client_thread = threading.Thread(target=thread_target, daemon=True)
-            sidecar.client_thread.start()
+            _start_new_client(config)
         
         return {"status": "connecting", "message": "Client is connecting..."}
         
@@ -128,13 +159,7 @@ def login(credentials):
         error_msg = f"Login error: {str(e)}"
         log.error(error_msg)
         traceback.print_exc()
-        
-        # Broadcast the error to the frontend
-        asyncio.create_task(broadcast_event({
-            "type": "auth_error",
-            "payload": {"message": error_msg}
-        }))
-        
+        asyncio.create_task(_broadcast_auth_error(error_msg))
         return {"status": "error", "message": error_msg}
 
 def _has_same_credentials(config: Config) -> bool:
@@ -154,6 +179,41 @@ def _has_same_credentials(config: Config) -> bool:
         return True
         
     return False
+
+def _create_config_from_credentials(credentials):
+    """Create config object from credentials"""
+    config = Config()
+    
+    if "email" in credentials:
+        config.email = credentials["email"]
+    if "password" in credentials:
+        config.password = credentials["password"]
+    if "apiKey" in credentials:
+        config.api_key = credentials["apiKey"]
+        
+    # Use API URL from credentials or default
+    if "apiUrl" in credentials and credentials["apiUrl"]:
+        config.api_url = credentials["apiUrl"]
+    elif sidecar.default_api_url:
+        config.api_url = sidecar.default_api_url
+        
+    # Normalize URL format
+    if config.api_url:
+        config.api_url = normalize_api_url(config.api_url)
+        
+    config.debug = credentials.get("debug", False)
+    return config
+
+def _start_new_client(config):
+    """Start a new client with the given config"""
+    sidecar.todo_client = TODOforAIEdge(config)
+    _setup_client_hooks()
+    
+    def thread_target():
+        asyncio.run(_run_client())
+        
+    sidecar.client_thread = threading.Thread(target=thread_target, daemon=True)
+    sidecar.client_thread.start()
 
 def _disconnect_existing_client():
     """Disconnect the existing client"""
@@ -182,43 +242,68 @@ def _setup_client_hooks():
         await original_handle_message(message)
         
     sidecar.todo_client._handle_message = handle_message_wrapper
+    
+    # Hook into shutdown request handler
+    # original_handle_shutdown = sidecar.todo_client.handle_shutdown_request
+    
+    # async def handle_shutdown_wrapper(payload):
+    #     # Broadcast shutdown event to frontend first
+    #     await broadcast_event({
+    #         "type": "edge_shutdown_request",
+    #         "payload": {"message": "Edge client received shutdown request"}
+    #     })
+        
+    #     # Call original shutdown handler
+    #     await original_handle_shutdown(payload)
+        
+    #     # Schedule sidecar shutdown after edge client shutdown
+    #     asyncio.create_task(_delayed_sidecar_shutdown())
+        
+    # sidecar.todo_client.handle_shutdown_request = handle_shutdown_wrapper
+
+async def _delayed_sidecar_shutdown():
+    """Perform delayed sidecar shutdown after edge client shutdown"""
+    try:
+        # Wait for edge client to finish shutdown
+        await asyncio.sleep(1.0)
+        
+        # Close all WebSocket connections
+        clients = sidecar.connected_clients.copy()
+        for websocket in clients:
+            try:
+                await websocket.close()
+            except Exception as e:
+                log.warning(f"Error closing websocket: {e}")
+        
+        # Clear the connected clients set
+        sidecar.connected_clients.clear()
+        
+        log.info("Sidecar shutdown after edge client shutdown completed")
+        
+        # Exit the process
+        import os
+        os._exit(0)
+        
+    except Exception as e:
+        log.error(f"Error in delayed sidecar shutdown: {e}")
+        import os
+        os._exit(1)
 
 async def _run_client():
     """Run the client in async context"""
     try:
         # Authenticate if needed
         if sidecar.todo_client.api_key and sidecar.todo_client.email:
-            # If we already have an API key and email, send auth success
-            await broadcast_event({
-                "type": "auth_success",
-                "payload": {
-                    "apiKey": sidecar.todo_client.api_key,
-                    "email": sidecar.todo_client.email
-                }
-            })
+            await _broadcast_auth_success()
         elif sidecar.todo_client.email and sidecar.todo_client.password:
             log.info(f"Authenticating with email: {sidecar.todo_client.email}")
             response = await sidecar.todo_client.authenticate()
             if not response["valid"]:
-                await broadcast_event({
-                    "type": "auth_error",
-                    "payload": {"message": f"Authentication failed. Result: {response}"}
-                })
+                await _broadcast_auth_error(f"Authentication failed. Result: {response}")
                 return
-            
-            # Add the API key and user info to the event queue
-            await broadcast_event({
-                "type": "auth_success",
-                "payload": {
-                    "apiKey": sidecar.todo_client.api_key,
-                    "email": sidecar.todo_client.email,
-                }
-            })
+            await _broadcast_auth_success()
         else:
-            await broadcast_event({
-                "type": "auth_error", 
-                "payload": {"message": "Missing required credentials (apiKey and email)"}
-            })
+            await _broadcast_auth_error("Missing required credentials (apiKey and email)")
             return
         
         # Register all hooks after successful authentication
@@ -230,10 +315,7 @@ async def _run_client():
     except Exception as e:
         log.error(f"Error in client thread: {e}")
         traceback.print_exc()
-        await broadcast_event({
-            "type": "auth_error",
-            "payload": {"message": str(e)}
-        })
+        await _broadcast_auth_error(str(e))
 
 async def register_all_hooks():
     """Register all hooks automatically"""
@@ -267,6 +349,7 @@ async def register_file_sync_hooks_internal():
     # Store original methods to hook into
     original_sync_file = file_sync.WorkspaceSyncManager.sync_file
     original_delete_file = file_sync.WorkspaceSyncManager.delete_file
+    original_send_sync_complete = file_sync.WorkspaceSyncManager._send_sync_complete_signal
     
     async def sync_file_hook(self, action, abs_path):
         # Call original method first
@@ -274,77 +357,33 @@ async def register_file_sync_hooks_internal():
         
         # Send event about the file sync
         try:
-            # Get file size for logging
-            payload = {
-                "action": action,
-                "path": abs_path,
-                "workspace": self.workspace_dir
-            }
-            if os.path.exists(abs_path):
-                payload["size"] = os.path.getsize(abs_path)
-
-            await broadcast_event({
-                "type": "file_sync",
-                "payload": payload,
-                "timestamp": int(time.time() * 1000)  # Add timestamp in milliseconds
-            })
+            size = os.path.getsize(abs_path) if os.path.exists(abs_path) else None
+            await _broadcast_file_sync(action, abs_path, self.workspace_dir, size)
         except Exception as e:
             log.error(f"Error in sync_file_hook: {e}")
         
         return result
         
     async def delete_file_hook(self, abs_path):
-        # Send event before deletion
-        await broadcast_event({
-            "type": "file_sync",
-            "payload": {
-                "action": "delete",
-                "path": abs_path,
-                "workspace": self.workspace_dir
-            },
-            "timestamp": int(time.time() * 1000)  # Add timestamp in milliseconds
-        })
-        
-        # Call original method
+        await _broadcast_file_sync("delete", abs_path, self.workspace_dir)
         return await original_delete_file(self, abs_path)
-    
-    # Replace the methods with our hooked versions
-    file_sync.WorkspaceSyncManager.sync_file = sync_file_hook
-    file_sync.WorkspaceSyncManager.delete_file = delete_file_hook
-    
-    # Also hook into the initial sync complete signal
-    original_send_sync_complete = file_sync.WorkspaceSyncManager._send_sync_complete_signal
     
     async def send_sync_complete_hook(self):
         # Call original method
         result = await original_send_sync_complete(self)
-        
-        # Send event about sync completion
-        await broadcast_event({
-            "type": "file_sync_complete",
-            "payload": {
-                "workspace": self.workspace_dir,
-                "file_count": len(self.project_files_abs)
-            }
-        })
-        
+        await _broadcast_file_sync_complete(self.workspace_dir, len(self.project_files_abs))
         return result
         
+    # Replace the methods with our hooked versions
+    file_sync.WorkspaceSyncManager.sync_file = sync_file_hook
+    file_sync.WorkspaceSyncManager.delete_file = delete_file_hook
     file_sync.WorkspaceSyncManager._send_sync_complete_signal = send_sync_complete_hook
 
 async def register_active_workspaces_hooks_internal():
     """Internal function to register active workspace hooks"""
-    from todoforai_edge.file_sync import active_sync_managers
-    
     # Define the callback function
     async def on_active_workspaces_change(active_workspaces_dict):
-        # Send event about active workspaces change
-        await broadcast_event({
-            "type": "active_workspaces_change",
-            "payload": {
-                "activeWorkspaces": list(active_workspaces_dict.keys())
-            }
-        })
+        await _broadcast_active_workspaces()
         
     # Register the callback with the observable using a named callback
     active_sync_managers.subscribe_async(on_active_workspaces_change, name="ws_sidecar_workspaces_hook")
@@ -357,13 +396,18 @@ async def register_edge_config_hooks_internal():
     
     # Subscribe to config changes to broadcast them to frontend
     async def on_config_change_hook(config_value):
-        await broadcast_event({
-            "type": "edge:config_update",
-            "payload": config_value
-        })
+        await _broadcast_config_update()
     
     # Subscribe to the observable
     sidecar.todo_client.edge_config.config.subscribe_async(on_config_change_hook, name="ws_sidecar_config_hook")
+
+# Simplify RPC error handling
+def _create_rpc_response(success: bool, message: str) -> dict:
+    """Create standardized RPC response"""
+    return {
+        "status": "success" if success else "error",
+        "message": message
+    }
 
 # Keep the RPC functions for backward compatibility, but make them simple wrappers
 @sidecar.rpc
@@ -371,33 +415,33 @@ def register_file_sync_hooks(params=None):
     """Register hooks to monitor file sync events"""
     try:
         asyncio.create_task(register_file_sync_hooks_internal())
-        return {"status": "success", "message": "Frontend file sync hooks registered"}
+        return _create_rpc_response(True, "Frontend file sync hooks registered")
     except Exception as e:
         log.error(f"Error registering file sync hooks: {e}")
         traceback.print_exc()
-        return {"status": "error", "message": str(e)}
+        return _create_rpc_response(False, str(e))
 
 @sidecar.rpc
 def register_active_workspaces_hooks(params=None):
     """Register hooks to monitor active workspace changes"""
     try:
         asyncio.create_task(register_active_workspaces_hooks_internal())
-        return {"status": "success", "message": "Active workspaces hooks registered"}
+        return _create_rpc_response(True, "Active workspaces hooks registered")
     except Exception as e:
         log.error(f"Error registering active workspaces hooks: {e}")
         traceback.print_exc()
-        return {"status": "error", "message": str(e)}
+        return _create_rpc_response(False, str(e))
 
 @sidecar.rpc
 def register_edge_config_hooks(params=None):
     """Register hooks to monitor edge config changes"""
     try:
         asyncio.create_task(register_edge_config_hooks_internal())
-        return {"status": "success", "message": "Edge config hooks registered"}
+        return _create_rpc_response(True, "Edge config hooks registered")
     except Exception as e:
         log.error(f"Error registering edge config hooks: {e}")
         traceback.print_exc()
-        return {"status": "error", "message": str(e)}
+        return _create_rpc_response(False, str(e))
 
 @sidecar.rpc
 def toggle_workspace_sync(params):
