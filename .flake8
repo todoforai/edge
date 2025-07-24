@@ -1,0 +1,16 @@
+[flake8]
+ignore = 
+    E302,  # expected 2 blank lines, found 1
+    E305,  # expected 2 blank lines after class or function definition
+    W292,  # no newline at end of file
+    E501,  # line too long
+    E261,  # at least two spaces before inline comment
+    E303   # too many blank lines
+
+max-line-length = 120
+exclude = 
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    node_modules 
