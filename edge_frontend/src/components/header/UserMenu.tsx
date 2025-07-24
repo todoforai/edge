@@ -9,7 +9,7 @@ const HeaderContainer = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1rem;
-  background: ${(props) => props.theme.colors.cardBackground};
+  /* background: ${(props) => props.theme.colors.cardBackground}; */
 `;
 
 const LeftSection = styled.div`

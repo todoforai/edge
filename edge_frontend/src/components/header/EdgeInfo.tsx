@@ -10,7 +10,7 @@ const InfoContainer = styled.div`
   gap: 8px;
   padding: 6px 10px;
   background-color: ${(props) => props.theme.colors.cardBackground};
-  border-radius: ${(props) => props.theme.radius.md};
+  border-radius: ${(props) => props.theme.radius.md2};
   border: 1px solid ${(props) => props.theme.colors.borderColor};
 `;
 

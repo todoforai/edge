@@ -5,7 +5,7 @@ export const GlobalStyles = createGlobalStyle`
   html, body {
     max-width: 100vw;
     overflow-x: hidden;
-    background: ${theme.colors.background};
+    background: rgba(16, 16, 16, 1);
     color: ${theme.colors.foreground};
     margin: 0;
     padding: 0;
