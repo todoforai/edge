@@ -3,7 +3,8 @@ import styled from 'styled-components';
 import { Icon } from '@iconify/react';
 
 const Card = styled.div`
-  border: 1px solid ${props => props.theme.colors.borderColor};
+  border: 1px dashed ${props => props.theme.colors.borderColor};
+  outline-offset: -3px;
   border-radius: ${props => props.theme.radius.lg};
   padding: 28px;
   background: ${props => props.theme.colors.background};
