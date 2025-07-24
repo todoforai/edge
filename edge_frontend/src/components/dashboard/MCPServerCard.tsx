@@ -8,13 +8,15 @@ interface MCPServerCardProps {
   onStatusChange: (serverId: string, newStatus: MCPServer['status']) => void;
   onViewLogs: (server: MCPServer) => void;
   onOpenSettings: (server: MCPServer) => void;
+  showCategory?: boolean;
 }
 
 export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   server,
   onStatusChange,
   onViewLogs,
-  onOpenSettings
+  onOpenSettings,
+  showCategory = false
 }) => {
   return (
     <ServerCard>
@@ -24,7 +26,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
         </ServerIcon>
         <ServerTitleRow>
           <ServerName>{server.name}</ServerName>
-          <ServerCategory>{server.category}</ServerCategory>
+          {showCategory && <ServerCategory>{server.category}</ServerCategory>}
           <ServerActions>
             <ActionButton onClick={() => onViewLogs(server)} title="View Logs">
               <Icon icon="lucide:terminal" width={16} height={16} />

@@ -10,4 +10,4 @@ from .constants import (
 )
 from .config import Config
 
-__version__ = "0.1.0"
+__version__ = "0.10.73"  # Changed from "0.1.0" to match pyproject.toml

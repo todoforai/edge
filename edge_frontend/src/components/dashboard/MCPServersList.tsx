@@ -180,6 +180,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
               onStatusChange={handleStatusChange}
               onViewLogs={handleViewLogs}
               onOpenSettings={handleOpenSettings}
+              showCategory={selectedCategory !== 'All' || showCategoryDropdown}
             />
           ))}
           
