@@ -9,6 +9,7 @@ import { MCPServerLogsModal } from './MCPServerLogsModal';
 import { MCPServerInstallModal } from './MCPServerInstallModal';
 import { MCPServerJSONView } from './MCPServerJSONView';
 import { AddExtensionCard } from './AddExtensionCard';
+import { ActionBar } from './ActionBar';
 
 // Styled Components
 const Container = styled.div`
@@ -42,189 +43,7 @@ const Controls = styled.div`
   margin-bottom: 30px;
 `;
 
-const ActionBar = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: 600px;
-`;
 
-const SearchContainer = styled.div<{ $expanded: boolean }>`
-  position: relative;
-  display: flex;
-  align-items: center;
-  flex: ${props => props.$expanded ? '1' : '0 0 auto'};
-  transition: all 0.3s ease;
-
-  svg {
-    position: absolute;
-    left: 12px;
-    color: ${props => props.theme.colors.mutedForeground};
-    z-index: 1;
-  }
-`;
-
-const SearchButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
-  background: ${props => props.theme.colors.background};
-  color: ${props => props.theme.colors.foreground};
-  cursor: pointer;
-  transition: all 0.2s;
-
-  svg {
-    position: static !important;
-    width: 16px;
-    height: 16px;
-  }
-
-  &:hover {
-    border-color: ${props => props.theme.colors.primary};
-    background: rgba(59, 130, 246, 0.1);
-  }
-`;
-
-const SearchInput = styled.input`
-  width: 100%;
-  padding: 12px 40px 12px 40px;
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
-  background: ${props => props.theme.colors.background};
-  color: ${props => props.theme.colors.foreground};
-  font-size: 14px;
-
-  &:focus {
-    outline: none;
-    border-color: ${props => props.theme.colors.primary};
-  }
-`;
-
-const ClearButton = styled.button`
-  position: absolute;
-  right: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: ${props => props.theme.radius.sm};
-  background: transparent;
-  color: ${props => props.theme.colors.mutedForeground};
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.1);
-    color: ${props => props.theme.colors.foreground};
-  }
-`;
-
-const FilterContainer = styled.div`
-  position: relative;
-`;
-
-const FilterButton = styled.button<{ $active: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 12px;
-  border: 1px solid ${props => props.$active ? props.theme.colors.primary : props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
-  background: ${props => props.$active ? 'rgba(59, 130, 246, 0.1)' : props.theme.colors.background};
-  color: ${props => props.$active ? props.theme.colors.primary : props.theme.colors.foreground};
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: ${props => props.theme.colors.primary};
-    background: rgba(59, 130, 246, 0.1);
-  }
-`;
-
-const FilterBadge = styled.span`
-  font-size: 12px;
-  background: ${props => props.theme.colors.primary};
-  color: white;
-  padding: 2px 6px;
-  border-radius: ${props => props.theme.radius.md};
-  max-width: 80px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
-
-const FilterDropdown = styled.div`
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 4px;
-  background: ${props => props.theme.colors.background};
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 100;
-  min-width: 150px;
-`;
-
-const FilterOption = styled.div<{ $active: boolean }>`
-  padding: 12px 16px;
-  cursor: pointer;
-  background: ${props => props.$active ? 'rgba(59, 130, 246, 0.1)' : 'transparent'};
-  color: ${props => props.$active ? props.theme.colors.primary : props.theme.colors.foreground};
-  font-size: 14px;
-
-  &:hover {
-    background: rgba(59, 130, 246, 0.1);
-  }
-
-  &:first-child {
-    border-radius: ${props => props.theme.radius.sm} ${props => props.theme.radius.sm} 0 0;
-  }
-
-  &:last-child {
-    border-radius: 0 0 ${props => props.theme.radius.sm} ${props => props.theme.radius.sm};
-  }
-`;
-
-const ViewPicker = styled.div`
-  display: flex;
-  align-items: center;
-  background: ${props => props.theme.colors.background};
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
-  overflow: hidden;
-`;
-
-const ViewButton = styled.button<{ $active?: boolean }>`
-  background: ${props => props.$active ? props.theme.colors.primary : 'transparent'};
-  border: none;
-  padding: 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: ${props => props.$active ? '#ffffff' : props.theme.colors.mutedForeground};
-  transition: all 0.2s ease;
-  width: 40px;
-  height: 40px;
-
-  &:hover {
-    background: ${props => props.$active ? props.theme.colors.primary : 'rgba(59, 130, 246, 0.1)'};
-    color: ${props => props.$active ? '#ffffff' : props.theme.colors.primary};
-  }
-
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-`;
 
 const ServersGrid = styled.div`
   display: grid;
@@ -383,12 +202,10 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   const [servers, setServers] = useState<MCPServer[]>(FAKE_MCP_SERVERS);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState<boolean>(false);
   const [showInstallModal, setShowInstallModal] = useState<MCPServer | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState<MCPServer | null>(null);
   const [showLogsModal, setShowLogsModal] = useState<MCPServer | null>(null);
   const [showExtensionsModal, setShowExtensionsModal] = useState<boolean>(false);
-  const [isSearchExpanded, setIsSearchExpanded] = useState<boolean>(false);
 
   const handleStatusChange = (serverId: string, newStatus: MCPServer['status']) => {
     setServers(prev => prev.map(server => 
@@ -449,86 +266,17 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
       </Header>
 
       <Controls>
-        <ActionBar>
-          <SearchContainer $expanded={isSearchExpanded}>
-            {!isSearchExpanded ? (
-              <SearchButton onClick={() => setIsSearchExpanded(true)}>
-                <Icon icon="lucide:search" />
-              </SearchButton>
-            ) : (
-              <>
-                <Icon icon="lucide:search" />
-                <SearchInput
-                  type="text"
-                  placeholder="Search MCP servers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onBlur={() => {
-                    if (!searchTerm) {
-                      setIsSearchExpanded(false);
-                    }
-                  }}
-                  autoFocus
-                />
-                {searchTerm && (
-                  <ClearButton 
-                    onClick={() => {
-                      setSearchTerm('');
-                      setIsSearchExpanded(false);
-                    }}
-                  >
-                    <Icon icon="lucide:x" />
-                  </ClearButton>
-                )}
-              </>
-            )}
-          </SearchContainer>
-
-          <FilterContainer>
-            <FilterButton 
-              onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-              $active={selectedCategory !== 'All'}
-            >
-              <Icon icon="lucide:filter" />
-              {selectedCategory !== 'All' && <FilterBadge>{selectedCategory}</FilterBadge>}
-            </FilterButton>
-            
-            {showCategoryDropdown && (
-              <FilterDropdown>
-                {categories.map(category => (
-                  <FilterOption
-                    key={category}
-                    $active={selectedCategory === category}
-                    onClick={() => {
-                      setSelectedCategory(category);
-                      setShowCategoryDropdown(false);
-                    }}
-                  >
-                    {category}
-                  </FilterOption>
-                ))}
-              </FilterDropdown>
-            )}
-
-          </FilterContainer>
-
-          <ViewPicker>
-            <ViewButton
-              $active={viewMode === 'visual'}
-              onClick={() => onViewModeChange('visual')}
-              title="Visual View"
-            >
-              <Icon icon="mdi:eye" />
-            </ViewButton>
-            <ViewButton
-              $active={viewMode === 'json'}
-              onClick={() => onViewModeChange('json')}
-              title="JSON View"
-            >
-              <Icon icon="mdi:code-json" />
-            </ViewButton>
-          </ViewPicker>
-        </ActionBar>
+        <ActionBar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search MCP servers..."
+          selectedCategory={selectedCategory}
+          categories={categories}
+          onCategoryChange={setSelectedCategory}
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+          showViewPicker={true}
+        />
       </Controls>
 
       {viewMode === 'json' ? (
@@ -545,7 +293,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
               onStatusChange={handleStatusChange}
               onViewLogs={handleViewLogs}
               onOpenSettings={handleOpenSettings}
-              showCategory={selectedCategory !== 'All' || showCategoryDropdown}
+              showCategory={selectedCategory !== 'All'}
             />
           ))}
           
@@ -600,8 +348,6 @@ const ExtensionsModal: React.FC<{
 }> = ({ servers, categories, onClose, onInstall }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState<boolean>(false);
-  const [isSearchExpanded, setIsSearchExpanded] = useState<boolean>(false);
 
   const filteredServers = servers.filter(server => {
     const matchesCategory = selectedCategory === 'All' || server.category === selectedCategory;
@@ -622,68 +368,14 @@ const ExtensionsModal: React.FC<{
 
         <ModalContent>
           <ModalControls>
-            <ActionBar>
-              <SearchContainer $expanded={isSearchExpanded}>
-                {!isSearchExpanded ? (
-                  <SearchButton onClick={() => setIsSearchExpanded(true)}>
-                    <Icon icon="lucide:search" />
-                  </SearchButton>
-                ) : (
-                  <>
-                    <Icon icon="lucide:search" />
-                    <SearchInput
-                      type="text"
-                      placeholder="Search available extensions..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      onBlur={() => {
-                        if (!searchTerm) {
-                          setIsSearchExpanded(false);
-                        }
-                      }}
-                      autoFocus
-                    />
-                    {searchTerm && (
-                      <ClearButton 
-                        onClick={() => {
-                          setSearchTerm('');
-                          setIsSearchExpanded(false);
-                        }}
-                      >
-                        <Icon icon="lucide:x" />
-                      </ClearButton>
-                    )}
-                  </>
-                )}
-              </SearchContainer>
-
-              <FilterContainer>
-                <FilterButton 
-                  onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                  $active={selectedCategory !== 'All'}
-                >
-                  <Icon icon="lucide:filter" />
-                  {selectedCategory !== 'All' && <FilterBadge>{selectedCategory}</FilterBadge>}
-                </FilterButton>
-                
-                {showCategoryDropdown && (
-                  <FilterDropdown>
-                    {categories.map(category => (
-                      <FilterOption
-                        key={category}
-                        $active={selectedCategory === category}
-                        onClick={() => {
-                          setSelectedCategory(category);
-                          setShowCategoryDropdown(false);
-                        }}
-                      >
-                        {category}
-                      </FilterOption>
-                    ))}
-                  </FilterDropdown>
-                )}
-              </FilterContainer>
-            </ActionBar>
+            <ActionBar
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Search available extensions..."
+              selectedCategory={selectedCategory}
+              categories={categories}
+              onCategoryChange={setSelectedCategory}
+            />
           </ModalControls>
 
           <ExtensionsGrid>
