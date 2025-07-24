@@ -385,18 +385,26 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {full_path}")
 
+        # Check file size before reading
+        file_size = file_path.stat().st_size
+        max_size = 100000  # 100KB limit for WebSocket messages
+        
+        if file_size > max_size:
+            error_msg = f"File too large to read: {full_path} File size: {file_size:,} bytes ({file_size/1024:.1f} KB) Maximum allowed: {max_size:,} bytes ({max_size/1024:.1f} KB)"
+            logger.warning(error_msg)
+            await client.send_response(
+                file_chunk_result_msg(response_type, **payload, error=error_msg)
+            )
+            return
+
         # Try to read file content as text
         try:
             with open(full_path, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
                 
             # Log file and content size for debugging
-            file_size = len(content)
-            logger.info(f"File content size: {file_size} characters")
-            
-            # Check if content might be too large for WebSocket
-            if file_size > 500000:  # 500KB
-                logger.warning(f"Large file content: {file_size} characters, consider chunking")
+            content_size = len(content.encode('utf-8'))
+            logger.info(f"File content size: {len(content):,} chars")
                 
         except UnicodeDecodeError:
             raise ValueError(f"Cannot read binary file {full_path}")
