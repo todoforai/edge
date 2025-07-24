@@ -288,7 +288,7 @@ async def handle_ctx_workspace_request(payload, client):
         # Get filtered files - use global constants directly
         project_files, filtered_files, filtered_dirs = get_filtered_files_and_folders(path)
 
-        await client._send_response(workspace_result_msg(
+        await client.send_response(workspace_result_msg(
             request_id,
             user_id,
             agent_id,
@@ -300,7 +300,7 @@ async def handle_ctx_workspace_request(payload, client):
     except Exception as error:
         logger.error(f"Error processing workspace request: {str(error)}")
         # Send empty file chunks with error
-        await client._send_response(workspace_result_msg(request_id, user_id, agent_id, [], [], []))
+        await client.send_response(workspace_result_msg(request_id, user_id, agent_id, [], [], []))
 
 
 def get_filtered_files_and_folders(path):

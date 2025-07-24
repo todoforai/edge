@@ -121,7 +121,7 @@ async def handle_block_execute(payload, client):
     logger.info(f"handle_block_execute: {payload}")
 
     # Send start message
-    await client._send_response(block_start_result_msg(todo_id, block_id, "execute", message_id))
+    await client.send_response(block_start_result_msg(todo_id, block_id, "execute", message_id))
 
     try:
         shell = ShellProcess()
@@ -138,7 +138,7 @@ async def handle_block_execute(payload, client):
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error executing command: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client._send_response(block_error_result_msg(block_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
+        await client.send_response(block_error_result_msg(block_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 async def handle_block_keyboard(payload, client):
@@ -155,7 +155,7 @@ async def handle_block_keyboard(payload, client):
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error processing key: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client._send_response(block_error_result_msg(block_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
+        await client.send_response(block_error_result_msg(block_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 async def handle_block_signal(payload, client):
@@ -175,7 +175,7 @@ async def handle_block_signal(payload, client):
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error processing signal: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client._send_response(block_error_result_msg(block_id, str(error)))
+        await client.send_response(block_error_result_msg(block_id, str(error)))
 
 async def handle_get_folders(payload, client):
     """Handle request to get folders at depth 1 for a given path"""
@@ -211,11 +211,11 @@ async def handle_get_folders(payload, client):
 
 
         # Send the response
-        await client._send_response(get_folders_response_msg(request_id, edge_id, folders, files))
+        await client.send_response(get_folders_response_msg(request_id, edge_id, folders, files))
 
     except Exception as error:
         logger.error(f"Error getting folders: {str(error)}")
-        await client._send_response(get_folders_response_msg(
+        await client.send_response(get_folders_response_msg(
             request_id, edge_id, [], [], f"{str(error)}"
         ))
 
@@ -235,11 +235,11 @@ async def handle_todo_dir_list(payload, client):
             paths.append(str(item))
 
         # Use the new protocol structure
-        await client._send_response(dir_list_response_msg(todo_id, paths))
+        await client.send_response(dir_list_response_msg(todo_id, paths))
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error listing directory: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client._send_response(block_error_result_msg(request_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
+        await client.send_response(block_error_result_msg(request_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 
@@ -264,11 +264,11 @@ async def handle_todo_cd(payload: Dict[str, Any], client: Any) -> None:
             if path_added:
                 logger.info(f"Added new workspace path: {abs_path}")
 
-        await client._send_response(cd_response_msg(edge_id, path, request_id, True))
+        await client.send_response(cd_response_msg(edge_id, path, request_id, True))
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error changing directory: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client._send_response(cd_response_msg(edge_id, path, request_id, False, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
+        await client.send_response(cd_response_msg(edge_id, path, request_id, False, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 async def handle_block_save(payload, client):
     """Handle file save request - simple implementation"""
@@ -296,12 +296,12 @@ async def handle_block_save(payload, client):
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(content)
 
-        await client._send_response(block_save_result_msg(block_id, todo_id, "SUCCESS"))
+        await client.send_response(block_save_result_msg(block_id, todo_id, "SUCCESS"))
 
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error saving file: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client._send_response(block_save_result_msg(block_id, todo_id, f"ERROR: {str(error)}\n\nStacktrace:\n{stack_trace}"))
+        await client.send_response(block_save_result_msg(block_id, todo_id, f"ERROR: {str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 async def handle_block_refresh(payload, client):
@@ -310,7 +310,7 @@ async def handle_block_refresh(payload, client):
     todo_id = payload.get("todoId", "")
     data = payload.get("data", "")
 
-    await client._send_response(block_message_result_msg(todo_id, block_id, "REFRESHING"))
+    await client.send_response(block_message_result_msg(todo_id, block_id, "REFRESHING"))
 
 
 async def handle_block_diff(payload, client):
@@ -329,18 +329,18 @@ async def handle_block_diff(payload, client):
         file_path = Path(filepath)
         if not file_path.exists():
             # If file doesn't exist, just return the new content as the diff
-            await client._send_response(block_diff_result_msg(todo_id, block_id, "", content))
+            await client.send_response(block_diff_result_msg(todo_id, block_id, "", content))
         else:
             # Read the original file content
             with open(filepath, 'r') as f:
                 original_content = f.read()
 
             # Send the diff result using the new protocol structure
-            await client._send_response(block_diff_result_msg(todo_id, block_id, original_content, content))
+            await client.send_response(block_diff_result_msg(todo_id, block_id, original_content, content))
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error generating diff: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client._send_response(block_error_result_msg(block_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
+        await client.send_response(block_error_result_msg(block_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
 async def handle_task_action_new(payload, client):
@@ -354,10 +354,10 @@ async def handle_task_action_new(payload, client):
         # Typically this would involve starting a new task or process
         logger.info(f"New task action received: {task_id} for agent {agent_id}")
 
-        await client._send_response(task_action_update_msg(task_id, edge_id, "started"))
+        await client.send_response(task_action_update_msg(task_id, edge_id, "started"))
     except Exception as error:
         logger.error(f"Error starting task: {str(error)}")
-        await client._send_response(task_action_update_msg(task_id, edge_id, "error", str(error)))
+        await client.send_response(task_action_update_msg(task_id, edge_id, "error", str(error)))
 
 
 async def handle_ctx_julia_request(payload, client):
@@ -372,13 +372,13 @@ async def handle_ctx_julia_request(payload, client):
         logger.info(f"Julia context request received: {query}")
 
         # Example implementation - could be replaced with actual Julia integration
-        await client._send_response(
+        await client.send_response(
             ctx_julia_result_msg(todo_id, request_id, ["example/file.jl"], ["# This is a placeholder Julia result"])
         )
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error processing Julia request: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client._send_response(ctx_julia_result_msg(todo_id, request_id, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
+        await client.send_response(ctx_julia_result_msg(todo_id, request_id, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK_RESULT):
     """Handle file chunk request - reads a file and returns its content"""
@@ -423,7 +423,7 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
             raise ValueError(f"Cannot read binary file {full_path}")
 
         # Send the response using the message formatter
-        await client._send_response(
+        await client.send_response(
             file_chunk_result_msg(response_type, **payload, full_path=full_path, content=content)
         )
 
@@ -431,7 +431,7 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
         stack_trace = traceback.format_exc()
         logger.error(f"Error processing file chunk request: {str(error)}, path: {path}, rootPath: {root_path}\nStacktrace:\n{stack_trace}")
         # Send error response using the message formatter
-        await client._send_response(
+        await client.send_response(
             file_chunk_result_msg(response_type, **payload, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}")
         )
 
@@ -639,4 +639,4 @@ async def handle_function_call_request(payload, client):
         logger.error(f"Error processing function call: {str(error)}\nStacktrace:\n{stack_trace}")
         response = response_handler.error_response(f"{str(error)}\n\nStacktrace:\n{stack_trace}")
     
-    await client._send_response(response)
+    await client.send_response(response)

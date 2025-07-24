@@ -1,27 +1,14 @@
 #!/usr/bin/env python3
-import os
 import sys
 import asyncio
-import traceback
 
 from todoforai_edge.client import TODOforAIEdge
-from todoforai_edge.apikey import authenticate_and_get_api_key
-from todoforai_edge.arg_parser import apply_config_from_args
+from todoforai_edge.arg_parser import create_argparse_apply_config
+
 
 async def run_app(api_key=None):
-    """
-    Main application entry point that handles CLI mode
+    config = create_argparse_apply_config()
     
-    Args:
-        api_key: Optional API key to use directly
-        
-    Returns:
-        None
-    """
-    # Parse command line arguments
-    config = apply_config_from_args()
-    
-    # Override config with function parameters if provided
     if api_key:
         config.api_key = api_key
     

@@ -1,39 +1,20 @@
 import os
-import json
-import base64
-import asyncio
-import websockets
-import requests
-import platform
-import uuid
 import logging
-from pathlib import Path
 import traceback
 from typing import List, Optional, Dict, Any, Callable, Coroutine, Union, TypeVar, cast
+import json
+import asyncio
+import websockets
 
 # Import constants
 from .constants import (
-    ServerResponse, Front2Edge, Edge2Agent, Agent2Edge, Edge2Front, EdgeStatus,
-    SR, FE, EA, AE, EF, S2E
+    EdgeStatus, SR, FE, AE, EF, S2E
 )
 from .utils import generate_machine_fingerprint, async_request
 from .messages import edge_status_msg
 from .apikey import authenticate_and_get_api_key
 from .observable import registry
-
-# Configure logging
-logger = logging.getLogger("todoforai-client")
-
-# ANSI color codes for terminal output
-class Colors:
-    GREEN = '\033[92m'
-    BLUE = '\033[94m'
-    YELLOW = '\033[93m'
-    CYAN = '\033[96m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
-
-# Import handlers
+from .config import get_ws_url
 from .handlers import (
     handle_todo_dir_list,
     handle_todo_cd,
@@ -51,11 +32,26 @@ from .handlers import (
     handle_call_edge_method
 )
 from .workspace_handler import handle_ctx_workspace_request
-from .file_sync import ensure_workspace_synced
+from .file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
+
+# Configure logging
+logger = logging.getLogger("todoforai-client")
+
+
+# ANSI color codes for terminal output
+class Colors:
+    GREEN = '\033[92m'
+    BLUE = '\033[94m'
+    YELLOW = '\033[93m'
+    CYAN = '\033[96m'
+    BOLD = '\033[1m'
+    END = '\033[0m'
+
 
 # Type for callback functions
 T = TypeVar('T')
 CallbackType = Union[Callable[[T], None], Callable[[T], Coroutine[Any, Any, None]]]
+
 
 def invoke_callback(callback: CallbackType, arg: Any) -> None:
     """Helper function to invoke a callback, handling both sync and async callbacks"""
@@ -66,6 +62,7 @@ def invoke_callback(callback: CallbackType, arg: Any) -> None:
         asyncio.create_task(cast(Callable[[Any], Coroutine[Any, Any, None]], callback)(arg))
     else:
         cast(Callable[[Any], None], callback)(arg)
+
 
 class EdgeConfig:
     """Edge configuration class with observable pattern"""
@@ -158,21 +155,12 @@ class EdgeConfig:
 
     def set_edge_mcps(self, mcps: List[str]) -> None:
         """Set the complete list of edge MCPs"""
-        current = self.config.value
-        updated = {"edgeMCPs": mcps }
+        updated = {"edgeMCPs": mcps}
         self.config.update_value(updated)
+
 
 class TODOforAIEdge:
     def __init__(self, client_config):
-        """
-        Initialize the TodoForAI Edge client
-        
-        Args:
-            client_config: Configuration object (required)
-            
-        Raises:
-            ValueError: If config is not provided
-        """
         if client_config is None:
             raise ValueError("Config object must be provided to TODOforAIEdge")
             
@@ -185,7 +173,7 @@ class TODOforAIEdge:
         # Add debug attribute for convenience
         self.debug = client_config.debug
         self.ws = None
-        self.ws_url = client_config.get_ws_url()
+        self.ws_url = get_ws_url(client_config.api_url)
         self.edge_config = EdgeConfig()
         
         # Subscribe to config changes
@@ -300,8 +288,6 @@ class TODOforAIEdge:
 
     async def _start_workspace_syncs(self):
         """Start file synchronization for all workspace paths"""
-        from .file_sync import start_workspace_sync, stop_all_syncs
-        
         # First stop any existing syncs to prevent duplicates
         await stop_all_syncs()
         
@@ -347,7 +333,7 @@ class TODOforAIEdge:
                 return False
             
             # Also broadcast status to connected clients
-            await self._send_response(edge_status_msg(self.edge_id, status))
+            await self.send_response(edge_status_msg(self.edge_id, status))
                 
             logger.info(f"Updated edge status to {status}")
             return True
@@ -456,7 +442,7 @@ class TODOforAIEdge:
             logger.error(f"Error handling message: {str(error)}\nStacktrace:\n{stack_trace}")
 
 
-    async def _send_response(self, message):
+    async def send_response(self, message):
         """Send a response to the server
         
         Args:
@@ -561,7 +547,6 @@ class TODOforAIEdge:
                 attempt = 0
                 
                 # Stop all file syncs when disconnected
-                from .file_sync import stop_all_syncs
                 await stop_all_syncs()
                 
                 # Wait before reconnecting
@@ -573,7 +558,6 @@ class TODOforAIEdge:
                 attempt += 1
                 
                 # Stop all file syncs on error
-                from .file_sync import stop_all_syncs
                 await stop_all_syncs()
                 
                 if attempt < max_attempts:

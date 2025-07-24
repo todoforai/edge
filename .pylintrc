@@ -1,0 +1,26 @@
+[MESSAGES CONTROL]
+disable = 
+    W1203,  # logging-fstring-interpolation (use lazy % formatting in logging functions)
+    C0103,  # invalid-name (doesn't conform to snake_case naming style)
+    C0301,  # line-too-long
+    C0303,  # trailing-whitespace
+    C0305,  # trailing-newlines
+    R0913,  # too-many-arguments
+    C0114,  # missing-module-docstring
+    C0115,  # missing-class-docstring
+    C0116,  # missing-function-docstring
+    R0904,  # too-many-public-methods
+    W0212,  # protected-access (Access to a protected member)
+    R0914,  # too-many-locals
+    W0718,  # 
+    W0719,  # raiding too general exception
+
+[FORMAT]
+max-line-length = 120
+
+[DESIGN]
+max-args = 10
+max-locals = 20
+max-returns = 8
+max-branches = 15
+max-statements = 60 

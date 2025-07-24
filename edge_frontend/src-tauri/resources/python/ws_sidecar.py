@@ -17,7 +17,7 @@ import requests
 
 # Import TODOforAI Edge client
 from todoforai_edge.client import TODOforAIEdge
-from todoforai_edge.config import Config
+from todoforai_edge.config import default_config
 
 async def _broadcast_auth_success():
     """Helper to broadcast auth success event"""
@@ -182,7 +182,7 @@ def _has_same_credentials(config: Config) -> bool:
 
 def _create_config_from_credentials(credentials):
     """Create config object from credentials"""
-    config = Config()
+    config = default_config()
     
     if "email" in credentials:
         config.email = credentials["email"]

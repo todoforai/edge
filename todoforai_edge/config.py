@@ -7,6 +7,18 @@ load_dotenv()
 # Default configuration values
 DEFAULT_API_URL = "https://api.todofor.ai"
 
+def get_ws_url(api_url=DEFAULT_API_URL):
+    """Convert HTTP URL to WebSocket URL"""
+    url = api_url
+    if url.startswith("https://"):
+        return url.replace("https://", "wss://") + "/ws/v1/edge"
+    elif url.startswith("http://"):
+        return url.replace("http://", "ws://") + "/ws/v1/edge"
+    elif url.startswith("localhost"):
+        return "ws://" + url + "/ws/v1/edge"
+    else:
+        raise ValueError('WHUT? url:', url)
+    
 class Config:
     """Simple configuration class for TodoForAI Edge"""
     
@@ -21,17 +33,7 @@ class Config:
         self.password = os.environ.get("TODO4AI_PASSWORD", "")
         self.api_key = os.environ.get("TODO4AI_API_KEY", "")
         
-    def get_ws_url(self, api_url=None):
-        """Convert HTTP URL to WebSocket URL"""
-        url = api_url or self.api_url
-        if url.startswith("https://"):
-            return url.replace("https://", "wss://") + "/ws/v1/edge"
-        elif url.startswith("http://"):
-            return url.replace("http://", "ws://") + "/ws/v1/edge"
-        elif url.startswith("localhost"):
-            return "ws://" + url + "/ws/v1/edge"
-        else:
-            raise ValueError('WHUT? url:', url)
+
             
     def update_from_args(self, args):
         """Update configuration from parsed arguments"""
@@ -49,5 +51,6 @@ class Config:
         if args.api_key:
             self.api_key = args.api_key
             
-# Create a singleton instance
-config = Config()
+def default_config():
+    """Factory function to create a new config instance"""
+    return Config()

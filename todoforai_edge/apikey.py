@@ -1,6 +1,5 @@
-import requests
 import logging
-import sys
+import requests
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -12,7 +11,7 @@ def authenticate_and_get_api_key(email, password, api_url):
     # Login only, no registration
     login_url = f"{api_url}/token/v1/auth/login"
     logger.info(f"Attempting to login at: {login_url}")
-    response = requests.post(login_url, json={"email": email, "password": password})
+    response = requests.post(login_url, json={"email": email, "password": password}, timeout=30)
     
     if response.status_code != 200:
         error_msg = f"Login failed: {response.text}"
@@ -22,7 +21,7 @@ def authenticate_and_get_api_key(email, password, api_url):
     data = response.json()
     # print(f"Login response: {data}")
     token = data.get("token")
-    logger.info(f"Successfully authenticated, received token")
+    logger.info("Successfully authenticated, received token")
     
     # Get or create API key
     headers = {"Authorization": f"Bearer {token}"}
@@ -31,13 +30,13 @@ def authenticate_and_get_api_key(email, password, api_url):
     # Try to get existing API key
     get_key_url = f"{api_url}/token/v1/users/apikeys/{api_key_name}"
     logger.info(f"Checking for existing API key at: {get_key_url}")
-    response = requests.get(get_key_url, headers=headers)
+    response = requests.get(get_key_url, headers=headers, timeout=30)
     
     if response.status_code == 404:
         # Create new API key
         create_key_url = f"{api_url}/token/v1/users/apikeys"
         logger.info(f"Creating new API key at: {create_key_url}")
-        response2 = requests.post(create_key_url, headers=headers, json={"name": api_key_name})
+        response2 = requests.post(create_key_url, headers=headers, json={"name": api_key_name}, timeout=30)
         
         if response2.status_code != 200:
             raise Exception(f"Failed to create API key: {response2.text}")
@@ -59,5 +58,4 @@ def authenticate_and_get_api_key(email, password, api_url):
         logger.info(f"Retrieved existing API key (first 8 chars): {api_key[:8] if api_key else 'None'}...")
         
         return api_key
-
 
