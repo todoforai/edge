@@ -7,7 +7,7 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 const Card = styled.div`
   background-color: ${props => props.theme.colors.cardBackground};
   border-radius: ${props => props.theme.radius.xl};
-  box-shadow: ${props => props.theme.shadows.sm};
+  box-shadow: ${props => props.theme.shadows.lg};
   padding: 20px;
   border: 1px solid ${props => props.theme.colors.borderColor};
   transition: transform 0.2s, box-shadow 0.2s;

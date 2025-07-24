@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 // Styled Components
 const Container = styled.div`
@@ -20,6 +21,8 @@ const SearchContainer = styled.div<{ $expanded: boolean }>`
   svg {
     position: absolute;
     left: 12px;
+    width: 20px;
+    height: 20px;
     color: ${props => props.theme.colors.mutedForeground};
     z-index: 1;
   }
@@ -32,7 +35,7 @@ const SearchButton = styled.button`
   width: 40px;
   height: 40px;
   border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
+  border-radius: ${props => props.theme.radius.md};
   background: ${props => props.theme.colors.background};
   color: ${props => props.theme.colors.foreground};
   cursor: pointer;
@@ -40,8 +43,8 @@ const SearchButton = styled.button`
 
   svg {
     position: static !important;
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
   }
 
   &:hover {
@@ -54,7 +57,7 @@ const SearchInput = styled.input`
   width: 100%;
   padding: 12px 40px 12px 40px;
   border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
+  border-radius: ${props => props.theme.radius.md};
   background: ${props => props.theme.colors.background};
   color: ${props => props.theme.colors.foreground};
   font-size: 14px;
@@ -94,17 +97,26 @@ const FilterButton = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 12px;
+  padding: 0 12px;
+  height: 40px;
+  width: 40px;
   border: 1px solid ${props => props.$active ? props.theme.colors.primary : props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
+  border-radius: ${props => props.theme.radius.md};
   background: ${props => props.$active ? 'rgba(59, 130, 246, 0.1)' : props.theme.colors.background};
   color: ${props => props.$active ? props.theme.colors.primary : props.theme.colors.foreground};
   cursor: pointer;
   transition: all 0.2s;
 
+  svg {
+    width: 20px;
+    height: 20px;
+    color: ${props => props.$active ? props.theme.colors.primary : props.theme.colors.mutedForeground};
+  }
+
   &:hover {
     border-color: ${props => props.theme.colors.primary};
     background: rgba(59, 130, 246, 0.1);
+    
   }
 `;
 
@@ -128,7 +140,7 @@ const FilterDropdown = styled.div`
   margin-top: 4px;
   background: ${props => props.theme.colors.background};
   border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
+  border-radius: ${props => props.theme.radius.md};
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 100;
   min-width: 150px;
@@ -157,16 +169,17 @@ const FilterOption = styled.div<{ $active: boolean }>`
 const ViewPicker = styled.div`
   display: flex;
   align-items: center;
+  height: 40px;
   background: ${props => props.theme.colors.background};
   border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
+  border-radius: ${props => props.theme.radius.md};
   overflow: hidden;
 `;
 
 const ViewButton = styled.button<{ $active?: boolean }>`
   background: ${props => props.$active ? props.theme.colors.primary : 'transparent'};
   border: none;
-  padding: 12px;
+  padding: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -182,8 +195,8 @@ const ViewButton = styled.button<{ $active?: boolean }>`
   }
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 24px;
+    height: 24px;
   }
 `;
 
@@ -212,6 +225,11 @@ export const ActionBar: React.FC<ActionBarProps> = ({
 }) => {
   const [isSearchExpanded, setIsSearchExpanded] = React.useState<boolean>(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = React.useState<boolean>(false);
+  
+  const filterRef = useClickOutside<HTMLDivElement>(
+    () => setShowCategoryDropdown(false),
+    showCategoryDropdown
+  );
 
   return (
     <Container>
@@ -249,7 +267,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
         )}
       </SearchContainer>
 
-      <FilterContainer>
+      <FilterContainer ref={filterRef}>
         <FilterButton 
           onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
           $active={selectedCategory !== 'All'}

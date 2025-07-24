@@ -73,7 +73,7 @@ const ActionButton = styled.button`
   height: 44px;
   background: transparent;
   border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
+  border-radius: ${props => props.theme.radius.md};
   color: ${props => props.theme.colors.mutedForeground};
   cursor: pointer;
   transition: all 0.2s;

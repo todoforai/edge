@@ -68,7 +68,8 @@ const ModalOverlay = styled.div`
 
 const Modal = styled.div`
   background: ${props => props.theme.colors.background};
-  border-radius: ${props => props.theme.radius.md};
+  border-radius: ${props => props.theme.radius.lg};
+  border: 1px solid ${props => props.theme.colors.borderColor};
   width: 90%;
   max-width: 1200px;
   max-height: 80vh;
@@ -111,14 +112,14 @@ const CloseButton = styled.button`
 const ModalContent = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 28px;
+  padding: 24px;
 `;
 
 const ModalControls = styled.div`
   display: flex;
   flex-direction: column;
   gap: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 `;
 
 const ExtensionsGrid = styled.div`
@@ -130,10 +131,10 @@ const ExtensionsGrid = styled.div`
 const ExtensionCard = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
+  gap: 20px;
+  padding: 28px;
   border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
+  border-radius: ${props => props.theme.radius.lg};
   background: ${props => props.theme.colors.background};
   transition: border-color 0.2s;
 
