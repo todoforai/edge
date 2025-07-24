@@ -1,5 +1,5 @@
-from .constants import Edge2Front as EF, Edge2Agent as EA
 from typing import Any
+from .constants import Edge2Front as EF, Edge2Agent as EA
 
 
 # Edge status message

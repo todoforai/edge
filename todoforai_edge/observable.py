@@ -1,7 +1,7 @@
 import asyncio
 import logging
-from typing import Any, Callable, Dict, List, TypeVar, Generic, Optional, Union, Awaitable
 import time
+from typing import Any, Callable, Dict, List, TypeVar, Generic, Optional, Awaitable
 
 logger = logging.getLogger("todoforai-observable")
 
@@ -165,14 +165,14 @@ class ObservableDictionary(Observable[Dict]):
     def __init__(self, initial_value: Dict = None, name: str = "unnamed"):
         super().__init__(initial_value or {}, name)
 
-    def update_value(self, updates: Dict[str, Any], source: str = None) -> None:
+    def update_value(self, new_value: Dict[str, Any], source: str = None) -> None:
         """Update specific fields and notify observers with only the changes"""
-        if not updates:
+        if not new_value:
             return
 
         # Calculate actual changes
         actual_changes = {}
-        for key, new_val in updates.items():
+        for key, new_val in new_value.items():
             if self._value.get(key) != new_val:
                 actual_changes[key] = new_val
 

@@ -1,9 +1,9 @@
 import os
 import logging
 import re
-from pathlib import Path
-from .messages import workspace_result_msg
 import platform
+
+from .messages import workspace_result_msg
 
 logger = logging.getLogger("todoforai-edge")
 

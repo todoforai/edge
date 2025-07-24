@@ -3,10 +3,8 @@ import json
 import base64
 import platform
 import subprocess
-import asyncio
-import requests
 import logging
-import traceback
+import requests
 
 logger = logging.getLogger("todoforai-edge")
 
@@ -39,7 +37,7 @@ def generate_machine_fingerprint(email: str):
     elif platform.system() == "Darwin":  # macOS
         try:
             result = subprocess.run(["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"], 
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, check=False)
             for line in result.stdout.splitlines():
                 if "IOPlatformUUID" in line:
                     identifiers["hardware_uuid"] = line.split('=')[1].strip().strip('"')
@@ -49,7 +47,7 @@ def generate_machine_fingerprint(email: str):
     elif platform.system() == "Windows":
         try:
             result = subprocess.run(["wmic", "csproduct", "get", "UUID"], 
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, check=False)
             if result.stdout:
                 identifiers["hardware_uuid"] = result.stdout.splitlines()[1].strip()
         except Exception:
@@ -70,15 +68,15 @@ async def async_request(client, method, endpoint, data=None):
         }
     
     if method.lower() == 'get':
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=30)
     elif method.lower() == 'post':
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(url, headers=headers, json=data, timeout=30)
     elif method.lower() == 'put':
-        response = requests.put(url, headers=headers, json=data)
+        response = requests.put(url, headers=headers, json=data, timeout=30)
     elif method.lower() == 'patch':
-        response = requests.patch(url, headers=headers, json=data)
+        response = requests.patch(url, headers=headers, json=data, timeout=30)
     elif method.lower() == 'delete':
-        response = requests.delete(url, headers=headers)
+        response = requests.delete(url, headers=headers, timeout=30)
     else:
         raise ValueError(f"Unsupported HTTP method: {method}")
         

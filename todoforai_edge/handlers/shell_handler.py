@@ -1,7 +1,6 @@
 import asyncio
 import subprocess
 import signal
-import sys
 import os
 import select
 import logging
@@ -10,7 +9,7 @@ import traceback
 import threading
 import queue
 
-from .messages import block_message_result_msg, block_done_result_msg
+from ..constants.messages import block_message_result_msg, block_done_result_msg
 
 logger = logging.getLogger("todoforai-edge")
 

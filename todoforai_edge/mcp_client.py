@@ -1,9 +1,8 @@
 import logging
-import asyncio
 import json
-from typing import Dict, List, Optional, Any
-from fastmcp import Client
+from typing import Dict, List, Any
 from pathlib import Path
+from fastmcp import Client
 
 logger = logging.getLogger("todoforai-mcp")
 
@@ -54,7 +53,7 @@ class MCPCollector:
                 self.edge_client.edge_config.set_edge_mcps(tools)
                 logger.info(f"Updated edge config with {len(tools)} MCP tools")
             
-            return {server: True for server in config["mcpServers"].keys()}
+            return {server: True for server in config["mcpServers"]}
                 
         except Exception as e:
             logger.error(f"Error loading MCP servers: {e}")

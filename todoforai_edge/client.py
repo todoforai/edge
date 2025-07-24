@@ -7,22 +7,22 @@ import asyncio
 import websockets
 
 # Import constants
-from .constants import (
+from .constants.constants import (
     EdgeStatus, SR, FE, AE, EF, S2E
 )
 from .utils import generate_machine_fingerprint, async_request
-from .messages import edge_status_msg
+from .constants.messages import edge_status_msg
+from .constants.workspace_handler import handle_ctx_workspace_request
 from .apikey import authenticate_and_get_api_key
 from .observable import registry
 from .config import get_ws_url
-from .handlers import (
+from .handlers.handlers import (
     handle_todo_dir_list,
     handle_todo_cd,
     handle_block_execute,
     handle_block_save,
     handle_block_refresh,
     handle_block_keyboard,
-    handle_block_signal,
     handle_block_diff,
     handle_task_action_new,
     handle_ctx_julia_request,
@@ -31,8 +31,8 @@ from .handlers import (
     handle_function_call_request,
     handle_call_edge_method
 )
-from .workspace_handler import handle_ctx_workspace_request
-from .file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
+from .handlers.file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
+from .mcp_client import setup_mcp_from_config
 
 # Configure logging
 logger = logging.getLogger("todoforai-client")
@@ -185,6 +185,7 @@ class TODOforAIEdge:
         self.connected = False
         self.heartbeat_task = None
         self.fingerprint = None  # Will be generated when we have email
+        self.mcp_collector = None  # Will be initialized if mcp.json exists
         
         # Set logging level based on config
         if self.debug:
@@ -305,7 +306,6 @@ class TODOforAIEdge:
         """Load MCP config if mcp.json exists in current directory"""
         if os.path.exists("mcp.json"):
             try:
-                from .mcp_client import setup_mcp_from_config
                 logger.info("Found mcp.json, loading MCP configuration")
                 self.mcp_collector = await setup_mcp_from_config("mcp.json", self)
                 logger.info("MCP client initialized successfully")
@@ -401,9 +401,6 @@ class TODOforAIEdge:
             
             elif msg_type == FE.BLOCK_KEYBOARD:
                 asyncio.create_task(handle_block_keyboard(payload, self))
-            
-            elif msg_type == FE.BLOCK_SIGNAL:
-                asyncio.create_task(handle_block_signal(payload, self))
             
             elif msg_type == FE.BLOCK_DIFF:
                 asyncio.create_task(handle_block_diff(payload, self))

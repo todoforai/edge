@@ -2,16 +2,15 @@ import os
 import hashlib
 import asyncio
 import logging
-from pathlib import Path
 from typing import Dict, Set, Optional, Tuple, List
-import aiofiles
 from concurrent.futures import ThreadPoolExecutor
+import aiofiles
 
 from watchfiles import awatch, Change
 
-from .constants import Edge2FrontAgent as EFA
-from .workspace_handler import get_filtered_files_and_folders
-from .observable import registry
+from ..constants.constants import Edge2FrontAgent as EFA
+from ..constants.workspace_handler import get_filtered_files_and_folders
+from ..observable import registry
 
 logger = logging.getLogger("todoforai-edge-sync")
 

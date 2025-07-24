@@ -3,22 +3,20 @@ import asyncio
 import logging
 import traceback
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List
 
 import platform
-import subprocess
 
-from .messages import (
-    edge_status_msg, block_message_result_msg, block_error_result_msg,
-    block_diff_result_msg, block_start_result_msg, block_done_result_msg,
-    block_save_result_msg, task_action_update_msg, dir_list_response_msg,
-    cd_response_msg, ctx_julia_result_msg,
-    file_chunk_result_msg, get_folders_response_msg
-)
-from .constants import Edge2Front as EF, Edge2Agent as EA
-from .workspace_handler import is_path_allowed
 from .shell_handler import ShellProcess
-# Add this import at the top of the file
+from ..constants.messages import (
+    block_start_result_msg, block_error_result_msg, get_folders_response_msg,
+    dir_list_response_msg, cd_response_msg, block_save_result_msg, 
+    block_message_result_msg, block_diff_result_msg, task_action_update_msg,
+    ctx_julia_result_msg, file_chunk_result_msg, 
+    function_call_result_msg, call_edge_method_result_msg 
+)
+from ..constants.constants import Edge2Agent as EA
+from ..constants.workspace_handler import is_path_allowed
 from .file_sync import ensure_workspace_synced
 
 logger = logging.getLogger("todoforai-edge")
@@ -155,27 +153,8 @@ async def handle_block_keyboard(payload, client):
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error processing key: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client.send_response(block_error_result_msg(block_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
+        await client.send_response(block_error_result_msg(block_id, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
-
-async def handle_block_signal(payload, client):
-    """Handle signal events (like SIGINT, SIGTERM)"""
-    logger.info("""Handle signal events (like SIGINT, SIGTERM)""")
-    block_id = payload.get("blockId")
-
-    try:
-        # Default to interrupt signal
-        signal_type = "interrupt"
-
-        logger.info(f"Signal received: {signal_type} for block {block_id}")
-
-        # Send interrupt to the shell
-        shell = ShellProcess()
-        shell.interrupt_block(block_id)
-    except Exception as error:
-        stack_trace = traceback.format_exc()
-        logger.error(f"Error processing signal: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client.send_response(block_error_result_msg(block_id, str(error)))
 
 async def handle_get_folders(payload, client):
     """Handle request to get folders at depth 1 for a given path"""
@@ -577,19 +556,15 @@ class FunctionCallResponse:
     def success_response(self, result):
         """Create success response based on request type"""
         if self.is_agent_request:
-            from .messages import function_call_result_msg
             return function_call_result_msg(self.request_id, self.edge_id, True, result=result, agent_id=self.agent_id)
         else:
-            from .messages import call_edge_method_result_msg
             return call_edge_method_result_msg(self.request_id, self.edge_id, True, result=result)
     
     def error_response(self, error_message: str):
         """Create error response based on request type"""
         if self.is_agent_request:
-            from .messages import function_call_result_msg
             return function_call_result_msg(self.request_id, self.edge_id, False, error=error_message, agent_id=self.agent_id)
         else:
-            from .messages import call_edge_method_result_msg
             return call_edge_method_result_msg(self.request_id, self.edge_id, False, error=error_message)
 
 async def _execute_function(function_name: str, args: dict, client) -> any:
