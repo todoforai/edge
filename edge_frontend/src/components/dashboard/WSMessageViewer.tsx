@@ -5,6 +5,103 @@ import pythonService from '@/services/python-service';
 import { useCachedState } from '@/utils/useCachedState';
 import MessageListCard from './MessageListCard';
 
+// Styled Components
+const ActionButton = styled.button`
+  background-color: transparent;
+  color: ${props => props.theme.colors.foreground};
+  border: 1px solid ${props => props.theme.colors.borderColor};
+  border-radius: ${props => props.theme.radius.sm};
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+`;
+
+const FilterDropdown = styled.div`
+  position: relative;
+  display: inline-block;
+`;
+
+const FilterButton = styled(ActionButton)`
+  &:hover + div {
+    display: block;
+  }
+`;
+
+const DropdownContent = styled.div`
+  display: none;
+  position: absolute;
+  right: 0;
+  background-color: ${props => props.theme.colors.cardBackground};
+  min-width: 160px;
+  box-shadow: ${props => props.theme.shadows.md};
+  z-index: 1;
+  border: 1px solid ${props => props.theme.colors.borderColor};
+  border-radius: ${props => props.theme.radius.md};
+  padding: 8px 0;
+  
+  &:hover {
+    display: block;
+  }
+`;
+
+const FilterItem = styled.label`
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+`;
+
+const FilterCheckbox = styled.input`
+  cursor: pointer;
+`;
+
+const MessageItem = styled.div`
+  margin: 0 0 8px 0;
+  padding: 10px;
+  background-color: ${props => props.theme.colors.background};
+  border-radius: ${props => props.theme.radius.md};
+  border: 1px solid ${props => props.theme.colors.borderColor};
+  position: relative;
+  overflow: hidden;
+`;
+
+const MessageType = styled.div`
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: ${props => props.theme.colors.primary};
+`;
+
+const MessageContent = styled.pre`
+  margin: 0;
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: ${props => props.theme.colors.foreground};
+  max-height: 100px;
+  overflow-y: auto;
+`;
+
+const MessageTimestamp = styled.div`
+  font-size: 11px;
+  color: ${props => props.theme.colors.muted};
+  position: absolute;
+  top: 10px;
+  right: 10px;
+`;
+
 // Format object to YAML-like string
 const formatYamlLike = (obj: any, indent = 0): string => {
   if (obj === null || obj === undefined) return 'null';
@@ -128,102 +225,5 @@ const WSMessageViewer: React.FC = () => {
     />
   );
 };
-
-// Styled Components
-const ActionButton = styled.button`
-  background-color: transparent;
-  color: ${props => props.theme.colors.foreground};
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.sm};
-  padding: 4px 8px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
-`;
-
-const FilterDropdown = styled.div`
-  position: relative;
-  display: inline-block;
-`;
-
-const FilterButton = styled(ActionButton)`
-  &:hover + div {
-    display: block;
-  }
-`;
-
-const DropdownContent = styled.div`
-  display: none;
-  position: absolute;
-  right: 0;
-  background-color: ${props => props.theme.colors.cardBackground};
-  min-width: 160px;
-  box-shadow: ${props => props.theme.shadows.md};
-  z-index: 1;
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.md};
-  padding: 8px 0;
-  
-  &:hover {
-    display: block;
-  }
-`;
-
-const FilterItem = styled.label`
-  padding: 6px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 12px;
-  
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-  }
-`;
-
-const FilterCheckbox = styled.input`
-  cursor: pointer;
-`;
-
-const MessageItem = styled.div`
-  margin: 0 0 8px 0;
-  padding: 10px;
-  background-color: ${props => props.theme.colors.background};
-  border-radius: ${props => props.theme.radius.md};
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  position: relative;
-  overflow: hidden;
-`;
-
-const MessageType = styled.div`
-  font-weight: bold;
-  font-size: 14px;
-  margin-bottom: 6px;
-  color: ${props => props.theme.colors.primary};
-`;
-
-const MessageContent = styled.pre`
-  margin: 0;
-  font-family: monospace;
-  font-size: 12px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: ${props => props.theme.colors.foreground};
-  max-height: 100px;
-  overflow-y: auto;
-`;
-
-const MessageTimestamp = styled.div`
-  font-size: 11px;
-  color: ${props => props.theme.colors.muted};
-  position: absolute;
-  top: 10px;
-  right: 10px;
-`;
 
 export default WSMessageViewer;

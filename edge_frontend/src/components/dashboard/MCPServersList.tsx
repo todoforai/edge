@@ -8,6 +8,7 @@ import { MCPServerSettingsModal } from './MCPServerSettingsModal';
 import { MCPServerLogsModal } from './MCPServerLogsModal';
 import { MCPServerInstallModal } from './MCPServerInstallModal';
 import { MCPServerJSONView } from './MCPServerJSONView';
+import { AddExtensionCard } from './AddExtensionCard';
 
 // Styled Components
 const Container = styled.div`
@@ -231,60 +232,7 @@ const ServersGrid = styled.div`
   gap: 20px;
 `;
 
-const AddExtensionCard = styled.div`
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.lg};
-  padding: 28px;
-  background: ${props => props.theme.colors.background};
-  cursor: pointer;
-  transition: all 0.2s;
-  min-height: 120px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
 
-  &:hover {
-    border-color: ${props => props.theme.colors.primary};
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-`;
-
-const AddExtensionIcon = styled.div`
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: ${props => props.theme.radius.md};
-  background: rgba(59, 130, 246, 0.1);
-  color: ${props => props.theme.colors.primary};
-`;
-
-const AddExtensionContent = styled.div`
-  flex: 1;
-`;
-
-const AddExtensionTitleRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-`;
-
-const AddExtensionTitle = styled.h3`
-  font-size: 20px;
-  font-weight: 600;
-  color: ${props => props.theme.colors.foreground};
-  margin: 0;
-`;
-
-const AddExtensionDescription = styled.p`
-  font-size: 14px;
-  color: ${props => props.theme.colors.mutedForeground};
-  margin: 0;
-  line-height: 1.5;
-`;
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -601,19 +549,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
             />
           ))}
           
-          <AddExtensionCard onClick={() => setShowExtensionsModal(true)}>
-            <AddExtensionContent>
-              <AddExtensionTitleRow>
-                <AddExtensionIcon>
-                  <Icon icon="lucide:plus" width={24} height={24} />
-                </AddExtensionIcon>
-                <AddExtensionTitle>Add new Extension</AddExtensionTitle>
-              </AddExtensionTitleRow>
-              <AddExtensionDescription>
-                Browse and install MCP servers from the registry to extend your AI capabilities
-              </AddExtensionDescription>
-            </AddExtensionContent>
-          </AddExtensionCard>
+          <AddExtensionCard onClick={() => setShowExtensionsModal(true)} />
         </ServersGrid>
       )}
 

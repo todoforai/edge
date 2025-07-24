@@ -5,6 +5,61 @@ import MessageListCard from './MessageListCard';
 import path from 'path-browserify';
 import type { ColorKey } from '@/styles/theme';
 
+// Styled Components
+const SyncedFilesContainer = styled.div`
+  width: 100%;
+`;
+
+const FileItemContainer = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid ${(props) => props.theme.colors.borderColor};
+  width: 100%;
+`;
+
+const FileDetails = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  max-width: 80%;
+`;
+
+const ActionIndicator = styled.span<{ color: ColorKey }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: bold;
+  color: ${(props) => props.theme.colors[props.color]};
+`;
+
+const FileName = styled.span`
+  font-size: 14px;
+  color: ${(props) => props.theme.colors.foreground};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const FileSize = styled.span`
+  font-size: 12px;
+  color: ${(props) => props.theme.colors.muted};
+  margin-left: 8px;
+  white-space: nowrap;
+`;
+
+const FileTimestamp = styled.span`
+  font-size: 12px;
+  color: ${(props) => props.theme.colors.muted};
+  white-space: nowrap;
+`;
+
 interface SyncedFile {
   filename: string;
   timestamp: number;
@@ -140,60 +195,5 @@ const SyncedFilesList: React.FC = () => {
     </SyncedFilesContainer>
   );
 };
-
-// Styled Components
-const SyncedFilesContainer = styled.div`
-  width: 100%;
-`;
-
-const FileItemContainer = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px;
-  border-bottom: 1px solid ${(props) => props.theme.colors.borderColor};
-  width: 100%;
-`;
-
-const FileDetails = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  overflow: hidden;
-  max-width: 80%;
-`;
-
-const ActionIndicator = styled.span<{ color: ColorKey }>`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  font-size: 14px;
-  font-weight: bold;
-  color: ${(props) => props.theme.colors[props.color]};
-`;
-
-const FileName = styled.span`
-  font-size: 14px;
-  color: ${(props) => props.theme.colors.foreground};
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
-const FileSize = styled.span`
-  font-size: 12px;
-  color: ${(props) => props.theme.colors.muted};
-  margin-left: 8px;
-  white-space: nowrap;
-`;
-
-const FileTimestamp = styled.span`
-  font-size: 12px;
-  color: ${(props) => props.theme.colors.muted};
-  white-space: nowrap;
-`;
 
 export default SyncedFilesList;

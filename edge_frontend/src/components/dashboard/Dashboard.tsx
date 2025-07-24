@@ -3,6 +3,19 @@ import styled from 'styled-components';
 import MCPServersList from './MCPServersList';
 import UserMenu from '../header/UserMenu';
 
+
+const DashboardContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+`;
+
+const DashboardContent = styled.div`
+  flex: 1;
+  overflow: auto;
+`;
+
 export const Dashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<'visual' | 'json'>('visual');
 
@@ -19,17 +32,5 @@ export const Dashboard: React.FC = () => {
     </DashboardContainer>
   );
 };
-
-const DashboardContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  width: 100%;
-`;
-
-const DashboardContent = styled.div`
-  flex: 1;
-  overflow: auto;
-`;
 
 export default Dashboard;

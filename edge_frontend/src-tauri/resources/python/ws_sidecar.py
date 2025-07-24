@@ -511,21 +511,21 @@ def setup_mcp_client(params):
     try:
         if not sidecar.todo_client:
             return {"status": "error", "message": "Client not initialized"}
-            
+
         config_path = params.get("configPath", "mcp.json")
-        
+
         # Import and setup MCP
         from todoforai_edge.mcp_client import setup_mcp_from_config
-        
+
         # Setup MCP with edge client reference
         async def setup_mcp():
             collector = await setup_mcp_from_config(config_path, sidecar.todo_client)
             return collector
-            
+
         asyncio.create_task(setup_mcp())
-        
+
         return {"status": "success", "message": "MCP client setup initiated"}
-        
+
     except Exception as e:
         log.error(f"Error setting up MCP client: {e}")
         return {"status": "error", "message": str(e)}

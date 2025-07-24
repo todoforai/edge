@@ -3,74 +3,6 @@ import styled from 'styled-components';
 import { Icon } from '@iconify/react';
 import type { MCPServer } from './types/MCPServer';
 
-interface MCPServerInstallModalProps {
-  server: MCPServer;
-  onClose: () => void;
-  onInstall: (customId: string) => void;
-}
-
-export const MCPServerInstallModal: React.FC<MCPServerInstallModalProps> = ({
-  server,
-  onClose,
-  onInstall
-}) => {
-  const [customId, setCustomId] = useState<string>('');
-
-  const handleConfirmInstall = () => {
-    onInstall(customId);
-  };
-
-  return (
-    <ModalOverlay onClick={onClose}>
-      <Modal onClick={(e) => e.stopPropagation()}>
-        <ModalHeader>
-          <ModalTitle>Install {server.name}</ModalTitle>
-          <CloseButton onClick={onClose}>
-            <Icon icon="lucide:x" />
-          </CloseButton>
-        </ModalHeader>
-
-        <ModalContent>
-          <FormGroup>
-            <FormLabel>Custom Server ID</FormLabel>
-            <FormInput
-              type="text"
-              value={customId}
-              onChange={(e) => setCustomId(e.target.value)}
-              placeholder="e.g., gmail@user@domain.com"
-            />
-            <FormHelp>
-              Customize the server ID to install multiple instances (e.g., different Gmail accounts)
-            </FormHelp>
-          </FormGroup>
-
-          <ConfigPreview>
-            <PreviewTitle>Configuration Preview:</PreviewTitle>
-            <CodeBlock>
-              {JSON.stringify({
-                [customId || server.id]: {
-                  command: server.command,
-                  args: server.args,
-                  env: server.env
-                }
-              }, null, 2)}
-            </CodeBlock>
-          </ConfigPreview>
-        </ModalContent>
-
-        <ModalActions>
-          <CancelButton onClick={onClose}>
-            Cancel
-          </CancelButton>
-          <ConfirmButton onClick={handleConfirmInstall}>
-            Install Server
-          </ConfirmButton>
-        </ModalActions>
-      </Modal>
-    </ModalOverlay>
-  );
-};
-
 const ModalOverlay = styled.div`
   position: fixed;
   top: 0;
@@ -223,3 +155,71 @@ const ConfirmButton = styled.button`
     background: ${props => props.theme.colors.primary}dd;
   }
 `;
+
+interface MCPServerInstallModalProps {
+  server: MCPServer;
+  onClose: () => void;
+  onInstall: (customId: string) => void;
+}
+
+export const MCPServerInstallModal: React.FC<MCPServerInstallModalProps> = ({
+  server,
+  onClose,
+  onInstall
+}) => {
+  const [customId, setCustomId] = useState<string>('');
+
+  const handleConfirmInstall = () => {
+    onInstall(customId);
+  };
+
+  return (
+    <ModalOverlay onClick={onClose}>
+      <Modal onClick={(e) => e.stopPropagation()}>
+        <ModalHeader>
+          <ModalTitle>Install {server.name}</ModalTitle>
+          <CloseButton onClick={onClose}>
+            <Icon icon="lucide:x" />
+          </CloseButton>
+        </ModalHeader>
+
+        <ModalContent>
+          <FormGroup>
+            <FormLabel>Custom Server ID</FormLabel>
+            <FormInput
+              type="text"
+              value={customId}
+              onChange={(e) => setCustomId(e.target.value)}
+              placeholder="e.g., gmail@user@domain.com"
+            />
+            <FormHelp>
+              Customize the server ID to install multiple instances (e.g., different Gmail accounts)
+            </FormHelp>
+          </FormGroup>
+
+          <ConfigPreview>
+            <PreviewTitle>Configuration Preview:</PreviewTitle>
+            <CodeBlock>
+              {JSON.stringify({
+                [customId || server.id]: {
+                  command: server.command,
+                  args: server.args,
+                  env: server.env
+                }
+              }, null, 2)}
+            </CodeBlock>
+          </ConfigPreview>
+        </ModalContent>
+
+        <ModalActions>
+          <CancelButton onClick={onClose}>
+            Cancel
+          </CancelButton>
+          <ConfirmButton onClick={handleConfirmInstall}>
+            Install Server
+          </ConfirmButton>
+        </ModalActions>
+      </Modal>
+    </ModalOverlay>
+  );
+};

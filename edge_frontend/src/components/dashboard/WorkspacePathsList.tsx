@@ -6,6 +6,103 @@ import { useWorkspaceStore } from '@/store/workspaceStore';
 import { Icon } from '@iconify/react';
 import pythonService from '@/services/python-service';
 
+// Styled Components
+const WorkspacePathsContainer = styled.div`
+  width: 100%;
+  /* Removed min-width: 700px to allow flexible sizing */
+`;
+
+const PathItem = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid ${(props) => props.theme.colors.borderColor};
+  width: 100%;
+  gap: 10px;
+`;
+
+const StatusButton = styled.button<{ $isActive: boolean }>`
+  background: transparent;
+  border: none;
+  color: ${(props) => props.$isActive ? '#4CAF50' : '#9E9E9E'};
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+const PathText = styled.span`
+  font-size: 14px;
+  color: ${(props) => props.theme.colors.foreground};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+`;
+
+const RemoveButton = styled.button`
+  background: transparent;
+  border: none;
+  color: #f44336;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    background-color: rgba(244, 67, 54, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
 interface WorkspacePath {
   path: string;
   isActive: boolean;
@@ -123,102 +220,5 @@ const WorkspacePathsList: React.FC = () => {
     </WorkspacePathsContainer>
   );
 };
-
-// Styled Components
-const WorkspacePathsContainer = styled.div`
-  width: 100%;
-  /* Removed min-width: 700px to allow flexible sizing */
-`;
-
-const PathItem = styled.div`
-  display: flex;
-  align-items: center;
-  padding: 10px;
-  border-bottom: 1px solid ${(props) => props.theme.colors.borderColor};
-  width: 100%;
-  gap: 10px;
-`;
-
-const StatusButton = styled.button<{ $isActive: boolean }>`
-  background: transparent;
-  border: none;
-  color: ${(props) => props.$isActive ? '#4CAF50' : '#9E9E9E'};
-  display: flex;
-  align-items: center;
-  font-size: 16px;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 50%;
-  transition: background-color 0.2s;
-  flex-shrink: 0;
-
-  &:hover:not(:disabled) {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .spin {
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-`;
-
-const PathText = styled.span`
-  font-size: 14px;
-  color: ${(props) => props.theme.colors.foreground};
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-  min-width: 0;
-`;
-
-const RemoveButton = styled.button`
-  background: transparent;
-  border: none;
-  color: #f44336;
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-  flex-shrink: 0;
-
-  &:hover:not(:disabled) {
-    background-color: rgba(244, 67, 54, 0.1);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .spin {
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-`;
 
 export default WorkspacePathsList;
