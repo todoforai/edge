@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import { MCPServer } from './types/MCPServer';
+import type { MCPServer } from './types/MCPServer';
 
 interface MCPServerSettingsModalProps {
   server: MCPServer;

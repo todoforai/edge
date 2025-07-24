@@ -38,7 +38,8 @@ export const theme = {
   },
   radius: {
     sm: '8px',
-    md: '12px',
+    md: '10px',
+    md2: '16px',
     lg: '20px',
     xl: '35px'
   }

@@ -1,7 +1,44 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import { MCPServer } from './types/MCPServer';
+import type { MCPServer } from './types/MCPServer';
+
+const JsonError = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 14px;
+  margin-bottom: 20px;
+`;
+
+const JsonContainer = styled.div`
+  border: 1px solid ${props => props.theme.colors.borderColor};
+  border-radius: ${props => props.theme.radius.md2};
+  overflow: hidden;
+`;
+
+const JsonTextArea = styled.textarea`
+  width: 100%;
+  min-height: 600px;
+  padding: 20px;
+  border: none;
+  background: ${props => props.theme.colors.background};
+  color: ${props => props.theme.colors.foreground};
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+
+  &:focus {
+    background: rgba(59, 130, 246, 0.02);
+  }
+`;
 
 interface MCPServerJSONViewProps {
   servers: MCPServer[];
@@ -60,12 +97,7 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
   };
 
   return (
-    <Container>
-      <Header>
-        <Title>AI Extensions (JSON View)</Title>
-        <Subtitle>Raw JSON data of AI extensions - editable in real-time</Subtitle>
-      </Header>
-      
+    <>
       {jsonError && (
         <JsonError>
           <Icon icon="lucide:alert-triangle" />
@@ -82,66 +114,7 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
           spellCheck={false}
         />
       </JsonContainer>
-    </Container>
+    </>
   );
 };
 
-const Container = styled.div`
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-`;
-
-const Header = styled.div`
-  margin-bottom: 30px;
-`;
-
-const Title = styled.h1`
-  font-size: 28px;
-  font-weight: 600;
-  color: ${props => props.theme.colors.foreground};
-  margin: 0 0 8px 0;
-`;
-
-const Subtitle = styled.p`
-  font-size: 16px;
-  color: ${props => props.theme.colors.mutedForeground};
-  margin: 0;
-`;
-
-const JsonError = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 8px;
-  color: #ef4444;
-  font-size: 14px;
-  margin-bottom: 20px;
-`;
-
-const JsonContainer = styled.div`
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: 8px;
-  overflow: hidden;
-`;
-
-const JsonTextArea = styled.textarea`
-  width: 100%;
-  min-height: 600px;
-  padding: 20px;
-  border: none;
-  background: ${props => props.theme.colors.background};
-  color: ${props => props.theme.colors.foreground};
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 14px;
-  line-height: 1.5;
-  resize: vertical;
-  outline: none;
-
-  &:focus {
-    background: rgba(59, 130, 246, 0.02);
-  }
-`;

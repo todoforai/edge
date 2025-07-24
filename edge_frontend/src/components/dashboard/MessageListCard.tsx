@@ -3,85 +3,10 @@ import styled from 'styled-components';
 import { FixedSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 
-interface MessageListCardProps {
-  title: string;
-  subtitle?: string; // New prop for subtitle
-  messages: any[];
-  renderItem: (item: any, index: number, style: React.CSSProperties) => React.ReactNode;
-  itemSize?: number;
-  emptyMessage?: string;
-  actions?: React.ReactNode;
-  customCount?: string; // New prop for custom count display
-}
-
-const MessageListCard: React.FC<MessageListCardProps> = ({
-  title,
-  subtitle,
-  messages = [],
-  renderItem,
-  itemSize = 50,
-  emptyMessage = 'No messages to display',
-  actions,
-  customCount
-}) => {
-  const listRef = useRef<List>(null);
-
-  // Effect to scroll to top when new messages are added
-  useEffect(() => {
-    if (listRef.current && messages.length > 0) {
-      listRef.current.scrollToItem(0);
-    }
-  }, [messages.length]);
-
-  // Virtualized row renderer
-  const RowRenderer = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    return renderItem(messages[index], index, style);
-  };
-
-  // Display count based on whether customCount is provided
-  const displayCount = customCount || messages.length.toString();
-
-  return (
-    <Card>
-      <Header>
-        <TitleSection>
-          <Title>{title}</Title>
-          {subtitle && <Subtitle>{subtitle}</Subtitle>}
-        </TitleSection>
-        <HeaderRight>
-          <Count>{displayCount}</Count>
-          {actions && <ButtonGroup>{actions}</ButtonGroup>}
-        </HeaderRight>
-      </Header>
-      
-      <ListContainer>
-        {messages.length > 0 ? (
-          <AutoSizer>
-            {({ height, width }) => (
-              <List
-                ref={listRef}
-                height={height}
-                width={width}
-                itemCount={messages.length}
-                itemSize={itemSize}
-                overscanCount={5}
-              >
-                {RowRenderer}
-              </List>
-            )}
-          </AutoSizer>
-        ) : (
-          <EmptyState>{emptyMessage}</EmptyState>
-        )}
-      </ListContainer>
-    </Card>
-  );
-};
-
 // Styled Components
 const Card = styled.div`
   background-color: ${props => props.theme.colors.cardBackground};
-  border-radius: ${props => props.theme.radius.lg};
+  border-radius: ${props => props.theme.radius.xl};
   box-shadow: ${props => props.theme.shadows.sm};
   padding: 20px;
   border: 1px solid ${props => props.theme.colors.borderColor};
@@ -157,5 +82,81 @@ const EmptyState = styled.div`
   align-items: center;
   justify-content: center;
 `;
+
+
+interface MessageListCardProps {
+  title: string;
+  subtitle?: string; // New prop for subtitle
+  messages: any[];
+  renderItem: (item: any, index: number, style: React.CSSProperties) => React.ReactNode;
+  itemSize?: number;
+  emptyMessage?: string;
+  actions?: React.ReactNode;
+  customCount?: string; // New prop for custom count display
+}
+
+const MessageListCard: React.FC<MessageListCardProps> = ({
+  title,
+  subtitle,
+  messages = [],
+  renderItem,
+  itemSize = 50,
+  emptyMessage = 'No messages to display',
+  actions,
+  customCount
+}) => {
+  const listRef = useRef<List>(null);
+
+  // Effect to scroll to top when new messages are added
+  useEffect(() => {
+    if (listRef.current && messages.length > 0) {
+      listRef.current.scrollToItem(0);
+    }
+  }, [messages.length]);
+
+  // Virtualized row renderer
+  const RowRenderer = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    return renderItem(messages[index], index, style);
+  };
+
+  // Display count based on whether customCount is provided
+  const displayCount = customCount || messages.length.toString();
+
+  return (
+    <Card>
+      <Header>
+        <TitleSection>
+          <Title>{title}</Title>
+          {subtitle && <Subtitle>{subtitle}</Subtitle>}
+        </TitleSection>
+        <HeaderRight>
+          <Count>{displayCount}</Count>
+          {actions && <ButtonGroup>{actions}</ButtonGroup>}
+        </HeaderRight>
+      </Header>
+      
+      <ListContainer>
+        {messages.length > 0 ? (
+          <AutoSizer>
+            {({ height, width }) => (
+              <List
+                ref={listRef}
+                height={height}
+                width={width}
+                itemCount={messages.length}
+                itemSize={itemSize}
+                overscanCount={5}
+              >
+                {RowRenderer}
+              </List>
+            )}
+          </AutoSizer>
+        ) : (
+          <EmptyState>{emptyMessage}</EmptyState>
+        )}
+      </ListContainer>
+    </Card>
+  );
+};
 
 export default MessageListCard;
