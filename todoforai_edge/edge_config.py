@@ -7,12 +7,12 @@ logger = logging.getLogger("todoforai-client")
 
 class EdgeConfig:
     """Edge configuration class with observable pattern"""
-    def __init__(self, Optional[Dict[str, Any]] = None):
+    def __init__(self, data: Optional[Dict[str, Any]] = None):
         data = data or {}
         
         # Create an observable for the entire config
         self.config = registry.create("edge_config", {
-            "id": data.get("id", ""),
+            "edgeId": data.get("edgeId", ""),
             "name": data.get("name", "Name uninitialized"),
             "workspacepaths": data.get("workspacepaths", []),
             "edgeMCPs": data.get("edgeMCPs", []),
@@ -26,7 +26,7 @@ class EdgeConfig:
     @property
     def id(self) -> str:
         """Get edge ID"""
-        return self.config.value.get("id", "")
+        return self.config.value.get("edgeId", "")
     
     @property
     def name(self) -> str:

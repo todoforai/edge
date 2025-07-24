@@ -54,7 +54,6 @@ def invoke_callback(callback: CallbackType, arg: Any) -> None:
     else:
         cast(Callable[[Any], None], callback)(arg)
 
-
 class TODOforAIEdge:
     def __init__(self, client_config):
         if client_config is None:
@@ -71,6 +70,7 @@ class TODOforAIEdge:
         self.ws = None
         self.ws_url = get_ws_url(client_config.api_url)
         self.edge_config = EdgeConfig()
+        logger.info("EdgeConfig initialized.")
         
         # Subscribe to config changes
         self.edge_config.config.subscribe_async(self._on_config_change, name="edge2backend_on_config_change")
@@ -98,8 +98,6 @@ class TODOforAIEdge:
     async def _on_config_change(self, changes: Dict[str, Any]) -> None:
         """Callback when config changes - receives only the changed fields"""
         logger.info(f"Edge config changed: {list(changes.keys())}")
-        if 'name' in changes:
-            logger.info(f'changes: {changes["name"]}')
         
         # If we have an edge_id, update the server with workspace/MCP changes
         if self.edge_id and self.connected:
@@ -136,52 +134,18 @@ class TODOforAIEdge:
         
     async def _handle_edge_config_update(self, payload):
         """Handle edge config update from server"""
-        try:
-            edge_id = payload.get("edgeId")
-            if edge_id and edge_id != self.edge_id:
-                logger.warning(f"Received config update for different edge: {edge_id} vs {self.edge_id} - ignoring")
-                return
-                
-            # Extract config data from payload and check for changes
-            config_data = {}
-            current_config = self.edge_config.config.value
-            has_changes = False
+        edge_id = payload.get("edgeId")
+        if edge_id and edge_id != self.edge_id:
+            logger.warning(f"Received config update for different edge: {edge_id} vs {self.edge_id} - ignoring")
+            return
             
-            if "workspacepaths" in payload:
-                if current_config.get("workspacepaths") != payload["workspacepaths"]:
-                    config_data["workspacepaths"] = payload["workspacepaths"]
-                    has_changes = True
-                    
-            if "isShellEnabled" in payload:
-                if current_config.get("isShellEnabled") != payload["isShellEnabled"]:
-                    config_data["isShellEnabled"] = payload["isShellEnabled"]
-                    has_changes = True
-                    
-            if "isFileSystemEnabled" in payload:
-                if current_config.get("isFileSystemEnabled") != payload["isFileSystemEnabled"]:
-                    config_data["isFileSystemEnabled"] = payload["isFileSystemEnabled"]
-                    has_changes = True
-                    
-            if "name" in payload:
-                if current_config.get("name") != payload["name"]:
-                    config_data["name"] = payload["name"]
-                    has_changes = True
-            
-            if not has_changes:
-                logger.debug("No config changes detected, skipping update")
-                return
-            
-            logger.info(f"Received edge config update for edge {self.edge_id}")
-            logger.info(f"Config changes: {config_data}")
-            
-            # Update the edge config with only the changed data, marking server as source
-            self.edge_config.config.update_value(config_data, source="edge2backend_on_config_change")
-            
-            logger.info("Edge config update processed successfully")
-            
-        except Exception as e:
-            logger.error(f"Error handling edge config update: {str(e)}")
-            traceback.print_exc()
+        logger.info(f"Received edge config update for edge {self.edge_id}")
+        
+        # Update the edge config with the payload, marking server as source
+        self.edge_config.config.update_value(payload, source="edge2backend_on_config_change")
+        
+        logger.info("Edge config update processed successfully")
+        
 
     async def _start_workspace_syncs(self):
         """Start file synchronization for all workspace paths"""

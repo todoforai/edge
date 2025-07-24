@@ -1,10 +1,25 @@
 import logging
 import json
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional, Callable
 from pathlib import Path
 from fastmcp import Client
 
 logger = logging.getLogger("todoforai-mcp")
+
+# Global callback for tool calls - simple and direct
+_tool_call_callback: Optional[Callable] = None
+
+def set_mcp_tool_call_callback(callback: Callable):
+    """Set global callback for MCP tool call events"""
+    global _tool_call_callback
+    _tool_call_callback = callback
+
+def _extract_server_id(tool_name: str) -> tuple[str, str]:
+    """Extract server_id from tool_name (format: server_id.tool_name)"""
+    if '_' in tool_name:
+        parts = tool_name.split('_', 1)
+        return parts[0], parts[1]  # server_id, actual_tool_name
+    return 'unknown', tool_name
 
 class MCPCollector:
     """MCP client using FastMCP with server management integration"""
@@ -94,11 +109,36 @@ class MCPCollector:
         if not self.unified_client:
             raise RuntimeError("No MCP client available - call load_servers first")
         
+        server_id, actual_tool_name = _extract_server_id(tool_name)
+        
         try:
             async with self.unified_client as client:
                 result = await client.call_tool(tool_name, arguments)
-                return {"result": result.text if hasattr(result, 'text') else str(result)}
+                # TODO find out whether we convert it to string or it was already a string.
+                result_text = result.text if hasattr(result, 'text') else str(result)
+                
+                # Broadcast success if callback is set
+                if _tool_call_callback:
+                    _tool_call_callback({
+                        "tool_name": actual_tool_name,
+                        "server_id": server_id,
+                        "arguments": arguments,
+                        "result": result_text,
+                        "success": True
+                    })
+                
+                return {"result": result_text}
         except Exception as e:
+            # Broadcast error if callback is set
+            if _tool_call_callback:
+                _tool_call_callback({
+                    "tool_name": actual_tool_name,
+                    "server_id": server_id,
+                    "arguments": arguments,
+                    "error": str(e),
+                    "success": False
+                })
+            
             logger.error(f"Error calling tool {tool_name}: {e}")
             raise
     
