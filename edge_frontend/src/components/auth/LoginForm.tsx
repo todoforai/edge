@@ -145,7 +145,6 @@ const LoginContainer = styled.div`
   align-items: center;
   height: 100vh;
   padding: 20px;
-  background-color: ${(props) => props.theme.colors.background};
   width: 100%;
   box-sizing: border-box;
 `;
