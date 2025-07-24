@@ -113,7 +113,7 @@ export const EdgeInfo: React.FC = () => {
   const displayUrl = user?.apiUrl || apiUrl || 'Unknown';
 
   // Get edge info from config
-  const edgeId = config.id || 'Unknown';
+  const edgeId = config.edgeId || 'Unknown';
   const edgeName = config.name || 'Unknown Edge';
   const edgeStatus = config.status || 'OFFLINE';
 

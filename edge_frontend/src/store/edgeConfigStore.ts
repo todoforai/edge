@@ -5,7 +5,7 @@ import pythonService from '../services/python-service';
 const log = createLogger('edgeConfigStore');
 
 interface EdgeConfig {
-  id: string;
+  edgeId: string;
   name: string;
   workspacepaths: string[];
   ownerId: string;
@@ -34,7 +34,7 @@ interface EdgeConfigState {
 
 // Default empty config
 const defaultConfig: EdgeConfig = {
-  id: '',
+  edgeId: '',
   name: 'Unknown Edge',
   workspacepaths: [],
   ownerId: '',
