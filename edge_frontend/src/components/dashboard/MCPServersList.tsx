@@ -350,6 +350,18 @@ const ExtensionsModal: React.FC<{
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
+  // Add escape key handler
+  React.useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
   const filteredServers = servers.filter(server => {
     const matchesCategory = selectedCategory === 'All' || server.category === selectedCategory;
     const matchesSearch = server.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
