@@ -162,10 +162,21 @@ def is_ignored_by_patterns_in_file(file_path, ignore_patterns, root):
         return False
 
     # Windows-specific: Check for device paths that cause relpath issues
-    if platform.system() == "Windows" and "\\\\.\\nul" in file_path:
-        return True
-
-    rel_path = os.path.relpath(file_path, root)
+    if platform.system() == "Windows":
+        # Check for various Windows device paths and problematic paths
+        if ("\\\\.\\nul" in file_path or 
+            file_path.startswith("\\\\.\\") or
+            "\\\\?\\" in file_path):
+            return True
+        
+        # Additional check: try to compute relpath and catch ValueError
+        try:
+            rel_path = os.path.relpath(file_path, root)
+        except ValueError:
+            # If relpath fails (different mount points), ignore the file
+            return True
+    else:
+        rel_path = os.path.relpath(file_path, root)
     
     # Gitignore patterns always use forward slashes, regardless of OS
     if os.sep != '/':
