@@ -1,10 +1,33 @@
-import type { MCPServer } from '../shared/REST_types_shared';
+import { type EdgeMCP, type MCPServer } from '../shared/REST_types_shared';
 
-// Frontend: Just use the data directly
-export const convertMCPsToServers = (mcps: MCPServer[]): MCPServer[] => {
-  return mcps; // No conversion needed!
+// Frontend: Convert EdgeMCP to MCPServer
+export const convertMCPsToServers = (mcps: EdgeMCP[]): MCPServer[] => {
+  return mcps.map(edgeMCP => {
+    const serverInfo = getServerInfoFromId(edgeMCP.serverId);
+    
+    // Convert MCPEnv to Record<string, string>
+    const envRecord: Record<string, string> = {};
+    if (edgeMCP.env && typeof edgeMCP.env === 'object') {
+      Object.entries(edgeMCP.env).forEach(([key, value]) => {
+        if (key !== 'isActive' && typeof value === 'string') {
+          envRecord[key] = value;
+        }
+      });
+    }
+    
+    return {
+      id: edgeMCP.serverId,
+      status: edgeMCP.status,
+      env: envRecord,
+      name: serverInfo.name!,
+      description: serverInfo.description!,
+      command: serverInfo.command!,
+      args: serverInfo.args!,
+      icon: serverInfo.icon!,
+      category: serverInfo.category!
+    };
+  });
 };
-
 
 // Map server IDs to server information
 const getServerInfoFromId = (serverId: string) => {

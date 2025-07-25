@@ -202,7 +202,7 @@ interface MCPServersListProps {
 }
 
 const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeChange }) => {
-  const { getMCPServers, config } = useEdgeConfigStore();
+  const { config } = useEdgeConfigStore();
   const [servers, setServers] = useState<MCPServer[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -213,8 +213,9 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
   // Load real MCP data from edge config - refresh when config changes
   useEffect(() => {
-    const edgeMCPs = getMCPServers();
-    console.log("edgeMCPs!!!!", edgeMCPs)
+    const edgeMCPs = useEdgeConfigStore.getState().getMCPServers();
+    
+    
     const realServers = convertMCPsToServers(edgeMCPs);
     
     // Combine real servers with fake ones (fake ones as uninstalled)
@@ -231,9 +232,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
     const allServers = [...realServers, ...filteredFakeServers];
     setServers(allServers);
     
-    console.log('Real MCP servers loaded:', realServers);
-    console.log('All servers (real + fake):', allServers);
-  }, [config.MCPs, getMCPServers]); // React to changes in MCPs
+  }, [config.MCPs]); // React to changes in MCPs
 
   const handleStatusChange = (serverId: string, newStatus: MCPServer['status']) => {
     setServers(prev => prev.map(server => 
@@ -283,8 +282,8 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   });
 
   // Available servers for installation (uninstalled ones)
-  const availableServers = servers.filter(server => server.status === MCPRunningStatus.UNINSTALLED);
-  const availableCategories = ['All', ...Array.from(new Set(availableServers.map(s => s.category)))];
+  const availableUninstalledServers = servers.filter(server => server.status === MCPRunningStatus.UNINSTALLED);
+  const availableCategories = ['All', ...Array.from(new Set(availableUninstalledServers.map(s => s.category)))];
 
   return (
     <Container>
@@ -309,7 +308,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
       {viewMode === 'json' ? (
         <MCPServerJSONView 
-          servers={servers} 
+          servers={filteredServers} 
           onServersChange={setServers} 
         />
       ) : (
@@ -354,7 +353,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
       {showExtensionsModal && (
         <ExtensionsModal
-          servers={availableServers}
+          servers={availableUninstalledServers}
           categories={availableCategories}
           onClose={() => setShowExtensionsModal(false)}
           onInstall={(server) => {
