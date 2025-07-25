@@ -2,6 +2,8 @@ export enum MCPRunningStatus {
   RUNNING = 'RUNNING',
   STOPPED = 'STOPPED',
   ERROR = 'ERROR',
+  UNINSTALLED = 'UNINSTALLED',
+  INSTALLED = 'INSTALLED',
 }
 
 export enum EdgeStatus {

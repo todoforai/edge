@@ -1,4 +1,4 @@
-import type { MCPServer } from '../../../shared/REST_types_shared';
+import { MCPRunningStatus, type MCPServer } from '../../../shared/REST_types_shared';
 
 export const FAKE_MCP_SERVERS: MCPServer[] = [
   {
@@ -11,7 +11,7 @@ export const FAKE_MCP_SERVERS: MCPServer[] = [
     env: {
       'GMAIL_CREDENTIALS_PATH': '/path/to/credentials.json'
     },
-    status: 'uninstalled',
+    status: MCPRunningStatus.UNINSTALLED,
     category: 'Communication'
   },
   {
@@ -22,7 +22,7 @@ export const FAKE_MCP_SERVERS: MCPServer[] = [
     command: 'node',
     args: ['/path/to/puppeteer-mcp-server/dist/index.js'],
     env: {},
-    status: 'running',
+    status: MCPRunningStatus.RUNNING,
     category: 'Web Automation'
   },
   {
@@ -33,7 +33,7 @@ export const FAKE_MCP_SERVERS: MCPServer[] = [
     command: 'npx',
     args: ['@pdf-filler/mcp-server'],
     env: {},
-    status: 'stopped',
+    status: MCPRunningStatus.STOPPED,
     category: 'Documents'
   },
   {
@@ -44,7 +44,7 @@ export const FAKE_MCP_SERVERS: MCPServer[] = [
     command: 'npx',
     args: ['@windows-mcp/server'],
     env: {},
-    status: 'installed',
+    status: MCPRunningStatus.INSTALLED,
     category: 'System'
   },
   {
@@ -55,7 +55,7 @@ export const FAKE_MCP_SERVERS: MCPServer[] = [
     command: 'npx',
     args: ['@macos-control/mcp-server'],
     env: {},
-    status: 'uninstalled',
+    status: MCPRunningStatus.UNINSTALLED,
     category: 'System'
   },
   {
@@ -66,7 +66,7 @@ export const FAKE_MCP_SERVERS: MCPServer[] = [
     command: 'npx',
     args: ['@spotify-applescript/mcp-server'],
     env: {},
-    status: 'uninstalled',
+    status: MCPRunningStatus.UNINSTALLED,
     category: 'Media'
   },
   {
@@ -77,7 +77,7 @@ export const FAKE_MCP_SERVERS: MCPServer[] = [
     command: 'npx',
     args: ['@enrichr/mcp-server'],
     env: {},
-    status: 'uninstalled',
+    status: MCPRunningStatus.UNINSTALLED,
     category: 'Science'
   },
   {
@@ -90,7 +90,7 @@ export const FAKE_MCP_SERVERS: MCPServer[] = [
     env: {
       'STRIPE_API_KEY': 'your_stripe_api_key'
     },
-    status: 'uninstalled',
+    status: MCPRunningStatus.UNINSTALLED,
     category: 'Finance'
   },
   {
@@ -101,7 +101,7 @@ export const FAKE_MCP_SERVERS: MCPServer[] = [
     command: 'npx',
     args: ['@brave-applescript/mcp-server'],
     env: {},
-    status: 'uninstalled',
+    status: MCPRunningStatus.UNINSTALLED,
     category: 'Web Automation'
   },
   {
@@ -114,7 +114,7 @@ export const FAKE_MCP_SERVERS: MCPServer[] = [
     env: {
       'AIRTABLE_API_KEY': 'your_airtable_api_key'
     },
-    status: 'uninstalled',
+    status: MCPRunningStatus.UNINSTALLED,
     category: 'Database'
   },
   {
@@ -127,7 +127,7 @@ export const FAKE_MCP_SERVERS: MCPServer[] = [
     env: {
       'CUCUMBER_STUDIO_API_TOKEN': 'your_api_token'
     },
-    status: 'uninstalled',
+    status: MCPRunningStatus.UNINSTALLED,
     category: 'Testing'
   },
   {
@@ -138,7 +138,7 @@ export const FAKE_MCP_SERVERS: MCPServer[] = [
     command: 'npx',
     args: ['@socket/mcp-server'],
     env: {},
-    status: 'uninstalled',
+    status: MCPRunningStatus.UNINSTALLED,
     category: 'Security'
   }
 ];

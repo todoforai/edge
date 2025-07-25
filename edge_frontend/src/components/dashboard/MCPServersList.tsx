@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPServer } from '../../shared/REST_types_shared';
+import { MCPRunningStatus, type MCPServer } from '../../shared/REST_types_shared';
 import { FAKE_MCP_SERVERS } from './data/mcpServersData';
 import { MCPServerCard } from './MCPServerCard';
 import { MCPServerSettingsModal } from './MCPServerSettingsModal';
@@ -220,7 +220,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
     // Combine real servers with fake ones (fake ones as uninstalled)
     const fakeServersAsUninstalled = FAKE_MCP_SERVERS.map(server => ({
       ...server,
-      status: 'uninstalled' as const
+      status: MCPRunningStatus.UNINSTALLED
     }));
     
     // Filter out fake servers that have real counterparts
@@ -260,7 +260,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
       const newServer = {
         ...showInstallModal,
         id: customId || showInstallModal.id,
-        status: 'installed' as const
+        status: MCPRunningStatus.INSTALLED
       };
       
       setServers(prev => [...prev.filter(s => s.id !== newServer.id), newServer]);
@@ -269,7 +269,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   };
 
   // Filter installed servers only for main view
-  const installedServers = servers.filter(server => server.status !== 'uninstalled');
+  const installedServers = servers.filter(server => server.status !== MCPRunningStatus.UNINSTALLED);
   
   // Get unique categories from installed servers
   const categories = ['All', ...Array.from(new Set(installedServers.map(s => s.category)))];
@@ -277,13 +277,13 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   // Filter installed servers
   const filteredServers = installedServers.filter(server => {
     const matchesCategory = selectedCategory === 'All' || server.category === selectedCategory;
-    const matchesSearch = server.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         server.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (server.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                       (server.description?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
   // Available servers for installation (uninstalled ones)
-  const availableServers = servers.filter(server => server.status === 'uninstalled');
+  const availableServers = servers.filter(server => server.status === MCPRunningStatus.UNINSTALLED);
   const availableCategories = ['All', ...Array.from(new Set(availableServers.map(s => s.category)))];
 
   return (
