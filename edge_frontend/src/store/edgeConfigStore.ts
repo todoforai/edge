@@ -1,23 +1,16 @@
 import { create } from 'zustand';
 import { createLogger } from '../utils/logger';
 import pythonService from '../services/python-service';
+import { EdgeData, EdgeMCP, MCPToolSkeleton, MCPEnv, MCPRunningStatus, EdgeStatus } from '../shared/REST_types_shared';
 
 const log = createLogger('edgeConfigStore');
 
-interface EdgeConfig {
-  edgeId: string;
-  name: string;
-  workspacepaths: string[];
-  ownerId: string;
-  status: string;
-  isShellEnabled: boolean;
-  isFileSystemEnabled: boolean;
-  createdAt: string | null;
-}
-
 interface EdgeConfigState {
   // The edge configuration
-  config: EdgeConfig;
+  config: EdgeData;
+  
+  // Store the unsubscribe function properly
+  unsubscribe?: () => void;
 
   // Initialize the store and set up event listeners
   initialize: () => void;
@@ -26,28 +19,39 @@ interface EdgeConfigState {
   cleanup: () => void;
 
   // Update the entire config
-  setConfig: (config: EdgeConfig) => void;
+  setConfig: (config: EdgeData) => void;
 
   // Getters for common properties
   getWorkspacePaths: () => string[];
+  
+  // Get MCP servers from the new structure
+  getMCPServers: () => EdgeMCP[];
 }
 
 // Default empty config
-const defaultConfig: EdgeConfig = {
-  edgeId: '',
+const defaultConfig: EdgeData = {
+  id: '',
   name: 'Unknown Edge',
   workspacepaths: [],
   ownerId: '',
-  status: 'OFFLINE',
+  status: EdgeStatus.OFFLINE,
   isShellEnabled: false,
   isFileSystemEnabled: false,
-  createdAt: null,
+  createdAt: 0,
+  MCPs: [],
 };
 
 export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
   config: defaultConfig,
+  unsubscribe: undefined,
 
   initialize: () => {
+    // Clean up any existing listener first
+    const currentUnsubscribe = get().unsubscribe;
+    if (currentUnsubscribe) {
+      currentUnsubscribe();
+    }
+
     // Set up event listener for edge config changes
     const unsubscribe = pythonService.addEventListener('edge:config_update', (event) => {
       const config = event.payload;
@@ -55,28 +59,34 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
       set({ config });
     });
 
-    // Store the unsubscribe function for cleanup
-    (get() as any).unsubscribe = unsubscribe;
+    // Store the unsubscribe function properly
+    set({ unsubscribe });
 
     log.info('Edge config store initialized');
   },
 
   cleanup: () => {
     // Clean up event listeners
-    const unsubscribe = (get() as any).unsubscribe;
+    const unsubscribe = get().unsubscribe;
     if (unsubscribe) {
       unsubscribe();
-      (get() as any).unsubscribe = undefined;
+      set({ unsubscribe: undefined });
     }
     log.info('Edge config store cleaned up');
   },
 
-  setConfig: (config: EdgeConfig) => {
+  setConfig: (config: EdgeData) => {
     set({ config });
   },
 
   getWorkspacePaths: () => {
     return get().config.workspacepaths || [];
+  },
+
+  getMCPServers: () => {
+    const mcps = get().config.MCPs || [];
+    console.log('Edge MCPs:', mcps);
+    return mcps;
   },
 }));
 

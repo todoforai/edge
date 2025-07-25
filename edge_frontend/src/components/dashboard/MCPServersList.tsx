@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
 import type { MCPServer } from './types/MCPServer';
@@ -10,6 +10,8 @@ import { MCPServerInstallModal } from './MCPServerInstallModal';
 import { MCPServerJSONView } from './MCPServerJSONView';
 import { AddExtensionCard } from './AddExtensionCard';
 import { ActionBar } from './ActionBar';
+import { useEdgeConfigStore } from '../../store/edgeConfigStore';
+import { convertEdgeMCPsToServers } from '../../utils/mcpDataConverter';
 
 // Styled Components
 const Container = styled.div`
@@ -200,13 +202,37 @@ interface MCPServersListProps {
 }
 
 const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeChange }) => {
-  const [servers, setServers] = useState<MCPServer[]>(FAKE_MCP_SERVERS);
+  const { getMCPServers, config } = useEdgeConfigStore();
+  const [servers, setServers] = useState<MCPServer[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showInstallModal, setShowInstallModal] = useState<MCPServer | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState<MCPServer | null>(null);
   const [showLogsModal, setShowLogsModal] = useState<MCPServer | null>(null);
   const [showExtensionsModal, setShowExtensionsModal] = useState<boolean>(false);
+
+  // Load real MCP data from edge config - refresh when config changes
+  useEffect(() => {
+    const edgeMCPs = getMCPServers();
+    const realServers = convertEdgeMCPsToServers(edgeMCPs);
+    
+    // Combine real servers with fake ones (fake ones as uninstalled)
+    const fakeServersAsUninstalled = FAKE_MCP_SERVERS.map(server => ({
+      ...server,
+      status: 'uninstalled' as const
+    }));
+    
+    // Filter out fake servers that have real counterparts
+    const filteredFakeServers = fakeServersAsUninstalled.filter(
+      fakeServer => !realServers.some(realServer => realServer.id === fakeServer.id)
+    );
+    
+    const allServers = [...realServers, ...filteredFakeServers];
+    setServers(allServers);
+    
+    console.log('Real MCP servers loaded:', realServers);
+    console.log('All servers (real + fake):', allServers);
+  }, [config.MCPs, getMCPServers]); // React to changes in MCPs
 
   const handleStatusChange = (serverId: string, newStatus: MCPServer['status']) => {
     setServers(prev => prev.map(server => 

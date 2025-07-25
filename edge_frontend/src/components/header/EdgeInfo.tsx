@@ -112,8 +112,8 @@ export const EdgeInfo: React.FC = () => {
   // Use either the API URL from the user object or from the store
   const displayUrl = user?.apiUrl || apiUrl || 'Unknown';
 
-  // Get edge info from config
-  const edgeId = config.edgeId || 'Unknown';
+  // Get edge info from config - using correct field names
+  const edgeId = config.id || 'Unknown';
   const edgeName = config.name || 'Unknown Edge';
   const edgeStatus = config.status || 'OFFLINE';
 
@@ -135,8 +135,8 @@ export const EdgeInfo: React.FC = () => {
   const handleNameSubmit = async () => {
     if (editingName.trim() && editingName.trim() !== edgeName) {
       try {
-        await renameEdge(edgeId, editingName.trim());
-        console.log('Edge renamed successfully');
+        const response = await renameEdge(edgeId, editingName.trim());
+        console.log('Edge renamed successfully', response);
       } catch (error) {
         console.error('Failed to rename edge:', error);
         // Reset to original name on error
@@ -160,14 +160,12 @@ export const EdgeInfo: React.FC = () => {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'online':
-      case 'connected':
+    switch (status.toUpperCase()) {
+      case 'ONLINE':
         return '#4CAF50';
-      case 'offline':
-      case 'disconnected':
+      case 'OFFLINE':
         return '#9E9E9E';
-      case 'connecting':
+      case 'CONNECTING':
         return '#FF9800';
       default:
         return '#9E9E9E';

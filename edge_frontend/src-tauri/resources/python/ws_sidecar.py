@@ -524,6 +524,26 @@ def setup_mcp_client(params):
         log.error(f"Error setting up MCP client: {e}")
         return {"status": "error", "message": str(e)}
 
+@sidecar.rpc
+def update_edge_config(params):
+    """Update edge config fields in local config after successful API call"""
+    try:
+        if not sidecar.todo_client:
+            return {"status": "error", "message": "Client not initialized"}
+        
+        if not params:
+            return {"status": "error", "message": "No config updates provided"}
+        
+        # Update the local config using update_value - this will trigger the observable
+        sidecar.todo_client.edge_config.config.update_value(params)
+        
+        log.info(f"Updated edge config: {params}")
+        return {"status": "success", "message": "Edge config updated"}
+        
+    except Exception as e:
+        log.error(f"Error updating edge config: {e}")
+        return {"status": "error", "message": str(e)}
+
 async def broadcast_event(event):
     """Send an event to all connected WebSocket clients"""
     if not sidecar.connected_clients:
