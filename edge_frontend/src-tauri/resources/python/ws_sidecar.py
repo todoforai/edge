@@ -6,19 +6,22 @@ Can be used both in development mode and as an alternative to stdio_sidecar.py.
 
 import asyncio
 import json
-import sys, os, time
+import sys
+import os
+import time
 import traceback
 import argparse
 import logging
-from typing import Any, Dict, Callable, Optional, Set
 import threading
+from typing import Any, Dict, Callable, Set
 import websockets
-import requests
 
 # Import TODOforAI Edge client
+from todoforai_edge.mcp_client import set_mcp_tool_call_callback
 from todoforai_edge.client import TODOforAIEdge
 from todoforai_edge.config import default_config, Config
-from todoforai_edge.handlers.file_sync import active_sync_managers, WorkspaceSyncManager
+from todoforai_edge.handlers.file_sync import WorkspaceSyncManager
+from todoforai_edge.file_sync import start_workspace_sync, stop_workspace_sync, active_sync_managers
 
 async def _broadcast_auth_success():
     """Helper to broadcast auth success event"""
@@ -448,8 +451,6 @@ def toggle_workspace_sync(params):
         if not workspace_path:
             return {"status": "error", "message": "No workspace path provided"}
         
-        # Import sync functions
-        from todoforai_edge.file_sync import start_workspace_sync, stop_workspace_sync, active_sync_managers
         
         # Check if this workspace is already being synced
         is_active = workspace_path in active_sync_managers
@@ -505,9 +506,6 @@ def setup_mcp_client(params):
     try:
         if not sidecar.todo_client:
             return {"status": "error", "message": "Client not initialized"}
-
-        # Import and setup MCP
-        from todoforai_edge.mcp_client import set_mcp_tool_call_callback
 
         # Set up simple callback to broadcast tool calls
         def tool_call_callback(call_data):
@@ -608,13 +606,10 @@ async def handle_websocket_message(websocket, message: str):
     except Exception as e:
         log.error(f"Error processing message: {e}")
         traceback.print_exc()
-        try:
-            await websocket.send(json.dumps({
-                "jsonrpc": "2.0",
-                "error": {"code": -32603, "message": f"Internal error: {str(e)}"}
-            }))
-        except:
-            pass
+        await websocket.send(json.dumps({
+            "jsonrpc": "2.0",
+            "error": {"code": -32603, "message": f"Internal error: {str(e)}"}
+        }))
 
 async def handle_websocket(websocket):
     """Handle a WebSocket connection"""
