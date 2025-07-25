@@ -153,7 +153,7 @@ class EdgeConfig:
             server = {
                 'serverId': server_id,
                 'tools': clean_tools,
-                'status': 'UNINSTALLED', 
+                'status': 'INSTALLED', 
                 'enabled': True,
                 'env': {'isActive': True},
                 'config': {'isActive': True}
