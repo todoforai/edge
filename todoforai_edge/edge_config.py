@@ -1,16 +1,44 @@
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, TypedDict
 from .observable import registry
 
 logger = logging.getLogger("todoforai-client")
+
+
+class MCPToolSkeleton(TypedDict):
+    name: str
+    description: str
+    inputSchema: Any
+
+
+class EdgeMCP(TypedDict):
+    serverId: str
+    status: str  # MCPRunningStatus equivalent
+    tools: List[MCPToolSkeleton]
+    env: Dict[str, Any]  # MCPEnv equivalent
+    config: Dict[str, Any]  # MCPEnv equivalent
+    enabled: bool
+    error: Optional[str]
+
+
+class EdgeConfigData(TypedDict):
+    id: str
+    name: str
+    workspacepaths: List[str]
+    MCPs: List[EdgeMCP]
+    ownerId: str
+    status: str  # EdgeStatus equivalent
+    isShellEnabled: bool
+    isFileSystemEnabled: bool
+    createdAt: Optional[str]
 
 
 class EdgeConfig:
     """Edge configuration class with observable pattern"""
     def __init__(self, data: Optional[Dict[str, Any]] = None):
         data = data or {}
-        # Create an observable for the entire config
-        self.config = registry.create("edge_config", {
+        # Create an observable for the entire config with typed structure
+        config_data: EdgeConfigData = {
             "id": data.get("id", ""),
             "name": data.get("name", "Name uninitialized"),
             "workspacepaths": data.get("workspacepaths", []),
@@ -20,7 +48,8 @@ class EdgeConfig:
             "isShellEnabled": data.get("isShellEnabled", False),
             "isFileSystemEnabled": data.get("isFileSystemEnabled", False),
             "createdAt": data.get("createdAt", None)
-        })
+        }
+        self.config = registry.create("edge_config", config_data)
     
     @property
     def id(self) -> str:
@@ -95,40 +124,39 @@ class EdgeConfig:
 
     def _group_tools_by_server(self, tools: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """Group tools by server_id"""
-        grouped = {}
+        grouped: Dict[str, List[Dict[str, Any]]] = {}
         for tool in tools:
             # Extract server_id from tool name (FastMCP format: {server_id}_{tool_name})
-            server_id = tool.get('server_id') or tool['name'].split('_')[0]
+            server_id: str = tool.get('server_id') or tool['name'].split('_')[0]
             if server_id not in grouped:
                 grouped[server_id] = []
             grouped[server_id].append(tool)
         return grouped
 
-    # Backend: Convert directly to final format
     def set_edge_mcps(self, tools: List[Dict[str, Any]]) -> None:
-        servers = []
-        grouped = self._group_tools_by_server(tools)
+        """Backend: Convert directly to final format"""
+        servers: List[EdgeMCP] = []
+        grouped: Dict[str, List[Dict[str, Any]]] = self._group_tools_by_server(tools)
         
         for server_id, server_tools in grouped.items():
             # Remove server_id from individual tools before adding to server
-            clean_tools = []
+            clean_tools: List[MCPToolSkeleton] = []
             for tool in server_tools:
-                clean_tool = {
+                clean_tool: MCPToolSkeleton = {
                     "name": tool["name"],
                     "description": tool["description"], 
                     "inputSchema": tool["inputSchema"]
                 }
                 clean_tools.append(clean_tool)
             
-            servers.append({
+            server: EdgeMCP = {
                 'serverId': server_id,
                 'tools': clean_tools,
                 'status': 'STOPPED',
                 'enabled': True,
                 'env': {'isActive': True},
                 'config': {'isActive': True}
-            })
-        print("servers!!!!", servers)
-        print("grouped!!!!", grouped)
+            }
+            servers.append(server)
         
         self.config.update_value({"MCPs": servers})
