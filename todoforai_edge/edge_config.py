@@ -110,12 +110,25 @@ class EdgeConfig:
         grouped = self._group_tools_by_server(tools)
         
         for server_id, server_tools in grouped.items():
+            # Remove server_id from individual tools before adding to server
+            clean_tools = []
+            for tool in server_tools:
+                clean_tool = {
+                    "name": tool["name"],
+                    "description": tool["description"], 
+                    "inputSchema": tool["inputSchema"]
+                }
+                clean_tools.append(clean_tool)
+            
             servers.append({
-                'id': server_id,
-                'name': f'{server_id} MCP',
-                'tools': server_tools,
+                'serverId': server_id,
+                'tools': clean_tools,
                 'status': 'STOPPED',
-                'enabled': True
+                'enabled': True,
+                'env': {'isActive': True},
+                'config': {'isActive': True}
             })
+        print("servers!!!!", servers)
+        print("grouped!!!!", grouped)
         
         self.config.update_value({"MCPs": servers})
