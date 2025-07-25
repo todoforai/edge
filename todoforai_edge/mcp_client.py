@@ -10,12 +10,10 @@ logger = logging.getLogger("todoforai-mcp")
 _tool_call_callback: Optional[Callable] = None
 
 def set_mcp_tool_call_callback(callback: Callable):
-    """Set global callback for MCP tool call events"""
     global _tool_call_callback
     _tool_call_callback = callback
 
 def _extract_server_id(tool_name: str) -> tuple[str, str]:
-    """Extract server_id from tool_name (format: server_id.tool_name)"""
     if '_' in tool_name:
         parts = tool_name.split('_', 1)
         return parts[0], parts[1]  # server_id, actual_tool_name
@@ -41,7 +39,7 @@ class MCPCollector:
                 clean_name = tool.name
             
             tool_info = {
-                "name": clean_name,  # Use cleaned name without server_id prefix
+                "name": tool.name,  # Use cleaned name without server_id prefix
                 "description": getattr(tool, 'description', ''),
                 "inputSchema": getattr(tool, 'inputSchema', {}),
                 "server_id": server_id

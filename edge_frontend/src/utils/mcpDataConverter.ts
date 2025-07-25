@@ -1,5 +1,4 @@
-import type { EdgeMCP, MCPServer, MCPToolSkeleton } from '../shared/REST_types_shared';
-import { MCPRunningStatus } from '../shared/REST_types_shared';
+import type { MCPServer } from '../shared/REST_types_shared';
 
 // Frontend: Just use the data directly
 export const convertMCPsToServers = (mcps: MCPServer[]): MCPServer[] => {
