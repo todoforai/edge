@@ -131,6 +131,46 @@ def sign_file():
 def health_check():
     return jsonify({'status': 'healthy', 'service': 'code-signing'})
 
+@app.route('/status', methods=['GET'])
+def status_check():
+    """Check if signing service is available and ready"""
+    try:
+        # Quick test to ensure signing tools are available
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        sign_script = os.path.join(script_dir, 'sign_file.ps1')
+        
+        if not os.path.exists(sign_script):
+            return jsonify({
+                'status': 'unavailable', 
+                'service': 'code-signing',
+                'error': 'Sign script not found'
+            }), 503
+            
+        # Test PowerShell availability
+        result = subprocess.run([
+            'powershell.exe', '-Command', 'Write-Output "test"'
+        ], capture_output=True, text=True, timeout=5)
+        
+        if result.returncode != 0:
+            return jsonify({
+                'status': 'unavailable', 
+                'service': 'code-signing',
+                'error': 'PowerShell not available'
+            }), 503
+            
+        return jsonify({
+            'status': 'available', 
+            'service': 'code-signing',
+            'ready': True
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'unavailable', 
+            'service': 'code-signing',
+            'error': str(e)
+        }), 503
+
 if __name__ == '__main__':
     print(f"🔐 Code Signing Server Starting")
     print(f"📋 Required API Key: {API_KEY}")
