@@ -11,7 +11,7 @@ import { MCPServerJSONView } from './MCPServerJSONView';
 import { AddExtensionCard } from './AddExtensionCard';
 import { ActionBar } from './ActionBar';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
-import { convertEdgeMCPsToServers } from '../../utils/mcpDataConverter';
+import { convertMCPsToServers } from '../../utils/mcpDataConverter';
 
 // Styled Components
 const Container = styled.div`
@@ -214,7 +214,8 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   // Load real MCP data from edge config - refresh when config changes
   useEffect(() => {
     const edgeMCPs = getMCPServers();
-    const realServers = convertEdgeMCPsToServers(edgeMCPs);
+    console.log("edgeMCPs!!!!", edgeMCPs)
+    const realServers = convertMCPsToServers(edgeMCPs);
     
     // Combine real servers with fake ones (fake ones as uninstalled)
     const fakeServersAsUninstalled = FAKE_MCP_SERVERS.map(server => ({

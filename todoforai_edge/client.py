@@ -135,6 +135,7 @@ class TODOforAIEdge:
     async def _handle_edge_config_update(self, payload):
         """Handle edge config update from server"""
         edge_id = payload.get("edgeId")
+        print("payload!!!!", payload)
         if edge_id and edge_id != self.edge_id:
             logger.warning(f"Received config update for different edge: {edge_id} vs {self.edge_id} - ignoring")
             return

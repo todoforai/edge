@@ -33,14 +33,25 @@ class MCPCollector:
         """Convert Tool objects to JSON serializable format"""
         serialized = []
         for tool in tools:
+            # Extract server_id from tool name (format: {server_id}_{tool_name})
+            server_id, actual_tool_name = self._extract_server_id_from_tool_name(tool.name)
+            
             tool_info = {
-                "name": tool.name,
+                "name": tool.name,  # Keep full name for calling
+                "actual_name": actual_tool_name,  # Just the tool name part
                 "description": getattr(tool, 'description', ''),
                 "inputSchema": getattr(tool, 'inputSchema', {}),
-                "server_id": getattr(tool, 'server_id', None)  # This should be set by fastmcp
+                "server_id": server_id
             }
             serialized.append(tool_info)
         return serialized
+
+    def _extract_server_id_from_tool_name(self, tool_name: str) -> tuple[str, str]:
+        """Extract server_id and actual tool name from FastMCP tool name format"""
+        parts = tool_name.split('_', 1)  # Split on first underscore only
+        if len(parts) >= 2:
+            return parts[0], parts[1]  # server_id, actual_tool_name
+        return 'unknown', tool_name  # fallback
         
     async def load_servers(self, config_path: str = None) -> Dict[str, bool]:
         """Load servers from a simple MCP configuration file"""

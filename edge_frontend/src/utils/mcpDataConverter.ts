@@ -1,36 +1,50 @@
-import type { EdgeMCP, MCPServer } from '../shared/REST_types_shared';
+import type { EdgeMCP, MCPServer, MCPToolSkeleton } from '../shared/REST_types_shared';
 import { MCPRunningStatus } from '../shared/REST_types_shared';
 
-export const convertEdgeMCPsToServers = (edgeMCPs: EdgeMCP[]): MCPServer[] => {
+// Frontend: Just use the data directly
+export const convertMCPsToServers = (mcps: MCPServer[]): MCPServer[] => {
+  return mcps; // No conversion needed!
+};
+export const convertEdgeMCPsToServers = (edgeMCPs: any[]): MCPServer[] => {
   console.log('Edge MCPs:', edgeMCPs);
-  return edgeMCPs.map(edgeMCP => {
-    const serverInfo = getServerInfoFromId(edgeMCP.serverId);
+  
+  // Check if we received raw tool data instead of EdgeMCP objects
+  if (edgeMCPs.length > 0 && 'inputSchema' in edgeMCPs[0]) {
+    // Convert raw tool data to EdgeMCP format first
+    const edgeMCPsFromTools = convertToolsToEdgeMCPs(edgeMCPs);
+    return edgeMCPsFromTools.map(convertSingleEdgeMCP);
+  }
+  
+  // Handle normal EdgeMCP objects
+  return edgeMCPs.map(convertSingleEdgeMCP);
+};
+
+const convertToolsToEdgeMCPs = (tools: any[]): EdgeMCP[] => {
+  // Group tools by server_id
+  const servers = new Map<string, EdgeMCP>();
+  
+  tools.forEach(tool => {
+    const serverId = tool.server_id || inferServerIdFromToolName(tool.name);
     
-    // Map backend status to frontend status
-    const mapStatus = (backendStatus: MCPRunningStatus): MCPServer['status'] => {
-      switch (backendStatus) {
-        case MCPRunningStatus.RUNNING: return MCPRunningStatus.RUNNING;
-        case MCPRunningStatus.STOPPED: return MCPRunningStatus.STOPPED;
-        case MCPRunningStatus.ERROR: return MCPRunningStatus.ERROR;
-        default: return MCPRunningStatus.STOPPED;
-      }
-    };
-
-    // Extract environment variables (excluding isActive)
-    const { isActive, ...envVars } = edgeMCP.env;
-
-    return {
-      id: edgeMCP.serverId,
-      name: serverInfo.name || `${edgeMCP.serverId} MCP`,
-      description: `${serverInfo.description || `MCP server for ${edgeMCP.serverId}`} (${edgeMCP.tools.length} tools available)${edgeMCP.error ? ` - Error: ${edgeMCP.error}` : ''}`,
-      icon: serverInfo.icon || 'lucide:server',
-      command: serverInfo.command || 'npx',
-      args: serverInfo.args || [`@${edgeMCP.serverId}/mcp-server`],
-      env: { ...serverInfo.env, ...envVars },
-      status: edgeMCP.enabled ? mapStatus(edgeMCP.status) : MCPRunningStatus.STOPPED,
-      category: serverInfo.category || 'System',
-    };
+    if (!servers.has(serverId)) {
+      servers.set(serverId, {
+        serverId,
+        status: MCPRunningStatus.STOPPED,
+        tools: [],
+        env: { isActive: true },
+        config: { isActive: true },
+        enabled: true
+      });
+    }
+    
+    servers.get(serverId)!.tools.push({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema
+    });
   });
+  
+  return Array.from(servers.values());
 };
 
 // Map server IDs to server information
@@ -84,3 +98,4 @@ const getServerInfoFromId = (serverId: string) => {
     category: 'Unknown'
   };
 };
+

@@ -93,7 +93,29 @@ class EdgeConfig:
             return True
         return False
 
-    def set_edge_mcps(self, mcps: List[str]) -> None:
-        """Set the complete list of edge MCPs"""
-        updated = {"MCPs": mcps}
-        self.config.update_value(updated)
+    def _group_tools_by_server(self, tools: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Group tools by server_id"""
+        grouped = {}
+        for tool in tools:
+            # Extract server_id from tool name (FastMCP format: {server_id}_{tool_name})
+            server_id = tool.get('server_id') or tool['name'].split('_')[0]
+            if server_id not in grouped:
+                grouped[server_id] = []
+            grouped[server_id].append(tool)
+        return grouped
+
+    # Backend: Convert directly to final format
+    def set_edge_mcps(self, tools: List[Dict[str, Any]]) -> None:
+        servers = []
+        grouped = self._group_tools_by_server(tools)
+        
+        for server_id, server_tools in grouped.items():
+            servers.append({
+                'id': server_id,
+                'name': f'{server_id} MCP',
+                'tools': server_tools,
+                'status': 'STOPPED',
+                'enabled': True
+            })
+        
+        self.config.update_value({"MCPs": servers})
