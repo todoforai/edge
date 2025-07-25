@@ -17,7 +17,8 @@ import requests
 
 # Import TODOforAI Edge client
 from todoforai_edge.client import TODOforAIEdge
-from todoforai_edge.config import default_config
+from todoforai_edge.config import default_config, Config
+from todoforai_edge.handlers.file_sync import active_sync_managers, WorkspaceSyncManager
 
 async def _broadcast_auth_success():
     """Helper to broadcast auth success event"""
@@ -78,10 +79,6 @@ async def _broadcast_file_sync_complete(workspace_dir: str, file_count: int):
             "file_count": file_count
         }
     }))
-
-# Import the file_sync module
-from todoforai_edge import file_sync
-from todoforai_edge.file_sync import active_sync_managers
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -207,7 +204,6 @@ def _create_config_from_credentials(credentials):
 def _start_new_client(config):
     """Start a new client with the given config"""
     sidecar.todo_client = TODOforAIEdge(config)
-    _setup_client_hooks()
     
     def thread_target():
         asyncio.run(_run_client())
@@ -225,19 +221,16 @@ def _disconnect_existing_client():
         sidecar.client_thread.join(timeout=2)
 
 def _setup_client_hooks():
-    """Setup hooks for the client"""
-    if not sidecar.todo_client:
-        return
         
     # Add message handler to forward messages to frontend
     original_handle_message = sidecar.todo_client._handle_message
     
     async def handle_message_wrapper(message):
         # Forward message to frontend
-        await broadcast_event({
+        asyncio.create_task(broadcast_event({
             "type": "ws_message",
             "payload": json.loads(message)
-        })
+        }))
         # Call original handler
         await original_handle_message(message)
         
@@ -319,6 +312,7 @@ async def _run_client():
 
 async def register_all_hooks():
     """Register all hooks automatically"""
+    _setup_client_hooks()
     try:
         # Register file sync hooks
         try:
@@ -347,9 +341,9 @@ async def register_all_hooks():
 async def register_file_sync_hooks_internal():
     """Internal function to register file sync hooks"""
     # Store original methods to hook into
-    original_sync_file = file_sync.WorkspaceSyncManager.sync_file
-    original_delete_file = file_sync.WorkspaceSyncManager.delete_file
-    original_send_sync_complete = file_sync.WorkspaceSyncManager._send_sync_complete_signal
+    original_sync_file = WorkspaceSyncManager.sync_file
+    original_delete_file = WorkspaceSyncManager.delete_file
+    original_send_sync_complete = WorkspaceSyncManager._send_sync_complete_signal
     
     async def sync_file_hook(self, action, abs_path):
         # Call original method first
@@ -375,9 +369,9 @@ async def register_file_sync_hooks_internal():
         return result
         
     # Replace the methods with our hooked versions
-    file_sync.WorkspaceSyncManager.sync_file = sync_file_hook
-    file_sync.WorkspaceSyncManager.delete_file = delete_file_hook
-    file_sync.WorkspaceSyncManager._send_sync_complete_signal = send_sync_complete_hook
+    WorkspaceSyncManager.sync_file = sync_file_hook
+    WorkspaceSyncManager.delete_file = delete_file_hook
+    WorkspaceSyncManager._send_sync_complete_signal = send_sync_complete_hook
 
 async def register_active_workspaces_hooks_internal():
     """Internal function to register active workspace hooks"""
@@ -512,17 +506,17 @@ def setup_mcp_client(params):
         if not sidecar.todo_client:
             return {"status": "error", "message": "Client not initialized"}
 
-        config_path = params.get("configPath", "mcp.json")
-
         # Import and setup MCP
-        from todoforai_edge.mcp_client import setup_mcp_from_config
+        from todoforai_edge.mcp_client import set_mcp_tool_call_callback
 
-        # Setup MCP with edge client reference
-        async def setup_mcp():
-            collector = await setup_mcp_from_config(config_path, sidecar.todo_client)
-            return collector
-
-        asyncio.create_task(setup_mcp())
+        # Set up simple callback to broadcast tool calls
+        def tool_call_callback(call_data):
+            asyncio.create_task(broadcast_event({
+                "type": "mcp_tool_call",
+                "payload": call_data,
+            }))
+        
+        set_mcp_tool_call_callback(tool_call_callback)
 
         return {"status": "success", "message": "MCP client setup initiated"}
 
