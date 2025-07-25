@@ -19,6 +19,10 @@ run-test:
 	@echo "Running TodoForAI Edge client with test credentials..."
 	python3 run_edge.py --email lfg@todofor.ai --password Test123 --api-url http://localhost:4000
 
+run-ws:
+  # joins where the frontend asks to:
+	python3 edge_frontend/src-tauri/resources/python/ws_sidecar.py
+
 bump-version:
 	@echo "Bumping version number..."
 	@VERSION=$$(grep -oP 'version = "\K[0-9]+\.[0-9]+\.[0-9]+' pyproject.toml) && \
