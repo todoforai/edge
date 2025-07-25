@@ -1,4 +1,4 @@
-import { MCPServer } from '../types/MCPServer';
+import type { MCPServer } from '../../../shared/REST_types_shared';
 
 export const FAKE_MCP_SERVERS: MCPServer[] = [
   {

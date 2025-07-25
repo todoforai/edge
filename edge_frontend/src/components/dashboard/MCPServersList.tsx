@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPServer } from './types/MCPServer';
+import type { MCPServer } from '../../shared/REST_types_shared';
 import { FAKE_MCP_SERVERS } from './data/mcpServersData';
 import { MCPServerCard } from './MCPServerCard';
 import { MCPServerSettingsModal } from './MCPServerSettingsModal';

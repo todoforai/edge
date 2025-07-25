@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import { MCPServer } from './types/MCPServer';
+import type { MCPServer } from '../../shared/REST_types_shared';
 
 interface MCPServerLogsModalProps {
   server: MCPServer;
