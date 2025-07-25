@@ -1,45 +1,18 @@
-import type { MCPServer } from '../components/dashboard/types/MCPServer';
-
-interface MCPToolSkeleton {
-  name: string;
-  description: string;
-  inputSchema: {
-    type: string;
-    properties: Record<string, any>;
-    required: string[];
-  };
-}
-
-interface MCPEnv {
-  isActive: boolean;
-  [envName: string]: any;
-}
-
-type MCPRunningStatus = 'running' | 'stopped' | 'error' | 'starting' | 'stopping';
-
-interface EdgeMCP {
-  serverId: string;
-  tools: MCPToolSkeleton[];
-  env: MCPEnv;
-  config: MCPEnv;
-  enabled: boolean;
-  status: MCPRunningStatus;
-  error?: string;
-}
+import type { EdgeMCP, MCPServer } from '../shared/REST_types_shared';
+import { MCPRunningStatus } from '../shared/REST_types_shared';
 
 export const convertEdgeMCPsToServers = (edgeMCPs: EdgeMCP[]): MCPServer[] => {
+  console.log('Edge MCPs:', edgeMCPs);
   return edgeMCPs.map(edgeMCP => {
     const serverInfo = getServerInfoFromId(edgeMCP.serverId);
     
     // Map backend status to frontend status
     const mapStatus = (backendStatus: MCPRunningStatus): MCPServer['status'] => {
       switch (backendStatus) {
-        case 'running': return 'running';
-        case 'stopped': return 'stopped';
-        case 'error': return 'stopped';
-        case 'starting': return 'running';
-        case 'stopping': return 'stopped';
-        default: return 'stopped';
+        case MCPRunningStatus.RUNNING: return MCPRunningStatus.RUNNING;
+        case MCPRunningStatus.STOPPED: return MCPRunningStatus.STOPPED;
+        case MCPRunningStatus.ERROR: return MCPRunningStatus.ERROR;
+        default: return MCPRunningStatus.STOPPED;
       }
     };
 
@@ -48,14 +21,14 @@ export const convertEdgeMCPsToServers = (edgeMCPs: EdgeMCP[]): MCPServer[] => {
 
     return {
       id: edgeMCP.serverId,
-      name: serverInfo.name,
-      description: `${serverInfo.description} (${edgeMCP.tools.length} tools available)${edgeMCP.error ? ` - Error: ${edgeMCP.error}` : ''}`,
-      icon: serverInfo.icon,
-      command: serverInfo.command,
-      args: serverInfo.args,
+      name: serverInfo.name || `${edgeMCP.serverId} MCP`,
+      description: `${serverInfo.description || `MCP server for ${edgeMCP.serverId}`} (${edgeMCP.tools.length} tools available)${edgeMCP.error ? ` - Error: ${edgeMCP.error}` : ''}`,
+      icon: serverInfo.icon || 'lucide:server',
+      command: serverInfo.command || 'npx',
+      args: serverInfo.args || [`@${edgeMCP.serverId}/mcp-server`],
       env: { ...serverInfo.env, ...envVars },
-      status: edgeMCP.enabled ? mapStatus(edgeMCP.status) : 'stopped',
-      category: serverInfo.category,
+      status: edgeMCP.enabled ? mapStatus(edgeMCP.status) : MCPRunningStatus.STOPPED,
+      category: serverInfo.category || 'System',
     };
   });
 };

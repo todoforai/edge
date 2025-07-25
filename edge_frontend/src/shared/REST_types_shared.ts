@@ -1,5 +1,8 @@
-
-export type MCPRunningStatus = 'RUNNING' | 'STOPPED' | 'ERROR';
+export enum MCPRunningStatus {
+  RUNNING = 'RUNNING',
+  STOPPED = 'STOPPED',
+  ERROR = 'ERROR',
+}
 
 export enum EdgeStatus {
   ONLINE = 'ONLINE',
@@ -26,25 +29,46 @@ export interface MCPEnv {
 export interface MCPdata {
   [serverId: string]: MCPEnv;
 }
-
+export interface HardCodedMCP {
+  mcpId: string;
+  name: string;
+  tools: MCPToolSkeleton[];
+  description: string;
+  command: string;
+  args: string[];
+  icon: string;
+  category: string;
+}
 export interface EdgeMCP {
   serverId: string;
+  status: MCPRunningStatus;
   tools: MCPToolSkeleton[];
   env: MCPEnv;
   config: MCPEnv;
   enabled: boolean;
-  status: MCPRunningStatus;
   error?: string;
 }
 
 export interface EdgeData {
   id: string;
-  name: string;
   ownerId: string;
+  name: string;
   status: EdgeStatus;
-  workspacepaths: string[];
   MCPs: EdgeMCP[]; // Add this field
+  workspacepaths: string[];
   isShellEnabled: boolean;
   isFileSystemEnabled: boolean;
   createdAt: number;
+}
+
+export interface MCPServer {
+  id: string;
+  name: string;
+  env: Record<string, string>;
+  status: MCPRunningStatus;
+  description: string;
+  command: string;
+  args: string[];
+  icon: string;
+  category: string;
 }

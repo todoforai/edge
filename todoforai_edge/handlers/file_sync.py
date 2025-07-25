@@ -313,7 +313,7 @@ class WorkspaceSyncManager:
             "type": EFA.WORKSPACE_FILE_DONE,
             "payload": {
                 "path": self.workspace_dir,
-                "edgeId": self.client.edge_id,
+                "edgeId": self.client.edge_id, # TODO check if this is correct edge_id???
                 "userId": self.client.user_id,
                 "stats": self.sync_stats  # Include sync statistics
             }

@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { createLogger } from '../utils/logger';
 import pythonService from '../services/python-service';
-import { EdgeData, EdgeMCP, MCPToolSkeleton, MCPEnv, MCPRunningStatus, EdgeStatus } from '../shared/REST_types_shared';
+import type { EdgeData, EdgeMCP } from '../shared/REST_types_shared';
+import { EdgeStatus } from '../shared/REST_types_shared';
 
 const log = createLogger('edgeConfigStore');
 

@@ -9,13 +9,12 @@ class EdgeConfig:
     """Edge configuration class with observable pattern"""
     def __init__(self, data: Optional[Dict[str, Any]] = None):
         data = data or {}
-        
         # Create an observable for the entire config
         self.config = registry.create("edge_config", {
-            "edgeId": data.get("edgeId", ""),
+            "id": data.get("id", ""),
             "name": data.get("name", "Name uninitialized"),
             "workspacepaths": data.get("workspacepaths", []),
-            "edgeMCPs": data.get("edgeMCPs", []),
+            "MCPs": data.get("MCPs", []),
             "ownerId": data.get("ownerId", ""),
             "status": data.get("status", "OFFLINE"),
             "isShellEnabled": data.get("isShellEnabled", False),
@@ -26,7 +25,7 @@ class EdgeConfig:
     @property
     def id(self) -> str:
         """Get edge ID"""
-        return self.config.value.get("edgeId", "")
+        return self.config.value.get("id", "")
     
     @property
     def name(self) -> str:
@@ -96,5 +95,5 @@ class EdgeConfig:
 
     def set_edge_mcps(self, mcps: List[str]) -> None:
         """Set the complete list of edge MCPs"""
-        updated = {"edgeMCPs": mcps}
+        updated = {"MCPs": mcps}
         self.config.update_value(updated)

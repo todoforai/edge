@@ -101,7 +101,7 @@ class TODOforAIEdge:
         
         # If we have an edge_id, update the server with workspace/MCP changes
         if self.edge_id and self.connected:
-            sync_data = {k: v for k, v in changes.items() if k in {"workspacepaths", "edgeMCPs", "name", "isShellEnabled", "isFileSystemEnabled"}}
+            sync_data = {k: v for k, v in changes.items() if k in {"workspacepaths", "MCPs", "name", "isShellEnabled", "isFileSystemEnabled"}}
             
             if sync_data:
                 try:
