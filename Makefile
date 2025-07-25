@@ -23,6 +23,10 @@ run-ws:
   # joins where the frontend asks to:
 	python3 edge_frontend/src-tauri/resources/python/ws_sidecar.py
 
+run-frontend:
+  # run frontend separately:
+	cd edge_frontend && yarn dev
+
 bump-version:
 	@echo "Bumping version number..."
 	@VERSION=$$(grep -oP 'version = "\K[0-9]+\.[0-9]+\.[0-9]+' pyproject.toml) && \
