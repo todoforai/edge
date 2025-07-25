@@ -20,8 +20,7 @@ import websockets
 from todoforai_edge.mcp_client import set_mcp_tool_call_callback
 from todoforai_edge.client import TODOforAIEdge
 from todoforai_edge.config import default_config, Config
-from todoforai_edge.handlers.file_sync import WorkspaceSyncManager
-from todoforai_edge.file_sync import start_workspace_sync, stop_workspace_sync, active_sync_managers
+from todoforai_edge.handlers.file_sync import start_workspace_sync, stop_workspace_sync, active_sync_managers, WorkspaceSyncManager
 
 async def _broadcast_auth_success():
     """Helper to broadcast auth success event"""
@@ -489,7 +488,6 @@ def remove_workspace_path(params):
             log.info(f"Removed workspace path: {workspace_path}")
             
             # Stop file sync for this path if it's active
-            from todoforai_edge.file_sync import stop_workspace_sync
             asyncio.create_task(stop_workspace_sync(workspace_path))
             
             return {"status": "success", "message": f"Workspace path removed: {workspace_path}"}
