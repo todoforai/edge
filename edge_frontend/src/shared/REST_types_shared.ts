@@ -9,66 +9,79 @@ export enum EdgeStatus {
   OFFLINE = 'OFFLINE',
 }
 
-
 export interface MCPToolSkeleton {
   name: string; // method name
   description: string;
   inputSchema: any;
 }
-export interface MCPClientSkeleton {
-  serverId: string;
-  tools: MCPToolSkeleton[];
-  env: string[]; // required environment variables
-}
-
-// Add this new interface for MCP configuration
-export interface MCPEnv {
-  isActive: boolean;
-  [envName: string]: any; // For any additional properties
-}
-export interface MCPdata {
-  [serverId: string]: MCPEnv;
-}
-export interface HardCodedMCP {
-  mcpId: string;
+// kéne bele még konfigurálhatóság RAG vagy nem RAg... workflow... start
+export interface MCPRegistry {
+  id: string; // MCP ID
   name: string;
-  tools: MCPToolSkeleton[];
   description: string;
   command: string;
-  args: string[];
-  icon: string;
-  category: string;
+  args?: string[];
+  icon?: string | { dark: string; light: string };
+  env?: string[]; // list of ENV keys
+  conf?: string[]; // list of CONFIGUREABELE keys
+
+  category?: string[];
 }
-export interface EdgeMCP {
+
+export interface MCPEnv {
+  [envName: string]: any;
+}
+export interface MCPInstance {
+  id: string;
   serverId: string;
-  status: MCPRunningStatus;
+  MCPRegistryID: string;
   tools: MCPToolSkeleton[];
   env: MCPEnv;
-  config: MCPEnv;
+  conf: MCPEnv;
+  runs: MCPSession[];
   enabled: boolean;
+}
+
+export interface MCPSession {
+  id: string;
+  MCPInstanceID: string;
+  status: MCPRunningStatus;
+  results?: any;
   error?: string;
 }
 
 export interface EdgeData {
   id: string;
-  ownerId: string;
   name: string;
+  ownerId: string;
   status: EdgeStatus;
-  MCPs: EdgeMCP[]; // Add this field
+  MCPs: MCPInstance[]; // Add this field
   workspacepaths: string[];
   isShellEnabled: boolean;
   isFileSystemEnabled: boolean;
   createdAt: number;
 }
-
-export interface MCPServer {
-  id: string;
-  name: string;
-  env: Record<string, string>;
-  status: MCPRunningStatus;
-  description: string;
-  command: string;
-  args: string[];
-  icon: string;
-  category: string;
+export interface MCPEdgesConfig {
+  [edgeId: string]: MCPServersConfig;
 }
+export interface MCPServersConfig {
+  [serverId: string]: MCPConfig;
+}
+export interface MCPConfig {
+  isActive: boolean;
+  [toolName: string]: boolean | { // MCPToolSkeleton.name can be found here and see if it is enabled or not
+    isActive: boolean;
+  } | any; // env, env, env... anything can be configured (overwritten) by the agentsettings in the long term future...
+}
+
+// export interface MCPServer {
+//   id: string;
+//   name: string;
+//   status: MCPRunningStatus;
+//   env: MCPEnv;
+//   description: string;
+//   command: string;
+//   args: string[];
+//   icon: string;
+//   category: string;
+// }
