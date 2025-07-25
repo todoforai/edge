@@ -19,7 +19,7 @@ export const updateEdge = async (edgeId: string, updateData: EdgeUpdateData) => 
   // Convert API URL to proper format with protocol
   const fullApiUrl = getApiUrlWithProtocol(apiUrl);
 
-  const response = await fetch(`${fullApiUrl}/edge/${edgeId}`, {
+  const response = await fetch(`${fullApiUrl}/api/v1/edges/${edgeId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
