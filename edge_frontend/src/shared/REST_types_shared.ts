@@ -14,6 +14,10 @@ export interface MCPToolSkeleton {
   description: string;
   inputSchema: any;
 }
+export interface MCPEnv {
+  [envName: string]: any;
+}
+
 // kéne bele még konfigurálhatóság RAG vagy nem RAg... workflow... start
 export interface MCPRegistry {
   id: string; // MCP ID
@@ -22,22 +26,23 @@ export interface MCPRegistry {
   command: string;
   args?: string[];
   icon?: string | { dark: string; light: string };
+  
+  tools?: MCPToolSkeleton[];
   env?: string[]; // list of ENV keys
   conf?: string[]; // list of CONFIGUREABELE keys
 
   category?: string[];
 }
 
-export interface MCPEnv {
-  [envName: string]: any;
-}
 export interface MCPInstance {
   id: string;
   serverId: string;
   MCPRegistryID: string;
+
   tools: MCPToolSkeleton[];
   env: MCPEnv;
   conf: MCPEnv;
+  
   runs: MCPSession[];
   enabled: boolean;
 }
@@ -61,17 +66,21 @@ export interface EdgeData {
   isFileSystemEnabled: boolean;
   createdAt: number;
 }
-export interface MCPEdgesConfig {
-  [edgeId: string]: MCPServersConfig;
+export interface MCPEdgesSettings {
+  edgeSettings: { [edgeId: string]: MCPSettings };
 }
-export interface MCPServersConfig {
-  [serverId: string]: MCPConfig;
+export interface MCPSettings {
+  serverSettings: { [serverId: string]: ServerSettings };
 }
-export interface MCPConfig {
+export interface ServerSettings {
   isActive: boolean;
-  [toolName: string]: boolean | { // MCPToolSkeleton.name can be found here and see if it is enabled or not
-    isActive: boolean;
-  } | any; // env, env, env... anything can be configured (overwritten) by the agentsettings in the long term future...
+  toolSettings: { [toolName: string]: ToolConfiguration };
+}
+
+export interface ToolConfiguration {
+  isActive: boolean;
+  // env, conf, and other configurable properties can be added here
+  [configKey: string]: any;
 }
 
 // export interface MCPServer {
