@@ -21,6 +21,7 @@ export interface MCPEnv {
 // kéne bele még konfigurálhatóság RAG vagy nem RAg... workflow... start
 export interface MCPRegistry {
   id: string; // MCP ID
+  serverId?: string; // MCP ID
   name: string;
   description: string;
   command?: string; // made optional since it's not in API response
@@ -72,7 +73,7 @@ export interface EdgeData {
   name: string;
   ownerId: string;
   status: EdgeStatus;
-  MCPs: MCPInstance[]; // Add this field
+  MCPinstances: MCPInstance[]; // Add this field
   workspacepaths: string[];
   isShellEnabled: boolean;
   isFileSystemEnabled: boolean;
@@ -95,14 +96,3 @@ export interface ToolConfiguration {
   [configKey: string]: any;
 }
 
-// export interface MCPServer {
-//   id: string;
-//   name: string;
-//   status: MCPRunningStatus;
-//   env: MCPEnv;
-//   description: string;
-//   command: string;
-//   args: string[];
-//   icon: string;
-//   category: string;
-// }
