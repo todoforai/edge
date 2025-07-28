@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPInstance } from '../../shared/REST_types_shared';
+import type { MCPInstance, MCPRunningStatus } from '../../shared/REST_types_shared';
+import { MOCK_MCP_REGISTRY } from './data/mcpServersData';
 
 const JsonError = styled.div`
   display: flex;
@@ -52,11 +53,66 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
   const [jsonContent, setJsonContent] = useState<string>('');
   const [jsonError, setJsonError] = useState<string>('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Convert instances to configurable-only format with serverId as key
+  const getConfigurableData = (instances: MCPInstance[]) => {
+    const result: Record<string, any> = {};
+    instances.forEach(instance => {
+      result[instance.serverId] = {
+        MCPRegistryID: instance.MCPRegistryID,
+        env: instance.env,
+        conf: instance.conf,
+        enabled: instance.enabled
+      };
+    });
+    return result;
+  };
+
+  // Convert configurable data back to full instances
+  const mergeWithExistingData = (configurableData: Record<string, any>, originalInstances: MCPInstance[]) => {
+    const usedOriginalIds = new Set<string>();
+    
+    const result = Object.entries(configurableData).map(([serverId, configData]) => {
+      // Try to find existing instance to reuse its ID and session
+      let originalInstance = originalInstances.find(inst => !usedOriginalIds.has(inst.id));
+      
+      if (!originalInstance) {
+        // Create new instance if no existing ones available
+        originalInstance = {
+          id: `instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          serverId: serverId,
+          MCPRegistryID: serverId,
+          tools: [],
+          env: {},
+          conf: {},
+          session: {
+            id: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            MCPInstanceID: `instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            status: 'STOPPED' as MCPRunningStatus
+          },
+          enabled: true
+        };
+      }
+      
+      usedOriginalIds.add(originalInstance.id);
+      
+      return {
+        ...originalInstance,
+        serverId: serverId, // Use key as serverId (allows changing server type)
+        MCPRegistryID: configData.MCPRegistryID || serverId,
+        env: configData.env || {},
+        conf: configData.conf || {},
+        enabled: configData.enabled
+      };
+    });
+
+    return result;
+  };
 
   // Initialize JSON content only when switching to JSON view for the first time
   useEffect(() => {
     if (jsonContent === '') {
-      setJsonContent(JSON.stringify(instances, null, 2));
+      const configurableData = getConfigurableData(instances);
+      setJsonContent(JSON.stringify(configurableData, null, 2));
     }
   }, [instances]);
 
@@ -74,23 +130,26 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
     
     try {
       const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) {
-        // Validate that each item has required MCPInstance fields
-        const isValid = parsed.every(item => 
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+        // Validate that each entry has required configurable fields
+        const isValid = Object.entries(parsed).every(([serverId, item]) => 
           item && typeof item === 'object' &&
-          typeof item.id === 'string' &&
-          typeof item.serverId === 'string' &&
           typeof item.enabled === 'boolean' &&
-          item.session && typeof item.session === 'object'
+          typeof serverId === 'string'
         );
         
         if (isValid) {
-          onInstancesChange(parsed);
+          try {
+            const mergedInstances = mergeWithExistingData(parsed, instances);
+            onInstancesChange(mergedInstances);
+          } catch (mergeError) {
+            setJsonError(mergeError instanceof Error ? mergeError.message : 'Error merging data');
+          }
         } else {
-          setJsonError('Invalid instance structure. Each instance must have id, serverId, enabled, and session fields.');
+          setJsonError('Invalid instance structure. Each instance must have enabled field.');
         }
       } else {
-        setJsonError('JSON must be an array of MCP instances.');
+        setJsonError('JSON must be an object with serverId as keys.');
       }
     } catch (error) {
       setJsonError('Invalid JSON syntax');

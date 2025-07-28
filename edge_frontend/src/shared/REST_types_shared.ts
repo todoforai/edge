@@ -79,18 +79,18 @@ export interface EdgeData {
   createdAt: number;
 }
 export interface MCPEdgesSettings {
-  edgeSettings: { [edgeId: string]: MCPSettings };
+  edgeSettings?: { [edgeId: string]: MCPSettings };
 }
 export interface MCPSettings {
-  serverSettings: { [serverId: string]: ServerSettings };
+  serverSettings?: { [serverId: string]: ServerSettings };
 }
 export interface ServerSettings {
-  isActive: boolean;
-  toolSettings: { [toolName: string]: ToolConfiguration };
+  isActive?: boolean;
+  toolSettings?: { [toolName: string]: ToolConfiguration };
 }
 
 export interface ToolConfiguration {
-  isActive: boolean;
+  isActive?: boolean;
   // env, conf, and other configurable properties can be added here
   [configKey: string]: any;
 }
