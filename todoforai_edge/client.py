@@ -61,14 +61,19 @@ class TODOforAIEdge:
             
         # Store the config object
         self.api_url = client_config.api_url
-        self.api_url = f"http://{self.api_url}" if self.api_url.startswith("localhost") else self.api_url
+        # Normalize API URL - don't force localhost to http
+        if self.api_url.startswith("localhost"):
+            self.api_url = f"http://{self.api_url}"
+        elif not self.api_url.startswith(("http://", "https://")):
+            self.api_url = f"https://{self.api_url}"
+            
         self.api_key = client_config.api_key
         self.email = client_config.email
         self.password = client_config.password
         # Add debug attribute for convenience
         self.debug = client_config.debug
         self.ws = None
-        self.ws_url = get_ws_url(client_config.api_url)
+        self.ws_url = get_ws_url(self.api_url)
         self.edge_config = EdgeConfig()
         logger.info("EdgeConfig initialized.")
         
