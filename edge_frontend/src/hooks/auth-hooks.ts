@@ -89,7 +89,7 @@ export const useAuthEventListenersEffect = () => {
           localStorage.setItem(`currentUser_${updatedUser.apiUrl}`, JSON.stringify(storageData));
           log.info(`User data saved to storage for API URL: ${updatedUser.apiUrl}`);
         } else {
-          log.warning('Cannot save user to storage: missing required fields (apiKey, email, or apiUrl)');
+          log.warn('Cannot save user to storage: missing required fields (apiKey, email, or apiUrl)');
         }
       } catch (error) {
         log.error('Failed to save user to storage:', error);

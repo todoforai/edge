@@ -135,7 +135,7 @@ export const EdgeInfo: React.FC = () => {
   const handleNameSubmit = async () => {
     if (editingName.trim() && editingName.trim() !== edgeName) {
       try {
-        const response = await renameEdge(edgeId, editingName.trim());
+        const response = await renameEdge(editingName.trim());
         console.log('Edge renamed successfully', response);
       } catch (error) {
         console.error('Failed to rename edge:', error);

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPServer } from './types/MCPServer';
+import type { MCPServer } from '../../shared/REST_types_shared';
 
 
 // ... existing styled components from the original file ...
@@ -342,7 +342,7 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
                     />
                     <FormInput
                       type="text"
-                      value={value}
+                      value={String(value)}
                       onChange={(e) => handleEnvChange(key, e.target.value)}
                       placeholder="Variable value"
                     />

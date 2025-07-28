@@ -1,7 +1,8 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPServer } from './types/MCPServer';
+import type { MCPServer } from '../../shared/REST_types_shared';
+import { MCPRunningStatus } from '../../shared/REST_types_shared';
 
 const ServerCard = styled.div`
   border: 1px solid ${props => props.theme.colors.borderColor};
@@ -89,14 +90,14 @@ const StatusDropdown = styled.div`
   position: relative;
 `;
 
-const StatusSelect = styled.select<{ $status: MCPServer['status'] }>`
+const StatusSelect = styled.select<{ $status: MCPRunningStatus }>`
   appearance: none;
   background: ${props => {
     switch (props.$status) {
-      case 'running': return '#4CAF50';
-      case 'installed': return '#2196F3';
-      case 'stopped': return '#FF9800';
-      case 'uninstalled': return '#9E9E9E';
+      case MCPRunningStatus.RUNNING: return '#4CAF50';
+      case MCPRunningStatus.INSTALLED: return '#2196F3';
+      case MCPRunningStatus.STOPPED: return '#FF9800';
+      case MCPRunningStatus.UNINSTALLED: return '#9E9E9E';
       default: return '#9E9E9E';
     }
   }};
@@ -135,7 +136,7 @@ const ServerDescription = styled.p`
 
 interface MCPServerCardProps {
   server: MCPServer;
-  onStatusChange: (serverId: string, newStatus: MCPServer['status']) => void;
+  onStatusChange: (serverId: string, newStatus: MCPRunningStatus) => void;
   onViewLogs: (server: MCPServer) => void;
   onOpenSettings: (server: MCPServer) => void;
   showCategory?: boolean;
@@ -167,13 +168,13 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
             <StatusDropdown>
               <StatusSelect
                 value={server.status}
-                onChange={(e) => onStatusChange(server.id, e.target.value as MCPServer['status'])}
+                onChange={(e) => onStatusChange(server.id, e.target.value as MCPRunningStatus)}
                 $status={server.status}
               >
-                <option value="uninstalled">Uninstalled</option>
-                <option value="installed">Installed</option>
-                <option value="running">Running</option>
-                <option value="stopped">Stopped</option>
+                <option value={MCPRunningStatus.UNINSTALLED}>Uninstalled</option>
+                <option value={MCPRunningStatus.INSTALLED}>Installed</option>
+                <option value={MCPRunningStatus.RUNNING}>Running</option>
+                <option value={MCPRunningStatus.STOPPED}>Stopped</option>
               </StatusSelect>
             </StatusDropdown>
           </ServerActions>
