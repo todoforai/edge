@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPServer } from '../../shared/REST_types_shared';
+import type { MCPRegistry } from '../../shared/REST_types_shared';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -157,7 +157,7 @@ const ConfirmButton = styled.button`
 `;
 
 interface MCPServerInstallModalProps {
-  server: MCPServer;
+  server: MCPRegistry;
   onClose: () => void;
   onInstall: (customId: string) => void;
 }
@@ -190,10 +190,10 @@ export const MCPServerInstallModal: React.FC<MCPServerInstallModalProps> = ({
               type="text"
               value={customId}
               onChange={(e) => setCustomId(e.target.value)}
-              placeholder="e.g., gmail@user@domain.com"
+              placeholder={`e.g., ${server.id}@custom`}
             />
             <FormHelp>
-              Customize the server ID to install multiple instances (e.g., different Gmail accounts)
+              Customize the server ID to install multiple instances (e.g., different accounts)
             </FormHelp>
           </FormGroup>
 
@@ -204,7 +204,8 @@ export const MCPServerInstallModal: React.FC<MCPServerInstallModalProps> = ({
                 [customId || server.id]: {
                   command: server.command,
                   args: server.args,
-                  env: server.env
+                  env: server.env ? Object.fromEntries(server.env.map(key => [key, ''])) : {},
+                  conf: server.conf ? Object.fromEntries(server.conf.map(key => [key, ''])) : {}
                 }
               }, null, 2)}
             </CodeBlock>

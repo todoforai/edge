@@ -23,7 +23,7 @@ export interface MCPRegistry {
   id: string; // MCP ID
   name: string;
   description: string;
-  command: string;
+  command?: string; // made optional since it's not in API response
   args?: string[];
   icon?: string | { dark: string; light: string };
   
@@ -32,18 +32,30 @@ export interface MCPRegistry {
   conf?: string[]; // list of CONFIGUREABELE keys
 
   category?: string[];
+  
+  // New fields from API response
+  repository?: {
+    url: string;
+    source: string;
+    id: string;
+  };
+  version_detail?: {
+    version: string;
+    release_date: string;
+    is_latest: boolean;
+  };
 }
 
 export interface MCPInstance {
   id: string;
-  serverId: string;
-  MCPRegistryID: string;
+  serverId: string; // could be MCPRegistry.name 99% of the time...
+  MCPRegistryID?: string;
 
   tools: MCPToolSkeleton[];
   env: MCPEnv;
   conf: MCPEnv;
   
-  runs: MCPSession[];
+  session: MCPSession; // TODO: support multiple sessions later on
   enabled: boolean;
 }
 

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPServer } from '../../shared/REST_types_shared';
-import { FAKE_MCP_SERVERS } from './data/mcpServersData';
+import type { MCPInstance, MCPRegistry, MCPRunningStatus } from '../../shared/REST_types_shared';
+import { MOCK_MCP_REGISTRY } from './data/mcpServersData';
 import { MCPServerCard } from './MCPServerCard';
 import { MCPServerSettingsModal } from './MCPServerSettingsModal';
 import { MCPServerLogsModal } from './MCPServerLogsModal';
@@ -11,7 +11,7 @@ import { MCPServerJSONView } from './MCPServerJSONView';
 import { AddExtensionCard } from './AddExtensionCard';
 import { ActionBar } from './ActionBar';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
-import { convertMCPsToServers } from '../../utils/mcpDataConverter';
+import { getServerInfoFromRegistry } from '../../utils/mcpDataConverter';
 
 // Styled Components
 const Container = styled.div`
@@ -202,89 +202,103 @@ interface MCPServersListProps {
 }
 
 const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeChange }) => {
-  const { getMCPServers, config } = useEdgeConfigStore();
-  const [servers, setServers] = useState<MCPServer[]>([]);
+  const { getMCPInstances, config } = useEdgeConfigStore();
+  const [instances, setInstances] = useState<MCPInstance[]>([]);
+  const [registryServers, setRegistryServers] = useState<MCPRegistry[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showInstallModal, setShowInstallModal] = useState<MCPServer | null>(null);
-  const [showSettingsModal, setShowSettingsModal] = useState<MCPServer | null>(null);
-  const [showLogsModal, setShowLogsModal] = useState<MCPServer | null>(null);
+  const [showInstallModal, setShowInstallModal] = useState<MCPRegistry | null>(null);
+  const [showSettingsModal, setShowSettingsModal] = useState<MCPInstance | null>(null);
+  const [showLogsModal, setShowLogsModal] = useState<MCPInstance | null>(null);
   const [showExtensionsModal, setShowExtensionsModal] = useState<boolean>(false);
 
-  // Load real MCP data from edge config - refresh when config changes
+  // Load real MCP data from edge config and mock registry data
   useEffect(() => {
-    const edgeMCPs = getMCPServers();
-    console.log("edgeMCPs!!!!", edgeMCPs)
-    const realServers = convertMCPsToServers(edgeMCPs);
+    const mcpInstances = getMCPInstances();
+    console.log("MCP Instances:", mcpInstances);
     
-    // Combine real servers with fake ones (fake ones as uninstalled)
-    const fakeServersAsUninstalled = FAKE_MCP_SERVERS.map(server => ({
-      ...server,
-      status: 'uninstalled' as const
-    }));
+    // Use mock registry data
+    setRegistryServers(MOCK_MCP_REGISTRY);
+    setInstances(mcpInstances);
     
-    // Filter out fake servers that have real counterparts
-    const filteredFakeServers = fakeServersAsUninstalled.filter(
-      fakeServer => !realServers.some(realServer => realServer.id === fakeServer.id)
-    );
-    
-    const allServers = [...realServers, ...filteredFakeServers];
-    setServers(allServers);
-    
-    console.log('Real MCP servers loaded:', realServers);
-    console.log('All servers (real + fake):', allServers);
-  }, [config.MCPs, getMCPServers]); // React to changes in MCPs
+    console.log('MCP instances loaded:', mcpInstances);
+    console.log('Mock registry servers:', MOCK_MCP_REGISTRY);
+  }, [config.MCPs, getMCPInstances]);
 
-  const handleStatusChange = (serverId: string, newStatus: MCPServer['status']) => {
-    setServers(prev => prev.map(server => 
-      server.id === serverId ? { ...server, status: newStatus } : server
+  const handleStatusChange = (instanceId: string, newStatus: MCPRunningStatus) => {
+    setInstances(prev => prev.map(instance => 
+      instance.id === instanceId 
+        ? { ...instance, session: { ...instance.session, status: newStatus } }
+        : instance
     ));
   };
 
-  const handleViewLogs = (server: MCPServer) => {
-    setShowLogsModal(server);
+  const handleViewLogs = (instance: MCPInstance) => {
+    setShowLogsModal(instance);
   };
 
-  const handleOpenSettings = (server: MCPServer) => {
-    setShowSettingsModal(server);
+  const handleOpenSettings = (instance: MCPInstance) => {
+    setShowSettingsModal(instance);
   };
 
-  const handleSaveServer = (updatedServer: MCPServer) => {
-    setServers(prev => prev.map(server => 
-      server.id === updatedServer.id ? updatedServer : server
+  const handleSaveInstance = (updatedInstance: MCPInstance) => {
+    setInstances(prev => prev.map(instance => 
+      instance.id === updatedInstance.id ? updatedInstance : instance
     ));
   };
 
   const handleInstallServer = (customId: string) => {
     if (showInstallModal) {
-      const newServer = {
-        ...showInstallModal,
-        id: customId || showInstallModal.id,
-        status: 'installed' as const
+      const newInstance: MCPInstance = {
+        id: customId || `${showInstallModal.id}-${Date.now()}`,
+        serverId: showInstallModal.id,
+        MCPRegistryID: showInstallModal.id,
+        tools: showInstallModal.tools || [],
+        env: showInstallModal.env ? Object.fromEntries(showInstallModal.env.map(key => [key, ''])) : {},
+        conf: showInstallModal.conf ? Object.fromEntries(showInstallModal.conf.map(key => [key, ''])) : {},
+        session: {
+          id: `session-${Date.now()}`,
+          MCPInstanceID: customId || `${showInstallModal.id}-${Date.now()}`,
+          status: 'STOPPED' as MCPRunningStatus
+        },
+        enabled: true
       };
       
-      setServers(prev => [...prev.filter(s => s.id !== newServer.id), newServer]);
+      setInstances(prev => [...prev, newInstance]);
       setShowInstallModal(null);
     }
   };
 
-  // Filter installed servers only for main view
-  const installedServers = servers.filter(server => server.status !== 'uninstalled');
-  
-  // Get unique categories from installed servers
-  const categories = ['All', ...Array.from(new Set(installedServers.map(s => s.category)))];
+  // Get unique categories from instances
+  const getInstanceCategories = useMemo(() => {
+    const categories = instances.map(instance => {
+      const serverInfo = getServerInfoFromRegistry(instance.serverId);
+      return serverInfo.category?.[0] || 'Unknown';
+    });
+    return ['All', ...Array.from(new Set(categories))];
+  }, [instances]);
 
-  // Filter installed servers
-  const filteredServers = installedServers.filter(server => {
-    const matchesCategory = selectedCategory === 'All' || server.category === selectedCategory;
-    const matchesSearch = server.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         server.description.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filter instances
+  const filteredInstances = instances.filter(instance => {
+    const serverInfo = getServerInfoFromRegistry(instance.serverId);
+    const category = serverInfo.category?.[0] || 'Unknown';
+    const matchesCategory = selectedCategory === 'All' || category === selectedCategory;
+    const matchesSearch = 
+      serverInfo.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      serverInfo.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      instance.serverId.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
-  // Available servers for installation (uninstalled ones)
-  const availableServers = servers.filter(server => server.status === 'uninstalled');
-  const availableCategories = ['All', ...Array.from(new Set(availableServers.map(s => s.category)))];
+  // Available servers for installation (from registry)
+  const availableServers = useMemo(() => 
+    registryServers.filter(registry => 
+      !instances.some(instance => instance.serverId === registry.id)
+    ), [registryServers, instances]);
+
+  const availableCategories = useMemo(() => 
+    ['All', ...Array.from(new Set(availableServers.flatMap(s => s.category || ['Other'])))], 
+    [availableServers]);
 
   return (
     <Container>
@@ -299,7 +313,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
           onSearchChange={setSearchTerm}
           searchPlaceholder="Search MCP servers..."
           selectedCategory={selectedCategory}
-          categories={categories}
+          categories={getInstanceCategories}
           onCategoryChange={setSelectedCategory}
           viewMode={viewMode}
           onViewModeChange={onViewModeChange}
@@ -309,15 +323,15 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
       {viewMode === 'json' ? (
         <MCPServerJSONView 
-          servers={servers} 
-          onServersChange={setServers} 
+          instances={instances} 
+          onInstancesChange={setInstances} 
         />
       ) : (
         <ServersGrid>
-          {filteredServers.map(server => (
+          {filteredInstances.map((instance, index) => (
             <MCPServerCard
-              key={server.id}
-              server={server}
+              key={`${instance.id}-${index}`}
+              instance={instance}
               onStatusChange={handleStatusChange}
               onViewLogs={handleViewLogs}
               onOpenSettings={handleOpenSettings}
@@ -331,15 +345,15 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
       {showSettingsModal && (
         <MCPServerSettingsModal
-          server={showSettingsModal}
+          instance={showSettingsModal}
           onClose={() => setShowSettingsModal(null)}
-          onSave={handleSaveServer}
+          onSave={handleSaveInstance}
         />
       )}
 
       {showLogsModal && (
         <MCPServerLogsModal
-          server={showLogsModal}
+          instance={showLogsModal}
           onClose={() => setShowLogsModal(null)}
         />
       )}
@@ -357,8 +371,8 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
           servers={availableServers}
           categories={availableCategories}
           onClose={() => setShowExtensionsModal(false)}
-          onInstall={(server) => {
-            setShowInstallModal(server);
+          onInstall={(registry) => {
+            setShowInstallModal(registry);
             setShowExtensionsModal(false);
           }}
         />
@@ -369,10 +383,10 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
 // Extensions Modal Component
 const ExtensionsModal: React.FC<{
-  servers: MCPServer[];
+  servers: MCPRegistry[];
   categories: string[];
   onClose: () => void;
-  onInstall: (server: MCPServer) => void;
+  onInstall: (server: MCPRegistry) => void;
 }> = ({ servers, categories, onClose, onInstall }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -390,7 +404,8 @@ const ExtensionsModal: React.FC<{
   }, [onClose]);
 
   const filteredServers = servers.filter(server => {
-    const matchesCategory = selectedCategory === 'All' || server.category === selectedCategory;
+    const serverCategories = server.category || ['Other'];
+    const matchesCategory = selectedCategory === 'All' || serverCategories.includes(selectedCategory);
     const matchesSearch = server.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          server.description.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
@@ -419,15 +434,19 @@ const ExtensionsModal: React.FC<{
           </ModalControls>
 
           <ExtensionsGrid>
-            {filteredServers.map(server => (
-              <ExtensionCard key={server.id}>
+            {filteredServers.map((server, index) => (
+              <ExtensionCard key={server.id || `server-${index}`}>
                 <ExtensionIcon>
-                  <Icon icon={server.icon} width={32} height={32} />
+                  <Icon 
+                    icon={typeof server.icon === 'string' ? server.icon : server.icon?.light || 'lucide:server'} 
+                    width={32} 
+                    height={32} 
+                  />
                 </ExtensionIcon>
                 <ExtensionInfo>
                   <ExtensionName>{server.name}</ExtensionName>
                   <ExtensionDescription>{server.description}</ExtensionDescription>
-                  <ExtensionCategory>{server.category}</ExtensionCategory>
+                  <ExtensionCategory>{server.category?.[0] || 'Other'}</ExtensionCategory>
                 </ExtensionInfo>
                 <InstallButton onClick={() => onInstall(server)}>
                   <Icon icon="lucide:download" />

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createLogger } from '../utils/logger';
 import pythonService from '../services/python-service';
-import type { EdgeData, EdgeMCP } from '../shared/REST_types_shared';
+import type { EdgeData, MCPInstance } from '../shared/REST_types_shared';
 import { EdgeStatus } from '../shared/REST_types_shared';
 
 const log = createLogger('edgeConfigStore');
@@ -25,8 +25,8 @@ interface EdgeConfigState {
   // Getters for common properties
   getWorkspacePaths: () => string[];
   
-  // Get MCP servers from the new structure
-  getMCPServers: () => EdgeMCP[];
+  // Get MCP instances from the new structure
+  getMCPInstances: () => MCPInstance[];
 }
 
 // Default empty config
@@ -84,9 +84,9 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
     return get().config.workspacepaths || [];
   },
 
-  getMCPServers: () => {
+  getMCPInstances: () => {
     const mcps = get().config.MCPs || [];
-    console.log('Edge MCPs:', mcps);
+    console.log('Edge MCP Instances:', mcps);
     return mcps;
   },
 }));

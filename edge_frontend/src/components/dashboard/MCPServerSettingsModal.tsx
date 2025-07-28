@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPServer } from './types/MCPServer';
+import type { MCPInstance } from '../../shared/REST_types_shared';
 
 
 // ... existing styled components from the original file ...
@@ -237,21 +237,21 @@ const ConfirmButton = styled.button`
 `;
 
 interface MCPServerSettingsModalProps {
-  server: MCPServer;
+  instance: MCPInstance;
   onClose: () => void;
-  onSave: (server: MCPServer) => void;
+  onSave: (instance: MCPInstance) => void;
 }
 
 export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
-  server,
+  instance,
   onClose,
   onSave
 }) => {
-  const [editingServer, setEditingServer] = useState<MCPServer>({ ...server });
+  const [editingInstance, setEditingInstance] = useState<MCPInstance>({ ...instance });
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     env: true, // Environment variables expanded by default
-    basic: false, // Basic info collapsed by default
-    command: false // Command config collapsed by default
+    conf: true, // Configuration expanded by default
+    basic: false // Basic info collapsed by default
   });
 
   const toggleSection = (section: string) => {
@@ -262,61 +262,56 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
   };
 
   const handleSave = () => {
-    onSave(editingServer);
+    onSave(editingInstance);
     onClose();
   };
 
-  const handleFieldChange = (field: keyof MCPServer, value: any) => {
-    setEditingServer({ ...editingServer, [field]: value });
-  };
-
   const handleEnvChange = (key: string, value: string) => {
-    const newEnv = { ...editingServer.env };
+    const newEnv = { ...editingInstance.env };
     if (value === '') {
       delete newEnv[key];
     } else {
       newEnv[key] = value;
     }
-    setEditingServer({ ...editingServer, env: newEnv });
+    setEditingInstance({ ...editingInstance, env: newEnv });
+  };
+
+  const handleConfChange = (key: string, value: string) => {
+    const newConf = { ...editingInstance.conf };
+    if (value === '') {
+      delete newConf[key];
+    } else {
+      newConf[key] = value;
+    }
+    setEditingInstance({ ...editingInstance, conf: newConf });
   };
 
   const addEnvVariable = () => {
-    setEditingServer({ 
-      ...editingServer, 
-      env: { ...editingServer.env, '': '' }
+    setEditingInstance({ 
+      ...editingInstance, 
+      env: { ...editingInstance.env, '': '' }
     });
   };
 
-  const handleArgsChange = (index: number, value: string) => {
-    const newArgs = [...editingServer.args];
-    newArgs[index] = value;
-    setEditingServer({ ...editingServer, args: newArgs });
-  };
-
-  const addArg = () => {
-    setEditingServer({ 
-      ...editingServer, 
-      args: [...editingServer.args, '']
+  const addConfVariable = () => {
+    setEditingInstance({ 
+      ...editingInstance, 
+      conf: { ...editingInstance.conf, '': '' }
     });
-  };
-
-  const removeArg = (index: number) => {
-    const newArgs = editingServer.args.filter((_, i) => i !== index);
-    setEditingServer({ ...editingServer, args: newArgs });
   };
 
   return (
     <ModalOverlay onClick={onClose}>
       <SettingsModal onClick={(e) => e.stopPropagation()}>
         <ModalHeader>
-          <ModalTitle>Settings - {server.name}</ModalTitle>
+          <ModalTitle>Settings - {instance.serverId}</ModalTitle>
           <CloseButton onClick={onClose}>
             <Icon icon="lucide:x" />
           </CloseButton>
         </ModalHeader>
 
         <SettingsContent>
-          {/* Environment Variables - Most Important, at top and expanded by default */}
+          {/* Environment Variables */}
           <SettingsSection>
             <SectionHeader onClick={() => toggleSection('env')}>
               <SectionTitle>Environment Variables</SectionTitle>
@@ -326,23 +321,23 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
             </SectionHeader>
             {expandedSections.env && (
               <SectionContent>
-                {Object.entries(editingServer.env).map(([key, value]) => (
+                {Object.entries(editingInstance.env).map(([key, value]) => (
                   <EnvRow key={key}>
                     <FormInput
                       type="text"
                       value={key}
                       onChange={(e) => {
                         const newKey = e.target.value;
-                        const newEnv = { ...editingServer.env };
+                        const newEnv = { ...editingInstance.env };
                         delete newEnv[key];
                         if (newKey) newEnv[newKey] = value;
-                        setEditingServer({ ...editingServer, env: newEnv });
+                        setEditingInstance({ ...editingInstance, env: newEnv });
                       }}
                       placeholder="Variable name"
                     />
                     <FormInput
                       type="text"
-                      value={value}
+                      value={String(value)}
                       onChange={(e) => handleEnvChange(key, e.target.value)}
                       placeholder="Variable value"
                     />
@@ -359,49 +354,50 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
             )}
           </SettingsSection>
 
-          {/* Command Configuration - Collapsed by default */}
+          {/* Configuration Variables */}
           <SettingsSection>
-            <SectionHeader onClick={() => toggleSection('command')}>
-              <SectionTitle>Command Configuration</SectionTitle>
-              <SectionToggle $expanded={expandedSections.command}>
+            <SectionHeader onClick={() => toggleSection('conf')}>
+              <SectionTitle>Configuration</SectionTitle>
+              <SectionToggle $expanded={expandedSections.conf}>
                 <Icon icon="lucide:chevron-down" width={20} height={20} />
               </SectionToggle>
             </SectionHeader>
-            {expandedSections.command && (
+            {expandedSections.conf && (
               <SectionContent>
-                <FormGroup>
-                  <FormLabel>Command</FormLabel>
-                  <FormInput
-                    type="text"
-                    value={editingServer.command}
-                    onChange={(e) => handleFieldChange('command', e.target.value)}
-                  />
-                </FormGroup>
-                <FormGroup>
-                  <FormLabel>Arguments</FormLabel>
-                  {editingServer.args.map((arg, index) => (
-                    <ArgRow key={index}>
-                      <FormInput
-                        type="text"
-                        value={arg}
-                        onChange={(e) => handleArgsChange(index, e.target.value)}
-                        placeholder={`Argument ${index + 1}`}
-                      />
-                      <RemoveButton onClick={() => removeArg(index)}>
-                        <Icon icon="lucide:x" width={16} height={16} />
-                      </RemoveButton>
-                    </ArgRow>
-                  ))}
-                  <AddButton onClick={addArg}>
-                    <Icon icon="lucide:plus" width={16} height={16} />
-                    Add Argument
-                  </AddButton>
-                </FormGroup>
+                {Object.entries(editingInstance.conf).map(([key, value]) => (
+                  <EnvRow key={key}>
+                    <FormInput
+                      type="text"
+                      value={key}
+                      onChange={(e) => {
+                        const newKey = e.target.value;
+                        const newConf = { ...editingInstance.conf };
+                        delete newConf[key];
+                        if (newKey) newConf[newKey] = value;
+                        setEditingInstance({ ...editingInstance, conf: newConf });
+                      }}
+                      placeholder="Config key"
+                    />
+                    <FormInput
+                      type="text"
+                      value={String(value)}
+                      onChange={(e) => handleConfChange(key, e.target.value)}
+                      placeholder="Config value"
+                    />
+                    <RemoveButton onClick={() => handleConfChange(key, '')}>
+                      <Icon icon="lucide:x" width={16} height={16} />
+                    </RemoveButton>
+                  </EnvRow>
+                ))}
+                <AddButton onClick={addConfVariable}>
+                  <Icon icon="lucide:plus" width={16} height={16} />
+                  Add Configuration
+                </AddButton>
               </SectionContent>
             )}
           </SettingsSection>
 
-          {/* Basic Information - Collapsed by default */}
+          {/* Basic Information */}
           <SettingsSection>
             <SectionHeader onClick={() => toggleSection('basic')}>
               <SectionTitle>Basic Information</SectionTitle>
@@ -412,44 +408,27 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
             {expandedSections.basic && (
               <SectionContent>
                 <FormGroup>
+                  <FormLabel>Instance ID</FormLabel>
+                  <FormInput
+                    type="text"
+                    value={editingInstance.id}
+                    onChange={(e) => setEditingInstance({ ...editingInstance, id: e.target.value })}
+                  />
+                </FormGroup>
+                <FormGroup>
                   <FormLabel>Server ID</FormLabel>
                   <FormInput
                     type="text"
-                    value={editingServer.id}
-                    onChange={(e) => handleFieldChange('id', e.target.value)}
+                    value={editingInstance.serverId}
+                    onChange={(e) => setEditingInstance({ ...editingInstance, serverId: e.target.value })}
                   />
                 </FormGroup>
                 <FormGroup>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Enabled</FormLabel>
                   <FormInput
-                    type="text"
-                    value={editingServer.name}
-                    onChange={(e) => handleFieldChange('name', e.target.value)}
-                  />
-                </FormGroup>
-                <FormGroup>
-                  <FormLabel>Description</FormLabel>
-                  <FormTextArea
-                    value={editingServer.description}
-                    onChange={(e) => handleFieldChange('description', e.target.value)}
-                    rows={3}
-                  />
-                </FormGroup>
-                <FormGroup>
-                  <FormLabel>Icon</FormLabel>
-                  <FormInput
-                    type="text"
-                    value={editingServer.icon}
-                    onChange={(e) => handleFieldChange('icon', e.target.value)}
-                    placeholder="e.g., logos:gmail"
-                  />
-                </FormGroup>
-                <FormGroup>
-                  <FormLabel>Category</FormLabel>
-                  <FormInput
-                    type="text"
-                    value={editingServer.category}
-                    onChange={(e) => handleFieldChange('category', e.target.value)}
+                    type="checkbox"
+                    checked={editingInstance.enabled}
+                    onChange={(e) => setEditingInstance({ ...editingInstance, enabled: e.target.checked })}
                   />
                 </FormGroup>
               </SectionContent>

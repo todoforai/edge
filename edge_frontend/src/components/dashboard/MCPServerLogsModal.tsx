@@ -1,10 +1,11 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPServer } from '../../shared/REST_types_shared';
+import type { MCPInstance } from '../../shared/REST_types_shared';
+import { getServerInfoFromRegistry } from '../../utils/mcpDataConverter';
 
 interface MCPServerLogsModalProps {
-  server: MCPServer;
+  instance: MCPInstance;
   onClose: () => void;
 }
 
@@ -30,16 +31,17 @@ const getMockLogs = (serverId: string): LogEntry[] => [
 ];
 
 export const MCPServerLogsModal: React.FC<MCPServerLogsModalProps> = ({
-  server,
+  instance,
   onClose
 }) => {
-  const logs = getMockLogs(server.id);
+  const logs = getMockLogs(instance.serverId);
+  const serverInfo = getServerInfoFromRegistry(instance.serverId);
 
   return (
     <ModalOverlay onClick={onClose}>
       <LogsModal onClick={(e) => e.stopPropagation()}>
         <ModalHeader>
-          <ModalTitle>Logs - {server.name}</ModalTitle>
+          <ModalTitle>Logs - {serverInfo.name || instance.serverId}</ModalTitle>
           <LogsActions>
             <ActionButton title="Clear Logs">
               <Icon icon="lucide:trash-2" width={16} height={16} />

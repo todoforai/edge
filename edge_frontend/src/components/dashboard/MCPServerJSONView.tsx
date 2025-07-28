@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPServer } from '../../shared/REST_types_shared';
+import type { MCPInstance } from '../../shared/REST_types_shared';
 
 const JsonError = styled.div`
   display: flex;
@@ -41,13 +41,13 @@ const JsonTextArea = styled.textarea`
 `;
 
 interface MCPServerJSONViewProps {
-  servers: MCPServer[];
-  onServersChange: (servers: MCPServer[]) => void;
+  instances: MCPInstance[];
+  onInstancesChange: (instances: MCPInstance[]) => void;
 }
 
 export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
-  servers,
-  onServersChange
+  instances,
+  onInstancesChange
 }) => {
   const [jsonContent, setJsonContent] = useState<string>('');
   const [jsonError, setJsonError] = useState<string>('');
@@ -56,9 +56,9 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
   // Initialize JSON content only when switching to JSON view for the first time
   useEffect(() => {
     if (jsonContent === '') {
-      setJsonContent(JSON.stringify(servers, null, 2));
+      setJsonContent(JSON.stringify(instances, null, 2));
     }
-  }, [servers]);
+  }, [instances]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -75,21 +75,22 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
     try {
       const parsed = JSON.parse(value);
       if (Array.isArray(parsed)) {
-        // Validate that each item has required fields
+        // Validate that each item has required MCPInstance fields
         const isValid = parsed.every(item => 
           item && typeof item === 'object' &&
           typeof item.id === 'string' &&
-          typeof item.name === 'string' &&
-          typeof item.description === 'string'
+          typeof item.serverId === 'string' &&
+          typeof item.enabled === 'boolean' &&
+          item.session && typeof item.session === 'object'
         );
         
         if (isValid) {
-          onServersChange(parsed);
+          onInstancesChange(parsed);
         } else {
-          setJsonError('Invalid server structure. Each server must have id, name, and description fields.');
+          setJsonError('Invalid instance structure. Each instance must have id, serverId, enabled, and session fields.');
         }
       } else {
-        setJsonError('JSON must be an array of servers.');
+        setJsonError('JSON must be an array of MCP instances.');
       }
     } catch (error) {
       setJsonError('Invalid JSON syntax');

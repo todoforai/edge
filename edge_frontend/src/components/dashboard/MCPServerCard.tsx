@@ -1,7 +1,8 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPServer } from './types/MCPServer';
+import type { MCPInstance, MCPRunningStatus } from '../../shared/REST_types_shared';
+import { getServerInfoFromRegistry } from '../../utils/mcpDataConverter';
 
 const ServerCard = styled.div`
   border: 1px solid ${props => props.theme.colors.borderColor};
@@ -89,14 +90,13 @@ const StatusDropdown = styled.div`
   position: relative;
 `;
 
-const StatusSelect = styled.select<{ $status: MCPServer['status'] }>`
+const StatusSelect = styled.select<{ $status: MCPRunningStatus }>`
   appearance: none;
   background: ${props => {
     switch (props.$status) {
-      case 'running': return '#4CAF50';
-      case 'installed': return '#2196F3';
-      case 'stopped': return '#FF9800';
-      case 'uninstalled': return '#9E9E9E';
+      case 'RUNNING': return '#4CAF50';
+      case 'STOPPED': return '#FF9800';
+      case 'ERROR': return '#f44336';
       default: return '#9E9E9E';
     }
   }};
@@ -134,52 +134,56 @@ const ServerDescription = styled.p`
 `;
 
 interface MCPServerCardProps {
-  server: MCPServer;
-  onStatusChange: (serverId: string, newStatus: MCPServer['status']) => void;
-  onViewLogs: (server: MCPServer) => void;
-  onOpenSettings: (server: MCPServer) => void;
+  instance: MCPInstance;
+  onStatusChange: (instanceId: string, newStatus: MCPRunningStatus) => void;
+  onViewLogs: (instance: MCPInstance) => void;
+  onOpenSettings: (instance: MCPInstance) => void;
   showCategory?: boolean;
 }
 
 export const MCPServerCard: React.FC<MCPServerCardProps> = ({
-  server,
+  instance,
   onStatusChange,
   onViewLogs,
   onOpenSettings,
   showCategory = false
 }) => {
+  const serverInfo = getServerInfoFromRegistry(instance.serverId);
+  
+  // Default status if session is undefined
+  const currentStatus = instance.session?.status || 'STOPPED';
+
   return (
     <ServerCard>
       <ServerHeader>
         <ServerIcon>
-          <Icon icon={server.icon} width={24} height={24} />
+          <Icon icon={typeof serverInfo.icon === 'string' ? serverInfo.icon : serverInfo.icon?.light || 'lucide:server'} width={24} height={24} />
         </ServerIcon>
         <ServerTitleRow>
-          <ServerName>{server.name}</ServerName>
-          {showCategory && <ServerCategory>{server.category}</ServerCategory>}
+          <ServerName>{serverInfo.name || `${instance.serverId} MCP`}</ServerName>
+          {showCategory && <ServerCategory>{serverInfo.category?.[0] || 'Unknown'}</ServerCategory>}
           <ServerActions>
-            <ActionButton onClick={() => onViewLogs(server)} title="View Logs">
+            <ActionButton onClick={() => onViewLogs(instance)} title="View Logs">
               <Icon icon="lucide:terminal" width={16} height={16} />
             </ActionButton>
-            <ActionButton onClick={() => onOpenSettings(server)} title="Settings">
+            <ActionButton onClick={() => onOpenSettings(instance)} title="Settings">
               <Icon icon="lucide:settings" width={16} height={16} />
             </ActionButton>
             <StatusDropdown>
               <StatusSelect
-                value={server.status}
-                onChange={(e) => onStatusChange(server.id, e.target.value as MCPServer['status'])}
-                $status={server.status}
+                value={currentStatus}
+                onChange={(e) => onStatusChange(instance.id, e.target.value as MCPRunningStatus)}
+                $status={currentStatus}
               >
-                <option value="uninstalled">Uninstalled</option>
-                <option value="installed">Installed</option>
-                <option value="running">Running</option>
-                <option value="stopped">Stopped</option>
+                <option value="STOPPED">Stopped</option>
+                <option value="RUNNING">Running</option>
+                <option value="ERROR">Error</option>
               </StatusSelect>
             </StatusDropdown>
           </ServerActions>
         </ServerTitleRow>
       </ServerHeader>
-      <ServerDescription>{server.description}</ServerDescription>
+      <ServerDescription>{serverInfo.description || `MCP server for ${instance.serverId}`}</ServerDescription>
     </ServerCard>
   );
 };
