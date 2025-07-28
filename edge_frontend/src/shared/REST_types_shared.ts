@@ -52,7 +52,7 @@ export interface EdgeMCP {
 }
 
 export interface EdgeData {
-  id: string;
+  edgeId: string;
   ownerId: string;
   name: string;
   status: EdgeStatus;
