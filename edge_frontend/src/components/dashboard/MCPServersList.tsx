@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPInstance, MCPJSON, MCPRunningStatus } from '../../shared/REST_types_shared';
+import { MCPRunningStatus, type MCPJSON, type MCPEdgeExecutable } from '../../shared/REST_types_shared';
 import { MOCK_MCP_REGISTRY } from './data/mcpServersData';
 import { MCPServerCard } from './MCPServerCard';
 import { MCPServerSettingsModal } from './MCPServerSettingsModal';
@@ -11,7 +11,6 @@ import { MCPServerJSONView } from './MCPServerJSONView';
 import { AddExtensionCard } from './AddExtensionCard';
 import { ActionBar } from './ActionBar';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
-import { getServerInfoFromRegistry } from '../../utils/mcpDataConverter';
 
 // Styled Components
 const Container = styled.div`
@@ -203,13 +202,13 @@ interface MCPServersListProps {
 
 const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeChange }) => {
   const { getMCPInstances, config } = useEdgeConfigStore();
-  const [instances, setInstances] = useState<MCPInstance[]>([]);
+  const [instances, setInstances] = useState<MCPEdgeExecutable[]>([]);
   const [registryServers, setRegistryServers] = useState<MCPJSON[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showInstallModal, setShowInstallModal] = useState<MCPJSON | null>(null);
-  const [showSettingsModal, setShowSettingsModal] = useState<MCPInstance | null>(null);
-  const [showLogsModal, setShowLogsModal] = useState<MCPInstance | null>(null);
+  const [showSettingsModal, setShowSettingsModal] = useState<MCPEdgeExecutable | null>(null);
+  const [showLogsModal, setShowLogsModal] = useState<MCPEdgeExecutable | null>(null);
   const [showExtensionsModal, setShowExtensionsModal] = useState<boolean>(false);
 
   // Load real MCP data from edge config and mock registry data
@@ -217,31 +216,40 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
     const mcpInstances = getMCPInstances();
     console.log("MCP Instances:", mcpInstances);
     
+    // Convert MCPInstance to MCPEdgeExecutable by adding status field
+    const executableInstances: MCPEdgeExecutable[] = mcpInstances.map(instance => ({
+      ...instance,
+      status: MCPRunningStatus.STOPPED
+    }));
+    
     // Use mock registry data
     setRegistryServers(MOCK_MCP_REGISTRY);
-    setInstances(mcpInstances);
+    setInstances(executableInstances);
     
-    console.log('MCP instances loaded:', mcpInstances);
+    console.log('MCP executable instances loaded:', executableInstances);
     console.log('Mock registry servers:', MOCK_MCP_REGISTRY);
-  }, [config.MCPs, getMCPInstances]);
+  }, [config.MCPinstances, getMCPInstances]);
 
   const handleStatusChange = (instanceId: string, newStatus: MCPRunningStatus) => {
     setInstances(prev => prev.map(instance => 
       instance.id === instanceId 
-        ? { ...instance, session: { ...instance.session, status: newStatus } }
+        ? { 
+            ...instance, 
+            status: newStatus,
+          }
         : instance
     ));
   };
 
-  const handleViewLogs = (instance: MCPInstance) => {
+  const handleViewLogs = (instance: MCPEdgeExecutable) => {
     setShowLogsModal(instance);
   };
 
-  const handleOpenSettings = (instance: MCPInstance) => {
+  const handleOpenSettings = (instance: MCPEdgeExecutable) => {
     setShowSettingsModal(instance);
   };
 
-  const handleSaveInstance = (updatedInstance: MCPInstance) => {
+  const handleSaveInstance = (updatedInstance: MCPEdgeExecutable) => {
     setInstances(prev => prev.map(instance => 
       instance.id === updatedInstance.id ? updatedInstance : instance
     ));
@@ -249,19 +257,15 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
   const handleInstallServer = (customId: string) => {
     if (showInstallModal) {
-      const newInstance: MCPInstance = {
-        id: customId || `${showInstallModal.id}-${Date.now()}`,
-        serverId: showInstallModal.id,
-        MCPRegistryID: showInstallModal.id,
+      const newInstance: MCPEdgeExecutable = {
+        id: customId || `${showInstallModal.serverId}-${Date.now()}`,
+        serverId: showInstallModal.serverId,
         tools: showInstallModal.tools || [],
         env: showInstallModal.env ? Object.fromEntries(showInstallModal.env.map(key => [key, ''])) : {},
         conf: showInstallModal.conf ? Object.fromEntries(showInstallModal.conf.map(key => [key, ''])) : {},
-        session: {
-          id: `session-${Date.now()}`,
-          MCPInstanceID: customId || `${showInstallModal.id}-${Date.now()}`,
-          status: 'STOPPED' as MCPRunningStatus
-        },
-        enabled: true
+        status: MCPRunningStatus.STOPPED,
+        enabled: true,
+        installed: true
       };
       
       setInstances(prev => [...prev, newInstance]);
@@ -272,7 +276,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   // Get unique categories from instances
   const getInstanceCategories = useMemo(() => {
     const categories = instances.map(instance => {
-      const serverInfo = getServerInfoFromRegistry(instance.serverId);
+      const serverInfo = instance;
       return serverInfo.category?.[0] || 'Unknown';
     });
     return ['All', ...Array.from(new Set(categories))];
@@ -280,20 +284,20 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
   // Filter instances
   const filteredInstances = instances.filter(instance => {
-    const serverInfo = getServerInfoFromRegistry(instance.serverId);
+    const serverInfo = instance;
     const category = serverInfo.category?.[0] || 'Unknown';
     const matchesCategory = selectedCategory === 'All' || category === selectedCategory;
     const matchesSearch = 
       serverInfo.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       serverInfo.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      instance.serverId.toLowerCase().includes(searchTerm.toLowerCase());
+      instance.serverId?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
   // Available servers for installation (from registry)
   const availableServers = useMemo(() => 
     registryServers.filter(registry => 
-      !instances.some(instance => instance.serverId === registry.id)
+      !instances.some(instance => instance.serverId === registry.serverId)
     ), [registryServers, instances]);
 
   const availableCategories = useMemo(() => 
@@ -368,7 +372,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
       {showExtensionsModal && (
         <ExtensionsModal
-          servers={availableUninstalledServers}
+          servers={availableServers}
           categories={availableCategories}
           onClose={() => setShowExtensionsModal(false)}
           onInstall={(registry) => {
@@ -406,8 +410,8 @@ const ExtensionsModal: React.FC<{
   const filteredServers = servers.filter(server => {
     const serverCategories = server.category || ['Other'];
     const matchesCategory = selectedCategory === 'All' || serverCategories.includes(selectedCategory);
-    const matchesSearch = server.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         server.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (server.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+                         (server.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
     return matchesCategory && matchesSearch;
   });
 
@@ -435,7 +439,7 @@ const ExtensionsModal: React.FC<{
 
           <ExtensionsGrid>
             {filteredServers.map((server, index) => (
-              <ExtensionCard key={server.id || `server-${index}`}>
+              <ExtensionCard key={server.serverId || `server-${index}`}>
                 <ExtensionIcon>
                   <Icon 
                     icon={typeof server.icon === 'string' ? server.icon : server.icon?.light || 'lucide:server'} 

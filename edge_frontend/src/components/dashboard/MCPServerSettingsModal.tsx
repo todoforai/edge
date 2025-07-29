@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPInstance } from '../../shared/REST_types_shared';
+import type { MCPEdgeExecutable } from '../../shared/REST_types_shared';
 
 
 // ... existing styled components from the original file ...
@@ -131,30 +131,8 @@ const FormInput = styled.input`
   }
 `;
 
-const FormTextArea = styled.textarea`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: 6px;
-  background: ${props => props.theme.colors.background};
-  color: ${props => props.theme.colors.foreground};
-  font-size: 14px;
-  resize: vertical;
-
-  &:focus {
-    outline: none;
-    border-color: ${props => props.theme.colors.primary};
-  }
-`;
 
 const EnvRow = styled.div`
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  align-items: center;
-`;
-
-const ArgRow = styled.div`
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
@@ -236,10 +214,11 @@ const ConfirmButton = styled.button`
   }
 `;
 
+
 interface MCPServerSettingsModalProps {
-  instance: MCPInstance;
+  instance: MCPEdgeExecutable;
   onClose: () => void;
-  onSave: (instance: MCPInstance) => void;
+  onSave: (instance: MCPEdgeExecutable) => void;
 }
 
 export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
@@ -247,7 +226,7 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
   onClose,
   onSave
 }) => {
-  const [editingInstance, setEditingInstance] = useState<MCPInstance>({ ...instance });
+  const [editingInstance, setEditingInstance] = useState<MCPEdgeExecutable>({ ...instance });
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     env: true, // Environment variables expanded by default
     conf: true, // Configuration expanded by default
@@ -321,7 +300,7 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
             </SectionHeader>
             {expandedSections.env && (
               <SectionContent>
-                {Object.entries(editingInstance.env).map(([key, value]) => (
+                {Object.entries(editingInstance.env || {}).map(([key, value]) => (
                   <EnvRow key={key}>
                     <FormInput
                       type="text"
@@ -364,7 +343,7 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
             </SectionHeader>
             {expandedSections.conf && (
               <SectionContent>
-                {Object.entries(editingInstance.conf).map(([key, value]) => (
+                {Object.entries(editingInstance.conf || {}).map(([key, value]) => (
                   <EnvRow key={key}>
                     <FormInput
                       type="text"

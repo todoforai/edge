@@ -2,7 +2,6 @@ import React from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
 import type { MCPInstance } from '../../shared/REST_types_shared';
-import { getServerInfoFromRegistry } from '../../utils/mcpDataConverter';
 
 interface MCPServerLogsModalProps {
   instance: MCPInstance;
@@ -34,8 +33,8 @@ export const MCPServerLogsModal: React.FC<MCPServerLogsModalProps> = ({
   instance,
   onClose
 }) => {
-  const logs = getMockLogs(instance.serverId);
-  const serverInfo = getServerInfoFromRegistry(instance.serverId);
+  const logs = getMockLogs(instance.id);
+  const serverInfo =instance;
 
   return (
     <ModalOverlay onClick={onClose}>

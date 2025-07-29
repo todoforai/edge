@@ -1,8 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import { type MCPInstance, MCPRunningStatus, type MCPEdgeExecutable } from '../../shared/REST_types_shared';
-import { getServerInfoFromRegistry } from '../../utils/mcpDataConverter';
+import { MCPRunningStatus, type MCPEdgeExecutable } from '../../shared/REST_types_shared';
 
 const ServerCard = styled.div`
   border: 1px solid ${props => props.theme.colors.borderColor};
@@ -149,7 +148,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   onOpenSettings,
   showCategory = false
 }) => {
-  const serverInfo = getServerInfoFromRegistry(instance.id);
+  const serverInfo =instance;
   
   // Use MCPRunningStatus.STOPPED as default instead of string literal
   const currentStatus = instance.status || MCPRunningStatus.STOPPED;
@@ -161,7 +160,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
           <Icon icon={typeof serverInfo.icon === 'string' ? serverInfo.icon : serverInfo.icon?.light || 'lucide:server'} width={24} height={24} />
         </ServerIcon>
         <ServerTitleRow>
-          <ServerName>{serverInfo.name || `${instance.serverId} MCP`}</ServerName>
+          <ServerName>{serverInfo.name}</ServerName>
           {showCategory && <ServerCategory>{serverInfo.category?.[0] || 'Unknown'}</ServerCategory>}
           <ServerActions>
             <ActionButton onClick={() => onViewLogs(instance)} title="View Logs">
@@ -185,7 +184,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
           </ServerActions>
         </ServerTitleRow>
       </ServerHeader>
-      <ServerDescription>{serverInfo.description || `MCP server for ${instance.serverId}`}</ServerDescription>
+      <ServerDescription>{serverInfo.description}</ServerDescription>
     </ServerCard>
   );
 };

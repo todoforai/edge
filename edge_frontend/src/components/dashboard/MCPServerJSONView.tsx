@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPInstance, MCPRunningStatus } from '../../shared/REST_types_shared';
-import { MOCK_MCP_REGISTRY } from './data/mcpServersData';
+import { MCPRunningStatus, type MCPEdgeExecutable } from '../../shared/REST_types_shared';
 
 const JsonError = styled.div`
   display: flex;
@@ -41,9 +40,10 @@ const JsonTextArea = styled.textarea`
   }
 `;
 
+
 interface MCPServerJSONViewProps {
-  instances: MCPInstance[];
-  onInstancesChange: (instances: MCPInstance[]) => void;
+  instances: MCPEdgeExecutable[];
+  onInstancesChange: (instances: MCPEdgeExecutable[]) => void;
 }
 
 export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
@@ -53,22 +53,23 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
   const [jsonContent, setJsonContent] = useState<string>('');
   const [jsonError, setJsonError] = useState<string>('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
   // Convert instances to configurable-only format with serverId as key
-  const getConfigurableData = (instances: MCPInstance[]) => {
+  const getConfigurableData = (instances: MCPEdgeExecutable[]) => {
     const result: Record<string, any> = {};
     instances.forEach(instance => {
-      result[instance.serverId] = {
-        MCPRegistryID: instance.MCPRegistryID,
+      result[instance.id] = {
         env: instance.env,
         conf: instance.conf,
-        enabled: instance.enabled
+        enabled: instance.enabled,
+        status: instance.status
       };
     });
     return result;
   };
 
   // Convert configurable data back to full instances
-  const mergeWithExistingData = (configurableData: Record<string, any>, originalInstances: MCPInstance[]) => {
+  const mergeWithExistingData = (configurableData: Record<string, any>, originalInstances: MCPEdgeExecutable[]) => {
     const usedOriginalIds = new Set<string>();
     
     const result = Object.entries(configurableData).map(([serverId, configData]) => {
@@ -80,28 +81,26 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
         originalInstance = {
           id: `instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           serverId: serverId,
-          MCPRegistryID: serverId,
           tools: [],
           env: {},
           conf: {},
-          session: {
-            id: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            MCPInstanceID: `instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            status: 'STOPPED' as MCPRunningStatus
-          },
-          enabled: true
+          status: MCPRunningStatus.STOPPED,
+          enabled: true,
+          installed: false
         };
       }
       
       usedOriginalIds.add(originalInstance.id);
       
+      const newStatus = configData.status || MCPRunningStatus.STOPPED;
+      
       return {
         ...originalInstance,
         serverId: serverId, // Use key as serverId (allows changing server type)
-        MCPRegistryID: configData.MCPRegistryID || serverId,
         env: configData.env || {},
         conf: configData.conf || {},
-        enabled: configData.enabled
+        enabled: configData.enabled,
+        status: newStatus,
       };
     });
 
@@ -134,7 +133,9 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
         // Validate that each entry has required configurable fields
         const isValid = Object.entries(parsed).every(([serverId, item]) => 
           item && typeof item === 'object' &&
-          typeof item.enabled === 'boolean' &&
+          typeof (item as any).enabled === 'boolean' &&
+          typeof (item as any).installed === 'boolean' &&
+          typeof (item as any).status === 'string' &&
           typeof serverId === 'string'
         );
         
