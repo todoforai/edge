@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPInstance, MCPRunningStatus } from '../../shared/REST_types_shared';
+import { type MCPInstance, MCPRunningStatus, type MCPEdgeExecutable } from '../../shared/REST_types_shared';
 import { getServerInfoFromRegistry } from '../../utils/mcpDataConverter';
 
 const ServerCard = styled.div`
@@ -135,10 +135,10 @@ const ServerDescription = styled.p`
 `;
 
 interface MCPServerCardProps {
-  instance: MCPInstance;
+  instance: MCPEdgeExecutable;
   onStatusChange: (instanceId: string, newStatus: MCPRunningStatus) => void;
-  onViewLogs: (instance: MCPInstance) => void;
-  onOpenSettings: (instance: MCPInstance) => void;
+  onViewLogs: (instance: MCPEdgeExecutable) => void;
+  onOpenSettings: (instance: MCPEdgeExecutable) => void;
   showCategory?: boolean;
 }
 
@@ -149,10 +149,10 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   onOpenSettings,
   showCategory = false
 }) => {
-  const serverInfo = getServerInfoFromRegistry(instance.serverId);
+  const serverInfo = getServerInfoFromRegistry(instance.id);
   
-  // Default status if session is undefined
-  const currentStatus = instance.session?.status || 'STOPPED';
+  // Use MCPRunningStatus.STOPPED as default instead of string literal
+  const currentStatus = instance.status || MCPRunningStatus.STOPPED;
 
   return (
     <ServerCard>

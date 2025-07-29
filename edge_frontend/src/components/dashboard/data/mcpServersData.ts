@@ -2,7 +2,7 @@ import type { MCPJSON } from '../../../shared/REST_types_shared';
 
 export const MOCK_MCP_REGISTRY: MCPJSON[] = [
   {
-    id: 'gmail',
+    serverId: 'gmail',
     name: 'Gmail MCP',
     description: 'Access and manage Gmail emails with full authentication support',
     command: 'npx',
@@ -22,7 +22,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
-    id: 'puppeteer',
+    serverId: 'puppeteer',
     name: 'Puppeteer MCP',
     description: 'Web automation and scraping using Puppeteer browser control',
     command: 'node',
@@ -41,7 +41,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
-    id: 'pdf-filler',
+    serverId: 'pdf-filler',
     name: 'PDF Filler',
     description: 'Fill PDF forms with Claude Desktop integration',
     command: 'npx',
@@ -60,7 +60,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
-    id: 'windows-mcp',
+    serverId: 'windows-mcp',
     name: 'Windows MCP',
     description: 'Lightweight MCP Server that enables Claude to interact with Windows OS',
     command: 'npx',
@@ -79,7 +79,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
-    id: 'macos-control',
+    serverId: 'macos-control',
     name: 'Control your Mac',
     description: 'Execute AppleScript to automate tasks on macOS',
     command: 'npx',
@@ -98,7 +98,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
-    id: 'spotify-applescript',
+    serverId: 'spotify-applescript',
     name: 'Spotify (AppleScript)',
     description: 'Control Spotify via AppleScript',
     command: 'npx',
@@ -117,7 +117,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
-    id: 'enrichr-mcp',
+    serverId: 'enrichr-mcp',
     name: 'Enrichr MCP Server',
     description: 'Gene set enrichment analysis using Enrichr API with multi-library support',
     command: 'npx',
@@ -136,7 +136,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
-    id: 'stripe',
+    serverId: 'stripe',
     name: 'Stripe',
     description: 'Manage resources in your Stripe account and search the Stripe documentation',
     command: 'npx',
@@ -156,7 +156,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
-    id: 'brave-applescript',
+    serverId: 'brave-applescript',
     name: 'Brave (AppleScript)',
     description: 'Control Brave Browser tabs, windows, and navigation',
     command: 'npx',
@@ -175,7 +175,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
-    id: 'airtable-mcp',
+    serverId: 'airtable-mcp',
     name: 'Airtable MCP Server',
     description: 'Read and write access to Airtable databases via the Model Context Protocol',
     command: 'npx',
@@ -195,7 +195,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
-    id: 'cucumber-studio',
+    serverId: 'cucumber-studio',
     name: 'Cucumber Studio MCP',
     description: 'MCP server for Cucumber Studio API integration - access test scenarios, features, and projects',
     command: 'npx',
@@ -215,7 +215,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
-    id: 'socket-mcp',
+    serverId: 'socket-mcp',
     name: 'Socket MCP Server',
     description: 'Socket MCP server for scanning dependencies and security analysis',
     command: 'npx',
