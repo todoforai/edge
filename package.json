@@ -6,6 +6,7 @@
     "lint": "cd edge_frontend && yarn lint",
     "preview": "cd edge_frontend && yarn preview",
     "tauri": "cd edge_frontend && yarn tauri:dev",
+    "tauri:build": "cd edge_frontend && yarn tauri build",
     "install:deb": "cd edge_frontend && yarn install:deb"
   }
 }

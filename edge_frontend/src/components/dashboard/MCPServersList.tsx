@@ -368,7 +368,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
       {showExtensionsModal && (
         <ExtensionsModal
-          servers={availableServers}
+          servers={availableUninstalledServers}
           categories={availableCategories}
           onClose={() => setShowExtensionsModal(false)}
           onInstall={(registry) => {

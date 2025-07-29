@@ -94,9 +94,10 @@ const StatusSelect = styled.select<{ $status: MCPRunningStatus }>`
   appearance: none;
   background: ${props => {
     switch (props.$status) {
-      case 'RUNNING': return '#4CAF50';
-      case 'STOPPED': return '#FF9800';
-      case 'ERROR': return '#f44336';
+      case MCPRunningStatus.RUNNING: return '#4CAF50';
+      case MCPRunningStatus.INSTALLED: return '#2196F3';
+      case MCPRunningStatus.STOPPED: return '#FF9800';
+      case MCPRunningStatus.UNINSTALLED: return '#9E9E9E';
       default: return '#9E9E9E';
     }
   }};
@@ -175,9 +176,10 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
                 onChange={(e) => onStatusChange(instance.id, e.target.value as MCPRunningStatus)}
                 $status={currentStatus}
               >
-                <option value="STOPPED">Stopped</option>
-                <option value="RUNNING">Running</option>
-                <option value="ERROR">Error</option>
+                <option value={MCPRunningStatus.UNINSTALLED}>Uninstalled</option>
+                <option value={MCPRunningStatus.INSTALLED}>Installed</option>
+                <option value={MCPRunningStatus.RUNNING}>Running</option>
+                <option value={MCPRunningStatus.STOPPED}>Stopped</option>
               </StatusSelect>
             </StatusDropdown>
           </ServerActions>

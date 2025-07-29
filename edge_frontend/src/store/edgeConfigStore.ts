@@ -31,7 +31,7 @@ interface EdgeConfigState {
 
 // Default empty config
 const defaultConfig: EdgeData = {
-  id: '',
+  edgeId: '',
   name: 'Unknown Edge',
   workspacepaths: [],
   ownerId: '',

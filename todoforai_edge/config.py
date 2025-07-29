@@ -17,14 +17,16 @@ def get_ws_url(api_url=DEFAULT_API_URL):
     elif url.startswith("localhost"):
         return "ws://" + url + "/ws/v1/edge"
     else:
-        raise ValueError('WHUT? url:', url)
+        # Default to secure WebSocket for unknown formats
+        return f"wss://{url}/ws/v1/edge"
     
 class Config:
     """Simple configuration class for TodoForAI Edge"""
     
     def __init__(self):
         # Core settings with environment variable fallbacks
-        self.api_url = os.environ.get("TODO4AI_API_URL", DEFAULT_API_URL)
+        api_url_env = os.environ.get("TODO4AI_API_URL", "")
+        self.api_url = api_url_env if api_url_env.strip() else DEFAULT_API_URL
         self.debug = os.environ.get("TODO4AI_DEBUG", "").lower() in ("true", "1", "yes")
         self.log_level = "INFO"
         
@@ -32,8 +34,6 @@ class Config:
         self.email = os.environ.get("TODO4AI_EMAIL", "")
         self.password = os.environ.get("TODO4AI_PASSWORD", "")
         self.api_key = os.environ.get("TODO4AI_API_KEY", "")
-        
-
             
     def update_from_args(self, args):
         """Update configuration from parsed arguments"""

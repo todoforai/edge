@@ -7,6 +7,6 @@ export interface EdgeUpdateData {
   isFileSystemEnabled?: boolean;
 }
 
-export const renameEdge = async (edgeId: string, name: string) => {
+export const renameEdge = async (name: string) => {
     await pythonService.callPython('update_edge_config', { name });
 };

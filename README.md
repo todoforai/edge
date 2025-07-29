@@ -17,21 +17,20 @@ This is a Python client for the TODO for AI service that runs as a background ta
 
 Recommended guide: [Connect PC](https://todofor.ai/connect-pc)
 
-
-### Download Prebuilt Executables (Recommended)
-
-Download the appropriate file for your system:
-- Windows: [todoforai-edge.exe](https://todoforai-edge.r2.cloudflarestorage.com/edge/latest/todoforai-edge.exe)
-- macOS: [todoforai-edge-mac](https://todoforai-edge.r2.cloudflarestorage.com/edge/latest/todoforai-edge-mac)
-- Linux: [todoforai-edge-linux](https://todoforai-edge.r2.cloudflarestorage.com/edge/latest/todoforai-edge-linux)
-
-For more information, visit our [download page](https://todoforai.com/downloads).
-
-### From PyPI
+### From PyPI (Recommended)
 
 ```bash
-pip install todoforai-edge
+pip install todoforai-edge-cli
 ```
+
+### Download Prebuilt Executables
+
+Download the appropriate file for your system:
+- Windows: [todoforai-edge-windows-x64.msi](https://todoforai-edge.r2.cloudflarestorage.com/edge/latest/todoforai-edge-windows-x64.msi)
+- macOS: [todoforai-edge-macos-arm64.dmg](https://todoforai-edge.r2.cloudflarestorage.com/edge/latest/todoforai-edge-macos-arm64.dmg) (Apple Silicon) / [todoforai-edge-macos-x64.dmg](https://todoforai-edge.r2.cloudflarestorage.com/edge/latest/todoforai-edge-macos-x64.dmg) (Intel)
+- Linux: [todoforai-edge-linux-x64.AppImage](https://todoforai-edge.r2.cloudflarestorage.com/edge/latest/todoforai-edge-linux-x64.AppImage) / [todoforai-edge-linux-x64.deb](https://todoforai-edge.r2.cloudflarestorage.com/edge/latest/todoforai-edge-linux-x64.deb)
+
+For more information, visit our [download page](https://todoforai.com/downloads).
 
 ### From Source
 
@@ -54,24 +53,25 @@ sudo snap install todoforai-edge
 By default, TODO for AI Edge starts with a graphical user interface for easy authentication and monitoring:
 
 ```bash
-# Simply run the client to start the UI
-todoforai-edge
+# Simply run the client to start the CLI
+todoforai-edge-cli
 ```
 
 The UI provides:
 - Authentication via email/password or API key
 - Client status monitoring
 - Start/stop controls for the client
+
 ### Command Line Interface (No UI Mode)
 
 For automation, headless environments, or server deployments:
 
 ```bash
 # Using email/password authentication
-todoforai-edge --no-ui --email your@email.com --password yourpassword
+todoforai-edge-cli --email your@email.com --password yourpassword
 
 # Using an existing API key
-todoforai-edge --no-ui --apikey your-api-key
+todoforai-edge-cli --no-ui --apikey your-api-key
 ```
 
 ### Environment Variables

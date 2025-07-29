@@ -101,40 +101,78 @@ jobs:
     # Sign the sidecar executable on Windows using remote signing service
     - name: Sign sidecar executable
       if: matrix.os == 'windows-latest'
+      continue-on-error: true
+      id: sign-sidecar
       run: |
         if (Test-Path "dist/todoforai-edge-sidecar.exe") {
           Write-Host "Signing sidecar executable using remote service..."
-          $originalSize = (Get-Item "dist/todoforai-edge-sidecar.exe").Length
+          $originalPath = "dist/todoforai-edge-sidecar.exe"
+          $signedPath = "dist/todoforai-edge-sidecar.signed.exe"
+          
+          $originalSize = (Get-Item $originalPath).Length
           Write-Host "Original sidecar size: $($originalSize / 1MB) MB"
           
-          # Use curl.exe explicitly to avoid PowerShell alias
-          & curl.exe -X POST -H "Authorization: Bearer $env:SIGNING_API_KEY" -F "file=@dist/todoforai-edge-sidecar.exe" "$env:SIGNING_SERVICE_URL/sign" -o "dist/todoforai-edge-sidecar.signed.exe"
+          # Check if signing service is available first
+          Write-Host "Checking signing service availability..."
+          & curl.exe -f -s -H "Authorization: Bearer $env:SIGNING_API_KEY" "$env:SIGNING_SERVICE_URL/status" -o "service_status.json"
           
-          if ($LASTEXITCODE -eq 0 -and (Test-Path "dist/todoforai-edge-sidecar.signed.exe")) {
-            $signedSize = (Get-Item "dist/todoforai-edge-sidecar.signed.exe").Length
-            Write-Host "Signed sidecar size: $($signedSize / 1MB) MB"
+          if ($LASTEXITCODE -eq 0 -and (Test-Path "service_status.json")) {
+            Write-Host "✅ Signing service is available"
+            Remove-Item "service_status.json" -ErrorAction SilentlyContinue
             
-            Move-Item "dist/todoforai-edge-sidecar.signed.exe" "dist/todoforai-edge-sidecar.exe" -Force
-            Write-Host "Successfully signed sidecar executable"
+            # Attempt signing - download to separate file
+            & curl.exe -f -X POST -H "Authorization: Bearer $env:SIGNING_API_KEY" -F "file=@$originalPath" "$env:SIGNING_SERVICE_URL/sign" -o $signedPath
             
-            # Verify the signature using Windows built-in tools
-            Write-Host "Verifying sidecar signature..."
-            $sig = Get-AuthenticodeSignature "dist/todoforai-edge-sidecar.exe"
-            Write-Host "Signature Status: $($sig.Status)"
-            Write-Host "Signer Certificate Subject: $($sig.SignerCertificate.Subject)"
-            
-            if ($sig.Status -eq "Valid") {
-              Write-Host "✅ Sidecar signature is valid" -ForegroundColor Green
+            if ($LASTEXITCODE -eq 0 -and (Test-Path $signedPath)) {
+              $signedSize = (Get-Item $signedPath).Length
+              Write-Host "Downloaded signed file size: $($signedSize / 1MB) MB"
+              
+              # Strict validation: signed file should be similar size or larger
+              if ($signedSize -gt ($originalSize * 0.95) -and $signedSize -lt ($originalSize * 1.5)) {
+                # Additional validation: check if it's actually an executable
+                $fileHeader = [System.IO.File]::ReadAllBytes($signedPath)[0..1]
+                if ($fileHeader[0] -eq 0x4D -and $fileHeader[1] -eq 0x5A) {  # "MZ" header
+                  # Replace original with signed version
+                  Move-Item $signedPath $originalPath -Force
+                  Write-Host "✅ Successfully signed sidecar executable"
+                  echo "SIDECAR_SIGNED=true" >> $env:GITHUB_OUTPUT
+                  
+                  # Verify the signature
+                  $sig = Get-AuthenticodeSignature $originalPath
+                  Write-Host "Signature Status: $($sig.Status)"
+                  if ($sig.Status -eq "Valid") {
+                    Write-Host "✅ Sidecar signature is valid" -ForegroundColor Green
+                  } else {
+                    Write-Warning "⚠️ Sidecar signature status: $($sig.Status)"
+                  }
+                } else {
+                  Write-Warning "⚠️ Signed file is not a valid executable (wrong header)"
+                  Remove-Item $signedPath -ErrorAction SilentlyContinue
+                  echo "SIDECAR_SIGNED=false" >> $env:GITHUB_OUTPUT
+                }
+              } else {
+                Write-Warning "⚠️ Signed file size suspicious ($signedSize vs $originalSize bytes) - likely an error response"
+                Remove-Item $signedPath -ErrorAction SilentlyContinue
+                echo "SIDECAR_SIGNED=false" >> $env:GITHUB_OUTPUT
+              }
             } else {
-              Write-Warning "⚠️ Sidecar signature status: $($sig.Status)"
+              Write-Warning "⚠️ curl failed (exit code: $LASTEXITCODE) or signed file not created"
+              echo "SIDECAR_SIGNED=false" >> $env:GITHUB_OUTPUT
             }
           } else {
-            Write-Error "Failed to sign sidecar executable"
-            exit 1
+            Write-Warning "⚠️ Signing service unavailable (exit code: $LASTEXITCODE)"
+            Remove-Item "service_status.json" -ErrorAction SilentlyContinue
+            echo "SIDECAR_SIGNED=false" >> $env:GITHUB_OUTPUT
           }
+          
+          # Clean up any leftover signed file if validation failed
+          if (Test-Path $signedPath) {
+            Remove-Item $signedPath -ErrorAction SilentlyContinue
+          }
+          
         } else {
           Write-Warning "Sidecar executable not found at dist/todoforai-edge-sidecar.exe"
-          exit 1
+          echo "SIDECAR_SIGNED=false" >> $env:GITHUB_OUTPUT
         }
       env:
         SIGNING_SERVICE_URL: ${{ secrets.SIGNING_SERVICE_URL }}
@@ -223,25 +261,41 @@ jobs:
         python -m build --wheel --sdist
       shell: bash
 
-    # Sign MSI installer using remote signing service
+    # Sign MSI installer using remote signing service  
     - name: Sign MSI installer
       if: matrix.os == 'windows-latest'
+      continue-on-error: true
+      id: sign-msi
       run: |
         $msiPath = Get-ChildItem -Path "edge_frontend/src-tauri/target/release/bundle/msi" -Filter "*.msi" | Select-Object -First 1 -ExpandProperty FullName
         if ($msiPath) {
-          $msiName = [System.IO.Path]::GetFileName($msiPath)
+          $originalSize = (Get-Item "$msiPath").Length
           $signedMsiPath = [System.IO.Path]::ChangeExtension($msiPath, ".signed.msi")
-          Write-Host "Signing MSI installer using remote service: $msiPath"
-          # Use curl.exe explicitly to avoid PowerShell alias
-          & curl.exe -X POST -H "Authorization: Bearer $env:SIGNING_API_KEY" -F "file=@$msiPath" "$env:SIGNING_SERVICE_URL/sign" -o "$signedMsiPath"
-          if ($LASTEXITCODE -eq 0) {
-            Move-Item "$signedMsiPath" "$msiPath" -Force
-            Write-Host "Successfully signed MSI installer"
+          Write-Host "Signing MSI installer: $msiPath ($(($originalSize / 1MB).ToString('F1')) MB)"
+          
+          & curl.exe -f -X POST -H "Authorization: Bearer $env:SIGNING_API_KEY" -F "file=@$msiPath" "$env:SIGNING_SERVICE_URL/sign" -o "$signedMsiPath"
+          
+          if ($LASTEXITCODE -eq 0 -and (Test-Path "$signedMsiPath")) {
+            $signedSize = (Get-Item "$signedMsiPath").Length
+            Write-Host "Downloaded signed MSI size: $(($signedSize / 1MB).ToString('F1')) MB"
+            
+            # Validate signed MSI is reasonable size
+            if ($signedSize -gt ($originalSize * 0.9)) {
+              Move-Item "$signedMsiPath" "$msiPath" -Force
+              Write-Host "✅ Successfully signed MSI installer"
+              echo "MSI_SIGNED=true" >> $env:GITHUB_OUTPUT
+            } else {
+              Write-Warning "⚠️ Signed MSI too small - likely an error response"
+              Remove-Item "$signedMsiPath" -ErrorAction SilentlyContinue
+              echo "MSI_SIGNED=false" >> $env:GITHUB_OUTPUT
+            }
           } else {
-            Write-Error "Failed to sign MSI installer"
+            Write-Warning "⚠️ MSI signing failed (curl exit code: $LASTEXITCODE)"
+            echo "MSI_SIGNED=false" >> $env:GITHUB_OUTPUT
           }
         } else {
-          Write-Warning "MSI installer not found in edge_frontend/src-tauri/target/release/bundle/msi"
+          Write-Warning "MSI installer not found"
+          echo "MSI_SIGNED=false" >> $env:GITHUB_OUTPUT
         }
       env:
         SIGNING_SERVICE_URL: ${{ secrets.SIGNING_SERVICE_URL }}
@@ -510,3 +564,29 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       with:
         files: uploads/*
+
+  # New job for PyPI deployment - directly to production
+  deploy-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/prod'  # Deploy on both version tags and prod branch
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Download Python distribution artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: todoforai-edge-python-dist
+        path: dist/
+    
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        verbose: true

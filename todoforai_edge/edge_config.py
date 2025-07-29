@@ -135,28 +135,36 @@ class EdgeConfig:
 
     def set_edge_mcps(self, tools: List[Dict[str, Any]]) -> None:
         """Backend: Convert directly to final format"""
-        servers: List[EdgeMCP] = []
+        servers: List[Dict[str, Any]] = []
         grouped: Dict[str, List[Dict[str, Any]]] = self._group_tools_by_server(tools)
         
         for server_id, server_tools in grouped.items():
             # Remove server_id from individual tools before adding to server
-            clean_tools: List[MCPToolSkeleton] = []
+            clean_tools: List[Dict[str, Any]] = []
             for tool in server_tools:
-                clean_tool: MCPToolSkeleton = {
+                clean_tool = {
                     "name": tool["name"],
                     "description": tool["description"], 
                     "inputSchema": tool["inputSchema"]
                 }
                 clean_tools.append(clean_tool)
             
-            server: EdgeMCP = {
+            # Create server as a regular dict to ensure proper JSON serialization
+            server = {
                 'serverId': server_id,
                 'tools': clean_tools,
-                'status': 'STOPPED',
+                'status': 'UNINSTALLED', 
                 'enabled': True,
                 'env': {'isActive': True},
                 'config': {'isActive': True}
             }
             servers.append(server)
         
-        self.config.update_value({"MCPs": servers})
+        # Add debugging to see what we're actually setting
+        logger.info(f"Setting MCPs: {servers}")
+        
+        # Ensure we're passing a properly serializable dictionary
+        update_data = {"MCPs": servers}
+        logger.info(f"Update data: {update_data}")
+        
+        self.config.update_value(update_data)

@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "todoforai_edge_cli"
-version = "0.11.1"
+name = "todoforai-edge-cli"
+version = "0.11.4"
 description = "TODO for AI service console client"
 readme = "README.md"
 authors = [

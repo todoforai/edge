@@ -113,7 +113,7 @@ export const EdgeInfo: React.FC = () => {
   const displayUrl = user?.apiUrl || apiUrl || 'Unknown';
 
   // Get edge info from config - using correct field names
-  const edgeId = config.id || 'Unknown';
+  const edgeId = config.edgeId || 'Unknown';
   const edgeName = config.name || 'Unknown Edge';
   const edgeStatus = config.status || 'OFFLINE';
 
@@ -135,7 +135,7 @@ export const EdgeInfo: React.FC = () => {
   const handleNameSubmit = async () => {
     if (editingName.trim() && editingName.trim() !== edgeName) {
       try {
-        const response = await renameEdge(edgeId, editingName.trim());
+        const response = await renameEdge(editingName.trim());
         console.log('Edge renamed successfully', response);
       } catch (error) {
         console.error('Failed to rename edge:', error);
