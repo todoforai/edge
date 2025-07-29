@@ -149,22 +149,23 @@ class EdgeConfig:
                 }
                 clean_tools.append(clean_tool)
             
-            # Create server as a regular dict to ensure proper JSON serialization
+            # Create server matching frontend MCPInstance structure
             server = {
+                'id': f"{server_id}-instance",  # Add id field
                 'serverId': server_id,
                 'tools': clean_tools,
-                'status': 'UNINSTALLED', 
+                'installed': True,  # Add installed field
                 'enabled': True,
                 'env': {'isActive': True},
-                'config': {'isActive': True}
+                'conf': {'isActive': True}  # Change config to conf to match frontend
             }
             servers.append(server)
         
         # Add debugging to see what we're actually setting
         logger.info(f"Setting MCPs: {servers}")
         
-        # Ensure we're passing a properly serializable dictionary
-        update_data = {"MCPs": servers}
+        # Use MCPinstances to match frontend EdgeData structure
+        update_data = {"MCPinstances": servers}
         logger.info(f"Update data: {update_data}")
         
         self.config.update_value(update_data)

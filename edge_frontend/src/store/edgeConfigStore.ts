@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createLogger } from '../utils/logger';
 import pythonService from '../services/python-service';
-import type { EdgeData, MCPInstance } from '../shared/REST_types_shared';
+import type { EdgeData, MCPEdgeExecutable } from '../shared/REST_types_shared';
 import { EdgeStatus } from '../shared/REST_types_shared';
 
 const log = createLogger('edgeConfigStore');
@@ -26,12 +26,12 @@ interface EdgeConfigState {
   getWorkspacePaths: () => string[];
   
   // Get MCP instances from the new structure
-  getMCPInstances: () => MCPInstance[];
+  getMCPInstances: () => MCPEdgeExecutable  [];
 }
 
 // Default empty config
 const defaultConfig: EdgeData = {
-  edgeId: '',
+  id: '',
   name: 'Unknown Edge',
   workspacepaths: [],
   ownerId: '',
@@ -39,7 +39,7 @@ const defaultConfig: EdgeData = {
   isShellEnabled: false,
   isFileSystemEnabled: false,
   createdAt: 0,
-  MCPs: [],
+  MCPinstances: [],
 };
 
 export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
@@ -85,9 +85,9 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
   },
 
   getMCPInstances: () => {
-    const mcps = get().config.MCPs || [];
-    console.log('Edge MCP Instances:', mcps);
-    return mcps;
+    const mcpinstances = get().config.MCPinstances || [];
+    console.log('Edge MCP Instances:', mcpinstances);
+    return mcpinstances;
   },
 }));
 

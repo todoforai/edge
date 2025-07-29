@@ -113,18 +113,15 @@ export const EdgeInfo: React.FC = () => {
   const displayUrl = user?.apiUrl || apiUrl || 'Unknown';
 
   // Get edge info from config - using correct field names
-  const edgeId = config.edgeId || 'Unknown';
   const edgeName = config.name || 'Unknown Edge';
   const edgeStatus = config.status || 'OFFLINE';
 
   const handleEdgeIdDoubleClick = async () => {
-    if (edgeId && edgeId !== 'Unknown') {
       try {
-        await navigator.clipboard.writeText(edgeId);
+        await navigator.clipboard.writeText(config.id);
       } catch (err) {
         console.error('Failed to copy edge ID to clipboard:', err);
       }
-    }
   };
 
   const handleEdgeNameClick = () => {
@@ -203,7 +200,7 @@ export const EdgeInfo: React.FC = () => {
       <InfoItem>
         <Label>ID:</Label>
         <CopyableValue onDoubleClick={handleEdgeIdDoubleClick} title="Double-click to copy">
-          {edgeId.length > 8 ? `${edgeId.substring(0, 8)}...` : edgeId}
+          {config.id.length > 8 ? `${config.id.substring(0, 8)}...` : config.id}
         </CopyableValue>
       </InfoItem>
     </InfoContainer>
