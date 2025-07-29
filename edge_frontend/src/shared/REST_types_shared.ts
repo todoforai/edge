@@ -68,15 +68,17 @@ export interface EdgeData {
   createdAt: number;
 }
 export interface MCPEdgesSettings {
-  edgeSettings?: { [edgeId: string]: MCPSettings };
+  [edgeId: string]: MCPSettings;
 }
 export interface MCPSettings {
-  serverSettings?: { [serverId: string]: ServerSettings };
+   [serverId: string]: ServerSettings;
 }
-export interface ServerSettings {
+export type ServerSettings = {
   isActive?: boolean;
-  toolSettings?: { [toolName: string]: ToolConfiguration };
-}
+  [key: string]: any;
+} & {
+  [K in string as K extends 'isActive' ? never : K]: ToolConfiguration | undefined;
+};
 
 export interface ToolConfiguration {
   isActive?: boolean;
