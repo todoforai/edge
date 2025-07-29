@@ -25,7 +25,7 @@ class EdgeConfigData(TypedDict):
     id: str
     name: str
     workspacepaths: List[str]
-    MCPs: List[EdgeMCP]
+    MCPinstances: List[Dict[str, Any]]  # Change from MCPs to MCPinstances
     ownerId: str
     status: str  # EdgeStatus equivalent
     isShellEnabled: bool
@@ -38,11 +38,11 @@ class EdgeConfig:
     def __init__(self, data: Optional[Dict[str, Any]] = None):
         data = data or {}
         # Create an observable for the entire config with typed structure
-        config_data: EdgeConfigData = {
+        config_EdgeConfigData = {
             "id": data.get("id", ""),
             "name": data.get("name", "Name uninitialized"),
             "workspacepaths": data.get("workspacepaths", []),
-            "MCPs": data.get("MCPs", []),
+            "MCPinstances": data.get("MCPinstances", []),  # Change from MCPs
             "ownerId": data.get("ownerId", ""),
             "status": data.get("status", "OFFLINE"),
             "isShellEnabled": data.get("isShellEnabled", False),
@@ -139,11 +139,21 @@ class EdgeConfig:
         grouped: Dict[str, List[Dict[str, Any]]] = self._group_tools_by_server(tools)
         
         for server_id, server_tools in grouped.items():
-            # Remove server_id from individual tools before adding to server
+            # Clean tool names by removing server prefix
             clean_tools: List[Dict[str, Any]] = []
             for tool in server_tools:
+                # Remove server_id prefix from tool name (e.g., "puppeteer_puppeteer_click" -> "click")
+                tool_name = tool["name"]
+                if tool_name.startswith(f"{server_id}_"):
+                    clean_name = tool_name[len(f"{server_id}_"):]
+                    # Remove duplicate server_id if it appears again
+                    if clean_name.startswith(f"{server_id}_"):
+                        clean_name = clean_name[len(f"{server_id}_"):]
+                else:
+                    clean_name = tool_name
+                
                 clean_tool = {
-                    "name": tool["name"],
+                    "name": clean_name,
                     "description": tool["description"], 
                     "inputSchema": tool["inputSchema"]
                 }
@@ -151,21 +161,20 @@ class EdgeConfig:
             
             # Create server matching frontend MCPInstance structure
             server = {
-                'id': f"{server_id}-instance",  # Add id field
+                'id': f"{server_id}-instance",
                 'serverId': server_id,
+                'name': server_id.title(),  # Add name field
+                'description': f"{server_id.title()} MCP Server",  # Add description
+                'category': ['Automation'],  # Add default category
                 'tools': clean_tools,
-                'installed': True,  # Add installed field
+                'installed': True,
                 'enabled': True,
                 'env': {'isActive': True},
-                'conf': {'isActive': True}  # Change config to conf to match frontend
+                'conf': {'isActive': True}
             }
             servers.append(server)
         
-        # Add debugging to see what we're actually setting
-        logger.info(f"Setting MCPs: {servers}")
+        logger.info(f"Setting MCPs: {len(servers)} servers with cleaned tool names")
         
-        # Use MCPinstances to match frontend EdgeData structure
         update_data = {"MCPinstances": servers}
-        logger.info(f"Update data: {update_data}")
-        
         self.config.update_value(update_data)
