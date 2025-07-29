@@ -19,18 +19,17 @@ export interface MCPEnv {
 }
 
 // kéne bele még konfigurálhatóság RAG vagy nem RAg... workflow... start
-export interface MCPRegistry {
-  id: string; // MCP ID
+export interface MCPJSON {
   serverId?: string; // MCP ID
-  name: string;
-  description: string;
+  name?: string;
+  description?: string;
   command?: string; // made optional since it's not in API response
   args?: string[];
   icon?: string | { dark: string; light: string };
   
   tools?: MCPToolSkeleton[];
-  env?: string[]; // list of ENV keys
-  conf?: string[]; // list of CONFIGUREABELE keys
+  env?: MCPEnv;
+  conf?: MCPEnv;
 
   category?: string[];
   
@@ -46,27 +45,16 @@ export interface MCPRegistry {
     is_latest: boolean;
   };
 }
-
-export interface MCPInstance {
-  id: string;
-  serverId: string; // could be MCPRegistry.name 99% of the time...
-  MCPRegistryID?: string;
-
-  tools: MCPToolSkeleton[];
-  env: MCPEnv;
-  conf: MCPEnv;
-  
-  session: MCPSession; // TODO: support multiple sessions later on
+export type MCPInstance = MCPJSON & {
+  id: string; 
+  installed: boolean; // always true... as if it's not installed, it's not in the list
   enabled: boolean;
-}
-
-export interface MCPSession {
-  id: string;
-  MCPInstanceID: string;
-  status: MCPRunningStatus;
   results?: any;
   error?: string;
-}
+};
+export type MCPEdgeExecutable = MCPInstance & {
+  status: MCPRunningStatus;
+};
 
 export interface EdgeData {
   id: string;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPRegistry } from '../../shared/REST_types_shared';
+import type { MCPJSON } from '../../shared/REST_types_shared';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -157,7 +157,7 @@ const ConfirmButton = styled.button`
 `;
 
 interface MCPServerInstallModalProps {
-  server: MCPRegistry;
+  server: MCPJSON;
   onClose: () => void;
   onInstall: (customId: string) => void;
 }

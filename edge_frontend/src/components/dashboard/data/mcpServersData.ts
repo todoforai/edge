@@ -1,6 +1,6 @@
-import type { MCPRegistry } from '../../../shared/REST_types_shared';
+import type { MCPJSON } from '../../../shared/REST_types_shared';
 
-export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
+export const MOCK_MCP_REGISTRY: MCPJSON[] = [
   {
     id: 'gmail',
     name: 'Gmail MCP',

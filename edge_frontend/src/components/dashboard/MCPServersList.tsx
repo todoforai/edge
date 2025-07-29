@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
-import type { MCPInstance, MCPRegistry, MCPRunningStatus } from '../../shared/REST_types_shared';
+import type { MCPInstance, MCPJSON, MCPRunningStatus } from '../../shared/REST_types_shared';
 import { MOCK_MCP_REGISTRY } from './data/mcpServersData';
 import { MCPServerCard } from './MCPServerCard';
 import { MCPServerSettingsModal } from './MCPServerSettingsModal';
@@ -204,10 +204,10 @@ interface MCPServersListProps {
 const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeChange }) => {
   const { getMCPInstances, config } = useEdgeConfigStore();
   const [instances, setInstances] = useState<MCPInstance[]>([]);
-  const [registryServers, setRegistryServers] = useState<MCPRegistry[]>([]);
+  const [registryServers, setRegistryServers] = useState<MCPJSON[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showInstallModal, setShowInstallModal] = useState<MCPRegistry | null>(null);
+  const [showInstallModal, setShowInstallModal] = useState<MCPJSON | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState<MCPInstance | null>(null);
   const [showLogsModal, setShowLogsModal] = useState<MCPInstance | null>(null);
   const [showExtensionsModal, setShowExtensionsModal] = useState<boolean>(false);
@@ -383,10 +383,10 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
 // Extensions Modal Component
 const ExtensionsModal: React.FC<{
-  servers: MCPRegistry[];
+  servers: MCPJSON[];
   categories: string[];
   onClose: () => void;
-  onInstall: (server: MCPRegistry) => void;
+  onInstall: (server: MCPJSON) => void;
 }> = ({ servers, categories, onClose, onInstall }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
