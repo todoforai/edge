@@ -38,11 +38,11 @@ class EdgeConfig:
     def __init__(self, data: Optional[Dict[str, Any]] = None):
         data = data or {}
         # Create an observable for the entire config with typed structure
-        config_EdgeConfigData = {
+        config_data: EdgeConfigData = {
             "id": data.get("id", ""),
             "name": data.get("name", "Name uninitialized"),
             "workspacepaths": data.get("workspacepaths", []),
-            "MCPinstances": data.get("MCPinstances", []),  # Change from MCPs
+            "MCPinstances": data.get("MCPinstances", []),
             "ownerId": data.get("ownerId", ""),
             "status": data.get("status", "OFFLINE"),
             "isShellEnabled": data.get("isShellEnabled", False),

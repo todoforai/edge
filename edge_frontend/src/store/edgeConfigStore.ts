@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { createLogger } from '../utils/logger';
 import pythonService from '../services/python-service';
 import type { EdgeData, MCPEdgeExecutable } from '../shared/REST_types_shared';
-import { EdgeStatus } from '../shared/REST_types_shared';
+import { EdgeStatus, MCPRunningStatus } from '../shared/REST_types_shared';
 
 const log = createLogger('edgeConfigStore');
 
@@ -87,7 +87,14 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
   getMCPInstances: () => {
     const mcpinstances = get().config.MCPinstances || [];
     console.log('Edge MCP Instances:', mcpinstances);
-    return mcpinstances;
+    
+    // Convert MCPInstance to MCPEdgeExecutable by adding status field
+    const executableInstances: MCPEdgeExecutable[] = mcpinstances.map(instance => ({
+      ...instance,
+      status: MCPRunningStatus.STOPPED // Default status for instances from config
+    }));
+    
+    return executableInstances;
   },
 }));
 

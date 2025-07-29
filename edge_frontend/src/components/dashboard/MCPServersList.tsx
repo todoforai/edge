@@ -213,20 +213,14 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
   // Load real MCP data from edge config and mock registry data
   useEffect(() => {
-    const mcpInstances = getMCPInstances();
-    console.log("MCP Instances:", mcpInstances);
-    
-    // Convert MCPInstance to MCPEdgeExecutable by adding status field
-    const executableInstances: MCPEdgeExecutable[] = mcpInstances.map(instance => ({
-      ...instance,
-      status: MCPRunningStatus.STOPPED
-    }));
+    const mcpExecutableInstances = getMCPInstances(); // This now returns MCPEdgeExecutable[]
+    console.log("MCP Executable Instances:", mcpExecutableInstances);
     
     // Use mock registry data
     setRegistryServers(MOCK_MCP_REGISTRY);
-    setInstances(executableInstances);
+    setInstances(mcpExecutableInstances);
     
-    console.log('MCP executable instances loaded:', executableInstances);
+    console.log('MCP executable instances loaded:', mcpExecutableInstances);
     console.log('Mock registry servers:', MOCK_MCP_REGISTRY);
   }, [config.MCPinstances, getMCPInstances]);
 
