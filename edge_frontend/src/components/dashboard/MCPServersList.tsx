@@ -222,7 +222,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
     
     console.log('MCP executable instances loaded:', mcpExecutableInstances);
     console.log('Mock registry servers:', MOCK_MCP_REGISTRY);
-  }, [config.MCPinstances, getMCPInstances]);
+  }, [config.installedMCPs, getMCPInstances]);
 
   const handleStatusChange = (instanceId: string, newStatus: MCPRunningStatus) => {
     setInstances(prev => prev.map(instance => 
@@ -254,9 +254,12 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
       const newInstance: MCPEdgeExecutable = {
         id: customId || `${showInstallModal.serverId}-${Date.now()}`,
         serverId: showInstallModal.serverId,
+        name: showInstallModal.name,
+        description: showInstallModal.description,
+        category: showInstallModal.category,
         tools: showInstallModal.tools || [],
-        env: showInstallModal.env ? Object.fromEntries(showInstallModal.env.map(key => [key, ''])) : {},
-        conf: showInstallModal.conf ? Object.fromEntries(showInstallModal.conf.map(key => [key, ''])) : {},
+        env: showInstallModal.env || {},
+        conf: showInstallModal.conf || {},
         status: MCPRunningStatus.STOPPED,
         enabled: true,
         installed: true

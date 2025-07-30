@@ -22,11 +22,14 @@ interface EdgeConfigState {
   // Update the entire config
   setConfig: (config: EdgeData) => void;
 
+  // Add new method to save config to backend
+  saveConfigToBackend: (updates: Partial<EdgeData>) => Promise<void>;
+
   // Getters for common properties
   getWorkspacePaths: () => string[];
   
   // Get MCP instances from the new structure
-  getMCPInstances: () => MCPEdgeExecutable  [];
+  getMCPInstances: () => MCPEdgeExecutable[];
 }
 
 // Default empty config
@@ -39,7 +42,7 @@ const defaultConfig: EdgeData = {
   isShellEnabled: false,
   isFileSystemEnabled: false,
   createdAt: 0,
-  MCPinstances: [],
+  installedMCPs: {}, // Changed from MCPinstances array to installedMCPs Record
 };
 
 export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
@@ -80,16 +83,33 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
     set({ config });
   },
 
+  saveConfigToBackend: async (updates: Partial<EdgeData>) => {
+    try {
+      // Update local config first
+      const currentConfig = get().config;
+      const updatedConfig = { ...currentConfig, ...updates };
+      set({ config: updatedConfig });
+
+      // Send update to backend via python service
+      await pythonService.callRPC('update_edge_config', updates);
+      
+      log.info('Edge config saved to backend:', updates);
+    } catch (error) {
+      log.error('Failed to save config to backend:', error);
+      throw error;
+    }
+  },
+
   getWorkspacePaths: () => {
     return get().config.workspacepaths || [];
   },
 
   getMCPInstances: () => {
-    const mcpinstances = get().config.MCPinstances || [];
-    console.log('Edge MCP Instances:', mcpinstances);
+    const installedMCPs = get().config.installedMCPs || {}; // Changed from MCPinstances
+    console.log('Edge Installed MCPs:', installedMCPs);
     
-    // Convert MCPInstance to MCPEdgeExecutable by adding status field
-    const executableInstances: MCPEdgeExecutable[] = mcpinstances.map(instance => ({
+    // Convert Record<string, InstalledMCP> to MCPEdgeExecutable[]
+    const executableInstances: MCPEdgeExecutable[] = Object.values(installedMCPs).map(instance => ({
       ...instance,
       status: MCPRunningStatus.STOPPED // Default status for instances from config
     }));

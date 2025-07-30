@@ -58,7 +58,8 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
   const getConfigurableData = (instances: MCPEdgeExecutable[]) => {
     const result: Record<string, any> = {};
     instances.forEach(instance => {
-      result[instance.id] = {
+      // Use serverId as key instead of id
+      result[instance.serverId || instance.id] = {
         env: instance.env,
         conf: instance.conf,
         enabled: instance.enabled,
@@ -73,20 +74,24 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
     const usedOriginalIds = new Set<string>();
     
     const result = Object.entries(configurableData).map(([serverId, configData]) => {
-      // Try to find existing instance to reuse its ID and session
-      let originalInstance = originalInstances.find(inst => !usedOriginalIds.has(inst.id));
+      // Try to find existing instance by serverId first, then by unused id
+      let originalInstance = originalInstances.find(inst => 
+        inst.serverId === serverId || (!usedOriginalIds.has(inst.id) && !inst.serverId)
+      );
       
       if (!originalInstance) {
         // Create new instance if no existing ones available
         originalInstance = {
           id: `instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           serverId: serverId,
+          name: serverId.charAt(0).toUpperCase() + serverId.slice(1),
+          description: `${serverId} MCP Server`,
           tools: [],
           env: {},
           conf: {},
           status: MCPRunningStatus.STOPPED,
           enabled: true,
-          installed: false
+          installed: true
         };
       }
       

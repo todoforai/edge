@@ -47,15 +47,18 @@ export interface MCPJSON {
     is_latest: boolean;
   };
 }
-export type MCPInstance = MCPJSON & {
+
+
+export type InstalledMCP = MCPJSON & {  // somewhat STATIC MCP data that has to be stored in the cloud database and reloaded from there!
   id: string; 
   installed: boolean; // always true... as if it's not installed, it's not in the list
   enabled: boolean;
+};
+
+export type MCPEdgeExecutable = InstalledMCP & {
+  status: MCPRunningStatus;
   results?: any;
   error?: string;
-};
-export type MCPEdgeExecutable = MCPInstance & {
-  status: MCPRunningStatus;
 };
 
 export interface EdgeData {
@@ -63,7 +66,7 @@ export interface EdgeData {
   name: string;
   ownerId: string;
   status: EdgeStatus;
-  MCPinstances: MCPInstance[]; // Add this field
+  installedMCPs: Record<string, InstalledMCP>; // Changed from MCPinstances to installedMCPs
   workspacepaths: string[];
   isShellEnabled: boolean;
   isFileSystemEnabled: boolean;

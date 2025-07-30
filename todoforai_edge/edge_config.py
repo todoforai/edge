@@ -25,7 +25,7 @@ class EdgeConfigData(TypedDict):
     id: str
     name: str
     workspacepaths: List[str]
-    MCPinstances: List[Dict[str, Any]]  # Change from MCPs to MCPinstances
+    installedMCPs: Dict[str, Dict[str, Any]]  # Changed from MCPinstances to installedMCPs
     ownerId: str
     status: str  # EdgeStatus equivalent
     isShellEnabled: bool
@@ -42,7 +42,7 @@ class EdgeConfig:
             "id": data.get("id", ""),
             "name": data.get("name", "Name uninitialized"),
             "workspacepaths": data.get("workspacepaths", []),
-            "MCPinstances": data.get("MCPinstances", []),
+            "installedMCPs": data.get("installedMCPs", {}), # Changed from list to dict
             "ownerId": data.get("ownerId", ""),
             "status": data.get("status", "OFFLINE"),
             "isShellEnabled": data.get("isShellEnabled", False),
@@ -135,7 +135,7 @@ class EdgeConfig:
 
     def set_edge_mcps(self, tools: List[Dict[str, Any]]) -> None:
         """Backend: Convert directly to final format"""
-        servers: List[Dict[str, Any]] = []
+        servers: Dict[str, Dict[str, Any]] = {}  # Changed from List to Dict
         grouped: Dict[str, List[Dict[str, Any]]] = self._group_tools_by_server(tools)
         
         for server_id, server_tools in grouped.items():
@@ -159,7 +159,7 @@ class EdgeConfig:
                 }
                 clean_tools.append(clean_tool)
             
-            # Create server matching frontend MCPInstance structure
+            # Create server matching frontend InstalledMCP structure
             server = {
                 'id': f"{server_id}-instance",
                 'serverId': server_id,
@@ -172,9 +172,9 @@ class EdgeConfig:
                 'env': {'isActive': True},
                 'conf': {'isActive': True}
             }
-            servers.append(server)
+            servers[server_id] = server  # Use serverId as key
         
         logger.info(f"Setting MCPs: {len(servers)} servers with cleaned tool names")
         
-        update_data = {"MCPinstances": servers}
+        update_data = {"installedMCPs": servers}
         self.config.update_value(update_data)
