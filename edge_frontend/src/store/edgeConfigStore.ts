@@ -42,7 +42,8 @@ const defaultConfig: EdgeData = {
   isShellEnabled: false,
   isFileSystemEnabled: false,
   createdAt: 0,
-  installedMCPs: {}, // Changed from MCPinstances array to installedMCPs Record
+  installedMCPs: {},
+  mcp_json: {},
 };
 
 export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
@@ -91,7 +92,7 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
       set({ config: updatedConfig });
 
       // Send update to backend via python service
-      await pythonService.callRPC('update_edge_config', updates);
+      await pythonService.callPython('update_edge_config', updates);
       
       log.info('Edge config saved to backend:', updates);
     } catch (error) {
@@ -105,7 +106,7 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
   },
 
   getMCPInstances: () => {
-    const installedMCPs = get().config.installedMCPs || {}; // Changed from MCPinstances
+    const installedMCPs = get().config.installedMCPs || {};
     console.log('Edge Installed MCPs:', installedMCPs);
     
     // Convert Record<string, InstalledMCP> to MCPEdgeExecutable[]

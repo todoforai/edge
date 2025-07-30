@@ -22,16 +22,19 @@ export interface MCPEnv {
 
 // kéne bele még konfigurálhatóság RAG vagy nem RAg... workflow... start
 export interface MCPJSON {
-  serverId?: string; // MCP ID
-  name?: string;
-  description?: string;
+  serverId: string; // MCP ID
   command?: string; // made optional since it's not in API response
   args?: string[];
-  icon?: string | { dark: string; light: string };
-  
-  tools?: MCPToolSkeleton[];
   env?: MCPEnv;
-  conf?: MCPEnv;
+  // conf?: MCPEnv; // TODO add this later (basically a public env that is syncing to the cloud)
+
+}
+export type MCPRegistry = MCPJSON & {
+  icon?: string | { dark: string; light: string };
+  name?: string;
+  description?: string;
+    
+  tools?: MCPToolSkeleton[];
 
   category?: string[];
   
@@ -46,12 +49,11 @@ export interface MCPJSON {
     release_date: string;
     is_latest: boolean;
   };
-}
-
+};
 
 export type InstalledMCP = MCPJSON & {  // somewhat STATIC MCP data that has to be stored in the cloud database and reloaded from there!
   id: string; 
-  installed: boolean; // always true... as if it's not installed, it's not in the list
+  // installed: boolean; // always true... as if it's not installed, it's not in the list
   enabled: boolean;
 };
 
@@ -64,10 +66,11 @@ export type MCPEdgeExecutable = InstalledMCP & {
 export interface EdgeData {
   id: string;
   name: string;
+  workspacepaths: string[];
+  installedMCPs: Record<string, InstalledMCP>;
+  mcp_json?: Record<string, any>; // Add raw MCP JSON config
   ownerId: string;
   status: EdgeStatus;
-  installedMCPs: Record<string, InstalledMCP>; // Changed from MCPinstances to installedMCPs
-  workspacepaths: string[];
   isShellEnabled: boolean;
   isFileSystemEnabled: boolean;
   createdAt: number;

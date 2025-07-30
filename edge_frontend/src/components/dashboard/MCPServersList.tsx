@@ -11,6 +11,7 @@ import { MCPServerJSONView } from './MCPServerJSONView';
 import { AddExtensionCard } from './AddExtensionCard';
 import { ActionBar } from './ActionBar';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
+import { getMCPIcon, getMCPName, getMCPDescription, getMCPCategory } from '../../utils/mcpRegistry';
 
 // Styled Components
 const Container = styled.div`
@@ -201,8 +202,7 @@ interface MCPServersListProps {
 }
 
 const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeChange }) => {
-  const { getMCPInstances, config } = useEdgeConfigStore();
-  const [instances, setInstances] = useState<MCPEdgeExecutable[]>([]);
+  const { config, getMCPInstances } = useEdgeConfigStore();
   const [registryServers, setRegistryServers] = useState<MCPJSON[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -211,28 +211,22 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   const [showLogsModal, setShowLogsModal] = useState<MCPEdgeExecutable | null>(null);
   const [showExtensionsModal, setShowExtensionsModal] = useState<boolean>(false);
 
-  // Load real MCP data from edge config and mock registry data
+  // Use the store's method to get properly formatted instances
+  const instances: MCPEdgeExecutable[] = useMemo(() => {
+    return getMCPInstances();
+  }, [getMCPInstances, config.installedMCPs, config.mcp_json]);
+
+  // Load mock registry data
   useEffect(() => {
-    const mcpExecutableInstances = getMCPInstances(); // This now returns MCPEdgeExecutable[]
-    console.log("MCP Executable Instances:", mcpExecutableInstances);
-    
-    // Use mock registry data
     setRegistryServers(MOCK_MCP_REGISTRY);
-    setInstances(mcpExecutableInstances);
-    
-    console.log('MCP executable instances loaded:', mcpExecutableInstances);
+    console.log('MCP instances from mcp_json:', instances);
     console.log('Mock registry servers:', MOCK_MCP_REGISTRY);
-  }, [config.installedMCPs, getMCPInstances]);
+  }, [instances]);
 
   const handleStatusChange = (instanceId: string, newStatus: MCPRunningStatus) => {
-    setInstances(prev => prev.map(instance => 
-      instance.id === instanceId 
-        ? { 
-            ...instance, 
-            status: newStatus,
-          }
-        : instance
-    ));
+    // Note: This would need to be handled differently since we're now reading from config
+    // For now, this is just for UI feedback - actual status changes would need backend integration
+    console.log(`Status change for ${instanceId}: ${newStatus}`);
   };
 
   const handleViewLogs = (instance: MCPEdgeExecutable) => {
@@ -243,62 +237,118 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
     setShowSettingsModal(instance);
   };
 
-  const handleSaveInstance = (updatedInstance: MCPEdgeExecutable) => {
-    setInstances(prev => prev.map(instance => 
-      instance.id === updatedInstance.id ? updatedInstance : instance
-    ));
-  };
-
-  const handleInstallServer = (customId: string) => {
+  console.log('currentMcpJson', config.mcp_json);
+  const handleInstallServer = async (customId: string) => {
     if (showInstallModal) {
-      const newInstance: MCPEdgeExecutable = {
-        id: customId || `${showInstallModal.serverId}-${Date.now()}`,
-        serverId: showInstallModal.serverId,
-        name: showInstallModal.name,
-        description: showInstallModal.description,
-        category: showInstallModal.category,
-        tools: showInstallModal.tools || [],
-        env: showInstallModal.env || {},
-        conf: showInstallModal.conf || {},
-        status: MCPRunningStatus.STOPPED,
-        enabled: true,
-        installed: true
-      };
-      
-      setInstances(prev => [...prev, newInstance]);
-      setShowInstallModal(null);
+      try {
+        // Create the new server configuration for mcp_json
+        const serverConfig = {
+          command: showInstallModal.command,
+          args: showInstallModal.args || [],
+          env: showInstallModal.env || {}
+        };
+
+        // Update mcp_json by adding the new server
+        const currentMcpJson = config.mcp_json || {};
+        const updatedMcpJson = {
+          ...currentMcpJson,
+          mcpServers: {
+            ...currentMcpJson.mcpServers,
+            [showInstallModal.serverId]: serverConfig
+          }
+        };
+
+        
+        // Save to backend - this will trigger the observer pattern to reload tools
+        await useEdgeConfigStore.getState().saveConfigToBackend({
+          mcp_json: updatedMcpJson
+        });
+
+        console.log(`Installed MCP server: ${showInstallModal.serverId}`);
+        setShowInstallModal(null);
+      } catch (error) {
+        console.error('Failed to install MCP server:', error);
+        // Could add error toast here
+      }
     }
   };
 
-  // Get unique categories from instances
+  const handleSaveInstance = async (updatedInstance: MCPEdgeExecutable) => {
+    try {
+      // Update the mcp_json configuration for this server
+      const currentMcpJson = config.mcp_json || {};
+      const updatedMcpJson = {
+        ...currentMcpJson,
+        mcpServers: {
+          ...currentMcpJson.mcpServers,
+          [updatedInstance.serverId]: {
+            command: updatedInstance.command,
+            args: updatedInstance.args || [],
+            env: updatedInstance.env || {}
+          }
+        }
+      };
+
+      // Save to backend
+      await useEdgeConfigStore.getState().saveConfigToBackend({
+        mcp_json: updatedMcpJson
+      });
+
+      console.log(`Updated MCP server config: ${updatedInstance.serverId}`);
+    } catch (error) {
+      console.error('Failed to update MCP server config:', error);
+    }
+  };
+
+  const handleRemoveInstance = async (serverId: string) => {
+    try {
+      // Remove server from mcp_json
+      const currentMcpJson = config.mcp_json || {};
+      const { [serverId]: removed, ...remainingServers } = currentMcpJson.mcpServers || {};
+      
+      const updatedMcpJson = {
+        ...currentMcpJson,
+        mcpServers: remainingServers
+      };
+
+      // Save to backend
+      await useEdgeConfigStore.getState().saveConfigToBackend({
+        mcp_json: updatedMcpJson
+      });
+
+      console.log(`Removed MCP server: ${serverId}`);
+    } catch (error) {
+      console.error('Failed to remove MCP server:', error);
+    }
+  };
+
+  // Get unique categories from instances using helper function
   const getInstanceCategories = useMemo(() => {
     const categories = instances.map(instance => {
-      const serverInfo = instance;
-      return serverInfo.category?.[0] || 'Unknown';
+      return getMCPCategory(instance.serverId)[0] || 'Unknown';
     });
     return ['All', ...Array.from(new Set(categories))];
   }, [instances]);
 
-  // Filter instances
+  // Filter instances using helper functions
   const filteredInstances = instances.filter(instance => {
-    const serverInfo = instance;
-    const category = serverInfo.category?.[0] || 'Unknown';
+    const category = getMCPCategory(instance.serverId)[0] || 'Unknown';
     const matchesCategory = selectedCategory === 'All' || category === selectedCategory;
     const matchesSearch = 
-      serverInfo.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      serverInfo.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getMCPName(instance.serverId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getMCPDescription(instance.serverId).toLowerCase().includes(searchTerm.toLowerCase()) ||
       instance.serverId?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
-  // Available servers for installation (from registry)
+  // Available servers for installation (from registry, excluding already installed)
   const availableServers = useMemo(() => 
     registryServers.filter(registry => 
       !instances.some(instance => instance.serverId === registry.serverId)
     ), [registryServers, instances]);
 
   const availableCategories = useMemo(() => 
-    ['All', ...Array.from(new Set(availableServers.flatMap(s => s.category || ['Other'])))], 
+    ['All', ...Array.from(new Set(availableServers.flatMap(s => getMCPCategory(s.serverId) || ['Other'])))], 
     [availableServers]);
 
   return (
@@ -325,7 +375,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
       {viewMode === 'json' ? (
         <MCPServerJSONView 
           instances={instances} 
-          onInstancesChange={setInstances} 
+          onInstancesChange={() => console.warn("onInstancesChange: Direct state update for instances is deprecated. Update config.mcp_json instead.")} 
         />
       ) : (
         <ServersGrid>
@@ -405,10 +455,10 @@ const ExtensionsModal: React.FC<{
   }, [onClose]);
 
   const filteredServers = servers.filter(server => {
-    const serverCategories = server.category || ['Other'];
+    const serverCategories = getMCPCategory(server.serverId) || ['Other'];
     const matchesCategory = selectedCategory === 'All' || serverCategories.includes(selectedCategory);
-    const matchesSearch = (server.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-                         (server.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+    const matchesSearch = (getMCPName(server.serverId).toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+                         (getMCPDescription(server.serverId).toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
     return matchesCategory && matchesSearch;
   });
 
@@ -439,15 +489,15 @@ const ExtensionsModal: React.FC<{
               <ExtensionCard key={server.serverId || `server-${index}`}>
                 <ExtensionIcon>
                   <Icon 
-                    icon={typeof server.icon === 'string' ? server.icon : server.icon?.light || 'lucide:server'} 
+                    icon={getMCPIcon(server.serverId || '')} 
                     width={32} 
                     height={32} 
                   />
                 </ExtensionIcon>
                 <ExtensionInfo>
-                  <ExtensionName>{server.name}</ExtensionName>
-                  <ExtensionDescription>{server.description}</ExtensionDescription>
-                  <ExtensionCategory>{server.category?.[0] || 'Other'}</ExtensionCategory>
+                  <ExtensionName>{getMCPName(server.serverId)}</ExtensionName>
+                  <ExtensionDescription>{getMCPDescription(server.serverId)}</ExtensionDescription>
+                  <ExtensionCategory>{getMCPCategory(server.serverId)?.[0] || 'Other'}</ExtensionCategory>
                 </ExtensionInfo>
                 <InstallButton onClick={() => onInstall(server)}>
                   <Icon icon="lucide:download" />

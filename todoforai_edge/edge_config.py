@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import List, Optional, Dict, Any, TypedDict
 from .observable import registry
 
@@ -25,7 +26,8 @@ class EdgeConfigData(TypedDict):
     id: str
     name: str
     workspacepaths: List[str]
-    installedMCPs: Dict[str, Dict[str, Any]]  # Changed from MCPinstances to installedMCPs
+    installedMCPs: Dict[str, Dict[str, Any]]
+    mcp_json: Dict[str, Any]  # Add raw MCP JSON config
     ownerId: str
     status: str  # EdgeStatus equivalent
     isShellEnabled: bool
@@ -38,11 +40,12 @@ class EdgeConfig:
     def __init__(self, data: Optional[Dict[str, Any]] = None):
         data = data or {}
         # Create an observable for the entire config with typed structure
-        config_data: EdgeConfigData = {
+        config_data = {
             "id": data.get("id", ""),
             "name": data.get("name", "Name uninitialized"),
             "workspacepaths": data.get("workspacepaths", []),
-            "installedMCPs": data.get("installedMCPs", {}), # Changed from list to dict
+            "installedMCPs": data.get("installedMCPs", {}),
+            "mcp_json": data.get("mcp_json", {}),
             "ownerId": data.get("ownerId", ""),
             "status": data.get("status", "OFFLINE"),
             "isShellEnabled": data.get("isShellEnabled", False),
@@ -133,6 +136,12 @@ class EdgeConfig:
             grouped[server_id].append(tool)
         return grouped
 
+    def set_mcp_json(self, mcp_config: Dict[str, Any]) -> None:
+        """Set raw MCP JSON configuration - tools will be auto-updated via observer"""
+        update_data = {"mcp_json": mcp_config}
+        self.config.update_value(update_data)
+        logger.info("Updated MCP JSON config - tools will be auto-updated")
+
     def set_edge_mcps(self, tools: List[Dict[str, Any]]) -> None:
         """Backend: Convert directly to final format"""
         servers: Dict[str, Dict[str, Any]] = {}  # Changed from List to Dict
@@ -161,16 +170,14 @@ class EdgeConfig:
             
             # Create server matching frontend InstalledMCP structure
             server = {
-                'id': f"{server_id}-instance",
+                'id': str(uuid.uuid4()),
                 'serverId': server_id,
                 'name': server_id.title(),  # Add name field
                 'description': f"{server_id.title()} MCP Server",  # Add description
                 'category': ['Automation'],  # Add default category
                 'tools': clean_tools,
-                'installed': True,
                 'enabled': True,
-                'env': {'isActive': True},
-                'conf': {'isActive': True}
+                'env': {},
             }
             servers[server_id] = server  # Use serverId as key
         

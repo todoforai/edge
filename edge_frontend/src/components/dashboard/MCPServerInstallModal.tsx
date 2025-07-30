@@ -201,11 +201,10 @@ export const MCPServerInstallModal: React.FC<MCPServerInstallModalProps> = ({
             <PreviewTitle>Configuration Preview:</PreviewTitle>
             <CodeBlock>
               {JSON.stringify({
-                [customId || server.id]: {
+                [customId || server.serverId]: {
                   command: server.command,
                   args: server.args,
-                  env: server.env ? Object.fromEntries(server.env.map(key => [key, ''])) : {},
-                  conf: server.conf ? Object.fromEntries(server.conf.map(key => [key, ''])) : {}
+                  env: server.env || {}
                 }
               }, null, 2)}
             </CodeBlock>

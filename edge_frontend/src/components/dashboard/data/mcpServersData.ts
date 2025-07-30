@@ -1,6 +1,6 @@
-import type { MCPJSON } from '../../../shared/REST_types_shared';
+import type { MCPRegistry } from '../../../shared/REST_types_shared';
 
-export const MOCK_MCP_REGISTRY: MCPJSON[] = [
+export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
   {
     serverId: 'gmail',
     name: 'Gmail MCP',
@@ -8,7 +8,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     command: 'npx',
     args: ['@gongrzhe/server-gmail-autoauth-mcp'],
     icon: 'logos:gmail',
-    env: ['GMAIL_CREDENTIALS_PATH'],
+    env: { 'GMAIL_CREDENTIALS_PATH': '' },
     category: ['Communication'],
     repository: {
       url: 'https://github.com/gongrzhe/server-gmail-autoauth-mcp',
@@ -22,17 +22,38 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
+    serverId: 'weather',
+    name: 'Weather MCP',
+    description: 'Get weather information and forecasts using AccuWeather API',
+    command: 'uvx',
+    args: ['--from', 'git+https://github.com/adhikasp/mcp-weather.git', 'mcp-weather'],
+    icon: 'lucide:cloud-sun',
+    env: { 'ACCUWEATHER_API_KEY': 'your_api_key_here' },
+    category: ['Weather'],
+    repository: {
+      url: 'https://github.com/adhikasp/mcp-weather.git',
+      source: 'github',
+      id: 'adhikasp/mcp-weather'
+    },
+    version_detail: {
+      version: '1.0.0',
+      release_date: '2024-02-20',
+      is_latest: true
+    }
+  },
+  {
     serverId: 'puppeteer',
     name: 'Puppeteer MCP',
     description: 'Web automation and scraping using Puppeteer browser control',
-    command: 'node',
-    args: ['/path/to/puppeteer-mcp-server/dist/index.js'],
+    command: 'npx',
+    args: ['-y', 'puppeteer-mcp-server'],
     icon: 'simple-icons:puppeteer',
+    env: {},
     category: ['Web Automation'],
     repository: {
       url: 'https://github.com/puppeteer/puppeteer-mcp',
-      source: 'github',
-      id: 'puppeteer/puppeteer-mcp'
+      source: 'npm',
+      id: 'puppeteer-mcp-server'
     },
     version_detail: {
       version: '2.1.0',
@@ -142,7 +163,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     command: 'npx',
     args: ['@stripe/mcp-server'],
     icon: 'logos:stripe',
-    env: ['STRIPE_API_KEY'],
+    env: { 'STRIPE_API_KEY': '' },
     category: ['Finance'],
     repository: {
       url: 'https://github.com/stripe/mcp-server',
@@ -181,7 +202,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     command: 'npx',
     args: ['@airtable/mcp-server'],
     icon: 'simple-icons:airtable',
-    env: ['AIRTABLE_API_KEY'],
+    env: { 'AIRTABLE_API_KEY': '' },
     category: ['Database'],
     repository: {
       url: 'https://github.com/airtable/mcp-server',
@@ -201,7 +222,7 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     command: 'npx',
     args: ['@cucumber-studio/mcp-server'],
     icon: 'simple-icons:cucumber',
-    env: ['CUCUMBER_STUDIO_API_TOKEN'],
+    env: { 'CUCUMBER_STUDIO_API_TOKEN': '' },
     category: ['Testing'],
     repository: {
       url: 'https://github.com/cucumber-studio/mcp-server',
@@ -215,21 +236,31 @@ export const MOCK_MCP_REGISTRY: MCPJSON[] = [
     }
   },
   {
-    serverId: 'socket-mcp',
-    name: 'Socket MCP Server',
-    description: 'Socket MCP server for scanning dependencies and security analysis',
+    serverId: 'weather_mcp',
+    name: 'Weather MCP (Smithery)',
+    description: 'Weather information service using Smithery platform',
     command: 'npx',
-    args: ['@socket/mcp-server'],
-    icon: 'material-symbols:security',
-    category: ['Security'],
+    args: [
+      '-y',
+      '@smithery/cli@latest',
+      'run',
+      '@HarunGuclu/weather_mcp',
+      '--key',
+      'f5d19cb3-9510-4038-84d1-bbae0c5a8265',
+      '--profile',
+      'insufficient-anteater-eWo8lr'
+    ],
+    icon: 'lucide:cloud-sun',
+    env: {},
+    category: ['Weather'],
     repository: {
-      url: 'https://github.com/socket/mcp-server',
-      source: 'npm',
-      id: '@socket/mcp-server'
+      url: 'https://smithery.ai/@HarunGuclu/weather_mcp',
+      source: 'smithery',
+      id: '@HarunGuclu/weather_mcp'
     },
     version_detail: {
-      version: '1.0.5',
-      release_date: '2024-02-15',
+      version: '1.0.0',
+      release_date: '2024-02-20',
       is_latest: true
     }
   }

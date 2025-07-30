@@ -173,7 +173,7 @@ class TODOforAIEdge:
         if os.path.exists("mcp.json"):
             try:
                 logger.info("Found mcp.json, loading MCP configuration")
-                self.mcp_collector = await setup_mcp_from_config("mcp.json", self)
+                self.mcp_collector = await setup_mcp_from_config("mcp.json", self.edge_config)
                 logger.info("MCP client initialized successfully")
             except Exception as e:
                 logger.error(f"Failed to load MCP configuration: {str(e)}")

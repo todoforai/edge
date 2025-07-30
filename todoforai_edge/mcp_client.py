@@ -22,24 +22,64 @@ def _extract_server_id(tool_name: str) -> tuple[str, str]:
 class MCPCollector:
     """MCP client using FastMCP with server management integration"""
     
-    def __init__(self, config_path: str = None, edge_client=None):
+    def __init__(self, edge_config=None):
         self.unified_client = None
-        self.config_path = config_path or "mcp.json"
-        self.edge_client = edge_client  # Reference to the edge client for config updates
+        self.edge_config = edge_config
+        self._unsubscribe_fn = None
+        
+        # Subscribe to mcp_json changes if edge_config is provided
+        if self.edge_config:
+            self._unsubscribe_fn = self.edge_config.config.subscribe(self._on_config_change)
+    
+    def _on_config_change(self, changes: Dict[str, Any]) -> None:
+        """Handle config changes, specifically mcp_json updates"""
+        if "mcp_json" in changes:
+            logger.info("MCP JSON config changed, reloading tools")
+            import asyncio
+            asyncio.create_task(self._reload_tools())
+    
+    async def _reload_tools(self) -> None:
+        """Reload tools from current mcp_json config"""
+        try:
+            mcp_json = self.edge_config.config.value.get("mcp_json", {})
+            print('mcp_json', mcp_json)
+            if not mcp_json:
+                logger.info("No MCP config, clearing tools")
+                self.edge_config.set_edge_mcps([])
+                return
+            
+            # Process config and create client
+            processed_servers = self._process_config(mcp_json)
+            if not processed_servers:
+                logger.info("No MCP servers, clearing tools")
+                self.edge_config.set_edge_mcps([])
+                return
+            
+            config = {"mcpServers": processed_servers}
+            client = Client(config)
+            self.unified_client = client
+            
+            # Get tools and update config
+            tools = await self.list_tools()
+            self.edge_config.set_edge_mcps(tools)
+            logger.info(f"Auto-reloaded {len(tools)} tools")
+            
+        except Exception as e:
+            logger.error(f"Error reloading tools: {e}")
+            self.edge_config.set_edge_mcps([])
     
     def _serialize_tools(self, tools: List[Any]) -> List[Dict[str, Any]]:
         """Convert Tool objects to JSON serializable format"""
         serialized = []
         for tool in tools:
-            # Extract server_id from tool name (FastMCP format: {server_id}_{tool_name})
             if '_' in tool.name:
-                server_id, clean_name = tool.name.split('_', 1)  # Split on first underscore only
+                server_id, clean_name = tool.name.split('_', 1)
             else:
                 server_id = 'unknown'
                 clean_name = tool.name
             
             tool_info = {
-                "name": tool.name,  # Use cleaned name without server_id prefix
+                "name": tool.name,
                 "description": getattr(tool, 'description', ''),
                 "inputSchema": getattr(tool, 'inputSchema', {}),
                 "server_id": server_id
@@ -47,56 +87,44 @@ class MCPCollector:
             serialized.append(tool_info)
         return serialized
 
-    async def load_servers(self, config_path: str = None) -> Dict[str, bool]:
-        """Load servers from a simple MCP configuration file"""
+    async def load_from_file(self, config_path: str) -> Dict[str, bool]:
+        """Load servers from MCP config file"""
         try:
-            config_file = config_path or self.config_path
-            
-            if not Path(config_file).exists():
-                logger.warning(f"MCP config file not found: {config_file}")
+            if not Path(config_path).exists():
+                logger.warning(f"MCP config file not found: {config_path}")
                 return {}
             
-            config = {"mcpServers": self._parse_config_file(config_file)}
-
-            logger.info(f"Loading MCP config with {len(config['mcpServers'])} servers")
+            # Parse and set config - this will trigger tool reload via observer
+            raw_config = self._parse_raw_config_file(config_path)
+            if self.edge_config:
+                self.edge_config.set_mcp_json(raw_config)
             
-            # Create unified client with simple config
-            client = Client(config)
-            self.unified_client = client
-            
-            # Test connection by initializing
-            tools = await self.list_tools()
-            logger.info(f"Loaded {len(tools)} tools from MCP servers")
-            
-            # Update edge config with serialized tools
-            if self.edge_client:
-                self.edge_client.edge_config.set_edge_mcps(tools)
-                logger.info(f"Updated edge config with {len(tools)} MCP tools")
-            
-            return {server: True for server in config["mcpServers"]}
+            # Process for return value
+            processed_servers = self._process_config(raw_config)
+            return {server: True for server in processed_servers}
                 
         except Exception as e:
             logger.error(f"Error loading MCP servers: {e}")
-            # Clear MCPs on error
-            if self.edge_client:
-                self.edge_client.edge_config.set_edge_mcps([])
+            if self.edge_config:
+                self.edge_config.set_mcp_json({})
             return {}
     
-    def _parse_config_file(self, config_path: str) -> Dict:
-        """Parse MCP config file"""
+    def _parse_raw_config_file(self, config_path: str) -> Dict:
+        """Parse raw MCP config file without modifications"""
         with open(config_path, 'r') as f:
-            config = json.load(f)
-        
-        # Handle both {"mcp": {"servers": ...}} and {"servers": ...} formats
+            return json.load(f)
+    
+    def _process_config(self, raw_config: Dict) -> Dict:
+        """Process already parsed config to extract and convert servers"""
         servers = {}
-        if "mcp" in config:
-            servers = config["mcp"].get("servers", {})
-        elif "mcpServers" in config:
-            servers = config["mcpServers"]
-        elif "servers" in config:
-            servers = config["servers"]
+        if "mcp" in raw_config:
+            servers = raw_config["mcp"].get("servers", {})
+        elif "mcpServers" in raw_config:
+            servers = raw_config["mcpServers"]
+        elif "servers" in raw_config:
+            servers = raw_config["servers"]
         else:
-            logger.warning(f"No recognized server configuration found in {config_path}")
+            logger.warning("No recognized server configuration found")
             return {}
         
         # Convert underscores to hyphens in server IDs
@@ -112,17 +140,15 @@ class MCPCollector:
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call tool using unified client"""
         if not self.unified_client:
-            raise RuntimeError("No MCP client available - call load_servers first")
+            raise RuntimeError("No MCP client available - call load_from_file first")
         
         server_id, actual_tool_name = _extract_server_id(tool_name)
         
         try:
             async with self.unified_client as client:
                 result = await client.call_tool(tool_name, arguments)
-                # TODO find out whether we convert it to string or it was already a string.
                 result_text = result.text if hasattr(result, 'text') else str(result)
                 
-                # Broadcast success if callback is set
                 if _tool_call_callback:
                     _tool_call_callback({
                         "tool_name": actual_tool_name,
@@ -134,7 +160,6 @@ class MCPCollector:
                 
                 return {"result": result_text}
         except Exception as e:
-            # Broadcast error if callback is set
             if _tool_call_callback:
                 _tool_call_callback({
                     "tool_name": actual_tool_name,
@@ -150,7 +175,7 @@ class MCPCollector:
     async def list_tools(self) -> List[Dict[str, Any]]:
         """List all available tools"""
         if not self.unified_client:
-            raise RuntimeError("No MCP client available - call load_servers first")
+            raise RuntimeError("No MCP client available")
         
         try:
             async with self.unified_client as client:
@@ -160,16 +185,18 @@ class MCPCollector:
             logger.error(f"Error listing tools: {e}")
             raise
     
-    async def disconnect_all(self):
-        """Disconnect from all servers"""
+    def disconnect(self):
+        """Disconnect from all servers and unsubscribe from config changes"""
+        if self._unsubscribe_fn:
+            self._unsubscribe_fn()
+            self._unsubscribe_fn = None
         self.unified_client = None
-        logger.info("Disconnected from all MCP servers")
+        logger.info("Disconnected from MCP servers")
 
 # Simple setup function
-async def setup_mcp_from_config(config_path: str = None, edge_client=None) -> MCPCollector:
-    """Setup MCP collector from config file"""
-    collector = MCPCollector(config_path, edge_client)
-    results = await collector.load_servers()
-    
-    logger.info(f"MCP setup completed. Loaded {len(results)} servers.")
+async def setup_mcp_from_config(config_path: str, edge_config) -> MCPCollector:
+    """Setup MCP collector with auto-reload on config changes"""
+    collector = MCPCollector(edge_config)
+    results = await collector.load_from_file(config_path)
+    logger.info(f"MCP setup completed. Loaded {len(results)} servers with auto-reload.")
     return collector

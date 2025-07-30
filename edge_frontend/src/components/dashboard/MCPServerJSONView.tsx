@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { Icon } from '@iconify/react';
 import { MCPRunningStatus, type MCPEdgeExecutable } from '../../shared/REST_types_shared';
+import { useEdgeConfigStore } from '../../store/edgeConfigStore';
 
 const JsonError = styled.div`
   display: flex;
@@ -61,7 +62,6 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
       // Use serverId as key instead of id
       result[instance.serverId || instance.id] = {
         env: instance.env,
-        conf: instance.conf,
         enabled: instance.enabled,
         status: instance.status
       };
@@ -84,14 +84,9 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
         originalInstance = {
           id: `instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           serverId: serverId,
-          name: serverId.charAt(0).toUpperCase() + serverId.slice(1),
-          description: `${serverId} MCP Server`,
-          tools: [],
           env: {},
-          conf: {},
           status: MCPRunningStatus.STOPPED,
           enabled: true,
-          installed: true
         };
       }
       
@@ -103,7 +98,6 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
         ...originalInstance,
         serverId: serverId, // Use key as serverId (allows changing server type)
         env: configData.env || {},
-        conf: configData.conf || {},
         enabled: configData.enabled,
         status: newStatus,
       };
@@ -128,37 +122,48 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
     }
   }, [jsonContent]);
 
-  const handleJsonChange = (value: string) => {
+  const handleJsonChange = async (value: string) => {
     setJsonContent(value);
     setJsonError('');
     
     try {
       const parsed = JSON.parse(value);
       if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-        // Validate that each entry has required configurable fields
-        const isValid = Object.entries(parsed).every(([serverId, item]) => 
-          item && typeof item === 'object' &&
-          typeof (item as any).enabled === 'boolean' &&
-          typeof (item as any).installed === 'boolean' &&
-          typeof (item as any).status === 'string' &&
-          typeof serverId === 'string'
-        );
+        // Convert the parsed data back to mcp_json format
+        const mcpServers: Record<string, any> = {};
         
-        if (isValid) {
-          try {
-            const mergedInstances = mergeWithExistingData(parsed, instances);
-            onInstancesChange(mergedInstances);
-          } catch (mergeError) {
-            setJsonError(mergeError instanceof Error ? mergeError.message : 'Error merging data');
-          }
-        } else {
-          setJsonError('Invalid instance structure. Each instance must have enabled field.');
-        }
+        Object.entries(parsed).forEach(([serverId, configData]: [string, any]) => {
+          // Find original instance to get command/args if available
+          const originalInstance = instances.find(inst => inst.serverId === serverId);
+          
+          mcpServers[serverId] = {
+            command: originalInstance?.command || 'node',
+            args: originalInstance?.args || [],
+            env: configData.env || {}
+          };
+        });
+
+        // Update mcp_json in the config
+        const updatedMcpJson = {
+          mcpServers
+        };
+
+        // Save to backend via store
+        await useEdgeConfigStore.getState().saveConfigToBackend({
+          mcp_json: updatedMcpJson
+        });
+
+        console.log('Updated mcp_json from JSON editor');
       } else {
         setJsonError('JSON must be an object with serverId as keys.');
       }
     } catch (error) {
-      setJsonError('Invalid JSON syntax');
+      if (error instanceof SyntaxError) {
+        setJsonError('Invalid JSON syntax');
+      } else {
+        setJsonError('Error updating configuration');
+        console.error('Failed to update mcp_json:', error);
+      }
     }
   };
 
