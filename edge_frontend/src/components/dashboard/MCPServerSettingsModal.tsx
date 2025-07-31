@@ -116,10 +116,10 @@ const FormLabel = styled.label`
   margin-bottom: 8px;
 `;
 
-const FormInput = styled.input`
+const FormInput = styled.input<{ $hasError?: boolean }>`
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid ${props => props.theme.colors.borderColor};
+  border: 1px solid ${props => props.$hasError ? '#ef4444' : props.theme.colors.borderColor};
   border-radius: 6px;
   background: ${props => props.theme.colors.background};
   color: ${props => props.theme.colors.foreground};
@@ -127,7 +127,7 @@ const FormInput = styled.input`
 
   &:focus {
     outline: none;
-    border-color: ${props => props.theme.colors.primary};
+    border-color: ${props => props.$hasError ? '#ef4444' : props.theme.colors.primary};
   }
 
   &:disabled {
@@ -135,6 +135,15 @@ const FormInput = styled.input`
     color: ${props => props.theme.colors.mutedForeground};
     cursor: not-allowed;
   }
+`;
+
+const ErrorMessage = styled.div`
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 `;
 
 const ArgumentsList = styled.div`
@@ -223,17 +232,17 @@ const CancelButton = styled.button`
   }
 `;
 
-const ConfirmButton = styled.button`
+const ConfirmButton = styled.button<{ disabled?: boolean }>`
   padding: 10px 20px;
-  background: ${props => props.theme.colors.primary};
+  background: ${props => props.disabled ? props.theme.colors.muted : props.theme.colors.primary};
   border: none;
   border-radius: 6px;
-  color: white;
-  cursor: pointer;
+  color: ${props => props.disabled ? props.theme.colors.mutedForeground : 'white'};
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
   font-size: 14px;
 
   &:hover {
-    background: ${props => props.theme.colors.primary}dd;
+    background: ${props => props.disabled ? props.theme.colors.muted : `${props.theme.colors.primary}dd`};
   }
 `;
 
@@ -252,7 +261,14 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
   const [editingInstance, setEditingInstance] = useState<MCPEdgeExecutable>({ ...instance });
   const isNewInstallation = instance.id.startsWith('temp-');
 
+  // Add validation state
+  const hasServerIdError = editingInstance.serverId.includes('_');
+
   const handleSave = () => {
+    // Prevent saving if there are validation errors
+    if (hasServerIdError) {
+      return;
+    }
     onSave(editingInstance);
     onClose();
   };
@@ -324,10 +340,16 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
               type="text"
               value={editingInstance.serverId}
               onChange={(e) => setEditingInstance({ ...editingInstance, serverId: e.target.value })}
-              disabled={!isNewInstallation}
               placeholder="Server identifier"
+              $hasError={hasServerIdError}
             />
-            {isNewInstallation && (
+            {hasServerIdError && (
+              <ErrorMessage>
+                <Icon icon="lucide:alert-circle" size={14} />
+                Underscore (_) characters are not allowed in Server ID
+              </ErrorMessage>
+            )}
+            {isNewInstallation && !hasServerIdError && (
               <FormLabel style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
                 Customize the server ID to install multiple instances
               </FormLabel>
@@ -401,7 +423,7 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
           <CancelButton onClick={onClose}>
             Cancel
           </CancelButton>
-          <ConfirmButton onClick={handleSave}>
+          <ConfirmButton onClick={handleSave} disabled={hasServerIdError}>
             {isNewInstallation ? 'Install Server' : 'Save Changes'}
           </ConfirmButton>
         </ModalActions>
