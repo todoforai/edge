@@ -182,7 +182,7 @@ class MCPCollector:
                 
                 if _tool_call_callback:
                     _tool_call_callback({
-                        "tool_name": actual_tool_name,
+                        "call_tool": actual_tool_name,
                         "server_id": server_id,
                         "arguments": arguments,
                         "result": result_text,
@@ -193,7 +193,7 @@ class MCPCollector:
         except Exception as e:
             if _tool_call_callback:
                 _tool_call_callback({
-                    "tool_name": actual_tool_name,
+                    "call_tool": actual_tool_name,
                     "server_id": server_id,
                     "arguments": arguments,
                     "error": str(e),

@@ -134,13 +134,9 @@ class EdgeConfig:
             
             # Create server matching frontend InstalledMCP structure
             server = {
-                'id': str(uuid.uuid4()),
                 'serverId': server_id,
-                'name': server_id.title(),  # Add name field
-                'description': f"{server_id.title()} MCP Server",  # Add description
-                'category': ['Automation'],  # Add default category
                 'tools': clean_tools,
-                'enabled': True,
+                'registryId': "provider@tool", # smithery@gmail
                 'env': {},
             }
             servers[server_id] = server  # Use serverId as key
