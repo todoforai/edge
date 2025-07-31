@@ -12,7 +12,24 @@ const createRegistryMap = (registry: MCPRegistry[]): Map<string, MCPRegistry> =>
   return map;
 };
 
+// Create a command-args based lookup map
+const createCommandArgsMap = (registry: MCPRegistry[]): Map<string, MCPRegistry> => {
+  const map = new Map<string, MCPRegistry>();
+  registry.forEach(server => {
+    const key = `${server.command}|${(server.args || []).join('|')}`;
+    map.set(key, server);
+  });
+  return map;
+};
+
 export const global_registry = createRegistryMap(MOCK_MCP_REGISTRY);
+export const command_args_registry = createCommandArgsMap(MOCK_MCP_REGISTRY);
+
+// Helper to find registry entry by command and args
+export const getMCPByCommandArgs = (command: string, args: string[] = []): MCPRegistry | undefined => {
+  const key = `${command}|${args.join('|')}`;
+  return command_args_registry.get(key);
+};
 
 // Helper functions
 export const getMCPIcon = (serverId: string): string => {

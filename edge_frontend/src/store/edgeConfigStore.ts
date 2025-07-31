@@ -107,13 +107,25 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
 
   getMCPInstances: () => {
     const installedMCPs = get().config.installedMCPs || {};
+    const mcpJson = get().config.mcp_json || {};
+    const mcpServers = mcpJson.mcpServers || {};
+    
     console.log('Edge Installed MCPs:', installedMCPs);
+    console.log('MCP JSON servers:', mcpServers);
     
     // Convert Record<string, InstalledMCP> to MCPEdgeExecutable[]
-    const executableInstances: MCPEdgeExecutable[] = Object.values(installedMCPs).map(instance => ({
-      ...instance,
-      status: MCPRunningStatus.STOPPED // Default status for instances from config
-    }));
+    const executableInstances: MCPEdgeExecutable[] = Object.values(installedMCPs).map(instance => {
+      // Get corresponding MCP JSON config if it exists
+      const mcpConfig = mcpServers[instance.serverId];
+      
+      return {
+        ...instance,
+        // Merge with MCP JSON config
+        command: mcpConfig?.command || instance.command || 'node',
+        args: mcpConfig?.args || instance.args || [],
+        env: { ...(instance.env || {}), ...(mcpConfig?.env || {}) },
+      };
+    });
     
     return executableInstances;
   },

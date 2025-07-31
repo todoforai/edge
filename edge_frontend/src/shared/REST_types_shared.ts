@@ -23,11 +23,9 @@ export interface MCPEnv {
 // kéne bele még konfigurálhatóság RAG vagy nem RAg... workflow... start
 export interface MCPJSON {
   serverId: string; // MCP ID
-  command?: string; // made optional since it's not in API response
+  command: string; // made optional since it's not in API response
   args?: string[];
   env?: MCPEnv;
-  // conf?: MCPEnv; // TODO add this later (basically a public env that is syncing to the cloud)
-
 }
 export type MCPRegistry = MCPJSON & {
   icon?: string | { dark: string; light: string };
@@ -53,15 +51,9 @@ export type MCPRegistry = MCPJSON & {
 
 export type InstalledMCP = MCPJSON & {  // somewhat STATIC MCP data that has to be stored in the cloud database and reloaded from there!
   id: string; 
-  // installed: boolean; // always true... as if it's not installed, it's not in the list
-  enabled: boolean;
 };
 
-export type MCPEdgeExecutable = InstalledMCP & {
-  status: MCPRunningStatus;
-  results?: any;
-  error?: string;
-};
+export type MCPEdgeExecutable = InstalledMCP; // Simplified - no status needed
 
 export interface EdgeData {
   id: string;

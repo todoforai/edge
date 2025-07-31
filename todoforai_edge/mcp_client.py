@@ -1,5 +1,6 @@
 import logging
 import json
+import shutil
 from typing import Dict, List, Any, Optional, Callable
 from pathlib import Path
 from fastmcp import Client
@@ -26,6 +27,7 @@ class MCPCollector:
         self.unified_client = None
         self.edge_config = edge_config
         self._unsubscribe_fn = None
+        self.config_file_path = None  # Store the original config file path
         
         # Subscribe to mcp_json changes if edge_config is provided
         if self.edge_config:
@@ -34,15 +36,20 @@ class MCPCollector:
     def _on_config_change(self, changes: Dict[str, Any]) -> None:
         """Handle config changes, specifically mcp_json updates"""
         if "mcp_json" in changes:
-            logger.info("MCP JSON config changed, reloading tools")
+            logger.info("MCP JSON config changed, reloading tools and saving to file")
             import asyncio
-            asyncio.create_task(self._reload_tools())
+            asyncio.create_task(self._reload_tools_and_save())
     
-    async def _reload_tools(self) -> None:
-        """Reload tools from current mcp_json config"""
+    async def _reload_tools_and_save(self) -> None:
+        """Reload tools from current mcp_json config and save to file"""
         try:
             mcp_json = self.edge_config.config.value.get("mcp_json", {})
             print('mcp_json', mcp_json)
+            
+            # Save the updated config to file if we have a config file path
+            if self.config_file_path and mcp_json:
+                await self._save_config_to_file(mcp_json)
+            
             if not mcp_json:
                 logger.info("No MCP config, clearing tools")
                 self.edge_config.set_edge_mcps([])
@@ -55,18 +62,39 @@ class MCPCollector:
                 self.edge_config.set_edge_mcps([])
                 return
             
-            config = {"mcpServers": processed_servers}
-            client = Client(config)
+            # Create FastMCP config with the correct structure
+            fastmcp_config = {"mcpServers": processed_servers}
+            client = Client(fastmcp_config)
             self.unified_client = client
             
             # Get tools and update config
             tools = await self.list_tools()
             self.edge_config.set_edge_mcps(tools)
-            logger.info(f"Auto-reloaded {len(tools)} tools")
+            logger.info(f"Auto-reloaded {len(tools)} tools and saved config to file")
             
         except Exception as e:
-            logger.error(f"Error reloading tools: {e}")
+            logger.error(f"Error reloading tools and saving config: {e}")
             self.edge_config.set_edge_mcps([])
+    
+    async def _save_config_to_file(self, mcp_json: Dict[str, Any]) -> None:
+        """Save the MCP JSON config back to the original file with backup"""
+        try:
+            config_path = Path(self.config_file_path)
+            
+            # Create backup if original file exists
+            if config_path.exists():
+                backup_path = config_path.with_suffix(f"{config_path.suffix}.bak")
+                shutil.copy2(config_path, backup_path)
+                logger.info(f"Created backup: {backup_path}")
+            
+            # Save the updated config
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(mcp_json, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Saved updated MCP config to: {config_path}")
+            
+        except Exception as e:
+            logger.error(f"Error saving config to file: {e}")
     
     def _serialize_tools(self, tools: List[Any]) -> List[Dict[str, Any]]:
         """Convert Tool objects to JSON serializable format"""
@@ -94,6 +122,9 @@ class MCPCollector:
                 logger.warning(f"MCP config file not found: {config_path}")
                 return {}
             
+            # Store the config file path for later saving
+            self.config_file_path = config_path
+            
             # Parse and set config - this will trigger tool reload via observer
             raw_config = self._parse_raw_config_file(config_path)
             if self.edge_config:
@@ -111,11 +142,11 @@ class MCPCollector:
     
     def _parse_raw_config_file(self, config_path: str) -> Dict:
         """Parse raw MCP config file without modifications"""
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     
     def _process_config(self, raw_config: Dict) -> Dict:
-        """Process already parsed config to extract and convert servers"""
+        """Process already parsed config to extract and convert servers to FastMCP format"""
         servers = {}
         if "mcp" in raw_config:
             servers = raw_config["mcp"].get("servers", {})
@@ -191,6 +222,7 @@ class MCPCollector:
             self._unsubscribe_fn()
             self._unsubscribe_fn = None
         self.unified_client = None
+        self.config_file_path = None
         logger.info("Disconnected from MCP servers")
 
 # Simple setup function
@@ -198,5 +230,5 @@ async def setup_mcp_from_config(config_path: str, edge_config) -> MCPCollector:
     """Setup MCP collector with auto-reload on config changes"""
     collector = MCPCollector(edge_config)
     results = await collector.load_from_file(config_path)
-    logger.info(f"MCP setup completed. Loaded {len(results)} servers with auto-reload.")
+    logger.info(f"MCP setup completed. Loaded {len(results)} servers with auto-reload and file sync.")
     return collector

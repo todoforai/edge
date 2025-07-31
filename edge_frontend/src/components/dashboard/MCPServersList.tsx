@@ -11,7 +11,7 @@ import { MCPServerJSONView } from './MCPServerJSONView';
 import { AddExtensionCard } from './AddExtensionCard';
 import { ActionBar } from './ActionBar';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
-import { getMCPIcon, getMCPName, getMCPDescription, getMCPCategory } from '../../utils/mcpRegistry';
+import { getMCPIcon, getMCPName, getMCPDescription, getMCPCategory, getMCPByCommandArgs } from '../../utils/mcpRegistry';
 
 // Styled Components
 const Container = styled.div`
@@ -223,12 +223,6 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
     console.log('Mock registry servers:', MOCK_MCP_REGISTRY);
   }, [instances]);
 
-  const handleStatusChange = (instanceId: string, newStatus: MCPRunningStatus) => {
-    // Note: This would need to be handled differently since we're now reading from config
-    // For now, this is just for UI feedback - actual status changes would need backend integration
-    console.log(`Status change for ${instanceId}: ${newStatus}`);
-  };
-
   const handleViewLogs = (instance: MCPEdgeExecutable) => {
     setShowLogsModal(instance);
   };
@@ -241,6 +235,9 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   const handleInstallServer = async (customId: string) => {
     if (showInstallModal) {
       try {
+        // Use the custom ID as the server key, not the original serverId
+        const serverKey = customId || showInstallModal.serverId;
+        
         // Create the new server configuration for mcp_json
         const serverConfig = {
           command: showInstallModal.command,
@@ -254,17 +251,16 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
           ...currentMcpJson,
           mcpServers: {
             ...currentMcpJson.mcpServers,
-            [showInstallModal.serverId]: serverConfig
+            [serverKey]: serverConfig
           }
         };
 
-        
         // Save to backend - this will trigger the observer pattern to reload tools
         await useEdgeConfigStore.getState().saveConfigToBackend({
           mcp_json: updatedMcpJson
         });
 
-        console.log(`Installed MCP server: ${showInstallModal.serverId}`);
+        console.log(`Installed MCP server: ${serverKey}`);
         setShowInstallModal(null);
       } catch (error) {
         console.error('Failed to install MCP server:', error);
@@ -273,30 +269,79 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
     }
   };
 
+  // Replace the install modal with settings modal for new installations
+  const handleInstallFromRegistry = (server: MCPJSON) => {
+    // Create a temporary MCPEdgeExecutable for the settings modal
+    const tempInstance: MCPEdgeExecutable = {
+      id: `temp-${Date.now()}`,
+      serverId: server.serverId,
+      command: server.command,
+      args: server.args || [],
+      env: server.env || {},
+      enabled: true
+    };
+    
+    setShowSettingsModal(tempInstance);
+    setShowExtensionsModal(false);
+  };
+
   const handleSaveInstance = async (updatedInstance: MCPEdgeExecutable) => {
     try {
-      // Update the mcp_json configuration for this server
-      const currentMcpJson = config.mcp_json || {};
-      const updatedMcpJson = {
-        ...currentMcpJson,
-        mcpServers: {
-          ...currentMcpJson.mcpServers,
-          [updatedInstance.serverId]: {
-            command: updatedInstance.command,
-            args: updatedInstance.args || [],
-            env: updatedInstance.env || {}
+      // Check if this is a new installation (temp ID)
+      const isNewInstallation = updatedInstance.id.startsWith('temp-');
+      
+      if (isNewInstallation) {
+        // This is a new installation, add to mcp_json
+        const currentMcpJson = config.mcp_json || {};
+        const updatedMcpJson = {
+          ...currentMcpJson,
+          mcpServers: {
+            ...currentMcpJson.mcpServers,
+            [updatedInstance.serverId]: {
+              command: updatedInstance.command,
+              args: updatedInstance.args || [],
+              env: updatedInstance.env || {}
+            }
           }
-        }
-      };
+        };
 
-      // Save to backend
-      await useEdgeConfigStore.getState().saveConfigToBackend({
-        mcp_json: updatedMcpJson
-      });
+        await useEdgeConfigStore.getState().saveConfigToBackend({
+          mcp_json: updatedMcpJson
+        });
 
-      console.log(`Updated MCP server config: ${updatedInstance.serverId}`);
+        console.log(`Installed new MCP server: ${updatedInstance.serverId}`);
+      } else {
+        // This is an existing instance update
+        const currentMcpJson = config.mcp_json || {};
+        const updatedMcpJson = {
+          ...currentMcpJson,
+          mcpServers: {
+            ...currentMcpJson.mcpServers,
+            [updatedInstance.serverId]: {
+              command: updatedInstance.command,
+              args: updatedInstance.args || [],
+              env: updatedInstance.env || {}
+            }
+          }
+        };
+
+        // Also update installedMCPs 
+        const updatedInstalledMCPs = {
+          ...config.installedMCPs,
+          [updatedInstance.id]: {
+            ...updatedInstance
+          }
+        };
+
+        await useEdgeConfigStore.getState().saveConfigToBackend({
+          mcp_json: updatedMcpJson,
+          installedMCPs: updatedInstalledMCPs
+        });
+
+        console.log(`Updated MCP server config: ${updatedInstance.serverId}`);
+      }
     } catch (error) {
-      console.error('Failed to update MCP server config:', error);
+      console.error('Failed to save MCP server config:', error);
     }
   };
 
@@ -325,18 +370,23 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   // Get unique categories from instances using helper function
   const getInstanceCategories = useMemo(() => {
     const categories = instances.map(instance => {
-      return getMCPCategory(instance.serverId)[0] || 'Unknown';
+      const registryServer = getMCPByCommandArgs(instance.command, instance.args);
+      return registryServer?.category?.[0] || 'Unknown';
     });
     return ['All', ...Array.from(new Set(categories))];
   }, [instances]);
 
   // Filter instances using helper functions
   const filteredInstances = instances.filter(instance => {
-    const category = getMCPCategory(instance.serverId)[0] || 'Unknown';
+    const registryServer = getMCPByCommandArgs(instance.command, instance.args);
+    const category = registryServer?.category?.[0] || 'Unknown';
+    const name = registryServer?.name || `${instance.command} ${instance.args?.join(' ') || ''}`;
+    const description = registryServer?.description || '';
+    
     const matchesCategory = selectedCategory === 'All' || category === selectedCategory;
     const matchesSearch = 
-      getMCPName(instance.serverId).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getMCPDescription(instance.serverId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       instance.serverId?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
@@ -383,7 +433,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
             <MCPServerCard
               key={`${instance.id}-${index}`}
               instance={instance}
-              onStatusChange={handleStatusChange}
+              onUninstall={handleRemoveInstance}
               onViewLogs={handleViewLogs}
               onOpenSettings={handleOpenSettings}
               showCategory={selectedCategory !== 'All'}
@@ -409,25 +459,16 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
         />
       )}
 
-      {showInstallModal && (
-        <MCPServerInstallModal
-          server={showInstallModal}
-          onClose={() => setShowInstallModal(null)}
-          onInstall={handleInstallServer}
-        />
-      )}
-
       {showExtensionsModal && (
         <ExtensionsModal
           servers={availableServers}
           categories={availableCategories}
           onClose={() => setShowExtensionsModal(false)}
-          onInstall={(registry) => {
-            setShowInstallModal(registry);
-            setShowExtensionsModal(false);
-          }}
+          onInstall={handleInstallFromRegistry}
         />
       )}
+
+      {/* Remove the MCPServerInstallModal since we're using settings modal */}
     </Container>
   );
 };
