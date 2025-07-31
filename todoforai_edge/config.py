@@ -25,31 +25,25 @@ class Config:
     
     def __init__(self):
         # Core settings with environment variable fallbacks
-        api_url_env = os.environ.get("TODO4AI_API_URL", "")
-        self.api_url = api_url_env if api_url_env.strip() else DEFAULT_API_URL
-        self.debug = os.environ.get("TODO4AI_DEBUG", "").lower() in ("true", "1", "yes")
+        self.api_url  = os.environ.get("TODO4AI_API_URL", "") or DEFAULT_API_URL
+        self.debug    = os.environ.get("TODO4AI_DEBUG", "").lower() in ("true", "1", "yes")
         self.log_level = "INFO"
         
         # Authentication settings
-        self.email = os.environ.get("TODO4AI_EMAIL", "")
+        self.email    = os.environ.get("TODO4AI_EMAIL", "")
         self.password = os.environ.get("TODO4AI_PASSWORD", "")
-        self.api_key = os.environ.get("TODO4AI_API_KEY", "")
+        self.api_key  = os.environ.get("TODO4AI_API_KEY", "")
             
     def update_from_args(self, args):
         """Update configuration from parsed arguments"""
-        if args.api_url:
-            self.api_url = args.api_url
         if args.debug:
             self.debug = args.debug
             self.log_level = "DEBUG" if self.debug else "INFO"
         
-        # Update authentication settings
-        if args.email:
-            self.email = args.email
-        if args.password:
-            self.password = args.password
-        if args.api_key:
-            self.api_key = args.api_key
+        self.api_url  = args.api_url  or self.api_url
+        self.email    = args.email    or self.email
+        self.password = args.password or self.password
+        self.api_key  = args.api_key  or self.api_key
             
 def default_config():
     """Factory function to create a new config instance"""
