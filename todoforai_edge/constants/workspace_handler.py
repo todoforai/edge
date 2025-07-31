@@ -125,9 +125,17 @@ def gitignore_to_regex(pattern):
 
     # Handle gitignore pattern syntax
     pattern = pattern.replace('?', '.')
-    pattern = re.sub(r'\*\*/', r'(.*\/)?', pattern)
-    pattern = re.sub(r'\*\*', r'.*', pattern)
+    
+    # Handle ** patterns - use placeholders to avoid interference with single * replacement
+    pattern = re.sub(r'\*\*/', r'__DOUBLESTAR_SLASH__', pattern)
+    pattern = re.sub(r'\*\*', r'__DOUBLESTAR__', pattern)
+    
+    # Handle single * - should not cross directory boundaries
     pattern = re.sub(r'\*', r'[^/]*', pattern)
+    
+    # Replace placeholders with actual regex
+    pattern = pattern.replace('__DOUBLESTAR_SLASH__', '.*/')
+    pattern = pattern.replace('__DOUBLESTAR__', '.*')
 
     # If pattern has a leading slash, it should only match at the root level
     if has_leading_slash:
@@ -140,10 +148,15 @@ def gitignore_to_regex(pattern):
     if ends_with_slash:
         regex = f"{regex}/.*"
     else:
-        regex = f"{regex}(/.*)?"
+        # Special case: if the pattern is just a single * (now [^/]*), don't allow additional path components
+        if pattern == '[^/]*':
+            regex = f"{regex}$"
+        else:
+            regex = f"{regex}(/.*)?"
 
     # Make sure all patterns match to the end of the string
-    regex = f"{regex}$"
+    if not regex.endswith('$'):
+        regex = f"{regex}$"
 
     return GitIgnorePattern(re.compile(regex), is_negation)
 
