@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Icon } from '@iconify/react';
+import { Icon } from '../../utils/iconMapper';
 
 const Card = styled.div`
   border: 1px dashed ${props => props.theme.colors.borderColor};
@@ -68,7 +68,7 @@ export const AddExtensionCard: React.FC<AddExtensionCardProps> = ({ onClick }) =
       <Content>
         <TitleRow>
           <IconContainer>
-            <Icon icon="lucide:plus" width={24} height={24} />
+            <Icon icon="lucide:plus" size={24} />
           </IconContainer>
           <Title>Add new Extension</Title>
         </TitleRow>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Icon } from '@iconify/react';
+import { Icon } from '../../utils/iconMapper';
 import type { MCPEdgeExecutable } from '../../shared/REST_types_shared';
 
 
@@ -313,7 +313,7 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
             {isNewInstallation ? 'Install' : 'Settings'} - {instance.serverId}
           </ModalTitle>
           <CloseButton onClick={onClose}>
-            <Icon icon="lucide:x" />
+            <Icon icon="lucide:x" size={20} />
           </CloseButton>
         </ModalHeader>
 
@@ -356,12 +356,12 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
                     placeholder={`Argument ${index + 1}`}
                   />
                   <RemoveButton onClick={() => removeArgument(index)}>
-                    <Icon icon="lucide:x" width={16} height={16} />
+                    <Icon icon="lucide:x" size={16} />
                   </RemoveButton>
                 </ArgumentRow>
               ))}
               <AddButton onClick={addArgument}>
-                <Icon icon="lucide:plus" width={16} height={16} />
+                <Icon icon="lucide:plus" size={16} />
                 Add Argument
               </AddButton>
             </ArgumentsList>
@@ -385,12 +385,12 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
                     placeholder="Variable value"
                   />
                   <RemoveButton onClick={() => removeEnvVariable(key)}>
-                    <Icon icon="lucide:x" width={16} height={16} />
+                    <Icon icon="lucide:x" size={16} />
                   </RemoveButton>
                 </EnvRow>
               ))}
               <AddButton onClick={addEnvVariable}>
-                <Icon icon="lucide:plus" width={16} height={16} />
+                <Icon icon="lucide:plus" size={16} />
                 Add Environment Variable
               </AddButton>
             </EnvList>

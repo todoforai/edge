@@ -1,3 +1,5 @@
+package-lock.json
+
 logs/mcp*.log
 logs/mcp*.log.gz
 

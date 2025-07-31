@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Icon } from '@iconify/react';
+import { Icon } from '../../utils/iconMapper';
 import type { MCPJSON } from '../../shared/REST_types_shared';
 
 const ModalOverlay = styled.div`
@@ -179,7 +179,7 @@ export const MCPServerInstallModal: React.FC<MCPServerInstallModalProps> = ({
         <ModalHeader>
           <ModalTitle>Install {server.name}</ModalTitle>
           <CloseButton onClick={onClose}>
-            <Icon icon="lucide:x" />
+            <Icon icon="lucide:x" size={20} />
           </CloseButton>
         </ModalHeader>
 

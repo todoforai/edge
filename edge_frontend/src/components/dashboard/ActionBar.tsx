@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Icon } from '@iconify/react';
+import { Icon } from '../../utils/iconMapper';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
 // Styled Components
@@ -236,11 +236,11 @@ export const ActionBar: React.FC<ActionBarProps> = ({
       <SearchContainer $expanded={isSearchExpanded}>
         {!isSearchExpanded ? (
           <SearchButton onClick={() => setIsSearchExpanded(true)}>
-            <Icon icon="lucide:search" />
+            <Icon icon="lucide:search" size={20} />
           </SearchButton>
         ) : (
           <>
-            <Icon icon="lucide:search" />
+            <Icon icon="lucide:search" size={20} />
             <SearchInput
               type="text"
               placeholder={searchPlaceholder}
@@ -260,7 +260,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                   setIsSearchExpanded(false);
                 }}
               >
-                <Icon icon="lucide:x" />
+                <Icon icon="lucide:x" size={16} />
               </ClearButton>
             )}
           </>
@@ -272,7 +272,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
           onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
           $active={selectedCategory !== 'All'}
         >
-          <Icon icon="lucide:filter" />
+          <Icon icon="lucide:filter" size={20} />
           {selectedCategory !== 'All' && <FilterBadge>{selectedCategory}</FilterBadge>}
         </FilterButton>
         
@@ -301,14 +301,14 @@ export const ActionBar: React.FC<ActionBarProps> = ({
             onClick={() => onViewModeChange('visual')}
             title="Visual View"
           >
-            <Icon icon="mdi:eye" />
+            <Icon icon="lucide:eye" size={20} />
           </ViewButton>
           <ViewButton
             $active={viewMode === 'json'}
             onClick={() => onViewModeChange('json')}
             title="JSON View"
           >
-            <Icon icon="mdi:code-json" />
+            <Icon icon="lucide:file-text" size={20} />
           </ViewButton>
         </ViewPicker>
       )}

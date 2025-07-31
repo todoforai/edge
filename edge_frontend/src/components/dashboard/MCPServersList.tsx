@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
-import { Icon } from '@iconify/react';
+import { Icon } from '../../utils/iconMapper';
 import { MCPRunningStatus, type MCPJSON, type MCPEdgeExecutable } from '../../shared/REST_types_shared';
 import { MOCK_MCP_REGISTRY } from './data/mcpServersData';
 import { MCPServerCard } from './MCPServerCard';
@@ -509,7 +509,7 @@ const ExtensionsModal: React.FC<{
         <ModalHeader>
           <ModalTitle>Add New Extensions</ModalTitle>
           <CloseButton onClick={onClose}>
-            <Icon icon="lucide:x" />
+            <Icon icon="lucide:x" size={20} />
           </CloseButton>
         </ModalHeader>
 
@@ -531,8 +531,7 @@ const ExtensionsModal: React.FC<{
                 <ExtensionIcon>
                   <Icon 
                     icon={getMCPIcon(server.serverId || '')} 
-                    width={32} 
-                    height={32} 
+                    size={32}
                   />
                 </ExtensionIcon>
                 <ExtensionInfo>
@@ -541,7 +540,7 @@ const ExtensionsModal: React.FC<{
                   <ExtensionCategory>{getMCPCategory(server.serverId)?.[0] || 'Other'}</ExtensionCategory>
                 </ExtensionInfo>
                 <InstallButton onClick={() => onInstall(server)}>
-                  <Icon icon="lucide:download" />
+                  <Icon icon="lucide:download" size={16} />
                   Install
                 </InstallButton>
               </ExtensionCard>

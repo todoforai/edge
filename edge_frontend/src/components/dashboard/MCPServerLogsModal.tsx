@@ -1,68 +1,89 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Icon } from '@iconify/react';
+import { Icon } from '../../utils/iconMapper';
 import type { MCPInstance } from '../../shared/REST_types_shared';
+import { useMCPLogStore } from '../../store/mcpLogStore';
 
 interface MCPServerLogsModalProps {
   instance: MCPInstance;
   onClose: () => void;
 }
 
-interface LogEntry {
-  timestamp: string;
-  level: 'INFO' | 'DEBUG' | 'WARN' | 'ERROR';
-  message: string;
-}
-
-// Mock log data - in real implementation this would come from the server
-const getMockLogs = (serverId: string): LogEntry[] => [
-  { timestamp: '2024-01-15 10:30:15', level: 'INFO', message: `Starting MCP server ${serverId}...` },
-  { timestamp: '2024-01-15 10:30:16', level: 'INFO', message: 'Initializing connection handlers' },
-  { timestamp: '2024-01-15 10:30:17', level: 'DEBUG', message: 'Loading configuration from environment' },
-  { timestamp: '2024-01-15 10:30:18', level: 'INFO', message: 'Server listening on stdio' },
-  { timestamp: '2024-01-15 10:30:20', level: 'INFO', message: 'Client connected successfully' },
-  { timestamp: '2024-01-15 10:30:25', level: 'DEBUG', message: 'Processing tools/list request' },
-  { timestamp: '2024-01-15 10:30:26', level: 'INFO', message: 'Returned 5 available tools' },
-  { timestamp: '2024-01-15 10:31:10', level: 'WARN', message: 'Rate limit approaching for API calls' },
-  { timestamp: '2024-01-15 10:31:15', level: 'ERROR', message: 'Failed to authenticate with external service' },
-  { timestamp: '2024-01-15 10:31:16', level: 'INFO', message: 'Retrying authentication...' },
-  { timestamp: '2024-01-15 10:31:18', level: 'INFO', message: 'Authentication successful' },
-];
-
 export const MCPServerLogsModal: React.FC<MCPServerLogsModalProps> = ({
   instance,
   onClose
 }) => {
-  const logs = getMockLogs(instance.id);
-  const serverInfo =instance;
+  const { getLogsForServer, clearLogs } = useMCPLogStore();
+  const logs = getLogsForServer(instance.serverId || instance.id);
+
+  const clearServerLogs = () => {
+    clearLogs(instance.serverId || instance.id);
+  };
+
+  const downloadLogs = () => {
+    const logText = logs.map(log => {
+      const status = log.success ? 'SUCCESS' : 'ERROR';
+      const result = log.success ? log.result : log.error;
+      return `${log.timestamp.toISOString()} [${status}] Tool: ${log.toolName}
+Arguments: ${JSON.stringify(log.arguments, null, 2)}
+Result: ${result}
+---`;
+    }).join('\n');
+    
+    const blob = new Blob([logText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mcp-${instance.serverId || instance.id}-logs.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <ModalOverlay onClick={onClose}>
       <LogsModal onClick={(e) => e.stopPropagation()}>
         <ModalHeader>
-          <ModalTitle>Logs - {serverInfo.name || instance.serverId}</ModalTitle>
+          <ModalTitle>Tool Call Logs - {instance.name || instance.serverId}</ModalTitle>
           <LogsActions>
-            <ActionButton title="Clear Logs">
-              <Icon icon="lucide:trash-2" width={16} height={16} />
+            <ActionButton title="Clear Logs" onClick={clearServerLogs}>
+              <Icon icon="lucide:trash-2" size={16} />
             </ActionButton>
-            <ActionButton title="Download Logs">
-              <Icon icon="lucide:download" width={16} height={16} />
+            <ActionButton title="Download Logs" onClick={downloadLogs}>
+              <Icon icon="lucide:download" size={16} />
             </ActionButton>
             <CloseButton onClick={onClose}>
-              <Icon icon="lucide:x" />
+              <Icon icon="lucide:x" size={20} />
             </CloseButton>
           </LogsActions>
         </ModalHeader>
 
         <LogsContainer>
           <LogsTerminal>
-            {logs.map((log, index) => (
-              <LogEntryComponent key={index} $level={log.level}>
-                <LogTimestamp>{log.timestamp}</LogTimestamp>
-                <LogLevel $level={log.level}>{log.level}</LogLevel>
-                <LogMessage>{log.message}</LogMessage>
-              </LogEntryComponent>
-            ))}
+            {logs.length === 0 ? (
+              <EmptyState>No tool calls yet for this server</EmptyState>
+            ) : (
+              logs.map((log) => (
+                <LogEntryComponent key={log.id} $isError={!log.success}>
+                  <LogTimestamp>{log.timestamp.toLocaleTimeString()}</LogTimestamp>
+                  <LogStatus $isError={!log.success}>
+                    <Icon 
+                      icon={log.success ? "lucide:check-circle" : "lucide:x-circle"} 
+                      size={14}
+                    />
+                    {log.success ? 'SUCCESS' : 'ERROR'}
+                  </LogStatus>
+                  <LogContent>
+                    <ToolName>{log.toolName}</ToolName>
+                    <ToolArgs>
+                      Args: {JSON.stringify(log.arguments)}
+                    </ToolArgs>
+                    <ToolResult $isError={!log.success}>
+                      {log.success ? `Result: ${log.result}` : `Error: ${log.error}`}
+                    </ToolResult>
+                  </LogContent>
+                </LogEntryComponent>
+              ))
+            )}
           </LogsTerminal>
         </LogsContainer>
       </LogsModal>
@@ -169,12 +190,22 @@ const LogsTerminal = styled.div`
   padding: 16px;
 `;
 
-const LogEntryComponent = styled.div<{ $level: LogEntry['level'] }>`
+const EmptyState = styled.div`
+  color: #888;
+  text-align: center;
+  padding: 40px;
+  font-style: italic;
+`;
+
+const LogEntryComponent = styled.div<{ $isError: boolean }>`
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 4px;
-  padding: 2px 0;
+  margin-bottom: 12px;
+  padding: 8px;
+  border-radius: 4px;
+  border-left: 3px solid ${props => props.$isError ? '#ff6b6b' : '#4fc3f7'};
+  background: rgba(255, 255, 255, 0.02);
 
   &:hover {
     background: rgba(255, 255, 255, 0.05);
@@ -185,25 +216,39 @@ const LogTimestamp = styled.span`
   color: #888;
   flex-shrink: 0;
   font-size: 12px;
+  width: 80px;
 `;
 
-const LogLevel = styled.span<{ $level: LogEntry['level'] }>`
-  color: ${props => {
-    switch (props.$level) {
-      case 'ERROR': return '#ff6b6b';
-      case 'WARN': return '#ffa726';
-      case 'INFO': return '#4fc3f7';
-      case 'DEBUG': return '#81c784';
-      default: return '#ffffff';
-    }
-  }};
+const LogStatus = styled.div<{ $isError: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: ${props => props.$isError ? '#ff6b6b' : '#4fc3f7'};
   font-weight: 600;
   flex-shrink: 0;
-  width: 50px;
   font-size: 12px;
+  width: 80px;
 `;
 
-const LogMessage = styled.span`
-  color: #ffffff;
+const LogContent = styled.div`
   flex: 1;
+`;
+
+const ToolName = styled.div`
+  color: #ffffff;
+  font-weight: 600;
+  margin-bottom: 4px;
+`;
+
+const ToolArgs = styled.div`
+  color: #888;
+  font-size: 12px;
+  margin-bottom: 4px;
+  word-break: break-all;
+`;
+
+const ToolResult = styled.div<{ $isError: boolean }>`
+  color: ${props => props.$isError ? '#ff6b6b' : '#81c784'};
+  font-size: 12px;
+  word-break: break-all;
 `;

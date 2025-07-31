@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import MessageListCard from './MessageListCard';
 import { useEdgeConfigStore } from '@/store/edgeConfigStore';
 import { useWorkspaceStore } from '@/store/workspaceStore';
-import { Icon } from '@iconify/react';
+import { Icon } from '../../utils/iconMapper';
 import pythonService from '@/services/python-service';
 
 // Styled Components
@@ -183,11 +183,11 @@ const WorkspacePathsList: React.FC = () => {
           title={item.isActive ? "Stop syncing this workspace" : "Start syncing this workspace"}
         >
           {isToggling[item.path] ? (
-            <Icon icon="lucide:loader" className="spin" />
+            <Icon icon="lucide:loader" size={16} className="spin" />
           ) : item.isActive ? (
-            <Icon icon="lucide:check-circle" />
+            <Icon icon="lucide:check-circle" size={16} />
           ) : (
-            <Icon icon="lucide:circle" />
+            <Icon icon="lucide:circle" size={16} />
           )}
         </StatusButton>
         <PathText title={item.path}>{item.path}</PathText>
@@ -197,9 +197,9 @@ const WorkspacePathsList: React.FC = () => {
           title="Remove this workspace path (revokes access)"
         >
           {isRemoving[item.path] ? (
-            <Icon icon="lucide:loader" className="spin" />
+            <Icon icon="lucide:loader" size={14} className="spin" />
           ) : (
-            <Icon icon="lucide:trash-2" />
+            <Icon icon="lucide:trash-2" size={14} />
           )}
         </RemoveButton>
       </PathItem>

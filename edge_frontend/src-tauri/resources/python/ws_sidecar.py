@@ -336,6 +336,13 @@ async def register_all_hooks():
             log.info("Frontend edge config hooks registered")
         except Exception as e:
             log.warning(f"Failed to register edge config hooks: {e}")
+
+        # Register MCP tool call hooks
+        try:
+            await register_mcp_hooks_internal()
+            log.info("Frontend MCP tool call hooks registered")
+        except Exception as e:
+            log.warning(f"Failed to register MCP hooks: {e}")
             
     except Exception as e:
         log.error(f"Error registering hooks: {e}")
@@ -396,6 +403,16 @@ async def register_edge_config_hooks_internal():
     
     # Subscribe to the observable
     sidecar.todo_client.edge_config.config.subscribe_async(on_config_change_hook, name="ws_sidecar_config_hook")
+
+async def register_mcp_hooks_internal():
+    """Internal function to register MCP tool call hooks"""
+    def tool_call_callback(call_data):
+        asyncio.create_task(broadcast_event({
+            "type": "mcp_tool_call",
+            "payload": call_data,
+        }))
+    
+    set_mcp_tool_call_callback(tool_call_callback)
 
 # Simplify RPC error handling
 def _create_rpc_response(success: bool, message: str) -> dict:
@@ -496,28 +513,6 @@ def remove_workspace_path(params):
             
     except Exception as e:
         log.error(f"Error removing workspace path: {e}")
-        return {"status": "error", "message": str(e)}
-
-@sidecar.rpc
-def setup_mcp_client(params):
-    """Setup MCP client with configuration"""
-    try:
-        if not sidecar.todo_client:
-            return {"status": "error", "message": "Client not initialized"}
-
-        # Set up simple callback to broadcast tool calls
-        def tool_call_callback(call_data):
-            asyncio.create_task(broadcast_event({
-                "type": "mcp_tool_call",
-                "payload": call_data,
-            }))
-        
-        set_mcp_tool_call_callback(tool_call_callback)
-
-        return {"status": "success", "message": "MCP client setup initiated"}
-
-    except Exception as e:
-        log.error(f"Error setting up MCP client: {e}")
         return {"status": "error", "message": str(e)}
 
 @sidecar.rpc
