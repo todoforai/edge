@@ -54,46 +54,7 @@ class EdgeConfig:
         }
         self.config = registry.create("edge_config", config_data)
     
-    @property
-    def id(self) -> str:
-        """Get edge ID"""
-        return self.config.value.get("id", "")
-    
-    @property
-    def name(self) -> str:
-        """Get edge name"""
-        return self.config.value.get("name", "Unknown Edge")
-    
-    @property
-    def workspacepaths(self) -> List[str]:
-        """Get workspace paths"""
-        return self.config.value.get("workspacepaths", [])
-    
-    @property
-    def owner_id(self) -> str:
-        """Get owner ID"""
-        return self.config.value.get("ownerId", "")
-    
-    @property
-    def status(self) -> str:
-        """Get status"""
-        return self.config.value.get("status", "OFFLINE")
-    
-    @property
-    def is_shell_enabled(self) -> bool:
-        """Get shell enabled flag"""
-        return self.config.value.get("isShellEnabled", False)
-    
-    @property
-    def is_filesystem_enabled(self) -> bool:
-        """Get filesystem enabled flag"""
-        return self.config.value.get("isFileSystemEnabled", False)
-    
-    @property
-    def created_at(self) -> Optional[str]:
-        """Get created at timestamp"""
-        return self.config.value.get("createdAt", None)
-    
+
     def add_workspace_path(self, path: str) -> bool:
         """Add a workspace path if it doesn't already exist"""
         current_paths = self.workspacepaths
@@ -106,7 +67,7 @@ class EdgeConfig:
             current = self.config.value
             updated = current.copy()
             updated["workspacepaths"] = new_paths
-            self.config.value = updated
+            self.config.update_value(updated)
             return True
         return False
 
@@ -121,7 +82,7 @@ class EdgeConfig:
             current = self.config.value
             updated = current.copy()
             updated["workspacepaths"] = new_paths
-            self.config.value = updated
+            self.config.update_value(updated)
             return True
         return False
 

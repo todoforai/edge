@@ -78,7 +78,8 @@ class TODOforAIEdge:
         logger.info("EdgeConfig initialized.")
         
         # Subscribe to config changes
-        self.edge_config.config.subscribe_async(self._on_config_change, name="edge2backend_on_config_change")
+        self.config_syncable_fields = ["workspacepaths", "installedMCPs", "name", "isShellEnabled", "isFileSystemEnabled"]
+        self.edge_config.config.subscribe_async(self._on_config_change, name="edge2backend_on_config_change") # TODO csinálni kell functort belőle. VAGY JOBB megoldást
         
         self.agent_id = ""
         self.user_id = ""
@@ -106,13 +107,13 @@ class TODOforAIEdge:
         
         # If we have an edge_id, update the server with workspace/MCP changes
         if self.edge_id and self.connected:
-            sync_data = {k: v for k, v in changes.items() if k in {"workspacepaths", "installedMCPs", "name", "isShellEnabled", "isFileSystemEnabled"}}
+            syncable_changed_data = {k: v for k, v in changes.items() if k in self.config_syncable_fields}
             
-            if sync_data:
+            if syncable_changed_data:
                 try:
-                    response = await async_request(self, 'patch', f"/api/v1/edges/{self.edge_id}", sync_data)
+                    response = await async_request(self, 'patch', f"/api/v1/edges/{self.edge_id}", syncable_changed_data)
                     if response:
-                        logger.info(f"Updated edge config on server: {list(sync_data.keys())}")
+                        logger.info(f"Updated edge config on server: {list(syncable_changed_data.keys())}")
                     else:
                         logger.error("Failed to update edge config on server")
                 except Exception as e:
