@@ -257,6 +257,8 @@ jobs:
     # Build Python distribution (console-based edge client)
     - name: Build Python distribution
       run: |
+        # Clean dist directory of any non-Python artifacts first
+        rm -f dist/todoforai-edge-sidecar*
         python -m pip install build
         python -m build --wheel --sdist
       shell: bash
