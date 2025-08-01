@@ -1,11 +1,11 @@
 import React from 'react';
 import styled from 'styled-components';
 import { Icon } from '../../utils/iconMapper';
-import type { MCPInstance } from '../../shared/REST_types_shared';
+import type { MCPEdgeExecutable } from '../../shared/REST_types_shared';
 import { useMCPLogStore } from '../../store/mcpLogStore';
 
 interface MCPServerLogsModalProps {
-  instance: MCPInstance;
+  instance: MCPEdgeExecutable;
   onClose: () => void;
 }
 
@@ -43,7 +43,7 @@ Result: ${result}
     <ModalOverlay onClick={onClose}>
       <LogsModal onClick={(e) => e.stopPropagation()}>
         <ModalHeader>
-          <ModalTitle>Tool Call Logs - {instance.name || instance.serverId}</ModalTitle>
+          <ModalTitle>Tool Call Logs - {instance.serverId}</ModalTitle>
           <LogsActions>
             <ActionButton title="Clear Logs" onClick={clearServerLogs}>
               <Icon icon="lucide:trash-2" size={16} />

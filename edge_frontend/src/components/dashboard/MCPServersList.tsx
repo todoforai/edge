@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { Icon } from '../../utils/iconMapper';
-import { MCPRunningStatus, type MCPJSON, type MCPEdgeExecutable } from '../../shared/REST_types_shared';
+import type { MCPJSON, MCPEdgeExecutable } from '../../shared/REST_types_shared';
 import { MOCK_MCP_REGISTRY } from './data/mcpServersData';
 import { MCPServerCard } from './MCPServerCard';
 import { MCPServerSettingsModal } from './MCPServerSettingsModal';
 import { MCPServerLogsModal } from './MCPServerLogsModal';
-import { MCPServerInstallModal } from './MCPServerInstallModal';
 import { MCPServerJSONView } from './MCPServerJSONView';
 import { AddExtensionCard } from './AddExtensionCard';
 import { ActionBar } from './ActionBar';
@@ -206,7 +205,6 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   const [registryServers, setRegistryServers] = useState<MCPJSON[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showInstallModal, setShowInstallModal] = useState<MCPJSON | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState<MCPEdgeExecutable | null>(null);
   const [showLogsModal, setShowLogsModal] = useState<MCPEdgeExecutable | null>(null);
   const [showExtensionsModal, setShowExtensionsModal] = useState<boolean>(false);
@@ -232,43 +230,6 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   };
 
   console.log('currentMcpJson', config.mcp_json);
-  const handleInstallServer = async (customId: string) => {
-    if (showInstallModal) {
-      try {
-        // Use the custom ID as the server key, not the original serverId
-        const serverKey = customId || showInstallModal.serverId;
-        
-        // Create the new server configuration for mcp_json
-        const serverConfig = {
-          command: showInstallModal.command,
-          args: showInstallModal.args || [],
-          env: showInstallModal.env || {}
-        };
-
-        // Update mcp_json by adding the new server
-        const currentMcpJson = config.mcp_json || {};
-        const updatedMcpJson = {
-          ...currentMcpJson,
-          mcpServers: {
-            ...currentMcpJson.mcpServers,
-            [serverKey]: serverConfig
-          }
-        };
-
-        // Save to backend - this will trigger the observer pattern to reload tools
-        await useEdgeConfigStore.getState().saveConfigToBackend({
-          mcp_json: updatedMcpJson
-        });
-
-        console.log(`Installed MCP server: ${serverKey}`);
-        setShowInstallModal(null);
-      } catch (error) {
-        console.error('Failed to install MCP server:', error);
-        // Could add error toast here
-      }
-    }
-  };
-
   // Replace the install modal with settings modal for new installations
   const handleInstallFromRegistry = (server: MCPJSON) => {
     // Create a temporary MCPEdgeExecutable for the settings modal
@@ -277,8 +238,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
       serverId: server.serverId,
       command: server.command,
       args: server.args || [],
-      env: server.env || {},
-      enabled: true
+      env: server.env || {}
     };
     
     setShowSettingsModal(tempInstance);
@@ -467,8 +427,6 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
           onInstall={handleInstallFromRegistry}
         />
       )}
-
-      {/* Remove the MCPServerInstallModal since we're using settings modal */}
     </Container>
   );
 };

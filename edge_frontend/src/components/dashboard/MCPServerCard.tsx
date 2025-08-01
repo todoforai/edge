@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { MCPRunningStatus, type MCPEdgeExecutable } from '../../shared/REST_types_shared';
+import type { MCPEdgeExecutable } from '../../shared/REST_types_shared';
 import { getMCPByCommandArgs } from '../../utils/mcpRegistry';
 import { Icon } from '../../utils/iconMapper';
 
@@ -62,7 +62,14 @@ const ServerId = styled.div`
 const ServerTitleRow = styled.div`
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  align-items: center;
+  flex: 1;
+`;
+
+const ServerNameAndCategory = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 1;
 `;
 
@@ -74,7 +81,6 @@ const ServerCategory = styled.span`
   border-radius: ${(props) => props.theme.radius.md2};
   display: inline-block;
   flex-shrink: 0;
-  margin-left: -4px;
 `;
 
 const ServerActions = styled.div`
@@ -171,9 +177,11 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
         </ServerIcon>
         <ServerTitleRow>
           <ServerInfo>
-            <ServerName>{displayName}</ServerName>
+            <ServerNameAndCategory>
+              <ServerName>{displayName}</ServerName>
+              {showCategory && <ServerCategory>{displayCategory}</ServerCategory>}
+            </ServerNameAndCategory>
             <ServerId>{instance.serverId}</ServerId>
-            {showCategory && <ServerCategory>{displayCategory}</ServerCategory>}
           </ServerInfo>
           <ServerActions>
             <ActionButtonsRow>

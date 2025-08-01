@@ -177,7 +177,7 @@ export const MCPServerInstallModal: React.FC<MCPServerInstallModalProps> = ({
     <ModalOverlay onClick={onClose}>
       <Modal onClick={(e) => e.stopPropagation()}>
         <ModalHeader>
-          <ModalTitle>Install {server.name}</ModalTitle>
+          <ModalTitle>Install {server.serverId}</ModalTitle>
           <CloseButton onClick={onClose}>
             <Icon icon="lucide:x" size={20} />
           </CloseButton>
@@ -190,7 +190,7 @@ export const MCPServerInstallModal: React.FC<MCPServerInstallModalProps> = ({
               type="text"
               value={customId}
               onChange={(e) => setCustomId(e.target.value)}
-              placeholder={`e.g., ${server.id}@custom`}
+              placeholder={`e.g., ${server.serverId}@custom`}
             />
             <FormHelp>
               Customize the server ID to install multiple instances (e.g., different accounts)

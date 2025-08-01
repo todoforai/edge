@@ -66,44 +66,6 @@ const SettingsContent = styled.div`
   padding: 20px;
 `;
 
-const SettingsSection = styled.div`
-  margin-bottom: 24px;
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: 8px;
-  overflow: hidden;
-`;
-
-const SectionHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  background: rgba(59, 130, 246, 0.05);
-  cursor: pointer;
-  border-bottom: 1px solid ${props => props.theme.colors.borderColor};
-
-  &:hover {
-    background: rgba(59, 130, 246, 0.1);
-  }
-`;
-
-const SectionTitle = styled.h3`
-  font-size: 16px;
-  font-weight: 600;
-  color: ${props => props.theme.colors.foreground};
-  margin: 0;
-`;
-
-const SectionToggle = styled.div<{ $expanded: boolean }>`
-  transform: ${props => props.$expanded ? 'rotate(180deg)' : 'rotate(0deg)'};
-  transition: transform 0.2s;
-  color: ${props => props.theme.colors.mutedForeground};
-`;
-
-const SectionContent = styled.div`
-  padding: 20px;
-`;
-
 const FormGroup = styled.div`
   margin-bottom: 20px;
 `;

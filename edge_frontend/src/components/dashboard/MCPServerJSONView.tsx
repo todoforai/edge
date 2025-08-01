@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { Icon } from '../../utils/iconMapper';
-import { MCPRunningStatus, type MCPEdgeExecutable } from '../../shared/REST_types_shared';
+import type { MCPEdgeExecutable } from '../../shared/REST_types_shared';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
 
 const JsonError = styled.div`
@@ -48,8 +48,7 @@ interface MCPServerJSONViewProps {
 }
 
 export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
-  instances,
-  onInstancesChange
+  instances
 }) => {
   const [jsonContent, setJsonContent] = useState<string>('');
   const [jsonError, setJsonError] = useState<string>('');
@@ -61,48 +60,9 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
     instances.forEach(instance => {
       // Use serverId as key instead of id
       result[instance.serverId || instance.id] = {
-        env: instance.env,
-        enabled: instance.enabled,
-        status: instance.status
+        env: instance.env
       };
     });
-    return result;
-  };
-
-  // Convert configurable data back to full instances
-  const mergeWithExistingData = (configurableData: Record<string, any>, originalInstances: MCPEdgeExecutable[]) => {
-    const usedOriginalIds = new Set<string>();
-    
-    const result = Object.entries(configurableData).map(([serverId, configData]) => {
-      // Try to find existing instance by serverId first, then by unused id
-      let originalInstance = originalInstances.find(inst => 
-        inst.serverId === serverId || (!usedOriginalIds.has(inst.id) && !inst.serverId)
-      );
-      
-      if (!originalInstance) {
-        // Create new instance if no existing ones available
-        originalInstance = {
-          id: `instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          serverId: serverId,
-          env: {},
-          status: MCPRunningStatus.STOPPED,
-          enabled: true,
-        };
-      }
-      
-      usedOriginalIds.add(originalInstance.id);
-      
-      const newStatus = configData.status || MCPRunningStatus.STOPPED;
-      
-      return {
-        ...originalInstance,
-        serverId: serverId, // Use key as serverId (allows changing server type)
-        env: configData.env || {},
-        enabled: configData.enabled,
-        status: newStatus,
-      };
-    });
-
     return result;
   };
 
@@ -112,7 +72,7 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
       const configurableData = getConfigurableData(instances);
       setJsonContent(JSON.stringify(configurableData, null, 2));
     }
-  }, [instances]);
+  }, [instances, jsonContent]);
 
   // Auto-resize textarea
   useEffect(() => {
