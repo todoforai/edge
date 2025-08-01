@@ -17,8 +17,14 @@ def create_argparse_apply_config():
     parser.add_argument("--api-url", default=config.api_url, help="API URL")
     parser.add_argument("--debug", action="store_true", default=config.debug, help="Enable debug logging")
     
+    # Workspace management
+    parser.add_argument("--add-path", dest="add_workspace_path", help="Add a workspace path to the edge configuration")
+    
     args = parser.parse_args()
     config.update_from_args(args)
+    
+    # Print server info early, before requesting credentials
+    print(f'Connecting to: {config.api_url}')
     
     # Interactive credential prompts if not provided
     if not config.api_key:
@@ -36,7 +42,6 @@ def create_argparse_apply_config():
                 print("\nOperation cancelled.")
                 sys.exit(1)
     
-    print(f'Connecting to: {config.api_url}')
     if config.email:
         print(f'Email: {config.email}')
     if config.api_key:

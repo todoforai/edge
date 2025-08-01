@@ -72,6 +72,10 @@ class TODOforAIEdge:
         self.password = client_config.password
         # Add debug attribute for convenience
         self.debug = client_config.debug
+        
+        # Store only the add_workspace_path if provided
+        self.add_workspace_path = getattr(client_config, 'add_workspace_path', None)
+        
         self.ws = None
         self.ws_url = get_ws_url(self.api_url)
         self.edge_config = EdgeConfig()
@@ -86,7 +90,7 @@ class TODOforAIEdge:
         self.edge_id = ""
         self.connected = False
         self.heartbeat_task = None
-        self.fingerprint = None  # Will be generated when we have email
+        self.fingerprint = None  # Will be generated when needed
         self.mcp_collector = None  # Will be initialized if mcp.json exists
         
         # Set logging level based on config
@@ -94,11 +98,9 @@ class TODOforAIEdge:
             logger.setLevel(logging.DEBUG)
     
     def _generate_fingerprint(self):
-        """Generate fingerprint with user email"""
-        if not self.email:
-            raise ValueError("Email is required to generate fingerprint")
-        self.fingerprint = generate_machine_fingerprint(self.email)
-        logger.info(f'{Colors.CYAN}{Colors.BOLD}Generated fingerprint: {self.fingerprint}{Colors.END}')
+        """Generate fingerprint based on machine characteristics"""
+        self.fingerprint = generate_machine_fingerprint()
+        logger.info(f'{Colors.CYAN}{Colors.BOLD}Generated fingerprint{Colors.END}')
         return self.fingerprint
 
     async def _on_config_change(self, changes: Dict[str, Any]) -> None:
@@ -150,6 +152,19 @@ class TODOforAIEdge:
         
         # Update the edge config with the payload, marking server as source
         self.edge_config.config.update_value(payload, source="edge2backend_on_config_change")
+        
+        # Handle --add-path after we receive the initial config from backend
+        if self.add_workspace_path:
+            logger.info(f"Adding workspace path from CLI: {self.add_workspace_path}")
+            path_added = self.edge_config.add_workspace_path(self.add_workspace_path)
+            
+            if path_added:
+                logger.info(f"✅ Successfully added workspace path: {self.add_workspace_path}")
+            else:
+                logger.info(f"ℹ️  Workspace path already exists: {self.add_workspace_path}")
+            
+            # Clear the flag so we don't try to add it again on subsequent config updates
+            self.add_workspace_path = None
         
         logger.info("Edge config update processed successfully")
         

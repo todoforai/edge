@@ -8,8 +8,8 @@ import requests
 
 logger = logging.getLogger("todoforai-edge")
 
-def generate_machine_fingerprint(email: str):
-    """Generate a unique fingerprint for this client including user account info"""
+def generate_machine_fingerprint():
+    """Generate a unique fingerprint for this client based on machine characteristics"""
     identifiers = {}
     
     # Basic system info (OS, architecture, hostname)
@@ -19,11 +19,6 @@ def generate_machine_fingerprint(email: str):
     
     # Add CPU info
     identifiers["processor"] = platform.processor()
-    
-    # Add user account information to make fingerprint unique per user
-    if email:
-        identifiers["user_email"] = email
-    logger.info(f'Fingerprint generated with email: {email}')
     
     # Add more stable identifiers based on OS
     if platform.system() == "Linux":
