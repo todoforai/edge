@@ -350,10 +350,6 @@ class TODOforAIEdge:
             logger.error("No API key available, cannot connect")
             return
             
-        if not self.email:
-            logger.error("No email available for fingerprint generation, cannot connect")
-            return
-            
         fingerprint = self._generate_fingerprint()
         
         # Only include fingerprint in URL
