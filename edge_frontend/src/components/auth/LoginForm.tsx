@@ -113,10 +113,6 @@ export const LoginForm = () => {
         </LoginFormRoot>
 
         <LoginFooter>
-          <SwitchButton type="button" onClick={() => setLoginMethod(loginMethod === 'credentials' ? 'apiKey' : 'credentials')}>
-            {loginMethod === 'credentials' ? 'Login with API Key instead' : 'Login with Email & Password instead'}
-          </SwitchButton>
-          
           <ApiUrlContainer>
             {isApiUrlEditable ? (
               <ApiUrlInput 
@@ -126,9 +122,12 @@ export const LoginForm = () => {
                 placeholder="API URL"
               />
             ) : (
-              <ApiUrlText onClick={handleApiUrlClick}>
-                API: {apiUrl || ''}
-              </ApiUrlText>
+              // Only show API URL if it's not the default TodoForAI URL
+              apiUrl && !apiUrl.includes('todofor.ai') && (
+                <ApiUrlText onClick={handleApiUrlClick}>
+                  API: {apiUrl}
+                </ApiUrlText>
+              )
             )}
             {appVersion && <VersionText>Version: {appVersion}</VersionText>}
           </ApiUrlContainer>
