@@ -160,6 +160,7 @@ const WEBSOCKET_PORT: u16 = 9528;
 
 #[tauri::command]
 async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
+    info!("start_websocket_sidecar called");
     let websocket_state = app.state::<WebSocketState>();
     let mut state_lock = websocket_state.0.lock().unwrap();
 
@@ -178,15 +179,26 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
         return Ok(WEBSOCKET_PORT);
     }
 
+    // Check for force Python mode via environment variable
+    let force_python = env::var("TODOFORAI_FORCE_PYTHON").unwrap_or_default() == "1";
+    let force_production = env::var("TODOFORAI_FORCE_PRODUCTION").unwrap_or_default() == "1";
+    
     // Determine if we're in development or production mode
     #[cfg(debug_assertions)]
     let is_dev_mode = true;
     #[cfg(not(debug_assertions))]
     let is_dev_mode = false;
+    
+    
+    // Override mode if force_python is set
+    let use_python = (is_dev_mode && !force_production) || force_python;
 
     info!(
-        "Running in {} mode",
-        if is_dev_mode { "development" } else { "production" }
+        "Running in {} mode (is_dev_mode: {}, force_python: {}, force_production: {})",
+        if use_python { "Python script" } else { "sidecar executable" },
+        is_dev_mode,
+        force_python,
+        force_production
     );
 
     // Python script path (always available as a fallback)
@@ -195,8 +207,8 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
         .resolve("resources/python/ws_sidecar.py", BaseDirectory::Resource)
         .expect("Failed to resolve python script path");
 
-    let (mut rx, child) = if is_dev_mode {
-        // In development mode, use Python script
+    let (mut rx, child) = if use_python {
+        // In development mode (or forced), use Python script
         info!("Using Python script at: {:?}", script_path);
 
         let python_executable = if cfg!(target_os = "windows") {

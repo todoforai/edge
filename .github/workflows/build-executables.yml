@@ -184,6 +184,14 @@ jobs:
       run: make copy-sidecar
       shell: bash
 
+    # Verify sidecar was copied correctly
+    - name: Verify sidecar placement
+      run: |
+        echo "Checking for sidecar executable..."
+        ls -la edge_frontend/src-tauri/binaries/ || echo "Binaries directory not found"
+        find edge_frontend/src-tauri/binaries/ -name "*sidecar*" -type f || echo "No sidecar files found"
+      shell: bash
+
     # ─── 🍏 Create simplified entitlements file for macOS ─────────────────────
     - name: Write entitlements (macOS)
       if: startsWith(matrix.os, 'macos')

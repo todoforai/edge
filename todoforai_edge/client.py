@@ -43,6 +43,13 @@ logger = logging.getLogger("todoforai-client")
 T = TypeVar('T')
 CallbackType = Union[Callable[[T], None], Callable[[T], Coroutine[Any, Any, None]]]
 
+class AuthenticationError(Exception):
+    """Raised when authentication fails"""
+    pass
+
+class ServerError(Exception):
+    """Raised when server sends an error message"""
+    pass
 
 def invoke_callback(callback: CallbackType, arg: Any) -> None:
     """Helper function to invoke a callback, handling both sync and async callbacks"""
@@ -101,6 +108,7 @@ class TODOforAIEdge:
         """Generate fingerprint based on machine characteristics"""
         self.fingerprint = generate_machine_fingerprint()
         logger.info(f'{Colors.CYAN}{Colors.BOLD}Generated fingerprint{Colors.END}')
+        print('self.fingerprint:', self.fingerprint)
         return self.fingerprint
 
     async def _on_config_change(self, changes: Dict[str, Any]) -> None:
@@ -196,129 +204,87 @@ class TODOforAIEdge:
         else:
             logger.debug("No mcp.json found in current directory")
 
-    async def _update_edge_status(self, status):
-        """Update edge status in the API"""
-        if not self.edge_id:
-            logger.warning("Cannot update edge status: missing edge_id")
-            return False
-        
-        try:
-            # Update status in API
-            response = await async_request(
-                self, 
-                'patch', 
-                f"/api/v1/edges/{self.edge_id}", 
-                {"status": status}
-            )
-            
-            if not response:
-                return False
-            
-            # Also broadcast status to connected clients
-            await self.send_response(edge_status_msg(self.edge_id, status))
-                
-            logger.info(f"Updated edge status to {status}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error updating edge status: {str(e)}")
-            return False
-
-    async def _send_heartbeat(self):
-        """Send periodic heartbeats to the server"""
-        while self.connected:
-            try:
-                if self.edge_id:
-                    if self.debug:
-                        logger.debug(f"Sending heartbeat for edge {self.edge_id}")
-                    
-                    # Update edge status to ONLINE with each heartbeat
-                    await self._update_edge_status(EdgeStatus.ONLINE)
-                    
-            except Exception as error:
-                logger.error(f"Heartbeat error: {str(error)}")
-            
-            await asyncio.sleep(300)  # Send heartbeat every 300 seconds
-
     async def _handle_message(self, message):
         """Process incoming messages from the server"""
-        try:
-            data = json.loads(message)
-            msg_type = data.get("type")
-            payload = data.get("payload", {})
+        data = json.loads(message)
+        msg_type = data.get("type")
+        payload = data.get("payload", {})
+        
+        if self.debug:
+            logger.info(f"Received message type: {msg_type}")
             
-            if self.debug:
-                logger.info(f"Received message type: {msg_type}")
-                
-            # Create a task for each message handler so they run concurrently
-            # This ensures that one long-running handler doesn't block others
-            if msg_type == SR.CONNECTED_EDGE:
-                self.edge_id = payload.get("edgeId", "")
-                self.user_id = payload.get("userId", "")
-                logger.info(f"{Colors.GREEN}{Colors.BOLD}🔗 Connected with edge ID: {self.edge_id} and user ID: {self.user_id}{Colors.END}")
-                
-                # Load MCP if exists (only once on initial connection)
-                await self._load_mcp_if_exists()
-                
-                # Update edge status to ONLINE
-                await self._update_edge_status(EdgeStatus.ONLINE)
-                
-            elif msg_type == S2E.EDGE_CONFIG_UPDATE:  # Handle EDGE_CONFIG_UPDATE
-                asyncio.create_task(self._handle_edge_config_update(payload))
-            
-            elif msg_type == FE.EDGE_DIR_LIST:
-                asyncio.create_task(handle_todo_dir_list(payload, self))
-            
-            elif msg_type == FE.EDGE_CD:
-                asyncio.create_task(handle_todo_cd(payload, self))
-            
-            elif msg_type == FE.BLOCK_SAVE:
-                asyncio.create_task(handle_block_save(payload, self))
-            
-            elif msg_type == FE.BLOCK_REFRESH:
-                asyncio.create_task(handle_block_refresh(payload, self))
-            
-            elif msg_type == FE.BLOCK_EXECUTE:
-                asyncio.create_task(handle_block_execute(payload, self))
-            
-            elif msg_type == FE.BLOCK_KEYBOARD:
-                asyncio.create_task(handle_block_keyboard(payload, self))
-            
-            elif msg_type == FE.BLOCK_DIFF:
-                asyncio.create_task(handle_block_diff(payload, self))
-            
-            elif msg_type == FE.TASK_ACTION_NEW:
-                asyncio.create_task(handle_task_action_new(payload, self))
-            
-            elif msg_type == AE.CTX_JULIA_REQUEST:
-                asyncio.create_task(handle_ctx_julia_request(payload, self))
-            
-            elif msg_type == AE.CTX_WORKSPACE_REQUEST:
-                path = payload.get("path", ".")
-                asyncio.create_task(ensure_workspace_synced(self, path))
-                asyncio.create_task(handle_ctx_workspace_request(payload, self))
-            
-            elif msg_type == AE.FILE_CHUNK_REQUEST:
-                asyncio.create_task(handle_file_chunk_request(payload, self))
-
-            elif msg_type == FE.FRONTEND_FILE_CHUNK_REQUEST:
-                asyncio.create_task(handle_file_chunk_request(payload, self, response_type=EF.FRONTEND_FILE_CHUNK_RESULT))
-            
-            elif msg_type == FE.GET_FOLDERS:
-                asyncio.create_task(handle_get_folders(payload, self))
-            
-            elif msg_type == FE.CALL_EDGE_METHOD:
-                asyncio.create_task(handle_call_edge_method(payload, self))
-
-            elif msg_type == AE.FUNCTION_CALL_REQUEST:
-                asyncio.create_task(handle_function_call_request(payload, self))
-            
+        # Handle error messages
+        if msg_type == "ERROR":
+            error_message = payload.get("message", "Unknown error")
+            logger.error(f"Server error: {error_message}")
+            # Raise specific exception types based on error content
+            if "API key" in error_message or "authentication" in error_message.lower():
+                raise AuthenticationError(error_message)
             else:
-                logger.warning(f"Unknown message type: {msg_type}")
-                
-        except Exception as error:
-            stack_trace = traceback.format_exc()
-            logger.error(f"Error handling message: {str(error)}\nStacktrace:\n{stack_trace}")
+                raise ServerError(error_message)
+            
+        # Create a task for each message handler so they run concurrently
+        # This ensures that one long-running handler doesn't block others
+        elif msg_type == SR.CONNECTED_EDGE:
+            self.edge_id = payload.get("edgeId", "")
+            self.user_id = payload.get("userId", "")
+            logger.info(f"{Colors.GREEN}{Colors.BOLD}🔗 Connected with edge ID: {self.edge_id} and user ID: {self.user_id}{Colors.END}")
+            
+            # Load MCP if exists (only once on initial connection)
+            await self._load_mcp_if_exists()
+            
+        elif msg_type == S2E.EDGE_CONFIG_UPDATE:  # Handle EDGE_CONFIG_UPDATE
+            asyncio.create_task(self._handle_edge_config_update(payload))
+        
+        elif msg_type == FE.EDGE_DIR_LIST:
+            asyncio.create_task(handle_todo_dir_list(payload, self))
+        
+        elif msg_type == FE.EDGE_CD:
+            asyncio.create_task(handle_todo_cd(payload, self))
+        
+        elif msg_type == FE.BLOCK_SAVE:
+            asyncio.create_task(handle_block_save(payload, self))
+        
+        elif msg_type == FE.BLOCK_REFRESH:
+            asyncio.create_task(handle_block_refresh(payload, self))
+        
+        elif msg_type == FE.BLOCK_EXECUTE:
+            asyncio.create_task(handle_block_execute(payload, self))
+        
+        elif msg_type == FE.BLOCK_KEYBOARD:
+            asyncio.create_task(handle_block_keyboard(payload, self))
+        
+        elif msg_type == FE.BLOCK_DIFF:
+            asyncio.create_task(handle_block_diff(payload, self))
+        
+        elif msg_type == FE.TASK_ACTION_NEW:
+            asyncio.create_task(handle_task_action_new(payload, self))
+        
+        elif msg_type == AE.CTX_JULIA_REQUEST:
+            asyncio.create_task(handle_ctx_julia_request(payload, self))
+        
+        elif msg_type == AE.CTX_WORKSPACE_REQUEST:
+            path = payload.get("path", ".")
+            asyncio.create_task(ensure_workspace_synced(self, path))
+            asyncio.create_task(handle_ctx_workspace_request(payload, self))
+        
+        elif msg_type == AE.FILE_CHUNK_REQUEST:
+            asyncio.create_task(handle_file_chunk_request(payload, self))
+
+        elif msg_type == FE.FRONTEND_FILE_CHUNK_REQUEST:
+            asyncio.create_task(handle_file_chunk_request(payload, self, response_type=EF.FRONTEND_FILE_CHUNK_RESULT))
+        
+        elif msg_type == FE.GET_FOLDERS:
+            asyncio.create_task(handle_get_folders(payload, self))
+        
+        elif msg_type == FE.CALL_EDGE_METHOD:
+            asyncio.create_task(handle_call_edge_method(payload, self))
+
+        elif msg_type == AE.FUNCTION_CALL_REQUEST:
+            asyncio.create_task(handle_function_call_request(payload, self))
+        
+        else:
+            logger.warning(f"Unknown message type: {msg_type}")
 
     async def send_response(self, message):
         """Send a response to the server
@@ -358,52 +324,20 @@ class TODOforAIEdge:
         if self.debug:
             logger.info(f"Connecting to WebSocket: {ws_url}")
         
-        try:
-            # Use a custom subprotocol that includes the API key
-            # Format: "apikey-{api_key}"
-            custom_protocol = f"{self.api_key}"
+        # Use a custom subprotocol that includes the API key
+        custom_protocol = f"{self.api_key}"
+        
+        async with websockets.connect(ws_url, subprotocols=[custom_protocol]) as ws:
+            self.ws = ws
+            self.connected = True
+            logger.info("WebSocket connected")
             
-            async with websockets.connect(ws_url, subprotocols=[custom_protocol]) as ws:
-                self.ws = ws
-                self.connected = True
-                logger.info("WebSocket connected")
-                
-                # Start heartbeat task
-                self.heartbeat_task = asyncio.create_task(self._send_heartbeat())
-                
-                # Process messages
-                async for message in ws:
-                    await self._handle_message(message)
-        except websockets.ConnectionClosedError as error:
-            stack_trace = traceback.format_exc()
-            logger.error(f"WebSocket connection closed unexpectedly: {error}\nStacktrace:\n{stack_trace}")
-        except websockets.ConnectionClosedOK as error:
-            logger.info(f"WebSocket connection closed normally: {error}")
-        except Exception as error:
-            stack_trace = traceback.format_exc()
+            # Start heartbeat task
+            # self.heartbeat_task = asyncio.create_task(self._send_heartbeat())
             
-            # Check if it's a status code related error (replaces deprecated InvalidStatusCode)
-            if hasattr(error, 'status_code'):
-                logger.error(f"WebSocket connection failed with status code: {error.status_code}\nStacktrace:\n{stack_trace}")
-                if error.status_code == 401:
-                    logger.error("Authentication failed. Please check your API key.")
-                elif error.status_code == 403:
-                    logger.error("Access forbidden. Your API key might not have the required permissions.")
-                else:
-                    logger.error(f"Server returned error: {error}")
-            else:
-                logger.error(f"WebSocket connection error: {str(error)}\nStacktrace:\n{stack_trace}")
-        finally:
-            self.connected = False
-            self.ws = None
-            
-            # Update edge status to OFFLINE when disconnecting
-            await self._update_edge_status(EdgeStatus.OFFLINE)
-            
-            if self.heartbeat_task:
-                self.heartbeat_task.cancel()
-                self.heartbeat_task = None
-            logger.info("WebSocket disconnected")
+            # Process messages
+            async for message in ws:
+                await self._handle_message(message)
 
     async def start(self):
         """Start the client with reconnection logic"""
@@ -427,17 +361,52 @@ class TODOforAIEdge:
                 logger.info("Connection closed. Reconnecting in 4 seconds...")
                 await asyncio.sleep(4.0)
                 
+            except AuthenticationError as error:
+                logger.error(f"Authentication error: {str(error)}")
+                logger.error("Stopping reconnection attempts due to authentication failure")
+                break
+                
+            except ServerError as error:
+                logger.error(f"Server error: {str(error)}")
+                # For now, treat server errors as non-recoverable too
+                logger.error("Stopping reconnection attempts due to server error")
+                break
+                
+            except websockets.ConnectionClosedError as error:
+                logger.warning(f'Connection closed unexpectedly: {error}')
+                attempt += 1
+                
+            except websockets.ConnectionClosedOK as error:
+                logger.info(f"WebSocket connection closed normally: {error}")
+                # Don't increment attempt counter for normal closures
+                
             except Exception as error:
                 logger.error(f"Connection error: {str(error)}")
+                
+                # Check if it's a status code related error
+                if hasattr(error, 'status_code'):
+                    if error.status_code in [401, 403]:
+                        logger.error("Authentication/authorization failed. Please check your API key.")
+                        break
+                
                 attempt += 1
+                
+            finally:
+                self.connected = False
+                self.ws = None
+                
+                if self.heartbeat_task:
+                    self.heartbeat_task.cancel()
+                    self.heartbeat_task = None
+                logger.info("WebSocket disconnected!")
                 
                 # Stop all file syncs on error
                 await stop_all_syncs()
                 
-                if attempt < max_attempts:
-                    delay = min(4 + attempt, 20.0)
-                    logger.info(f"Reconnecting in {delay:.1f} seconds...")
-                    await asyncio.sleep(delay)
-                else:
-                    logger.error("Maximum reconnection attempts reached. Giving up.")
-                    break
+            if attempt < max_attempts and attempt > 0:
+                delay = min(4 + attempt, 20.0)
+                logger.info(f"Reconnecting in {delay:.1f} seconds...")
+                await asyncio.sleep(delay)
+            elif attempt >= max_attempts:
+                logger.error("Maximum reconnection attempts reached. Giving up.")
+                break
