@@ -1,7 +1,7 @@
 {
   "name": "todoforai-edge",
   "private": true,
-  "version": "0.11.9",
+  "version": "0.11.10",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "install:deb": "tauri build --bundles deb && sudo dpkg -i \"src-tauri/target/release/bundle/deb/todoforai-edge_$(node -p \"require('./package.json').version\")_amd64.deb\""
+    "install:deb": "tauri build --bundles deb && sudo dpkg -i \"src-tauri/target/release/bundle/deb/todoforai-edge_$(node -p \"require('./package.json').version\")_amd64.deb\"",
+    "tauri:dev:prod-mode": "TODOFORAI_FORCE_PYTHON=1 yarn tauri dev"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
