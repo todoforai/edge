@@ -279,21 +279,6 @@ const LoginFooter = styled.div`
   text-align: center;
 `;
 
-const SwitchButton = styled.button`
-  background: none;
-  border: none;
-  color: ${(props) => props.theme.colors.primary};
-  cursor: pointer;
-  font-size: 14px;
-  background: transparent;
-  text-shadow: none;
-  padding: 0;
-
-  &:hover {
-    text-decoration: underline;
-  }
-`;
-
 const ApiUrlContainer = styled.div`
   margin-top: 15px;
   text-align: center;
