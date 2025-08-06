@@ -87,20 +87,37 @@ def main():
         'urllib3.contrib.pyopenssl',
         'certifi',
         
+        # FastMCP and related imports
+        'fastmcp',
+        'fastmcp.server',
+        'fastmcp.client',
+        'fastmcp.types',
+        'fastmcp.utilities',
+        'fastmcp.utilities.logging',
+        'fastmcp.utilities.messages',
+        'fastmcp.utilities.types',
+        'pydantic',
+        'typing_extensions',
+        
         # Ensure all todoforai_edge modules are included
         'todoforai_edge',
         'todoforai_edge.client',
         'todoforai_edge.config',
-        'todoforai_edge.file_sync',
+        'todoforai_edge.edge_config',
+        'todoforai_edge.mcp_client',
         'todoforai_edge.handlers',
-        'todoforai_edge.workspace_handler',
-        'todoforai_edge.shell_handler',
-        'todoforai_edge.messages',
-        'todoforai_edge.utils',
+        'todoforai_edge.handlers.file_sync',
+        'todoforai_edge.handlers.handlers',
+        'todoforai_edge.handlers.shell_handler',
         'todoforai_edge.constants',
+        'todoforai_edge.constants.constants',
+        'todoforai_edge.constants.messages',
+        'todoforai_edge.constants.workspace_handler',
+        'todoforai_edge.utils',
         'todoforai_edge.apikey',
         'todoforai_edge.observable',
-        'todoforai_edge.arg_parser'
+        'todoforai_edge.arg_parser',
+        'todoforai_edge.colors'
     ]
     
     # Add platform-specific imports
