@@ -6,7 +6,27 @@ import subprocess
 import sys
 from pathlib import Path
 
+def install_pyinstaller():
+    """Install PyInstaller if not available"""
+    try:
+        import PyInstaller
+        print("✅ PyInstaller already installed")
+        return True
+    except ImportError:
+        print("📦 Installing PyInstaller...")
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "PyInstaller"], check=True)
+            print("✅ PyInstaller installed successfully")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to install PyInstaller: {e}")
+            return False
+
 def main():
+    # Ensure PyInstaller is available
+    if not install_pyinstaller():
+        sys.exit(1)
+    
     script_dir = Path(__file__).parent
     sidecar_path = script_dir / "edge_frontend/src-tauri/resources/python/ws_sidecar.py"
     
