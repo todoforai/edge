@@ -1,6 +1,6 @@
 [package]
 name = "todoforai-edge"
-version = "0.11.16"
+version = "0.11.17"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
