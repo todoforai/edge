@@ -7,7 +7,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     description: 'Access and manage Gmail emails with full authentication support',
     command: 'npx',
     args: ['@gongrzhe/server-gmail-autoauth-mcp'],
-    icon: 'logos:gmail',
+    icon: '/logos/gmail.png', // Local downloaded logo
     env: { 'GMAIL_CREDENTIALS_PATH': '' },
     category: ['Communication'],
     repository: {
@@ -22,32 +22,12 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'weather',
-    name: 'Weather MCP',
-    description: 'Get weather information and forecasts using AccuWeather API',
-    command: 'uvx',
-    args: ['--from', 'git+https://github.com/adhikasp/mcp-weather.git', 'mcp-weather'],
-    icon: 'lucide:cloud-sun',
-    env: { 'ACCUWEATHER_API_KEY': 'your_api_key_here' },
-    category: ['Weather'],
-    repository: {
-      url: 'https://github.com/adhikasp/mcp-weather.git',
-      source: 'github',
-      id: 'adhikasp/mcp-weather'
-    },
-    version_detail: {
-      version: '1.0.0',
-      release_date: '2024-02-20',
-      is_latest: true
-    }
-  },
-  {
     serverId: 'puppeteer',
     name: 'Puppeteer MCP',
     description: 'Web automation and scraping using Puppeteer browser control',
     command: 'npx',
     args: ['-y', 'puppeteer-mcp-server'],
-    icon: 'simple-icons:puppeteer',
+    icon: '/logos/puppeteer.png', // Local downloaded logo
     env: {},
     category: ['Web Automation'],
     repository: {
@@ -67,7 +47,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     description: 'Fill PDF forms with Claude Desktop integration',
     command: 'npx',
     args: ['@pdf-filler/mcp-server'],
-    icon: 'vscode-icons:file-type-pdf2',
+    icon: 'lucide:file-text', // Use lucide icon for PDF since it's generic
     category: ['Documents'],
     repository: {
       url: 'https://github.com/pdf-filler/mcp-server',
@@ -81,50 +61,12 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'windows-mcp',
-    name: 'Windows MCP',
-    description: 'Lightweight MCP Server that enables Claude to interact with Windows OS',
-    command: 'npx',
-    args: ['@windows-mcp/server'],
-    icon: 'logos:microsoft-windows',
-    category: ['System'],
-    repository: {
-      url: 'https://github.com/windows-mcp/server',
-      source: 'npm',
-      id: '@windows-mcp/server'
-    },
-    version_detail: {
-      version: '0.9.1',
-      release_date: '2024-02-10',
-      is_latest: true
-    }
-  },
-  {
-    serverId: 'macos-control',
-    name: 'Control your Mac',
-    description: 'Execute AppleScript to automate tasks on macOS',
-    command: 'npx',
-    args: ['@macos-control/mcp-server'],
-    icon: 'logos:apple',
-    category: ['System'],
-    repository: {
-      url: 'https://github.com/macos-control/mcp-server',
-      source: 'npm',
-      id: '@macos-control/mcp-server'
-    },
-    version_detail: {
-      version: '1.1.0',
-      release_date: '2024-01-25',
-      is_latest: true
-    }
-  },
-  {
     serverId: 'spotify-applescript',
     name: 'Spotify (AppleScript)',
     description: 'Control Spotify via AppleScript',
     command: 'npx',
     args: ['@spotify-applescript/mcp-server'],
-    icon: 'logos:spotify',
+    icon: '/logos/spotify.png', // Local downloaded logo
     category: ['Media'],
     repository: {
       url: 'https://github.com/spotify-applescript/mcp-server',
@@ -138,31 +80,12 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'enrichr-mcp',
-    name: 'Enrichr MCP Server',
-    description: 'Gene set enrichment analysis using Enrichr API with multi-library support',
-    command: 'npx',
-    args: ['@enrichr/mcp-server'],
-    icon: 'material-symbols:biotech',
-    category: ['Science'],
-    repository: {
-      url: 'https://github.com/enrichr/mcp-server',
-      source: 'npm',
-      id: '@enrichr/mcp-server'
-    },
-    version_detail: {
-      version: '2.0.1',
-      release_date: '2024-01-30',
-      is_latest: true
-    }
-  },
-  {
     serverId: 'stripe',
     name: 'Stripe',
     description: 'Manage resources in your Stripe account and search the Stripe documentation',
     command: 'npx',
     args: ['@stripe/mcp-server'],
-    icon: 'logos:stripe',
+    icon: '/logos/stripe.png', // Local downloaded logo
     env: { 'STRIPE_API_KEY': '' },
     category: ['Finance'],
     repository: {
@@ -182,7 +105,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     description: 'Control Brave Browser tabs, windows, and navigation',
     command: 'npx',
     args: ['@brave-applescript/mcp-server'],
-    icon: 'logos:brave',
+    icon: '/logos/brave.png', // Local downloaded logo
     category: ['Web Automation'],
     repository: {
       url: 'https://github.com/brave-applescript/mcp-server',
@@ -201,7 +124,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     description: 'Read and write access to Airtable databases via the Model Context Protocol',
     command: 'npx',
     args: ['@airtable/mcp-server'],
-    icon: 'simple-icons:airtable',
+    icon: '/logos/airtable.png', // Local downloaded logo
     env: { 'AIRTABLE_API_KEY': '' },
     category: ['Database'],
     repository: {
@@ -212,26 +135,6 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     version_detail: {
       version: '1.3.2',
       release_date: '2024-02-08',
-      is_latest: true
-    }
-  },
-  {
-    serverId: 'cucumber-studio',
-    name: 'Cucumber Studio MCP',
-    description: 'MCP server for Cucumber Studio API integration - access test scenarios, features, and projects',
-    command: 'npx',
-    args: ['@cucumber-studio/mcp-server'],
-    icon: 'simple-icons:cucumber',
-    env: { 'CUCUMBER_STUDIO_API_TOKEN': '' },
-    category: ['Testing'],
-    repository: {
-      url: 'https://github.com/cucumber-studio/mcp-server',
-      source: 'npm',
-      id: '@cucumber-studio/mcp-server'
-    },
-    version_detail: {
-      version: '0.6.1',
-      release_date: '2024-01-22',
       is_latest: true
     }
   },
