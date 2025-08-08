@@ -146,8 +146,18 @@ const ExtensionCard = styled.div`
 
 const ExtensionIcon = styled.div`
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
+  border-radius: ${props => props.theme.radius.sm};
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.02);
+  
+  img {
+    border-radius: ${props => props.theme.radius.sm};
+  }
 `;
 
 const ExtensionInfo = styled.div`
@@ -489,7 +499,7 @@ const ExtensionsModal: React.FC<{
                 <ExtensionIcon>
                   <Icon 
                     icon={getMCPIcon(server.serverId || '')} 
-                    size={32}
+                    size={48}
                   />
                 </ExtensionIcon>
                 <ExtensionInfo>
