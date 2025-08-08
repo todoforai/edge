@@ -50,7 +50,7 @@ export type MCPRegistry = MCPJSON & {
 };
 
 export type InstalledMCP = MCPJSON & {  // somewhat STATIC MCP data that has to be stored in the cloud database and reloaded from there!
-  id: string; 
+  // installed: boolean; // always true... as if it's not installed, it's not in the list
 };
 
 export type MCPEdgeExecutable = InstalledMCP; // Simplified - no status needed
