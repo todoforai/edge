@@ -3,8 +3,7 @@ use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::Arc;
-use std::thread;
-use std::{env, fs, path::PathBuf, sync::Mutex};
+use std::{env, fs, path::PathBuf, sync::Mutex, time::Duration};
 use tauri::{path::BaseDirectory, AppHandle, Manager, PhysicalSize, WebviewWindow};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandEvent, CommandChild};
@@ -155,6 +154,37 @@ fn is_port_in_use(port: u16) -> bool {
     TcpStream::connect(SocketAddr::from(([127, 0, 0, 1], port))).is_ok()
 }
 
+// Function to wait for the sidecar to be ready
+async fn wait_for_sidecar_ready(port: u16, timeout_seconds: u64) -> Result<(), String> {
+    let start_time = std::time::Instant::now();
+    let timeout = Duration::from_secs(timeout_seconds);
+    
+    info!("Waiting for sidecar to be ready on port {}...", port);
+    
+    while start_time.elapsed() < timeout {
+        if is_port_in_use(port) {
+            // Port is bound, but let's also try to make a quick connection to ensure it's responding
+            match TcpStream::connect_timeout(
+                &SocketAddr::from(([127, 0, 0, 1], port)),
+                Duration::from_millis(100)
+            ) {
+                Ok(_) => {
+                    info!("Sidecar is ready and responding on port {}", port);
+                    return Ok(());
+                }
+                Err(_) => {
+                    // Port is bound but not responding yet, continue waiting
+                }
+            }
+        }
+        
+        // Wait a bit before checking again
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    }
+    
+    Err(format!("Timeout waiting for sidecar to be ready on port {} after {} seconds", port, timeout_seconds))
+}
+
 // Fixed WebSocket port
 const WEBSOCKET_PORT: u16 = 9528;
 
@@ -162,12 +192,14 @@ const WEBSOCKET_PORT: u16 = 9528;
 async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
     info!("start_websocket_sidecar called");
     let websocket_state = app.state::<WebSocketState>();
-    let mut state_lock = websocket_state.0.lock().unwrap();
-
-    // If already running in our process, return success
-    if state_lock.is_some() {
-        info!("WebSocket sidecar already running in this process");
-        return Ok(WEBSOCKET_PORT);
+    
+    // Check if already running - do this in a separate scope to release the lock
+    {
+        let state_lock = websocket_state.0.lock().unwrap();
+        if state_lock.is_some() {
+            info!("WebSocket sidecar already running in this process");
+            return Ok(WEBSOCKET_PORT);
+        }
     }
 
     // Check if the port is already in use (possibly by another process)
@@ -287,16 +319,17 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
         }
     });
 
-    // Wait a moment for the server to start
-    thread::sleep(std::time::Duration::from_millis(500));
+    // Wait for the sidecar to be ready (up to 10 seconds)
+    wait_for_sidecar_ready(WEBSOCKET_PORT, 10).await?;
 
-    // Create a sidecar wrapper
-    let sidecar = WebSocketSidecar { child: Some(child) };
+    // Create a sidecar wrapper and store it - do this in a separate scope
+    {
+        let mut state_lock = websocket_state.0.lock().unwrap();
+        let sidecar = WebSocketSidecar { child: Some(child) };
+        *state_lock = Some(sidecar);
+    }
 
-    // Store the sidecar
-    *state_lock = Some(sidecar);
-
-    info!("WebSocket sidecar started on port {}", WEBSOCKET_PORT);
+    info!("WebSocket sidecar started and ready on port {}", WEBSOCKET_PORT);
     Ok(WEBSOCKET_PORT)
 }
 

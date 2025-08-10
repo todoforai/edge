@@ -28,3 +28,4 @@ tauri-plugin-os = "2"
 tauri-plugin-shell = "2"
 uuid = { version = "1.16.0", features = ["v4", "serde"] }
 tauri-plugin-deep-link = "2"
+tokio = { version = "1", features = ["time"] }
