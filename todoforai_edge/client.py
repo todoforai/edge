@@ -230,6 +230,10 @@ class TODOforAIEdge:
             self.user_id = payload.get("userId", "")
             logger.info(f"{Colors.GREEN}{Colors.BOLD}🔗 Connected with edge ID: {self.edge_id} and user ID: {self.user_id}{Colors.END}")
             
+            # Update the edge config with the edge ID
+            if self.edge_id:
+                self.edge_config.config.update_value({"id": self.edge_id}, source="server_connection")
+            
             # Load MCP if exists (only once on initial connection)
             await self._load_mcp_if_exists()
             
