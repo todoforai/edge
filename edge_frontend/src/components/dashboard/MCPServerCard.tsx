@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import type { MCPEdgeExecutable } from '../../shared/REST_types_shared';
-import { getMCPByCommandArgs } from '../../utils/mcpRegistry';
+import { getMCPByCommandArgs, getMCPIcon } from '../../utils/mcpRegistry';
 import { Icon } from '../../utils/iconMapper';
 
 const ServerCard = styled.div`
@@ -115,22 +115,58 @@ const ActionButton = styled.button`
   }
 `;
 
-const UninstallButton = styled.button`
+const DropdownContainer = styled.div`
+  position: relative;
+`;
+
+const DropdownMenu = styled.div<{ isOpen: boolean }>`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: ${(props) => props.theme.colors.background};
+  border: 1px solid ${(props) => props.theme.colors.borderColor};
+  border-radius: ${(props) => props.theme.radius.md};
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  min-width: 160px;
+  display: ${(props) => (props.isOpen ? 'block' : 'none')};
+`;
+
+const DropdownItem = styled.button<{ disabled?: boolean; danger?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
   background: transparent;
-  border: 1px solid #ef4444;
-  border-radius: ${(props) => props.theme.radius.sm};
-  color: #ef4444;
+  border: none;
+  color: ${(props) => props.danger ? '#ef4444' : props.theme.colors.foreground};
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s;
+  text-align: left;
 
   &:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: ${(props) => props.danger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)'};
   }
+
+  &:first-child {
+    border-radius: ${(props) => props.theme.radius.md} ${(props) => props.theme.radius.md} 0 0;
+  }
+
+  &:last-child {
+    border-radius: 0 0 ${(props) => props.theme.radius.md} ${(props) => props.theme.radius.md};
+  }
+
+  ${(props) => props.disabled && `
+    opacity: 0.5;
+    cursor: not-allowed;
+    
+    &:hover {
+      background: transparent;
+    }
+  `}
 `;
 
 const ServerDescription = styled.p`
@@ -155,19 +191,39 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   onOpenSettings,
   showCategory = false,
 }) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   showCategory = true;
-  // Get registry data based on command and args
-  const registryServer = getMCPByCommandArgs(instance.command, instance.args);
+  // Handle built-in TODOForAI MCP display
+  const isBuiltIn = instance.serverId === 'todoforai';
+  const registryServer = isBuiltIn ? null : getMCPByCommandArgs(instance.command, instance.args);
+  
+  const displayName = isBuiltIn ? 'TODOForAI' : (registryServer?.name || instance.serverId || 'Unknown Server');
+  const displayDescription = isBuiltIn ? 'Built-in file and shell operations' : (registryServer?.description || 'No description available');
+  const displayIcon = isBuiltIn ? 'lucide:wrench' : getMCPIcon(instance.serverId || '');
+  const displayCategory = isBuiltIn ? 'Built-in' : (registryServer?.category?.[0] || 'Unknown');
 
-  const displayName = registryServer?.name || `${instance.command} ${instance.args?.join(' ') || ''}`;
-  const displayDescription = registryServer?.description || 'No description available';
-  const displayIcon = registryServer?.icon
-    ? typeof registryServer.icon === 'string'
-      ? registryServer.icon
-      : registryServer.icon.light || 'lucide:server'
-    : 'lucide:server';
+  const handleUninstall = () => {
+    if (isBuiltIn) {
+      // Don't allow uninstalling built-in MCP
+      return;
+    }
+    onUninstall(instance.serverId);
+    setIsDropdownOpen(false);
+  };
 
-  const displayCategory = registryServer?.category?.[0] || 'Unknown';
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <ServerCard>
@@ -191,11 +247,33 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
               <ActionButton onClick={() => onOpenSettings(instance)} title="Settings">
                 <Icon icon="lucide:settings" size={16} />
               </ActionButton>
+              <DropdownContainer ref={dropdownRef}>
+                <ActionButton 
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)} 
+                  title="More options"
+                >
+                  <Icon icon="lucide:more-horizontal" size={16} />
+                </ActionButton>
+                <DropdownMenu isOpen={isDropdownOpen}>
+                  <DropdownItem onClick={() => onOpenSettings(instance)}>
+                    <Icon icon="lucide:settings" size={16} />
+                    Configure
+                  </DropdownItem>
+                  <DropdownItem onClick={() => onViewLogs(instance)}>
+                    <Icon icon="lucide:terminal" size={16} />
+                    View Logs
+                  </DropdownItem>
+                  <DropdownItem 
+                    onClick={handleUninstall}
+                    disabled={isBuiltIn}
+                    danger={!isBuiltIn}
+                  >
+                    <Icon icon={isBuiltIn ? "lucide:shield-check" : "lucide:trash-2"} size={16} />
+                    {isBuiltIn ? 'Built-in' : 'Remove'}
+                  </DropdownItem>
+                </DropdownMenu>
+              </DropdownContainer>
             </ActionButtonsRow>
-            <UninstallButton onClick={() => onUninstall(instance.serverId)} title="Uninstall">
-              <Icon icon="lucide:trash-2" size={14} />
-              Remove
-            </UninstallButton>
           </ServerActions>
         </ServerTitleRow>
       </ServerHeader>

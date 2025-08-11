@@ -337,29 +337,94 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
     }
   };
 
-  // Get unique categories from instances using helper function
+  // Get unique categories from instances using helper function + Built-in
   const getInstanceCategories = useMemo(() => {
     const categories = instances.map(instance => {
       const registryServer = getMCPByCommandArgs(instance.command, instance.args);
       return registryServer?.category?.[0] || 'Unknown';
     });
-    return ['All', ...Array.from(new Set(categories))];
+    return ['All', 'Built-in', ...Array.from(new Set(categories))];
   }, [instances]);
 
   // Filter instances using helper functions
-  const filteredInstances = instances.filter(instance => {
-    const registryServer = getMCPByCommandArgs(instance.command, instance.args);
-    const category = registryServer?.category?.[0] || 'Unknown';
-    const name = registryServer?.name || `${instance.command} ${instance.args?.join(' ') || ''}`;
-    const description = registryServer?.description || '';
+  const filteredInstances = useMemo(() => {
+    const regularInstances = instances.filter(instance => {
+      const registryServer = getMCPByCommandArgs(instance.command, instance.args);
+      const category = registryServer?.category?.[0] || 'Unknown';
+      const name = registryServer?.name || `${instance.command} ${instance.args?.join(' ') || ''}`;
+      const description = registryServer?.description || '';
+      
+      const matchesCategory = selectedCategory === 'All' || category === selectedCategory;
+      const matchesSearch = 
+        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        instance.serverId?.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+
+    // Add built-in TODOForAI MCP if it matches filters
+    const todoforaiMCP: MCPEdgeExecutable = {
+      id: 'todoforai-builtin',
+      serverId: 'todoforai',
+      command: 'builtin',
+      args: [],
+      env: {},
+      tools: [
+        {
+          name: 'create_file',
+          description: 'Create a new file with specified content',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              path: { type: 'string', description: 'File path' },
+              content: { type: 'string', description: 'File content' }
+            },
+            required: ['path', 'content']
+          }
+        },
+        {
+          name: 'modify_file',
+          description: 'Modify an existing file',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              path: { type: 'string', description: 'File path' },
+              content: { type: 'string', description: 'New content' }
+            },
+            required: ['path', 'content']
+          }
+        },
+        {
+          name: 'execute_shell',
+          description: 'Execute shell command',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              command: { type: 'string', description: 'Shell command to execute' }
+            },
+            required: ['command']
+          }
+        }
+      ]
+    };
+
+    // Check if TODOForAI matches filters
+    const todoforaiCategory = 'Built-in';
+    const todoforaiName = 'TODOForAI';
+    const todoforaiDescription = 'Built-in file and shell operations';
     
-    const matchesCategory = selectedCategory === 'All' || category === selectedCategory;
-    const matchesSearch = 
-      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      instance.serverId?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+    const todoforaiMatchesCategory = selectedCategory === 'All' || todoforaiCategory === selectedCategory;
+    const todoforaiMatchesSearch = 
+      todoforaiName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      todoforaiDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      'todoforai'.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (todoforaiMatchesCategory && todoforaiMatchesSearch) {
+      return [todoforaiMCP, ...regularInstances];
+    }
+
+    return regularInstances;
+  }, [instances, selectedCategory, searchTerm]);
 
   // Available servers for installation (from registry, excluding already installed)
   const availableServers = useMemo(() => 

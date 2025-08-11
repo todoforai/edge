@@ -115,6 +115,17 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
     
     // Convert Record<string, InstalledMCP> to MCPEdgeExecutable[]
     const executableInstances: MCPEdgeExecutable[] = Object.values(installedMCPs).map(instance => {
+      // Special handling for built-in TODOForAI MCP
+      if (instance.serverId === 'todoforai') {
+        return {
+          ...instance,
+          id: instance.id || 'todoforai-builtin',
+          command: 'builtin',
+          args: [],
+          env: instance.env || {},
+        };
+      }
+      
       // Get corresponding MCP JSON config if it exists
       const mcpConfig = mcpServers[instance.serverId];
       
