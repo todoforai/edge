@@ -46,14 +46,14 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     name: 'Puppeteer MCP',
     description: 'Web automation and scraping using Puppeteer browser control',
     command: 'npx',
-    args: ['-y', 'puppeteer-mcp-server'],
+    args: ['-y', 'github:Sixzero/puppeteer-mcp-server'],
     icon: '/logos/puppeteer.png', // Local downloaded logo
     env: {},
     category: ['Web Automation'],
     repository: {
-      url: 'https://github.com/puppeteer/puppeteer-mcp',
-      source: 'npm',
-      id: 'puppeteer-mcp-server'
+      url: 'https://github.com/Sixzero/puppeteer-mcp-server',
+      source: 'github',
+      id: 'Sixzero/puppeteer-mcp-server'
     },
     version_detail: {
       version: '2.1.0',

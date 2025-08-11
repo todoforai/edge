@@ -8,7 +8,10 @@
     },
     "puppeteer": {
       "command": "npx",
-      "args": ["-y", "puppeteer-mcp-server"],
+      "args": [
+        "-y",
+        "github:Sixzero/puppeteer-mcp-server"
+      ],
       "env": {}
     }
   }
