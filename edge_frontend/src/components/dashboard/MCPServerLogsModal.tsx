@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Icon } from '../../utils/iconMapper';
+import { X, Trash2, Download, CheckCircle, XCircle } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../shared/REST_types_shared';
 import { useMCPLogStore } from '../../store/mcpLogStore';
 
@@ -46,13 +46,13 @@ Result: ${result}
           <ModalTitle>Tool Call Logs - {instance.serverId}</ModalTitle>
           <LogsActions>
             <ActionButton title="Clear Logs" onClick={clearServerLogs}>
-              <Icon icon="lucide:trash-2" size={16} />
+              <Trash2 size={16} />
             </ActionButton>
             <ActionButton title="Download Logs" onClick={downloadLogs}>
-              <Icon icon="lucide:download" size={16} />
+              <Download size={16} />
             </ActionButton>
             <CloseButton onClick={onClose}>
-              <Icon icon="lucide:x" size={20} />
+              <X size={20} />
             </CloseButton>
           </LogsActions>
         </ModalHeader>
@@ -66,10 +66,7 @@ Result: ${result}
                 <LogEntryComponent key={log.id} $isError={!log.success}>
                   <LogTimestamp>{log.timestamp.toLocaleTimeString()}</LogTimestamp>
                   <LogStatus $isError={!log.success}>
-                    <Icon 
-                      icon={log.success ? "lucide:check-circle" : "lucide:x-circle"} 
-                      size={14}
-                    />
+                    {log.success ? <CheckCircle size={14} /> : <XCircle size={14} />}
                     {log.success ? 'SUCCESS' : 'ERROR'}
                   </LogStatus>
                   <LogContent>

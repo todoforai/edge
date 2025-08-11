@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
+import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../shared/REST_types_shared';
 import { getMCPByCommandArgs, getMCPIcon } from '../../utils/mcpRegistry';
-import { Icon } from '../../utils/iconMapper';
+import { LogoImage } from '../LogoImage';
 
 const ServerCard = styled.div`
   border: 1px solid ${(props) => props.theme.colors.borderColor};
@@ -201,7 +202,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   
   const displayName = isBuiltIn ? 'TODOForAI' : (registryServer?.name || instance.serverId || 'Unknown Server');
   const displayDescription = isBuiltIn ? 'Built-in file and shell operations' : (registryServer?.description || 'No description available');
-  const displayIcon = isBuiltIn ? 'lucide:wrench' : getMCPIcon(instance.serverId || '');
+  const displayIcon = isBuiltIn ? '/T-rocket-middle.png' : getMCPIcon(instance.serverId || '');
   const displayCategory = isBuiltIn ? 'Built-in' : (registryServer?.category?.[0] || 'Unknown');
 
   const handleUninstall = () => {
@@ -229,7 +230,11 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
     <ServerCard>
       <ServerHeader>
         <ServerIcon>
-          <Icon icon={displayIcon} size={24} />
+          <LogoImage 
+            src={displayIcon} 
+            alt={displayName}
+            size={48}
+          />
         </ServerIcon>
         <ServerTitleRow>
           <ServerInfo>
@@ -242,25 +247,25 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
           <ServerActions>
             <ActionButtonsRow>
               <ActionButton onClick={() => onViewLogs(instance)} title="View Logs">
-                <Icon icon="lucide:terminal" size={16} />
+                <Terminal size={16} />
               </ActionButton>
               <ActionButton onClick={() => onOpenSettings(instance)} title="Settings">
-                <Icon icon="lucide:settings" size={16} />
+                <Settings size={16} />
               </ActionButton>
               <DropdownContainer ref={dropdownRef}>
                 <ActionButton 
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)} 
                   title="More options"
                 >
-                  <Icon icon="lucide:more-horizontal" size={16} />
+                  <MoreVertical size={16} />
                 </ActionButton>
                 <DropdownMenu isOpen={isDropdownOpen}>
                   <DropdownItem onClick={() => onOpenSettings(instance)}>
-                    <Icon icon="lucide:settings" size={16} />
+                    <Settings size={16} />
                     Configure
                   </DropdownItem>
                   <DropdownItem onClick={() => onViewLogs(instance)}>
-                    <Icon icon="lucide:terminal" size={16} />
+                    <Terminal size={16} />
                     View Logs
                   </DropdownItem>
                   <DropdownItem 
@@ -268,7 +273,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
                     disabled={isBuiltIn}
                     danger={!isBuiltIn}
                   >
-                    <Icon icon={isBuiltIn ? "lucide:shield-check" : "lucide:trash-2"} size={16} />
+                    {isBuiltIn ? <ShieldCheck size={16} /> : <Trash2 size={16} />}
                     {isBuiltIn ? 'Built-in' : 'Remove'}
                   </DropdownItem>
                 </DropdownMenu>

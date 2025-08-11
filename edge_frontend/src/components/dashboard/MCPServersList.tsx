@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
-import { Icon } from '../../utils/iconMapper';
+import { X, Download } from 'lucide-react';
+import { LogoImage } from '../LogoImage';
 import type { MCPJSON, MCPEdgeExecutable } from '../../shared/REST_types_shared';
 import { MOCK_MCP_REGISTRY } from './data/mcpServersData';
 import { MCPServerCard } from './MCPServerCard';
@@ -212,7 +213,7 @@ interface MCPServersListProps {
 
 const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeChange }) => {
   const { config, getMCPInstances } = useEdgeConfigStore();
-  const [registryServers, setRegistryServers] = useState<MCPJSON[]>([]);
+  const [registryServers, setRegistryServers] = useState<MCPJSON[]>(MOCK_MCP_REGISTRY);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showSettingsModal, setShowSettingsModal] = useState<MCPEdgeExecutable | null>(null);
@@ -224,12 +225,10 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
     return getMCPInstances();
   }, [getMCPInstances, config.installedMCPs, config.mcp_json]);
 
-  // Load mock registry data
+  // Load mock registry data once on mount
   useEffect(() => {
     setRegistryServers(MOCK_MCP_REGISTRY);
-    console.log('MCP instances from mcp_json:', instances);
-    console.log('Mock registry servers:', MOCK_MCP_REGISTRY);
-  }, [instances]);
+  }, []); // Empty dependency array - only run once
 
   const handleViewLogs = (instance: MCPEdgeExecutable) => {
     setShowLogsModal(instance);
@@ -239,7 +238,6 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
     setShowSettingsModal(instance);
   };
 
-  console.log('currentMcpJson', config.mcp_json);
   // Replace the install modal with settings modal for new installations
   const handleInstallFromRegistry = (server: MCPJSON) => {
     // Create a temporary MCPEdgeExecutable for the settings modal
@@ -542,7 +540,7 @@ const ExtensionsModal: React.FC<{
         <ModalHeader>
           <ModalTitle>Add New Extensions</ModalTitle>
           <CloseButton onClick={onClose}>
-            <Icon icon="lucide:x" size={20} />
+            <X size={20} />
           </CloseButton>
         </ModalHeader>
 
@@ -562,8 +560,9 @@ const ExtensionsModal: React.FC<{
             {filteredServers.map((server, index) => (
               <ExtensionCard key={server.serverId || `server-${index}`}>
                 <ExtensionIcon>
-                  <Icon 
-                    icon={getMCPIcon(server.serverId || '')} 
+                  <LogoImage 
+                    src={getMCPIcon(server.serverId || '')} 
+                    alt={getMCPName(server.serverId)}
                     size={48}
                   />
                 </ExtensionIcon>
@@ -573,7 +572,7 @@ const ExtensionsModal: React.FC<{
                   <ExtensionCategory>{getMCPCategory(server.serverId)?.[0] || 'Other'}</ExtensionCategory>
                 </ExtensionInfo>
                 <InstallButton onClick={() => onInstall(server)}>
-                  <Icon icon="lucide:download" size={16} />
+                  <Download size={16} />
                   Install
                 </InstallButton>
               </ExtensionCard>

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { Icon } from '../../utils/iconMapper';
+import { AlertTriangle } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../shared/REST_types_shared';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
 
@@ -131,7 +131,7 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
     <>
       {jsonError && (
         <JsonError>
-          <Icon icon="lucide:alert-triangle" size={16} />
+          <AlertTriangle size={16} />
           {jsonError}
         </JsonError>
       )}

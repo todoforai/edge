@@ -34,9 +34,7 @@ export const getMCPByCommandArgs = (command: string, args: string[] = []): MCPRe
 // Helper functions
 export const getMCPIcon = (serverId: string): string => {
   const server = global_registry.get(serverId);
-  if (!server?.icon) return 'lucide:server';
-  
-  return typeof server.icon === 'string' ? server.icon : server.icon.light || 'lucide:server';
+  return server?.icon || '/logos/default.png'; // Return image path directly
 };
 
 export const getMCPName = (serverId: string): string => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Icon } from '../../utils/iconMapper';
+import { User, Mail, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 const ProfileButton = styled.button`
@@ -104,17 +104,17 @@ export const ProfileDropdown: React.FC = () => {
       <UserContainer>
         <ProfileButton>
           <ProfileImage>
-            <Icon icon="lucide:user" size={24} />
+            <User size={24} />
           </ProfileImage>
         </ProfileButton>
       </UserContainer>
       <DropdownContent>
         <EmailHeader>
-          <Icon icon="lucide:mail" size={16} />
+          <Mail size={16} />
           {user.email || 'User'}
         </EmailHeader>
         <DropdownItem onClick={handleLogout}>
-          <Icon icon="lucide:log-out" size={16} />
+          <LogOut size={16} />
           <span>Logout</span>
         </DropdownItem>
       </DropdownContent>

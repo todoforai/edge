@@ -10,7 +10,7 @@ FRONTEND_DIR="$(dirname "$TAURI_DIR")"
 PROJECT_ROOT="$(dirname "$FRONTEND_DIR")"
 
 ## ── source & target paths ─────────────────────────────────────────────────────
-ORIGINAL_ICON="$TAURI_DIR/../public/todoforai_original_icon.png"
+ORIGINAL_ICON="$TAURI_DIR/../public/T-rocket.svg"
 TARGET_ICON="$TAURI_DIR/icons/Square310x310Logo.png"
 
 ICO_PATH="$TAURI_DIR/icons/icon.ico"

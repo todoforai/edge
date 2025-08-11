@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Icon } from '../../utils/iconMapper';
+import { X, AlertCircle, Plus } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../shared/REST_types_shared';
 
 
@@ -291,7 +291,7 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
             {isNewInstallation ? 'Install' : 'Settings'} - {instance.serverId}
           </ModalTitle>
           <CloseButton onClick={onClose}>
-            <Icon icon="lucide:x" size={20} />
+            <X size={20} />
           </CloseButton>
         </ModalHeader>
 
@@ -307,7 +307,7 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
             />
             {hasServerIdError && (
               <ErrorMessage>
-                <Icon icon="lucide:alert-circle" size={14} />
+                <AlertCircle size={14} />
                 Underscore (_) characters are not allowed in Server ID
               </ErrorMessage>
             )}
@@ -340,12 +340,12 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
                     placeholder={`Argument ${index + 1}`}
                   />
                   <RemoveButton onClick={() => removeArgument(index)}>
-                    <Icon icon="lucide:x" size={16} />
+                    <X size={16} />
                   </RemoveButton>
                 </ArgumentRow>
               ))}
               <AddButton onClick={addArgument}>
-                <Icon icon="lucide:plus" size={16} />
+                <Plus size={16} />
                 Add Argument
               </AddButton>
             </ArgumentsList>
@@ -369,12 +369,12 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
                     placeholder="Variable value"
                   />
                   <RemoveButton onClick={() => removeEnvVariable(key)}>
-                    <Icon icon="lucide:x" size={16} />
+                    <X size={16} />
                   </RemoveButton>
                 </EnvRow>
               ))}
               <AddButton onClick={addEnvVariable}>
-                <Icon icon="lucide:plus" size={16} />
+                <Plus size={16} />
                 Add Environment Variable
               </AddButton>
             </EnvList>
