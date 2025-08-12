@@ -116,17 +116,9 @@ class EdgeConfig:
             clean_tools: List[Dict[str, Any]] = []
             for tool in server_tools:
                 # Remove server_id prefix from tool name (e.g., "puppeteer_puppeteer_click" -> "click")
-                tool_name = tool["name"]
-                if tool_name.startswith(f"{server_id}_"):
-                    clean_name = tool_name[len(f"{server_id}_"):]
-                    # Remove duplicate server_id if it appears again
-                    if clean_name.startswith(f"{server_id}_"):
-                        clean_name = clean_name[len(f"{server_id}_"):]
-                else:
-                    clean_name = tool_name
                 
                 clean_tool = {
-                    "name": clean_name,
+                    "name": tool["name"],
                     "description": tool["description"], 
                     "inputSchema": tool["inputSchema"]
                 }
