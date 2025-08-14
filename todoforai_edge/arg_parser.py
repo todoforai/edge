@@ -9,18 +9,23 @@ def create_argparse_apply_config():
     parser = argparse.ArgumentParser(description="TodoForAI Edge CLI")
     
     # Authentication arguments
-    parser.add_argument("--email", default=config.email, help="Email for authentication")
-    parser.add_argument("--password", default=config.password, help="Password for authentication")
-    parser.add_argument("--api-key", default=config.api_key, help="API key (if already authenticated)")
+    parser.add_argument("--email", help="Email for authentication")
+    parser.add_argument("--password", help="Password for authentication")
+    parser.add_argument("--api-key", help="API key (if already authenticated)")
     
     # Configuration arguments
-    parser.add_argument("--api-url", default=config.api_url, help="API URL")
-    parser.add_argument("--debug", action="store_true", default=config.debug, help="Enable debug logging")
+    parser.add_argument("--api-url", help="API URL")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     
     # Workspace management
     parser.add_argument("--add-path", dest="add_workspace_path", help="Add a workspace path to the edge configuration")
     
     args = parser.parse_args()
+    
+    # Priority logic: if email/password args provided, clear env API key
+    if args.email is not None or args.password is not None:
+        config.api_key = ""
+    
     config.update_from_args(args)
     
     # Print server info early, before requesting credentials
