@@ -46,15 +46,15 @@ class MCPCollector:
             mcp_json = self.edge_config.config.value.get("mcp_json", {})
             print('mcp_json', mcp_json)
             
-            # Save the updated config to file if we have a config file path
-            if self.config_file_path and mcp_json:
-                await self._save_config_to_file(mcp_json)
-            
             if not mcp_json:
                 logger.info("No MCP config, clearing tools")
                 self.edge_config.set_edge_mcps([])
                 return
             
+            # Save the updated config to file if we have a config file path
+            if self.config_file_path and mcp_json:
+                await self._save_config_to_file(mcp_json)
+                
             # Process config and create client
             processed_servers = self._process_config(mcp_json)
             if not processed_servers:
@@ -114,6 +114,23 @@ class MCPCollector:
             }
             serialized.append(tool_info)
         return serialized
+
+    async def _validate_tool_exists(self, tool_name: str) -> None:
+        """Validate that a tool exists and raise helpful error if not"""
+        available_tools = await self.list_tools()
+        available_tool_names = [tool["name"] for tool in available_tools]
+        
+        if tool_name not in available_tool_names:
+            server_id, _ = _extract_server_id(tool_name)
+            server_tools = [tool["name"] for tool in available_tools if tool.get("server_id") == server_id]
+            
+            error_msg = f"Tool '{tool_name}' does not exist."
+            if server_tools:
+                error_msg += f" Available tools for server '{server_id}': {', '.join(server_tools)}"
+            else:
+                error_msg += f" No tools available for server '{server_id}'."
+            
+            raise ValueError(error_msg)
 
     async def load_from_file(self, config_path: str) -> Dict[str, bool]:
         """Load servers from MCP config file"""
@@ -176,6 +193,10 @@ class MCPCollector:
         server_id, actual_tool_name = _extract_server_id(tool_name)
         
         try:
+            # Validate tool exists
+            await self._validate_tool_exists(tool_name)
+            
+            # Tool exists, proceed with the call
             async with self.unified_client as client:
                 result = await client.call_tool(tool_name, arguments)
                 result_text = result.text if hasattr(result, 'text') else str(result)
@@ -201,7 +222,7 @@ class MCPCollector:
                 })
             
             logger.error(f"Error calling tool {tool_name}: {e}")
-            raise
+            return {"error": str(e), "success": False}
     
     async def list_tools(self) -> List[Dict[str, Any]]:
         """List all available tools"""
