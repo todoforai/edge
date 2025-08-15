@@ -108,6 +108,7 @@ export const EdgeInfo: React.FC = () => {
   const { config } = useEdgeConfigStore();
   const [isEditing, setIsEditing] = React.useState(false);
   const [editingName, setEditingName] = React.useState('');
+  const [copied, setCopied] = React.useState(false);
 
   // Use either the API URL from the user object or from the store
   const displayUrl = user?.apiUrl || apiUrl || 'Unknown';
@@ -119,6 +120,8 @@ export const EdgeInfo: React.FC = () => {
   const handleEdgeIdDoubleClick = async () => {
       try {
         await navigator.clipboard.writeText(config.id);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
       } catch (err) {
         console.error('Failed to copy edge ID to clipboard:', err);
       }
@@ -199,8 +202,12 @@ export const EdgeInfo: React.FC = () => {
       <Separator />
       <InfoItem>
         <Label>ID:</Label>
-        <CopyableValue onDoubleClick={handleEdgeIdDoubleClick} title="Double-click to copy">
-          {config.id.length > 8 ? `${config.id.substring(0, 8)}...` : config.id}
+        <CopyableValue 
+          onDoubleClick={handleEdgeIdDoubleClick} 
+          title={copied ? "Copied!" : "Double-click to copy"}
+          style={{ color: copied ? '#4CAF50' : undefined }}
+        >
+          {copied ? "Copied!" : (config.id.length > 8 ? `${config.id.substring(0, 8)}...` : config.id)}
         </CopyableValue>
       </InfoItem>
     </InfoContainer>
