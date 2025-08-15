@@ -110,9 +110,9 @@ The UI provides:
 
 This is especially useful for users who prefer not to use the command line.
 
-## Let Us Know You're Using TodoForAI!
+## Let Us Know You're Using TODOforAI!
 
-We'd love to hear from you! If you're using TodoForAI in your projects or organization, please consider dropping us a quick note at marcellhavlik@todofor.ai. 
+We'd love to hear from you! If you're using TODOforAI in your projects or organization, please consider dropping us a quick note at marcellhavlik@todofor.ai. 
 
 Hearing about your use cases helps us:
 - Improve the product based on real-world usage

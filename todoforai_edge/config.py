@@ -25,7 +25,7 @@ def get_ws_url(api_url=DEFAULT_API_URL):
         return f"wss://{url}/ws/v1/edge"
     
 class Config:
-    """Simple configuration class for TodoForAI Edge"""
+    """Simple configuration class for TODOforAI Edge"""
     
     def __init__(self):
         # Core settings with environment variable fallbacks

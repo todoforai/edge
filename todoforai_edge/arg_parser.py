@@ -6,7 +6,7 @@ from .config import default_config
 
 def create_argparse_apply_config():
     config = default_config()
-    parser = argparse.ArgumentParser(description="TodoForAI Edge CLI")
+    parser = argparse.ArgumentParser(description="TODOforAI Edge CLI")
     
     # Authentication arguments
     parser.add_argument("--email", help="Email for authentication")

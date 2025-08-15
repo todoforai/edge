@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple wrapper script to run the TodoForAI Edge client directly.
+Simple wrapper script to run the TODOforAI Edge client directly.
 This avoids the relative import issues when running app.py directly.
 """
 import sys

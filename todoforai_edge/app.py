@@ -37,7 +37,7 @@ async def run_app(api_key=None):
         sys.exit(1)
     
     # Create a client
-    print(f"{Colors.CYAN}🚀 Starting TodoForAI Edge CLI...{Colors.END}")
+    print(f"{Colors.CYAN}🚀 Starting TODOforAI Edge CLI...{Colors.END}")
     todo_client = TODOforAIEdge(client_config=config)
     
     # Authenticate if needed
@@ -51,7 +51,7 @@ async def run_app(api_key=None):
         print(f"{Colors.RED}❌ Error: No API key available after authentication{Colors.END}")
         sys.exit(1)
     
-    print(f"{Colors.GREEN}🔗 Connecting to TodoForAI...{Colors.END}")
+    print(f"{Colors.GREEN}🔗 Connecting to TODOforAI...{Colors.END}")
     await todo_client.start()
 
 

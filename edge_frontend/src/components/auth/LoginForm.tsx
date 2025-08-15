@@ -48,7 +48,7 @@ export const LoginForm = () => {
   return (
     <LoginContainer>
       <LoginCard>
-        <LoginHeader>Connect your PC to TodoForAI</LoginHeader>
+        <LoginHeader>Connect your PC to TODOforAI</LoginHeader>
 
         <TabContainer>
           <TabButton $active={loginMethod === 'credentials'} onClick={() => setLoginMethod('credentials')} type="button">
@@ -122,7 +122,7 @@ export const LoginForm = () => {
                 placeholder="API URL"
               />
             ) : (
-              // Only show API URL if it's not the default TodoForAI URL
+              // Only show API URL if it's not the default TODOforAI URL
               apiUrl && !apiUrl.includes('todofor.ai') && (
                 <ApiUrlText onClick={handleApiUrlClick}>
                   API: {apiUrl}

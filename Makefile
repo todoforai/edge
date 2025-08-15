@@ -12,11 +12,11 @@ help:
 	@echo "  make update-icons      - Update icons with 'Edge' text"
 
 run:
-	@echo "Running TodoForAI Edge client..."
+	@echo "Running TODOforAI Edge client..."
 	python3 run_edge.py
 
 run-test:
-	@echo "Running TodoForAI Edge client with test credentials..."
+	@echo "Running TODOforAI Edge client with test credentials..."
 	python3 run_edge.py --email lfg@todofor.ai --password Test123 --api-url http://localhost:4000
 
 run-ws:
