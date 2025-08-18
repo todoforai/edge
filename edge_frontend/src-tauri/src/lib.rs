@@ -151,7 +151,10 @@ struct WebSocketState(Arc<Mutex<Option<WebSocketSidecar>>>);
 
 // Function to check if a port is already in use
 fn is_port_in_use(port: u16) -> bool {
-    TcpStream::connect(SocketAddr::from(([127, 0, 0, 1], port))).is_ok()
+    TcpStream::connect_timeout(
+        &SocketAddr::from(([127, 0, 0, 1], port)),
+        Duration::from_millis(100)
+    ).is_ok()
 }
 
 // Function to wait for the sidecar to be ready
@@ -163,19 +166,8 @@ async fn wait_for_sidecar_ready(port: u16, timeout_seconds: u64) -> Result<(), S
     
     while start_time.elapsed() < timeout {
         if is_port_in_use(port) {
-            // Port is bound, but let's also try to make a quick connection to ensure it's responding
-            match TcpStream::connect_timeout(
-                &SocketAddr::from(([127, 0, 0, 1], port)),
-                Duration::from_millis(100)
-            ) {
-                Ok(_) => {
-                    info!("Sidecar is ready and responding on port {}", port);
-                    return Ok(());
-                }
-                Err(_) => {
-                    // Port is bound but not responding yet, continue waiting
-                }
-            }
+            info!("Sidecar is ready on port {}", port);
+            return Ok(());
         }
         
         // Wait a bit before checking again
