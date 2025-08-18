@@ -14,6 +14,9 @@ from ..observable import registry
 
 logger = logging.getLogger("todoforai-edge-sync")
 
+# Hard cap for synced file payloads (can be overridden by env)
+MAX_SYNC_BYTES = int(os.environ.get("TODOFORAI_EDGE_MAX_SYNC_BYTES", str(100 * 1024)))  # ~100 KiB
+
 # Global registry to track active sync managers
 active_sync_managers = registry.create("active_sync_managers", {})
 
@@ -215,6 +218,10 @@ class WorkspaceSyncManager:
             
             content, file_hash, size, mtime = result
             
+            # Skip oversized files
+            if self._should_skip_oversized_file(abs_path, size, file_hash, mtime):
+                continue
+            
             # Check cache
             if abs_path in self.file_cache:
                 cached = self.file_cache[abs_path]
@@ -263,6 +270,16 @@ class WorkspaceSyncManager:
             logger.error(f"Error reading file {file_path}: {str(e)}")
             raise
     
+    def _should_skip_oversized_file(self, abs_path: str, size: int, file_hash: str, mtime: float) -> bool:
+        """Check if file should be skipped due to size, updating cache if so"""
+        if size > MAX_SYNC_BYTES:
+            logger.warning(f"Skipping oversized file (size={size:,} bytes > {MAX_SYNC_BYTES:,}): {abs_path}")
+            # Update cache anyway to avoid reprocessing unchanged large files
+            self.file_cache[abs_path] = FileState(mtime, size, file_hash)
+            self.project_files_abs.add(abs_path)
+            return True
+        return False
+
     async def initial_sync(self):
         """Perform initial sync of all project files with improved performance"""
         logger.info("Starting initial sync of project files...")
@@ -354,6 +371,10 @@ class WorkspaceSyncManager:
                 return
                 
             content, file_hash, size, mtime = result
+            
+            # Skip oversized files
+            if self._should_skip_oversized_file(abs_path, size, file_hash, mtime):
+                return
             
             # Check cache
             if abs_path in self.file_cache:
