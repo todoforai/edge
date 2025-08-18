@@ -34,7 +34,17 @@ export const getMCPByCommandArgs = (command: string, args: string[] = []): MCPRe
 // Helper functions
 export const getMCPIcon = (serverId: string): string => {
   const server = global_registry.get(serverId);
-  return server?.icon || '/logos/default.png'; // Return image path directly
+  const icon = server?.icon;
+  
+  // Handle both string and object icon types
+  if (typeof icon === 'string') {
+    return icon;
+  } else if (icon && typeof icon === 'object' && 'dark' in icon) {
+    // For now, default to dark theme - could be made configurable
+    return icon.dark;
+  }
+  
+  return '/logos/default.png'; // Return image path directly
 };
 
 export const getMCPName = (serverId: string): string => {

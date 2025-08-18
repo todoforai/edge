@@ -272,7 +272,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   const handleSaveInstance = async (updatedInstance: MCPEdgeExecutable) => {
     try {
       // Check if this is a new installation (temp ID)
-      const isNewInstallation = updatedInstance.id.startsWith('temp-');
+      const isNewInstallation = (updatedInstance.id || '').startsWith('temp-');
       
       if (isNewInstallation) {
         // This is a new installation, add to mcp_json
@@ -310,9 +310,10 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
         };
 
         // Also update installedMCPs 
+        const instanceId = updatedInstance.id || updatedInstance.serverId;
         const updatedInstalledMCPs = {
           ...config.installedMCPs,
-          [updatedInstance.id]: {
+          [instanceId]: {
             ...updatedInstance
           }
         };

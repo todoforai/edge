@@ -48,26 +48,12 @@ interface MCPServerJSONViewProps {
 }
 
 export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
-  instances
+  instances: _instances
 }) => {
   const [jsonContent, setJsonContent] = useState<string>('');
   const [jsonError, setJsonError] = useState<string>('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { config } = useEdgeConfigStore();
-
-  // Convert instances to configurable-only format with serverId as key
-  const getConfigurableData = (instances: MCPEdgeExecutable[]) => {
-    const result: Record<string, any> = {};
-    instances.forEach(instance => {
-      // Use serverId as key instead of id
-      result[instance.serverId || instance.id] = {
-        command: instance.command,
-        args: instance.args || [],
-        env: instance.env || {}
-      };
-    });
-    return result;
-  };
 
   // Initialize JSON content with raw mcp_json.mcpServers
   useEffect(() => {

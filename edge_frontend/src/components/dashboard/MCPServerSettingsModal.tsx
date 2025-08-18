@@ -221,7 +221,7 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
   onSave
 }) => {
   const [editingInstance, setEditingInstance] = useState<MCPEdgeExecutable>({ ...instance });
-  const isNewInstallation = instance.id.startsWith('temp-');
+  const isNewInstallation = (instance.id || '').startsWith('temp-');
 
   // Add validation state
   const hasServerIdError = editingInstance.serverId.includes('_');

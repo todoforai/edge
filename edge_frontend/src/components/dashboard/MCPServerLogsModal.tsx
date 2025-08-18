@@ -14,10 +14,10 @@ export const MCPServerLogsModal: React.FC<MCPServerLogsModalProps> = ({
   onClose
 }) => {
   const { getLogsForServer, clearLogs } = useMCPLogStore();
-  const logs = getLogsForServer(instance.serverId || instance.id);
+  const logs = getLogsForServer(instance.serverId || instance.id || '');
 
   const clearServerLogs = () => {
-    clearLogs(instance.serverId || instance.id);
+    clearLogs(instance.serverId || instance.id || '');
   };
 
   const downloadLogs = () => {
@@ -34,7 +34,7 @@ Result: ${result}
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `mcp-${instance.serverId || instance.id}-logs.txt`;
+    a.download = `mcp-${instance.serverId || instance.id || 'unknown'}-logs.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };

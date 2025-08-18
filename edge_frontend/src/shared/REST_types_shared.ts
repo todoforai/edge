@@ -51,6 +51,8 @@ export type MCPRegistry = MCPJSON & {
 
 export type InstalledMCP = MCPJSON & {  // somewhat STATIC MCP data that has to be stored in the cloud database and reloaded from there!
   // installed: boolean; // always true... as if it's not installed, it's not in the list
+  id?: string;            // add optional id used across UI
+  tools?: MCPToolSkeleton[]; // allow tools on installed instances (e.g., built-in)
 };
 
 export type MCPEdgeExecutable = InstalledMCP; // Simplified - no status needed
