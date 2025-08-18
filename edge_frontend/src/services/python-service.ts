@@ -382,6 +382,11 @@ class PythonService {
     console.log('🗑️ [PythonService] Result from remove_workspace_path:', result);
     return result;
   }
+
+  // New method from patch
+  async refreshMCPConfig(configPath?: string): Promise<{ status: string; message: string }> {
+    return this.callPython('refresh_mcp_config', { configPath });
+  }
 }
 
 // Singleton instance

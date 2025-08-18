@@ -159,7 +159,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'weather_mcp',
+    serverId: 'weather-mcp',
     name: 'Weather MCP (Smithery)',
     description: 'Weather information service using Smithery platform',
     command: 'npx',

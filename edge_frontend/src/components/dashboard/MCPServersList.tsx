@@ -12,6 +12,7 @@ import { AddExtensionCard } from './AddExtensionCard';
 import { ActionBar } from './ActionBar';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
 import { getMCPIcon, getMCPName, getMCPDescription, getMCPCategory, getMCPByCommandArgs } from '../../utils/mcpRegistry';
+import pythonService from '../../services/python-service';
 
 // Styled Components
 const Container = styled.div`
@@ -219,6 +220,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
   const [showSettingsModal, setShowSettingsModal] = useState<MCPEdgeExecutable | null>(null);
   const [showLogsModal, setShowLogsModal] = useState<MCPEdgeExecutable | null>(null);
   const [showExtensionsModal, setShowExtensionsModal] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Use the store's method to get properly formatted instances
   const instances: MCPEdgeExecutable[] = useMemo(() => {
@@ -251,6 +253,20 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
     
     setShowSettingsModal(tempInstance);
     setShowExtensionsModal(false);
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      const result = await pythonService.refreshMCPConfig();
+      console.log('MCP config refresh result:', result);
+    } catch (error) {
+      console.error('Failed to refresh MCP config:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleSaveInstance = async (updatedInstance: MCPEdgeExecutable) => {
@@ -452,6 +468,8 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
           viewMode={viewMode}
           onViewModeChange={onViewModeChange}
           showViewPicker={true}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
         />
       </Controls>
 

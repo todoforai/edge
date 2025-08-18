@@ -53,26 +53,29 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
   const [jsonContent, setJsonContent] = useState<string>('');
   const [jsonError, setJsonError] = useState<string>('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+  const { config } = useEdgeConfigStore();
+
   // Convert instances to configurable-only format with serverId as key
   const getConfigurableData = (instances: MCPEdgeExecutable[]) => {
     const result: Record<string, any> = {};
     instances.forEach(instance => {
       // Use serverId as key instead of id
       result[instance.serverId || instance.id] = {
-        env: instance.env
+        command: instance.command,
+        args: instance.args || [],
+        env: instance.env || {}
       };
     });
     return result;
   };
 
-  // Initialize JSON content only when switching to JSON view for the first time
+  // Initialize JSON content with raw mcp_json.mcpServers
   useEffect(() => {
     if (jsonContent === '') {
-      const configurableData = getConfigurableData(instances);
-      setJsonContent(JSON.stringify(configurableData, null, 2));
+      const mcpServers = config.mcp_json?.mcpServers || {};
+      setJsonContent(JSON.stringify(mcpServers, null, 2));
     }
-  }, [instances, jsonContent]);
+  }, [config.mcp_json, jsonContent]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -89,23 +92,10 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
     try {
       const parsed = JSON.parse(value);
       if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-        // Convert the parsed data back to mcp_json format
-        const mcpServers: Record<string, any> = {};
-        
-        Object.entries(parsed).forEach(([serverId, configData]: [string, any]) => {
-          // Find original instance to get command/args if available
-          const originalInstance = instances.find(inst => inst.serverId === serverId);
-          
-          mcpServers[serverId] = {
-            command: originalInstance?.command || 'node',
-            args: originalInstance?.args || [],
-            env: configData.env || {}
-          };
-        });
-
-        // Update mcp_json in the config
+        // Direct update - no conversion needed
         const updatedMcpJson = {
-          mcpServers
+          ...config.mcp_json,
+          mcpServers: parsed
         };
 
         // Save to backend via store

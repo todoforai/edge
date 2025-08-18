@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Search, Filter, Eye, Braces, X } from 'lucide-react';
+import { Search, Filter, Eye, Braces, X, RefreshCw } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
 // Styled Components
@@ -166,6 +166,47 @@ const FilterOption = styled.div<{ $active: boolean }>`
   }
 `;
 
+const RefreshButton = styled.button<{ $refreshing?: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid ${props => props.theme.colors.borderColor};
+  border-radius: ${props => props.theme.radius.md};
+  background: ${props => props.theme.colors.background};
+  color: ${props => props.theme.colors.foreground};
+  cursor: pointer;
+  transition: all 0.2s;
+
+  svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.3s ease;
+  }
+
+  &:hover {
+    border-color: ${props => props.theme.colors.primary};
+    background: rgba(59, 130, 246, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  ${props => props.$refreshing && `
+    svg {
+      animation: spin 1s linear infinite;
+    }
+  `}
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
+
 const ViewPicker = styled.div`
   display: flex;
   align-items: center;
@@ -210,6 +251,8 @@ interface ActionBarProps {
   viewMode?: 'visual' | 'json';
   onViewModeChange?: (mode: 'visual' | 'json') => void;
   showViewPicker?: boolean;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export const ActionBar: React.FC<ActionBarProps> = ({
@@ -221,7 +264,9 @@ export const ActionBar: React.FC<ActionBarProps> = ({
   onCategoryChange,
   viewMode,
   onViewModeChange,
-  showViewPicker = false
+  showViewPicker = false,
+  onRefresh,
+  isRefreshing = false
 }) => {
   const [isSearchExpanded, setIsSearchExpanded] = React.useState<boolean>(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = React.useState<boolean>(false);
@@ -293,6 +338,17 @@ export const ActionBar: React.FC<ActionBarProps> = ({
           </FilterDropdown>
         )}
       </FilterContainer>
+
+      {onRefresh && (
+        <RefreshButton
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          $refreshing={isRefreshing}
+          title="Refresh MCP Configuration"
+        >
+          <RefreshCw size={20} />
+        </RefreshButton>
+      )}
 
       {showViewPicker && viewMode && onViewModeChange && (
         <ViewPicker>

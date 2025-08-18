@@ -535,6 +535,57 @@ def update_edge_config(params):
         log.error(f"Error updating edge config: {e}")
         return {"status": "error", "message": str(e)}
 
+@sidecar.rpc
+def refresh_mcp_config(params):
+    """Refresh MCP configuration by reloading from file"""
+    try:
+        if not sidecar.todo_client:
+            return {"status": "error", "message": "Client not initialized"}
+        
+        if not hasattr(sidecar.todo_client, 'mcp_collector') or not sidecar.todo_client.mcp_collector:
+            return {"status": "error", "message": "No MCP collector available"}
+        
+        # Get the config file path (optional parameter, fallback to stored path)
+        config_path = params.get("configPath")
+        if not config_path and hasattr(sidecar.todo_client.mcp_collector, 'config_file_path'):
+            config_path = sidecar.todo_client.mcp_collector.config_file_path
+        
+        if not config_path:
+            return {"status": "error", "message": "No config path available"}
+        
+        # Simple reload using existing functionality
+        asyncio.create_task(_refresh_mcp_config_async(config_path))
+        
+        return {"status": "success", "message": f"Refreshing MCP config from: {config_path}"}
+        
+    except Exception as e:
+        log.error(f"Error refreshing MCP config: {e}")
+        return {"status": "error", "message": str(e)}
+
+async def _refresh_mcp_config_async(config_path: str):
+    """Simple async helper to reload MCP config"""
+    try:
+        # Just call the existing load_from_file method
+        results = await sidecar.todo_client.mcp_collector.load_from_file(config_path)
+        
+        log.info(f"Successfully refreshed MCP config from: {config_path}")
+        
+        # Broadcast refresh complete event
+        await broadcast_event({
+            "type": "mcp_config_refreshed",
+            "payload": {
+                "configPath": config_path,
+                "serversLoaded": len(results)
+            }
+        })
+        
+    except Exception as e:
+        log.error(f"Error in async MCP config refresh: {e}")
+        await broadcast_event({
+            "type": "mcp_config_refresh_error", 
+            "payload": {"configPath": config_path, "error": str(e)}
+        })
+
 async def broadcast_event(event):
     """Send an event to all connected WebSocket clients"""
     if not sidecar.connected_clients:

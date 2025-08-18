@@ -150,3 +150,19 @@ sign-deb:
 
 # Default target
 all: install build-sidecar copy-sidecar tauri-build
+
+# Add a dev-test target that builds sidecar and runs in production mode
+.PHONY: dev-test-production
+dev-test-production: build-sidecar copy-sidecar
+	cd edge_frontend && TODOFORAI_FORCE_PRODUCTION=1 yarn tauri dev
+
+# Add a target to build sidecar for development testing
+.PHONY: build-sidecar-dev
+build-sidecar-dev:
+	@echo "Building sidecar for development testing..."
+	python3 build_executable.py
+
+.PHONY: copy-sidecar-dev
+copy-sidecar-dev: build-sidecar-dev
+	@echo "Copying sidecar for development testing..."
+	./scripts/copy_sidecar_to_resources.sh
