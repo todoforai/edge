@@ -2,9 +2,9 @@ name: todoforai-edge
 title: TodoForAI Edge
 base: core22
 version: '0.11.18'
-summary: TodoForAI Edge client for file synchronization and shell command execution
+summary: TODOforAI Edge client for file synchronization and shell command execution
 description: |
-  TodoForAI Edge is a client application that connects to the TodoForAI service.
+  TODOforAI Edge is a client application that connects to the TODOforAI service.
   It enables file synchronization, editing, creation, and execution of shell commands
   to enhance developer productivity with AI assistance.
 
