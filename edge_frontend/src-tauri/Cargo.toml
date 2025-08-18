@@ -1,18 +1,24 @@
 [package]
 name = "todoforai-edge"
 version = "0.11.18"
-description = "A Tauri App"
+description = "Desktop client for TODOforAI service enabling you to extend your AI agent's capabilities"
 authors = ["you"]
 edition = "2021"
+license = "MIT"
+repository = "https://github.com/todoforai/edge"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "todoforai-edge"
+path = "src/main.rs"
 
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "todoforai_edge_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
