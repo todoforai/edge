@@ -23,15 +23,16 @@ apps:
     plugs:
       - network
       - home
-      - removable-media
-      - ssh-keys
-      - ssh-public-keys
-      - system-files
-      - process-control
+      - removable-media  # Keep for external drives
       - desktop
       - desktop-legacy
       - wayland
       - x11
+      # Remove these unless absolutely necessary:
+      # - ssh-keys
+      # - ssh-public-keys
+      # - system-files  # Only if you need /etc/, /usr/, etc.
+      # - process-control
 
 package-repositories:
   - type: apt
