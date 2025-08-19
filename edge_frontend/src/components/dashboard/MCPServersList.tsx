@@ -377,7 +377,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
       return matchesCategory && matchesSearch;
     });
 
-    // Add built-in TODOForAI MCP if it matches filters
+    // Add built-in TODOforAI MCP if it matches filters
     const todoforaiMCP: MCPEdgeExecutable = {
       id: 'todoforai-builtin',
       serverId: 'todoforai',
@@ -423,9 +423,9 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
       ]
     };
 
-    // Check if TODOForAI matches filters
+    // Check if TODOforAI matches filters
     const todoforaiCategory = 'Built-in';
-    const todoforaiName = 'TODOForAI';
+    const todoforaiName = 'TODOforAI';
     const todoforaiDescription = 'Built-in file and shell operations';
     
     const todoforaiMatchesCategory = selectedCategory === 'All' || todoforaiCategory === selectedCategory;

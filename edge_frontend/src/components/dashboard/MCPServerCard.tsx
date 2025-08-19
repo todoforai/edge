@@ -196,11 +196,11 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   showCategory = true;
-  // Handle built-in TODOForAI MCP display
+  // Handle built-in TODOforAI MCP display
   const isBuiltIn = instance.serverId === 'todoforai';
   const registryServer = isBuiltIn ? null : getMCPByCommandArgs(instance.command, instance.args);
   
-  const displayName = isBuiltIn ? 'TODOForAI' : (registryServer?.name || instance.serverId || 'Unknown Server');
+  const displayName = isBuiltIn ? 'TODOforAI' : (registryServer?.name || instance.serverId || 'Unknown Server');
   const displayDescription = isBuiltIn ? 'Built-in file and shell operations' : (registryServer?.description || 'No description available');
   const displayIcon = isBuiltIn ? '/T-rocket-middle.png' : getMCPIcon(instance.serverId || '');
   const displayCategory = isBuiltIn ? 'Built-in' : (registryServer?.category?.[0] || 'Unknown');
