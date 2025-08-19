@@ -23,27 +23,6 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'weather',
-    name: 'Weather MCP',
-    description: 'Get weather information and forecasts using AccuWeather API',
-    command: 'uvx',
-    args: ['--from', 'git+https://github.com/adhikasp/mcp-weather.git', 'mcp-weather'],
-    icon: '/logos/weather.png',
-    env: { 'ACCUWEATHER_API_KEY': 'your_api_key_here' },
-    category: ['Weather'],
-    aliases: ['WEATHER'],
-    repository: {
-      url: 'https://github.com/adhikasp/mcp-weather.git',
-      source: 'github',
-      id: 'adhikasp/mcp-weather'
-    },
-    version_detail: {
-      version: '1.0.0',
-      release_date: '2024-02-20',
-      is_latest: true
-    }
-  },
-  {
     serverId: 'puppeteer',
     name: 'Puppeteer MCP',
     description: 'Web automation and scraping using Puppeteer browser control',
@@ -61,26 +40,6 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     version_detail: {
       version: '2.1.0',
       release_date: '2024-02-01',
-      is_latest: true
-    }
-  },
-  {
-    serverId: 'pdf-filler',
-    name: 'PDF Filler',
-    description: 'Fill PDF forms with Claude Desktop integration',
-    command: 'npx',
-    args: ['@pdf-filler/mcp-server'],
-    icon: '/logos/pdf-filler.png', // Local downloaded logo
-    category: ['Documents'],
-    aliases: ['PDF'],
-    repository: {
-      url: 'https://github.com/pdf-filler/mcp-server',
-      source: 'npm',
-      id: '@pdf-filler/mcp-server'
-    },
-    version_detail: {
-      version: '1.2.3',
-      release_date: '2024-01-20',
       is_latest: true
     }
   },
