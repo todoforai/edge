@@ -31,20 +31,31 @@ export const getMCPByCommandArgs = (command: string, args: string[] = []): MCPRe
   return command_args_registry.get(key);
 };
 
-// Helper functions
+// Alias lookup (no prebuilt index)
+const normalize = (s: string) => s.trim().toUpperCase();
+export const findAllByAlias = (keyword: string): MCPRegistry[] => {
+  if (!keyword) return [];
+  const k = normalize(keyword);
+  const res: MCPRegistry[] = [];
+  for (const server of MOCK_MCP_REGISTRY) {
+    const candidates = [server.serverId, server.name, ...(server.aliases || [])]
+      .filter(Boolean)
+      .map(s => normalize(String(s)));
+    if (candidates.includes(k)) res.push(server);
+  }
+  return res;
+};
+
 export const getMCPIcon = (serverId: string): string => {
   const server = global_registry.get(serverId);
   const icon = server?.icon;
   
-  // Handle both string and object icon types
   if (typeof icon === 'string') {
     return icon;
   } else if (icon && typeof icon === 'object' && 'dark' in icon) {
-    // For now, default to dark theme - could be made configurable
     return icon.dark;
   }
-  
-  return '/logos/default.png'; // Return image path directly
+  return '/logos/default.png';
 };
 
 export const getMCPName = (serverId: string): string => {
@@ -66,7 +77,6 @@ export const getMCPServer = (serverId: string): MCPRegistry | undefined => {
   return global_registry.get(serverId);
 };
 
-// Helper to get all available categories
 export const getAllCategories = (): string[] => {
   const categories = new Set<string>();
   global_registry.forEach(server => {

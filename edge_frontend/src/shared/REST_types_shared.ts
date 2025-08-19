@@ -36,6 +36,9 @@ export type MCPRegistry = MCPJSON & {
 
   category?: string[];
   
+  // New field from PATCH
+  aliases?: string[]; // alternative names/keywords for AI lookup (e.g., "GMAIL", "BROWSER", "WEATHER")
+  
   // New fields from API response
   repository?: {
     url: string;

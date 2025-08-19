@@ -10,6 +10,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     icon: '/logos/gmail.png', // Local downloaded logo
     env: { 'GMAIL_CREDENTIALS_PATH': '' },
     category: ['Communication'],
+    aliases: ['GMAIL'],
     repository: {
       url: 'https://github.com/gongrzhe/server-gmail-autoauth-mcp',
       source: 'npm',
@@ -30,6 +31,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     icon: '/logos/weather.png',
     env: { 'ACCUWEATHER_API_KEY': 'your_api_key_here' },
     category: ['Weather'],
+    aliases: ['WEATHER'],
     repository: {
       url: 'https://github.com/adhikasp/mcp-weather.git',
       source: 'github',
@@ -50,6 +52,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     icon: '/logos/puppeteer.png', // Local downloaded logo
     env: {},
     category: ['Web Automation'],
+    aliases: ['BROWSER'],
     repository: {
       url: 'https://github.com/Sixzero/puppeteer-mcp-server',
       source: 'github',
@@ -69,6 +72,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     args: ['@pdf-filler/mcp-server'],
     icon: '/logos/pdf-filler.png', // Local downloaded logo
     category: ['Documents'],
+    aliases: ['PDF'],
     repository: {
       url: 'https://github.com/pdf-filler/mcp-server',
       source: 'npm',
@@ -88,6 +92,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     args: ['@spotify-applescript/mcp-server'],
     icon: '/logos/spotify.png', // Local downloaded logo
     category: ['Media'],
+    aliases: ['SPOTIFY'],
     repository: {
       url: 'https://github.com/spotify-applescript/mcp-server',
       source: 'npm',
@@ -108,6 +113,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     icon: '/logos/stripe.png', // Local downloaded logo
     env: { 'STRIPE_API_KEY': '' },
     category: ['Finance'],
+    aliases: ['STRIPE'],
     repository: {
       url: 'https://github.com/stripe/mcp-server',
       source: 'npm',
@@ -127,6 +133,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     args: ['@brave-applescript/mcp-server'],
     icon: '/logos/brave.png', // Local downloaded logo
     category: ['Web Automation'],
+    aliases: ['BROWSER'],
     repository: {
       url: 'https://github.com/brave-applescript/mcp-server',
       source: 'npm',
@@ -135,26 +142,6 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     version_detail: {
       version: '0.7.3',
       release_date: '2024-01-18',
-      is_latest: true
-    }
-  },
-  {
-    serverId: 'airtable-mcp',
-    name: 'Airtable MCP Server',
-    description: 'Read and write access to Airtable databases via the Model Context Protocol',
-    command: 'npx',
-    args: ['@airtable/mcp-server'],
-    icon: '/logos/airtable.png', // Local downloaded logo
-    env: { 'AIRTABLE_API_KEY': '' },
-    category: ['Database'],
-    repository: {
-      url: 'https://github.com/airtable/mcp-server',
-      source: 'npm',
-      id: '@airtable/mcp-server'
-    },
-    version_detail: {
-      version: '1.3.2',
-      release_date: '2024-02-08',
       is_latest: true
     }
   },
@@ -176,6 +163,7 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
     icon: '/logos/weather.png',
     env: {},
     category: ['Weather'],
+    aliases: ['WEATHER'],
     repository: {
       url: 'https://smithery.ai/@HarunGuclu/weather_mcp',
       source: 'smithery',

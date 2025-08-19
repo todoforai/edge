@@ -331,7 +331,11 @@ class TODOforAIEdge:
         # Use a custom subprotocol that includes the API key
         custom_protocol = f"{self.api_key}"
         
-        async with websockets.connect(ws_url, subprotocols=[custom_protocol]) as ws:
+        async with websockets.connect(
+            ws_url,
+            subprotocols=[custom_protocol],
+            max_size=5 * 1024 * 1024  # 5MB limit for legitimate large messages
+        ) as ws:
             self.ws = ws
             self.connected = True
             logger.info("WebSocket connected")
