@@ -287,19 +287,13 @@ async def _delayed_sidecar_shutdown():
 async def _run_client():
     """Run the client in async context"""
     try:
-        # Authenticate if needed
-        if sidecar.todo_client.api_key and sidecar.todo_client.email:
-            await _broadcast_auth_success()
-        elif sidecar.todo_client.email and sidecar.todo_client.password:
-            log.info(f"Authenticating with email: {sidecar.todo_client.email}")
-            response = await sidecar.todo_client.authenticate()
-            if not response["valid"]:
-                await _broadcast_auth_error(f"Authentication failed. Result: {response}")
-                return
-            await _broadcast_auth_success()
-        else:
-            await _broadcast_auth_error("Missing required credentials (apiKey and email)")
+        # Ensure we have a valid API key (validate existing or authenticate) without interactive prompts
+        ok = await sidecar.todo_client.ensure_api_key(prompt_if_missing=False)
+        if not ok:
+            await _broadcast_auth_error("Unable to obtain a valid API key")
             return
+
+        await _broadcast_auth_success()
         
         # Register all hooks after successful authentication
         await register_all_hooks()

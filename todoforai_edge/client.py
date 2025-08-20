@@ -148,6 +148,62 @@ class TODOforAIEdge:
             logger.error(f"Authentication failed: {str(e)}")
             return {"valid": False, "error": str(e)}
         
+    async def validate_api_key(self):
+        """Validate the current API key by making a test request"""
+        if not self.api_key:
+            return {"valid": False, "error": "No API key provided"}
+            
+        try:
+            import aiohttp
+            import asyncio
+            
+            # Use the dedicated validation endpoint
+            url = f"{self.api_url}/token/v1/users/apikeys/validate"
+            headers = {"x-api-key": self.api_key}
+            
+            timeout = aiohttp.ClientTimeout(total=10)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if data.get("valid"):
+                            logger.info("API key validation successful")
+                            return {"valid": True}
+                        else:
+                            return {"valid": False, "error": data.get("error", "API key is invalid")}
+                    else:
+                        return {"valid": False, "error": f"Validation request failed with status {response.status}"}
+                        
+        except Exception as e:
+            logger.error(f"API key validation failed: {str(e)}")
+            return {"valid": False, "error": str(e)}
+
+    async def ensure_api_key(self, prompt_if_missing=True):
+        """Ensure we have a valid API key; validate existing or authenticate via email/password."""
+        # If we already have an API key, validate it
+        if self.api_key:
+            result = await self.validate_api_key()
+            if result.get("valid"):
+                return True
+            logger.warning(f"API key invalid: {result.get('error')}")
+        
+        # Fallback to email/password authentication
+        if not self.email or not self.password:
+            if not prompt_if_missing:
+                logger.error("Email and password are required for authentication")
+                return False
+            print(f"{Colors.YELLOW}Please sign in to get an API key{Colors.END}")
+            try:
+                import getpass
+                self.email = self.email or input("Email: ").strip()
+                self.password = self.password or getpass.getpass("Password: ")
+            except KeyboardInterrupt:
+                print("\nOperation cancelled.")
+                return False
+
+        auth = await self.authenticate()
+        return auth.get("valid", False)
+
     async def _handle_edge_config_update(self, payload):
         """Handle edge config update from server"""
         edge_id = payload.get("edgeId")
