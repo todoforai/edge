@@ -249,6 +249,7 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
                 WEBSOCKET_PORT.to_string(),
             ])
             .env("PYTHONIOENCODING", "utf-8")
+            .env("PYTHONUTF8", "1")
             .spawn()
             .map_err(|e| format!("Failed to start Python script: {}", e))?
     } else {
