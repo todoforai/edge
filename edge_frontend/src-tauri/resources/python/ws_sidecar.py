@@ -639,21 +639,21 @@ async def handle_websocket_message(websocket, message: str):
                 "error": {"code": -32601, "message": f"Method '{method}' not found"}
             }
         
-        await websocket.send(json.dumps(response))
+        await websocket.send(json.dumps(response, ensure_ascii=False))
         
     except json.JSONDecodeError:
         log.error(f"Invalid JSON received: {message}")
         await websocket.send(json.dumps({
             "jsonrpc": "2.0",
             "error": {"code": -32700, "message": "Parse error"}
-        }))
+        }, ensure_ascii=False))
     except Exception as e:
         log.error(f"Error processing message: {e}")
         traceback.print_exc()
         await websocket.send(json.dumps({
             "jsonrpc": "2.0",
             "error": {"code": -32603, "message": f"Internal error: {str(e)}"}
-        }))
+        }, ensure_ascii=False))
 
 async def handle_websocket(websocket):
     """Handle a WebSocket connection"""
