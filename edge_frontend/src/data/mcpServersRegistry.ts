@@ -1,6 +1,6 @@
 import type { MCPRegistry } from '../types';
 
-export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
+export const MCP_REGISTRY: MCPRegistry[] = [
   // Built-in TODOforAI MCP
   {
     serverId: 'todoforai',
@@ -651,12 +651,12 @@ export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
 // Simple helper functions without global maps
 export const getMCPByCommandArgs = (command: string, args: string[] = []): MCPRegistry | undefined => {
   const key = `${command}|${args.join('|')}`;
-  return MOCK_MCP_REGISTRY.find(server => {
+  return MCP_REGISTRY.find(server => {
     const serverKey = `${server.command}|${(server.args || []).join('|')}`;
     return serverKey === key;
   });
 };
 
 export const getMCPByServerId = (serverId: string): MCPRegistry | undefined => {
-  return MOCK_MCP_REGISTRY.find(server => server.serverId === serverId);
+  return MCP_REGISTRY.find(server => server.serverId === serverId);
 };

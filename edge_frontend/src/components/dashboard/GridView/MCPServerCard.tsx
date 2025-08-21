@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types';
-import { getMCPByCommandArgs } from '../../../data/mcpServersData';
+import { getMCPByCommandArgs } from '../../../data/mcpServersRegistry';
 
 const ServerCard = styled.div`
   border: 1px solid ${(props) => props.theme.colors.borderColor};

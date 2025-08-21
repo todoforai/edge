@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useEdgeConfigStore } from '../store/edgeConfigStore';
-import { MOCK_MCP_REGISTRY } from '../data/mcpServersData';
+import { MCP_REGISTRY } from '../data/mcpServersRegistry';
 import type { MCPJSON } from '../types';
 
 export const useMCPRegistry = () => {
   const { getMCPInstances } = useEdgeConfigStore();
-  const [registryServers] = useState<MCPJSON[]>(MOCK_MCP_REGISTRY);
+  const [registryServers] = useState<MCPJSON[]>(MCP_REGISTRY);
   const instances = getMCPInstances();
 
   const availableServers = useMemo(() => 

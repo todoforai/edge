@@ -4,7 +4,7 @@ import { Download } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
 import { Grid } from '../../ui/Grid';
 import { ActionBar } from '../ActionBar';
-import { getMCPByServerId } from '../../../data/mcpServersData';
+import { getMCPByServerId } from '../../../data/mcpServersRegistry';
 import type { MCPJSON } from '../../../types';
 
 const ExtensionCard = styled.div`
