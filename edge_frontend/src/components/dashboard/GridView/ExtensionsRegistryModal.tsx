@@ -31,7 +31,6 @@ const ExtensionIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.02);
   
   img {
     border-radius: ${props => props.theme.radius.sm};
@@ -43,17 +42,24 @@ const ExtensionInfo = styled.div`
   min-width: 0;
 `;
 
+const ExtensionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+`;
+
 const ExtensionName = styled.h3`
   font-size: 16px;
   font-weight: 600;
   color: ${props => props.theme.colors.foreground};
-  margin: 0 0 4px 0;
+  margin: 0;
 `;
 
 const ExtensionDescription = styled.p`
   font-size: 14px;
   color: ${props => props.theme.colors.mutedForeground};
-  margin: 0 0 8px 0;
+  margin: 0;
   line-height: 1.4;
 `;
 
@@ -63,6 +69,7 @@ const ExtensionCategory = styled.span`
   background: rgba(59, 130, 246, 0.1);
   padding: 2px 8px;
   border-radius: ${props => props.theme.radius.md2};
+  flex-shrink: 0;
 `;
 
 const InstallButton = styled.button`
@@ -150,9 +157,11 @@ export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = (
                 />
               </ExtensionIcon>
               <ExtensionInfo>
-                <ExtensionName>{registry?.name || server.serverId}</ExtensionName>
+                <ExtensionHeader>
+                  <ExtensionName>{registry?.name || server.serverId}</ExtensionName>
+                  <ExtensionCategory>{registry?.category?.[0] || 'Other'}</ExtensionCategory>
+                </ExtensionHeader>
                 <ExtensionDescription>{registry?.description || 'No description available'}</ExtensionDescription>
-                <ExtensionCategory>{registry?.category?.[0] || 'Other'}</ExtensionCategory>
               </ExtensionInfo>
               <InstallButton onClick={() => handleInstall(server)}>
                 <Download size={16} />
