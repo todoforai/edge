@@ -1,136 +1,15 @@
 import React from 'react';
 import styled from 'styled-components';
-import { X, Trash2, Download, CheckCircle, XCircle } from 'lucide-react';
+import { Trash2, Download, CheckCircle, XCircle } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types';
 import { useMCPLogStore } from '../../../store/mcpLogStore';
-
-interface MCPServerLogsModalProps {
-  instance: MCPEdgeExecutable;
-  onClose: () => void;
-}
-
-export const MCPServerLogsModal: React.FC<MCPServerLogsModalProps> = ({
-  instance,
-  onClose
-}) => {
-  const { getLogsForServer, clearLogs } = useMCPLogStore();
-  const logs = getLogsForServer(instance.serverId || instance.id || '');
-
-  const clearServerLogs = () => {
-    clearLogs(instance.serverId || instance.id || '');
-  };
-
-  const downloadLogs = () => {
-    const logText = logs.map(log => {
-      const status = log.success ? 'SUCCESS' : 'ERROR';
-      const result = log.success ? log.result : log.error;
-      return `${log.timestamp.toISOString()} [${status}] Tool: ${log.toolName}
-Arguments: ${JSON.stringify(log.arguments, null, 2)}
-Result: ${result}
----`;
-    }).join('\n');
-    
-    const blob = new Blob([logText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `mcp-${instance.serverId || instance.id || 'unknown'}-logs.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <ModalOverlay onClick={onClose}>
-      <LogsModal onClick={(e) => e.stopPropagation()}>
-        <ModalHeader>
-          <ModalTitle>Tool Call Logs - {instance.serverId}</ModalTitle>
-          <LogsActions>
-            <ActionButton title="Clear Logs" onClick={clearServerLogs}>
-              <Trash2 size={16} />
-            </ActionButton>
-            <ActionButton title="Download Logs" onClick={downloadLogs}>
-              <Download size={16} />
-            </ActionButton>
-            <CloseButton onClick={onClose}>
-              <X size={20} />
-            </CloseButton>
-          </LogsActions>
-        </ModalHeader>
-
-        <LogsContainer>
-          <LogsTerminal>
-            {logs.length === 0 ? (
-              <EmptyState>No tool calls yet for this server</EmptyState>
-            ) : (
-              logs.map((log) => (
-                <LogEntryComponent key={log.id} $isError={!log.success}>
-                  <LogTimestamp>{log.timestamp.toLocaleTimeString()}</LogTimestamp>
-                  <LogStatus $isError={!log.success}>
-                    {log.success ? <CheckCircle size={14} /> : <XCircle size={14} />}
-                    {log.success ? 'SUCCESS' : 'ERROR'}
-                  </LogStatus>
-                  <LogContent>
-                    <ToolName>{log.toolName}</ToolName>
-                    <ToolArgs>
-                      Args: {JSON.stringify(log.arguments)}
-                    </ToolArgs>
-                    <ToolResult $isError={!log.success}>
-                      {log.success ? `Result: ${log.result}` : `Error: ${log.error}`}
-                    </ToolResult>
-                  </LogContent>
-                </LogEntryComponent>
-              ))
-            )}
-          </LogsTerminal>
-        </LogsContainer>
-      </LogsModal>
-    </ModalOverlay>
-  );
-};
-
-const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const LogsModal = styled.div`
-  background: ${props => props.theme.colors.background};
-  border-radius: 12px;
-  width: 90%;
-  max-width: 1000px;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-`;
-
-const ModalHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px;
-  border-bottom: 1px solid ${props => props.theme.colors.borderColor};
-`;
-
-const ModalTitle = styled.h2`
-  font-size: 20px;
-  font-weight: 600;
-  color: ${props => props.theme.colors.foreground};
-  margin: 0;
-`;
+import { Modal } from '../../ui/Modal';
 
 const LogsActions = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 16px;
 `;
 
 const ActionButton = styled.button`
@@ -153,22 +32,6 @@ const ActionButton = styled.button`
   }
 `;
 
-const CloseButton = styled.button`
-  background: transparent;
-  border: none;
-  color: ${props => props.theme.colors.mutedForeground};
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.1);
-  }
-`;
-
 const LogsContainer = styled.div`
   flex: 1;
   overflow: hidden;
@@ -185,6 +48,8 @@ const LogsTerminal = styled.div`
   font-size: 13px;
   line-height: 1.4;
   padding: 16px;
+  border-radius: 6px;
+  max-height: 60vh;
 `;
 
 const EmptyState = styled.div`
@@ -249,3 +114,79 @@ const ToolResult = styled.div<{ $isError: boolean }>`
   font-size: 12px;
   word-break: break-all;
 `;
+
+interface MCPServerLogsModalProps {
+  instance: MCPEdgeExecutable;
+  onClose: () => void;
+}
+
+export const MCPServerLogsModal: React.FC<MCPServerLogsModalProps> = ({
+  instance,
+  onClose
+}) => {
+  const { getLogsForServer, clearLogs } = useMCPLogStore();
+  const logs = getLogsForServer(instance.serverId || instance.id || '');
+
+  const clearServerLogs = () => {
+    clearLogs(instance.serverId || instance.id || '');
+  };
+
+  const downloadLogs = () => {
+    const logText = logs.map(log => {
+      const status = log.success ? 'SUCCESS' : 'ERROR';
+      const result = log.success ? log.result : log.error;
+      return `${log.timestamp.toISOString()} [${status}] Tool: ${log.toolName}
+Arguments: ${JSON.stringify(log.arguments, null, 2)}
+Result: ${result}
+---`;
+    }).join('\n');
+    
+    const blob = new Blob([logText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mcp-${instance.serverId || instance.id || 'unknown'}-logs.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Modal title={`Tool Call Logs - ${instance.serverId}`} onClose={onClose}>
+      <LogsActions>
+        <ActionButton title="Clear Logs" onClick={clearServerLogs}>
+          <Trash2 size={16} />
+        </ActionButton>
+        <ActionButton title="Download Logs" onClick={downloadLogs}>
+          <Download size={16} />
+        </ActionButton>
+      </LogsActions>
+
+      <LogsContainer>
+        <LogsTerminal>
+          {logs.length === 0 ? (
+            <EmptyState>No tool calls yet for this server</EmptyState>
+          ) : (
+            logs.map((log) => (
+              <LogEntryComponent key={log.id} $isError={!log.success}>
+                <LogTimestamp>{log.timestamp.toLocaleTimeString()}</LogTimestamp>
+                <LogStatus $isError={!log.success}>
+                  {log.success ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                  {log.success ? 'SUCCESS' : 'ERROR'}
+                </LogStatus>
+                <LogContent>
+                  <ToolName>{log.toolName}</ToolName>
+                  <ToolArgs>
+                    Args: {JSON.stringify(log.arguments)}
+                  </ToolArgs>
+                  <ToolResult $isError={!log.success}>
+                    {log.success ? `Result: ${log.result}` : `Error: ${log.error}`}
+                  </ToolResult>
+                </LogContent>
+              </LogEntryComponent>
+            ))
+          )}
+        </LogsTerminal>
+      </LogsContainer>
+    </Modal>
+  );
+};

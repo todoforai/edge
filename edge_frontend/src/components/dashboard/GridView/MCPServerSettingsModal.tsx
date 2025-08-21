@@ -1,69 +1,11 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { X, AlertCircle, Plus } from 'lucide-react';
+import { AlertCircle, Plus, X } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types';
-
-
-// ... existing styled components from the original file ...
-const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const SettingsModal = styled.div`
-  background: ${props => props.theme.colors.background};
-  border-radius: 12px;
-  width: 90%;
-  max-width: 800px;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-`;
-
-const ModalHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px;
-  border-bottom: 1px solid ${props => props.theme.colors.borderColor};
-`;
-
-const ModalTitle = styled.h2`
-  font-size: 20px;
-  font-weight: 600;
-  color: ${props => props.theme.colors.foreground};
-  margin: 0;
-`;
-
-const CloseButton = styled.button`
-  background: transparent;
-  border: none;
-  color: ${props => props.theme.colors.mutedForeground};
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.1);
-  }
-`;
+import { Modal } from '../../ui/Modal';
 
 const SettingsContent = styled.div`
   flex: 1;
-  overflow-y: auto;
-  padding: 20px;
 `;
 
 const FormGroup = styled.div`
@@ -176,8 +118,9 @@ const ModalActions = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 20px;
+  padding: 20px 0 0 0;
   border-top: 1px solid ${props => props.theme.colors.borderColor};
+  margin-top: 20px;
 `;
 
 const CancelButton = styled.button`
@@ -207,7 +150,6 @@ const ConfirmButton = styled.button<{ disabled?: boolean }>`
     background: ${props => props.disabled ? props.theme.colors.muted : `${props.theme.colors.primary}dd`};
   }
 `;
-
 
 interface MCPServerSettingsModalProps {
   instance: MCPEdgeExecutable;
@@ -283,113 +225,104 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
     setEditingInstance({ ...editingInstance, env: newEnv });
   };
 
+  const title = `${isNewInstallation ? 'Install' : 'Settings'} - ${instance.serverId}`;
+
   return (
-    <ModalOverlay onClick={onClose}>
-      <SettingsModal onClick={(e) => e.stopPropagation()}>
-        <ModalHeader>
-          <ModalTitle>
-            {isNewInstallation ? 'Install' : 'Settings'} - {instance.serverId}
-          </ModalTitle>
-          <CloseButton onClick={onClose}>
-            <X size={20} />
-          </CloseButton>
-        </ModalHeader>
+    <Modal title={title} onClose={onClose}>
+      <SettingsContent>
+        <FormGroup>
+          <FormLabel>Server ID</FormLabel>
+          <FormInput
+            type="text"
+            value={editingInstance.serverId}
+            onChange={(e) => setEditingInstance({ ...editingInstance, serverId: e.target.value })}
+            placeholder="Server identifier"
+            $hasError={hasServerIdError}
+          />
+          {hasServerIdError && (
+            <ErrorMessage>
+              <AlertCircle size={14} />
+              Underscore (_) characters are not allowed in Server ID
+            </ErrorMessage>
+          )}
+          {isNewInstallation && !hasServerIdError && (
+            <FormLabel style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+              Customize the server ID to install multiple instances
+            </FormLabel>
+          )}
+        </FormGroup>
 
-        <SettingsContent>
-          <FormGroup>
-            <FormLabel>Server ID</FormLabel>
-            <FormInput
-              type="text"
-              value={editingInstance.serverId}
-              onChange={(e) => setEditingInstance({ ...editingInstance, serverId: e.target.value })}
-              placeholder="Server identifier"
-              $hasError={hasServerIdError}
-            />
-            {hasServerIdError && (
-              <ErrorMessage>
-                <AlertCircle size={14} />
-                Underscore (_) characters are not allowed in Server ID
-              </ErrorMessage>
-            )}
-            {isNewInstallation && !hasServerIdError && (
-              <FormLabel style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-                Customize the server ID to install multiple instances
-              </FormLabel>
-            )}
-          </FormGroup>
+        <FormGroup>
+          <FormLabel>Command</FormLabel>
+          <FormInput
+            type="text"
+            value={editingInstance.command || ''}
+            onChange={(e) => setEditingInstance({ ...editingInstance, command: e.target.value })}
+            placeholder="e.g., node, python, npx"
+          />
+        </FormGroup>
 
-          <FormGroup>
-            <FormLabel>Command</FormLabel>
-            <FormInput
-              type="text"
-              value={editingInstance.command || ''}
-              onChange={(e) => setEditingInstance({ ...editingInstance, command: e.target.value })}
-              placeholder="e.g., node, python, npx"
-            />
-          </FormGroup>
+        <FormGroup>
+          <FormLabel>Arguments</FormLabel>
+          <ArgumentsList>
+            {(editingInstance.args || []).map((arg, index) => (
+              <ArgumentRow key={index}>
+                <FormInput
+                  type="text"
+                  value={arg}
+                  onChange={(e) => handleArgsChange(index, e.target.value)}
+                  placeholder={`Argument ${index + 1}`}
+                />
+                <RemoveButton onClick={() => removeArgument(index)}>
+                  <X size={16} />
+                </RemoveButton>
+              </ArgumentRow>
+            ))}
+            <AddButton onClick={addArgument}>
+              <Plus size={16} />
+              Add Argument
+            </AddButton>
+          </ArgumentsList>
+        </FormGroup>
 
-          <FormGroup>
-            <FormLabel>Arguments</FormLabel>
-            <ArgumentsList>
-              {(editingInstance.args || []).map((arg, index) => (
-                <ArgumentRow key={index}>
-                  <FormInput
-                    type="text"
-                    value={arg}
-                    onChange={(e) => handleArgsChange(index, e.target.value)}
-                    placeholder={`Argument ${index + 1}`}
-                  />
-                  <RemoveButton onClick={() => removeArgument(index)}>
-                    <X size={16} />
-                  </RemoveButton>
-                </ArgumentRow>
-              ))}
-              <AddButton onClick={addArgument}>
-                <Plus size={16} />
-                Add Argument
-              </AddButton>
-            </ArgumentsList>
-          </FormGroup>
+        <FormGroup>
+          <FormLabel>Environment Variables</FormLabel>
+          <EnvList>
+            {Object.entries(editingInstance.env || {}).map(([key, value]) => (
+              <EnvRow key={key}>
+                <FormInput
+                  type="text"
+                  value={key}
+                  onChange={(e) => handleEnvKeyChange(key, e.target.value)}
+                  placeholder="Variable name"
+                />
+                <FormInput
+                  type="text"
+                  value={String(value)}
+                  onChange={(e) => handleEnvChange(key, e.target.value)}
+                  placeholder="Variable value"
+                />
+                <RemoveButton onClick={() => removeEnvVariable(key)}>
+                  <X size={16} />
+                </RemoveButton>
+              </EnvRow>
+            ))}
+            <AddButton onClick={addEnvVariable}>
+              <Plus size={16} />
+              Add Environment Variable
+            </AddButton>
+          </EnvList>
+        </FormGroup>
+      </SettingsContent>
 
-          <FormGroup>
-            <FormLabel>Environment Variables</FormLabel>
-            <EnvList>
-              {Object.entries(editingInstance.env || {}).map(([key, value]) => (
-                <EnvRow key={key}>
-                  <FormInput
-                    type="text"
-                    value={key}
-                    onChange={(e) => handleEnvKeyChange(key, e.target.value)}
-                    placeholder="Variable name"
-                  />
-                  <FormInput
-                    type="text"
-                    value={String(value)}
-                    onChange={(e) => handleEnvChange(key, e.target.value)}
-                    placeholder="Variable value"
-                  />
-                  <RemoveButton onClick={() => removeEnvVariable(key)}>
-                    <X size={16} />
-                  </RemoveButton>
-                </EnvRow>
-              ))}
-              <AddButton onClick={addEnvVariable}>
-                <Plus size={16} />
-                Add Environment Variable
-              </AddButton>
-            </EnvList>
-          </FormGroup>
-        </SettingsContent>
-
-        <ModalActions>
-          <CancelButton onClick={onClose}>
-            Cancel
-          </CancelButton>
-          <ConfirmButton onClick={handleSave} disabled={hasServerIdError}>
-            {isNewInstallation ? 'Install Server' : 'Save Changes'}
-          </ConfirmButton>
-        </ModalActions>
-      </SettingsModal>
-    </ModalOverlay>
+      <ModalActions>
+        <CancelButton onClick={onClose}>
+          Cancel
+        </CancelButton>
+        <ConfirmButton onClick={handleSave} disabled={hasServerIdError}>
+          {isNewInstallation ? 'Install Server' : 'Save Changes'}
+        </ConfirmButton>
+      </ModalActions>
+    </Modal>
   );
 };
