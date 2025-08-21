@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import MCPServersList from './MCPServersList';
-import UserMenu from '../header/UserMenu';
+import UserMenu from '../layout/UserMenu';
 
 
 const DashboardContainer = styled.div`
