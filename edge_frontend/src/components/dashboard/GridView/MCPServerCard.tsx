@@ -33,6 +33,11 @@ const ServerIcon = styled.div`
   justify-content: center;
   border-radius: ${(props) => props.theme.radius.md};
   background: rgba(59, 130, 246, 0.1);
+  overflow: hidden;
+  
+  img {
+    border-radius: ${(props) => props.theme.radius.md};
+  }
 `;
 
 const ServerInfo = styled.div`
@@ -195,14 +200,15 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   showCategory = true;
-  // Handle built-in TODOforAI MCP display
-  const isBuiltIn = instance.serverId === 'todoforai';
-  const registryServer = isBuiltIn ? null : getMCPByCommandArgs(instance.command, instance.args);
   
-  const displayName = isBuiltIn ? 'TODOforAI' : (registryServer?.name || instance.serverId || 'Unknown Server');
-  const displayDescription = isBuiltIn ? 'Built-in file and shell operations' : (registryServer?.description || 'No description available');
-  const displayIcon = isBuiltIn ? '/T-rocket-middle.png' : (registryServer?.icon || '/logos/default.png');
-  const displayCategory = isBuiltIn ? 'Built-in' : (registryServer?.category?.[0] || 'Unknown');
+  const isBuiltIn = instance.serverId === 'todoforai';
+  const registryServer = getMCPByCommandArgs(instance.command, instance.args);
+  
+  // Use instance properties first, then fallback to registry data
+  const displayName = instance.name || registryServer?.name || instance.serverId || 'Unknown Server';
+  const displayDescription = instance.description || registryServer?.description || 'No description available';
+  const displayIcon = instance.icon || registryServer?.icon || '/logos/default.png';
+  const displayCategory = instance.category?.[0] || registryServer?.category?.[0] || 'Unknown';
 
   const handleUninstall = () => {
     if (isBuiltIn) {
