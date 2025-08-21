@@ -15,59 +15,24 @@ export const useMCPFilters = (instances: MCPEdgeExecutable[]) => {
   }, [instances]);
 
   const filteredInstances = useMemo(() => {
-    // Add built-in TODOforAI MCP
+    // Add built-in TODOforAI MCP - now it will get data from registry
     const todoforaiMCP: MCPEdgeExecutable = {
       id: 'todoforai-builtin',
       serverId: 'todoforai',
       command: 'builtin',
       args: [],
-      env: {},
-      tools: [
-        {
-          name: 'create_file',
-          description: 'Create a new file with specified content',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              path: { type: 'string', description: 'File path' },
-              content: { type: 'string', description: 'File content' }
-            },
-            required: ['path', 'content']
-          }
-        },
-        {
-          name: 'modify_file',
-          description: 'Modify an existing file',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              path: { type: 'string', description: 'File path' },
-              content: { type: 'string', description: 'New content' }
-            },
-            required: ['path', 'content']
-          }
-        },
-        {
-          name: 'execute_shell',
-          description: 'Execute shell command',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              command: { type: 'string', description: 'Shell command to execute' }
-            },
-            required: ['command']
-          }
-        }
-      ]
+      env: {}
     };
 
     const allInstances = [todoforaiMCP, ...instances];
 
     return allInstances.filter(instance => {
       const registryServer = getMCPByCommandArgs(instance.command, instance.args);
-      const category = instance.serverId === 'todoforai' ? 'Built-in' : (registryServer?.category?.[0] || 'Unknown');
-      const name = instance.serverId === 'todoforai' ? 'TODOforAI' : (registryServer?.name || `${instance.command} ${instance.args?.join(' ') || ''}`);
-      const description = instance.serverId === 'todoforai' ? 'Built-in file and shell operations' : (registryServer?.description || '');
+      if (!registryServer) return false;
+      
+      const category = registryServer.category?.[0] || 'Unknown';
+      const name = registryServer.name || instance.serverId || 'Unknown';
+      const description = registryServer.description || '';
       
       const matchesCategory = selectedCategory === 'All' || category === selectedCategory;
       const matchesSearch = 

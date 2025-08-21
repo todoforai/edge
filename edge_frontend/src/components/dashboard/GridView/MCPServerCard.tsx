@@ -194,27 +194,22 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   onUninstall,
   onViewLogs,
   onOpenSettings,
-  showCategory = false,
+  showCategory = true,
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  showCategory = true;
-  
   const isBuiltIn = instance.serverId === 'todoforai';
   const registryServer = getMCPByCommandArgs(instance.command, instance.args);
   
-  // Use instance properties first, then fallback to registry data
-  const displayName = instance.name || registryServer?.name || instance.serverId || 'Unknown Server';
-  const displayDescription = instance.description || registryServer?.description || 'No description available';
-  const displayIcon = instance.icon || registryServer?.icon || '/logos/default.png';
-  const displayCategory = instance.category?.[0] || registryServer?.category?.[0] || 'Unknown';
+  // All display data comes from registry now
+  const displayName = registryServer?.name || instance.serverId || 'Unknown Server';
+  const displayDescription = registryServer?.description || 'No description available';
+  const displayIcon = registryServer?.icon || '/logos/default.png';
+  const displayCategory = registryServer?.category?.[0] || 'Unknown';
 
   const handleUninstall = () => {
-    if (isBuiltIn) {
-      // Don't allow uninstalling built-in MCP
-      return;
-    }
+    if (isBuiltIn) return;
     onUninstall(instance.serverId);
     setIsDropdownOpen(false);
   };

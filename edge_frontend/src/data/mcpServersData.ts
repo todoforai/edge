@@ -1,6 +1,65 @@
 import type { MCPRegistry } from '../types';
 
 export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
+  // Built-in TODOforAI MCP
+  {
+    serverId: 'todoforai',
+    name: 'TODOforAI',
+    description: 'Built-in file and shell operations',
+    command: 'builtin',
+    args: [],
+    icon: '/T-rocket-middle.png',
+    env: {},
+    category: ['Built-in'],
+    aliases: ['TODOFORAI'],
+    repository: {
+      url: 'https://github.com/todoforai/edge',
+      source: 'builtin',
+      id: 'todoforai-builtin'
+    },
+    version_detail: {
+      version: '1.0.0',
+      release_date: '2024-01-01',
+      is_latest: true
+    },
+    tools: [
+      {
+        name: 'create_file',
+        description: 'Create a new file with specified content',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            path: { type: 'string', description: 'File path' },
+            content: { type: 'string', description: 'File content' }
+          },
+          required: ['path', 'content']
+        }
+      },
+      {
+        name: 'modify_file',
+        description: 'Modify an existing file',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            path: { type: 'string', description: 'File path' },
+            content: { type: 'string', description: 'New content' }
+          },
+          required: ['path', 'content']
+        }
+      },
+      {
+        name: 'execute_shell',
+        description: 'Execute shell command',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            command: { type: 'string', description: 'Shell command to execute' }
+          },
+          required: ['command']
+        }
+      }
+    ]
+  },
   {
     serverId: 'gmail',
     name: 'Gmail MCP',
