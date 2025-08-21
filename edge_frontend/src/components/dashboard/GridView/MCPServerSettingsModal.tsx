@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { X, AlertCircle, Plus } from 'lucide-react';
-import type { MCPEdgeExecutable } from '../../types';
+import type { MCPEdgeExecutable } from '../../../types';
 
 
 // ... existing styled components from the original file ...

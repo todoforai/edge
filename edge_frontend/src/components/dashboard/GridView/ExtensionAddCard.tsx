@@ -58,11 +58,11 @@ const Description = styled.p`
   line-height: 1.5;
 `;
 
-interface AddExtensionCardProps {
+interface ExtensionAddCardProps {
   onClick: () => void;
 }
 
-export const AddExtensionCard: React.FC<AddExtensionCardProps> = ({ onClick }) => {
+export const ExtensionAddCard: React.FC<ExtensionAddCardProps> = ({ onClick }) => {
   return (
     <Card onClick={onClick}>
       <Content>

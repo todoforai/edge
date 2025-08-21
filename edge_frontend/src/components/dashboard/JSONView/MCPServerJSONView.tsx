@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { AlertTriangle } from 'lucide-react';
-import type { MCPEdgeExecutable } from '../../types';
-import { useEdgeConfigStore } from '../../store/edgeConfigStore';
+import type { MCPEdgeExecutable } from '../../../types';
+import { useEdgeConfigStore } from '../../../store/edgeConfigStore';
 
 const JsonError = styled.div`
   display: flex;

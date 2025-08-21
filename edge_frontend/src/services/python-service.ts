@@ -1,4 +1,4 @@
-import { isTauri, desktopApi } from '@/lib/tauri-api';
+import { isTauri, desktopApi } from '../lib/tauri-api';
 import { createLogger } from '../utils/logger';
 
 const log = createLogger('python-service');

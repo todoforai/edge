@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { getMCPByCommandArgs } from '../utils/mcpRegistry';
+import { getMCPByCommandArgs } from '../data/mcpServersData';
 import type { MCPEdgeExecutable } from '../types';
 
 export const useMCPFilters = (instances: MCPEdgeExecutable[]) => {

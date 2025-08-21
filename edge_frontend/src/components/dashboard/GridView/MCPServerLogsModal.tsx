@@ -1,8 +1,8 @@
 import React from 'react';
 import styled from 'styled-components';
 import { X, Trash2, Download, CheckCircle, XCircle } from 'lucide-react';
-import type { MCPEdgeExecutable } from '../../types';
-import { useMCPLogStore } from '../../store/mcpLogStore';
+import type { MCPEdgeExecutable } from '../../../types';
+import { useMCPLogStore } from '../../../store/mcpLogStore';
 
 interface MCPServerLogsModalProps {
   instance: MCPEdgeExecutable;

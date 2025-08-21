@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Download } from 'lucide-react';
-import { Modal } from '../ui/Modal';
-import { Grid } from '../ui/Grid';
-import { ActionBar } from './ActionBar';
-import { getMCPByServerId } from '../../data/mcpServersData';
-import type { MCPJSON } from '../../types';
+import { Modal } from '../../ui/Modal';
+import { Grid } from '../../ui/Grid';
+import { ActionBar } from '../ActionBar';
+import { getMCPByServerId } from '../../../data/mcpServersData';
+import type { MCPJSON } from '../../../types';
 
 const ExtensionCard = styled.div`
   display: flex;
@@ -87,13 +87,13 @@ const Controls = styled.div`
   margin-bottom: 24px;
 `;
 
-interface ExtensionsModalProps {
+interface ExtensionsRegistryModalProps {
   servers: MCPJSON[];
   onClose: () => void;
   onInstall?: (server: MCPJSON) => void;
 }
 
-export const ExtensionsModal: React.FC<ExtensionsModalProps> = ({ 
+export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = ({ 
   servers, 
   onClose, 
   onInstall 

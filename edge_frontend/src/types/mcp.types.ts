@@ -24,7 +24,7 @@ export interface MCPJSON {
 }
 
 export interface MCPRegistry extends MCPJSON {
-  icon?: string | { dark: string; light: string };
+  icon?: string;
   name?: string;
   description?: string;
   tools?: MCPToolSkeleton[];
