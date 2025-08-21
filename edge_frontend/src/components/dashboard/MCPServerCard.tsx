@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../types';
-import { getMCPByCommandArgs, getMCPIcon } from '../../utils/mcpRegistry';
+import { getMCPByCommandArgs } from '../../data/mcpServersData';
 
 const ServerCard = styled.div`
   border: 1px solid ${(props) => props.theme.colors.borderColor};
@@ -201,7 +201,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   
   const displayName = isBuiltIn ? 'TODOforAI' : (registryServer?.name || instance.serverId || 'Unknown Server');
   const displayDescription = isBuiltIn ? 'Built-in file and shell operations' : (registryServer?.description || 'No description available');
-  const displayIcon = isBuiltIn ? '/T-rocket-middle.png' : getMCPIcon(instance.serverId || '');
+  const displayIcon = isBuiltIn ? '/T-rocket-middle.png' : (registryServer?.icon || '/logos/default.png');
   const displayCategory = isBuiltIn ? 'Built-in' : (registryServer?.category?.[0] || 'Unknown');
 
   const handleUninstall = () => {

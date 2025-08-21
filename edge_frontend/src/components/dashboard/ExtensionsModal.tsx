@@ -4,7 +4,7 @@ import { Download } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Grid } from '../ui/Grid';
 import { ActionBar } from './ActionBar';
-import { getMCPIcon, getMCPName, getMCPDescription, getMCPCategory } from '../../utils/mcpRegistry';
+import { getMCPByServerId } from '../../data/mcpServersData';
 import type { MCPJSON } from '../../types';
 
 const ExtensionCard = styled.div`
@@ -102,16 +102,20 @@ export const ExtensionsModal: React.FC<ExtensionsModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
 
   const categories = React.useMemo(() => 
-    ['All', ...Array.from(new Set(servers.flatMap(s => getMCPCategory(s.serverId) || ['Other'])))], 
+    ['All', ...Array.from(new Set(servers.flatMap(s => {
+      const registry = getMCPByServerId(s.serverId);
+      return registry?.category || ['Other'];
+    })))], 
     [servers]
   );
 
   const filteredServers = servers.filter(server => {
-    const serverCategories = getMCPCategory(server.serverId) || ['Other'];
+    const registry = getMCPByServerId(server.serverId);
+    const serverCategories = registry?.category || ['Other'];
     const matchesCategory = selectedCategory === 'All' || serverCategories.includes(selectedCategory);
     const matchesSearch = 
-      getMCPName(server.serverId).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getMCPDescription(server.serverId).toLowerCase().includes(searchTerm.toLowerCase());
+      (registry?.name || server.serverId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (registry?.description || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -134,26 +138,29 @@ export const ExtensionsModal: React.FC<ExtensionsModalProps> = ({
       </Controls>
 
       <Grid minWidth="400px" gap="24px">
-        {filteredServers.map((server, index) => (
-          <ExtensionCard key={server.serverId || `server-${index}`}>
-            <ExtensionIcon>
-              <img 
-                src={getMCPIcon(server.serverId || '')} 
-                alt={getMCPName(server.serverId)}
-                width={48} height={48}
-              />
-            </ExtensionIcon>
-            <ExtensionInfo>
-              <ExtensionName>{getMCPName(server.serverId)}</ExtensionName>
-              <ExtensionDescription>{getMCPDescription(server.serverId)}</ExtensionDescription>
-              <ExtensionCategory>{getMCPCategory(server.serverId)?.[0] || 'Other'}</ExtensionCategory>
-            </ExtensionInfo>
-            <InstallButton onClick={() => handleInstall(server)}>
-              <Download size={16} />
-              Install
-            </InstallButton>
-          </ExtensionCard>
-        ))}
+        {filteredServers.map((server, index) => {
+          const registry = getMCPByServerId(server.serverId);
+          return (
+            <ExtensionCard key={server.serverId || `server-${index}`}>
+              <ExtensionIcon>
+                <img 
+                  src={registry?.icon || '/logos/default.png'} 
+                  alt={registry?.name || server.serverId}
+                  width={48} height={48}
+                />
+              </ExtensionIcon>
+              <ExtensionInfo>
+                <ExtensionName>{registry?.name || server.serverId}</ExtensionName>
+                <ExtensionDescription>{registry?.description || 'No description available'}</ExtensionDescription>
+                <ExtensionCategory>{registry?.category?.[0] || 'Other'}</ExtensionCategory>
+              </ExtensionInfo>
+              <InstallButton onClick={() => handleInstall(server)}>
+                <Download size={16} />
+                Install
+              </InstallButton>
+            </ExtensionCard>
+          );
+        })}
       </Grid>
     </Modal>
   );
