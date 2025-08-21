@@ -3,7 +3,6 @@ import styled from 'styled-components';
 import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../types';
 import { getMCPByCommandArgs, getMCPIcon } from '../../utils/mcpRegistry';
-import { LogoImage } from '../LogoImage';
 
 const ServerCard = styled.div`
   border: 1px solid ${(props) => props.theme.colors.borderColor};
@@ -230,10 +229,10 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
     <ServerCard>
       <ServerHeader>
         <ServerIcon>
-          <LogoImage 
+          <img 
             src={displayIcon} 
             alt={displayName}
-            size={48}
+            width={48} height={48}
           />
         </ServerIcon>
         <ServerTitleRow>

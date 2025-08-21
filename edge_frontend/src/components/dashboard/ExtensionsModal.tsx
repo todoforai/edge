@@ -4,7 +4,6 @@ import { Download } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Grid } from '../ui/Grid';
 import { ActionBar } from './ActionBar';
-import { LogoImage } from '../LogoImage';
 import { getMCPIcon, getMCPName, getMCPDescription, getMCPCategory } from '../../utils/mcpRegistry';
 import type { MCPJSON } from '../../types';
 
@@ -138,10 +137,10 @@ export const ExtensionsModal: React.FC<ExtensionsModalProps> = ({
         {filteredServers.map((server, index) => (
           <ExtensionCard key={server.serverId || `server-${index}`}>
             <ExtensionIcon>
-              <LogoImage 
+              <img 
                 src={getMCPIcon(server.serverId || '')} 
                 alt={getMCPName(server.serverId)}
-                size={48}
+                width={48} height={48}
               />
             </ExtensionIcon>
             <ExtensionInfo>
