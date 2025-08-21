@@ -1,4 +1,4 @@
-import type { MCPRegistry } from '../../../shared/REST_types_shared';
+import type { MCPRegistry } from '../../../types';
 
 export const MOCK_MCP_REGISTRY: MCPRegistry[] = [
   {

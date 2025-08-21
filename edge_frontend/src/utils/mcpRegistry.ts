@@ -1,29 +1,21 @@
 import { MOCK_MCP_REGISTRY } from '../components/dashboard/data/mcpServersData';
-import type { MCPRegistry } from '../shared/REST_types_shared';
+import type { MCPRegistry } from '../types';
 
-// Create a global registry map for efficient lookups
-const createRegistryMap = (registry: MCPRegistry[]): Map<string, MCPRegistry> => {
-  const map = new Map<string, MCPRegistry>();
-  registry.forEach(server => {
-    if (server.serverId) {
-      map.set(server.serverId, server);
-    }
-  });
-  return map;
-};
 
-// Create a command-args based lookup map
-const createCommandArgsMap = (registry: MCPRegistry[]): Map<string, MCPRegistry> => {
-  const map = new Map<string, MCPRegistry>();
-  registry.forEach(server => {
-    const key = `${server.command}|${(server.args || []).join('|')}`;
-    map.set(key, server);
-  });
-  return map;
-};
+// Create global registry maps for efficient lookups
+const global_registry = new Map<string, MCPRegistry>();
+const command_args_registry = new Map<string, MCPRegistry>();
 
-export const global_registry = createRegistryMap(MOCK_MCP_REGISTRY);
-export const command_args_registry = createCommandArgsMap(MOCK_MCP_REGISTRY);
+// Initialize registries
+MOCK_MCP_REGISTRY.forEach(server => {
+  if (server.serverId) {
+    global_registry.set(server.serverId, server);
+  }
+  const key = `${server.command}|${(server.args || []).join('|')}`;
+  command_args_registry.set(key, server);
+});
+
+export { global_registry, command_args_registry };
 
 // Helper to find registry entry by command and args
 export const getMCPByCommandArgs = (command: string, args: string[] = []): MCPRegistry | undefined => {
@@ -31,20 +23,7 @@ export const getMCPByCommandArgs = (command: string, args: string[] = []): MCPRe
   return command_args_registry.get(key);
 };
 
-// Alias lookup (no prebuilt index)
-const normalize = (s: string) => s.trim().toUpperCase();
-export const findAllByAlias = (keyword: string): MCPRegistry[] => {
-  if (!keyword) return [];
-  const k = normalize(keyword);
-  const res: MCPRegistry[] = [];
-  for (const server of MOCK_MCP_REGISTRY) {
-    const candidates = [server.serverId, server.name, ...(server.aliases || [])]
-      .filter(Boolean)
-      .map(s => normalize(String(s)));
-    if (candidates.includes(k)) res.push(server);
-  }
-  return res;
-};
+
 
 export const getMCPIcon = (serverId: string): string => {
   const server = global_registry.get(serverId);
@@ -73,14 +52,3 @@ export const getMCPCategory = (serverId: string): string[] => {
   return server?.category || ['Other'];
 };
 
-export const getMCPServer = (serverId: string): MCPRegistry | undefined => {
-  return global_registry.get(serverId);
-};
-
-export const getAllCategories = (): string[] => {
-  const categories = new Set<string>();
-  global_registry.forEach(server => {
-    server.category?.forEach(cat => categories.add(cat));
-  });
-  return Array.from(categories).sort();
-};

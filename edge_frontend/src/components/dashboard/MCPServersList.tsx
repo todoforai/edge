@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
-import { X, Download } from 'lucide-react';
-import { LogoImage } from '../LogoImage';
-import type { MCPJSON, MCPEdgeExecutable } from '../../shared/REST_types_shared';
-import { MOCK_MCP_REGISTRY } from './data/mcpServersData';
+import { useEdgeConfigStore } from '../../store/edgeConfigStore';
+import { useMCPRegistry } from '../../hooks/useMCPRegistry';
+import { useMCPFilters } from '../../hooks/useMCPFilters';
 import { MCPServerCard } from './MCPServerCard';
 import { MCPServerSettingsModal } from './MCPServerSettingsModal';
 import { MCPServerLogsModal } from './MCPServerLogsModal';
 import { MCPServerJSONView } from './MCPServerJSONView';
 import { AddExtensionCard } from './AddExtensionCard';
 import { ActionBar } from './ActionBar';
-import { useEdgeConfigStore } from '../../store/edgeConfigStore';
-import { getMCPIcon, getMCPName, getMCPDescription, getMCPCategory, getMCPByCommandArgs } from '../../utils/mcpRegistry';
+import { ExtensionsModal } from './ExtensionsModal';
+import { Grid } from '../ui/Grid';
 import pythonService from '../../services/python-service';
+import type { MCPEdgeExecutable, ViewMode, MCPJSON } from '../../types';
 
 // Styled Components
 const Container = styled.div`
@@ -46,214 +46,27 @@ const Controls = styled.div`
   margin-bottom: 30px;
 `;
 
-
-
-const ServersGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 20px;
-`;
-
-
-
-const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const Modal = styled.div`
-  background: ${props => props.theme.colors.background};
-  border-radius: ${props => props.theme.radius.lg};
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  width: 90%;
-  max-width: 1200px;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-`;
-
-const ModalHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 28px;
-  border-bottom: 1px solid ${props => props.theme.colors.borderColor};
-`;
-
-const ModalTitle = styled.h2`
-  font-size: 20px;
-  font-weight: 600;
-  color: ${props => props.theme.colors.foreground};
-  margin: 0;
-`;
-
-const CloseButton = styled.button`
-  background: transparent;
-  border: none;
-  color: ${props => props.theme.colors.mutedForeground};
-  cursor: pointer;
-  padding: 8px;
-  border-radius: ${props => props.theme.radius.sm};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.1);
-  }
-`;
-
-const ModalContent = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-`;
-
-const ModalControls = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin-bottom: 24px;
-`;
-
-const ExtensionsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 24px;
-`;
-
-const ExtensionCard = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 28px;
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.lg};
-  background: ${props => props.theme.colors.background};
-  transition: border-color 0.2s;
-
-  &:hover {
-    border-color: ${props => props.theme.colors.primary};
-  }
-`;
-
-const ExtensionIcon = styled.div`
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  border-radius: ${props => props.theme.radius.sm};
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.02);
-  
-  img {
-    border-radius: ${props => props.theme.radius.sm};
-  }
-`;
-
-const ExtensionInfo = styled.div`
-  flex: 1;
-  min-width: 0;
-`;
-
-const ExtensionName = styled.h3`
-  font-size: 16px;
-  font-weight: 600;
-  color: ${props => props.theme.colors.foreground};
-  margin: 0 0 4px 0;
-`;
-
-const ExtensionDescription = styled.p`
-  font-size: 14px;
-  color: ${props => props.theme.colors.mutedForeground};
-  margin: 0 0 8px 0;
-  line-height: 1.4;
-`;
-
-const ExtensionCategory = styled.span`
-  font-size: 12px;
-  color: ${props => props.theme.colors.primary};
-  background: rgba(59, 130, 246, 0.1);
-  padding: 2px 8px;
-  border-radius: ${props => props.theme.radius.md2};
-`;
-
-const InstallButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: ${props => props.theme.colors.primary};
-  color: white;
-  border: none;
-  border-radius: ${props => props.theme.radius.sm};
-  font-size: 14px;
-  cursor: pointer;
-  flex-shrink: 0;
-
-  &:hover {
-    background: ${props => props.theme.colors.primary}dd;
-  }
-`;
-
 interface MCPServersListProps {
-  viewMode: 'visual' | 'json';
-  onViewModeChange: (mode: 'visual' | 'json') => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
 const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeChange }) => {
   const { config, getMCPInstances } = useEdgeConfigStore();
-  const [registryServers, setRegistryServers] = useState<MCPJSON[]>(MOCK_MCP_REGISTRY);
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const { availableServers } = useMCPRegistry();
+  const { 
+    searchTerm, 
+    setSearchTerm, 
+    selectedCategory, 
+    setSelectedCategory,
+    filteredInstances,
+    categories 
+  } = useMCPFilters(getMCPInstances());
+
   const [showSettingsModal, setShowSettingsModal] = useState<MCPEdgeExecutable | null>(null);
   const [showLogsModal, setShowLogsModal] = useState<MCPEdgeExecutable | null>(null);
-  const [showExtensionsModal, setShowExtensionsModal] = useState<boolean>(false);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-
-  // Use the store's method to get properly formatted instances
-  const instances: MCPEdgeExecutable[] = useMemo(() => {
-    return getMCPInstances();
-  }, [getMCPInstances, config.installedMCPs, config.mcp_json]);
-
-  // Load mock registry data once on mount
-  useEffect(() => {
-    setRegistryServers(MOCK_MCP_REGISTRY);
-  }, []); // Empty dependency array - only run once
-
-  const handleViewLogs = (instance: MCPEdgeExecutable) => {
-    setShowLogsModal(instance);
-  };
-
-  const handleOpenSettings = (instance: MCPEdgeExecutable) => {
-    setShowSettingsModal(instance);
-  };
-
-  // Replace the install modal with settings modal for new installations
-  const handleInstallFromRegistry = (server: MCPJSON) => {
-    // Create a temporary MCPEdgeExecutable for the settings modal
-    const tempInstance: MCPEdgeExecutable = {
-      id: `temp-${Date.now()}`,
-      serverId: server.serverId,
-      command: server.command,
-      args: server.args || [],
-      env: server.env || {}
-    };
-    
-    setShowSettingsModal(tempInstance);
-    setShowExtensionsModal(false);
-  };
+  const [showExtensionsModal, setShowExtensionsModal] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     if (isRefreshing) return;
@@ -269,13 +82,24 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
     }
   };
 
+  const handleInstallFromRegistry = (server: MCPJSON) => {
+    // Create a temporary MCPEdgeExecutable for the settings modal
+    const tempInstance: MCPEdgeExecutable = {
+      id: `temp-${Date.now()}`,
+      serverId: server.serverId,
+      command: server.command,
+      args: server.args || [],
+      env: server.env || {}
+    };
+    
+    setShowSettingsModal(tempInstance);
+  };
+
   const handleSaveInstance = async (updatedInstance: MCPEdgeExecutable) => {
     try {
-      // Check if this is a new installation (temp ID)
       const isNewInstallation = (updatedInstance.id || '').startsWith('temp-');
       
       if (isNewInstallation) {
-        // This is a new installation, add to mcp_json
         const currentMcpJson = config.mcp_json || {};
         const updatedMcpJson = {
           ...currentMcpJson,
@@ -295,7 +119,6 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
         console.log(`Installed new MCP server: ${updatedInstance.serverId}`);
       } else {
-        // This is an existing instance update
         const currentMcpJson = config.mcp_json || {};
         const updatedMcpJson = {
           ...currentMcpJson,
@@ -309,7 +132,6 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
           }
         };
 
-        // Also update installedMCPs 
         const instanceId = updatedInstance.id || updatedInstance.serverId;
         const updatedInstalledMCPs = {
           ...config.installedMCPs,
@@ -332,7 +154,6 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
   const handleRemoveInstance = async (serverId: string) => {
     try {
-      // Remove server from mcp_json
       const currentMcpJson = config.mcp_json || {};
       const { [serverId]: removed, ...remainingServers } = currentMcpJson.mcpServers || {};
       
@@ -341,7 +162,6 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
         mcpServers: remainingServers
       };
 
-      // Save to backend
       await useEdgeConfigStore.getState().saveConfigToBackend({
         mcp_json: updatedMcpJson
       });
@@ -351,105 +171,6 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
       console.error('Failed to remove MCP server:', error);
     }
   };
-
-  // Get unique categories from instances using helper function + Built-in
-  const getInstanceCategories = useMemo(() => {
-    const categories = instances.map(instance => {
-      const registryServer = getMCPByCommandArgs(instance.command, instance.args);
-      return registryServer?.category?.[0] || 'Unknown';
-    });
-    return ['All', 'Built-in', ...Array.from(new Set(categories))];
-  }, [instances]);
-
-  // Filter instances using helper functions
-  const filteredInstances = useMemo(() => {
-    const regularInstances = instances.filter(instance => {
-      const registryServer = getMCPByCommandArgs(instance.command, instance.args);
-      const category = registryServer?.category?.[0] || 'Unknown';
-      const name = registryServer?.name || `${instance.command} ${instance.args?.join(' ') || ''}`;
-      const description = registryServer?.description || '';
-      
-      const matchesCategory = selectedCategory === 'All' || category === selectedCategory;
-      const matchesSearch = 
-        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        instance.serverId?.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
-
-    // Add built-in TODOforAI MCP if it matches filters
-    const todoforaiMCP: MCPEdgeExecutable = {
-      id: 'todoforai-builtin',
-      serverId: 'todoforai',
-      command: 'builtin',
-      args: [],
-      env: {},
-      tools: [
-        {
-          name: 'create_file',
-          description: 'Create a new file with specified content',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              path: { type: 'string', description: 'File path' },
-              content: { type: 'string', description: 'File content' }
-            },
-            required: ['path', 'content']
-          }
-        },
-        {
-          name: 'modify_file',
-          description: 'Modify an existing file',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              path: { type: 'string', description: 'File path' },
-              content: { type: 'string', description: 'New content' }
-            },
-            required: ['path', 'content']
-          }
-        },
-        {
-          name: 'execute_shell',
-          description: 'Execute shell command',
-          inputSchema: {
-            type: 'object',
-            properties: {
-              command: { type: 'string', description: 'Shell command to execute' }
-            },
-            required: ['command']
-          }
-        }
-      ]
-    };
-
-    // Check if TODOforAI matches filters
-    const todoforaiCategory = 'Built-in';
-    const todoforaiName = 'TODOforAI';
-    const todoforaiDescription = 'Built-in file and shell operations';
-    
-    const todoforaiMatchesCategory = selectedCategory === 'All' || todoforaiCategory === selectedCategory;
-    const todoforaiMatchesSearch = 
-      todoforaiName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      todoforaiDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      'todoforai'.toLowerCase().includes(searchTerm.toLowerCase());
-
-    if (todoforaiMatchesCategory && todoforaiMatchesSearch) {
-      return [todoforaiMCP, ...regularInstances];
-    }
-
-    return regularInstances;
-  }, [instances, selectedCategory, searchTerm]);
-
-  // Available servers for installation (from registry, excluding already installed)
-  const availableServers = useMemo(() => 
-    registryServers.filter(registry => 
-      !instances.some(instance => instance.serverId === registry.serverId)
-    ), [registryServers, instances]);
-
-  const availableCategories = useMemo(() => 
-    ['All', ...Array.from(new Set(availableServers.flatMap(s => getMCPCategory(s.serverId) || ['Other'])))], 
-    [availableServers]);
 
   return (
     <Container>
@@ -464,7 +185,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
           onSearchChange={setSearchTerm}
           searchPlaceholder="Search MCP servers..."
           selectedCategory={selectedCategory}
-          categories={getInstanceCategories}
+          categories={categories}
           onCategoryChange={setSelectedCategory}
           viewMode={viewMode}
           onViewModeChange={onViewModeChange}
@@ -476,24 +197,23 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
 
       {viewMode === 'json' ? (
         <MCPServerJSONView 
-          instances={instances} 
+          instances={filteredInstances} 
           onInstancesChange={() => console.warn("onInstancesChange: Direct state update for instances is deprecated. Update config.mcp_json instead.")} 
         />
       ) : (
-        <ServersGrid>
+        <Grid>
           {filteredInstances.map((instance, index) => (
             <MCPServerCard
               key={`${instance.id}-${index}`}
               instance={instance}
               onUninstall={handleRemoveInstance}
-              onViewLogs={handleViewLogs}
-              onOpenSettings={handleOpenSettings}
+              onViewLogs={setShowLogsModal}
+              onOpenSettings={setShowSettingsModal}
               showCategory={selectedCategory !== 'All'}
             />
           ))}
-          
           <AddExtensionCard onClick={() => setShowExtensionsModal(true)} />
-        </ServersGrid>
+        </Grid>
       )}
 
       {showSettingsModal && (
@@ -514,92 +234,11 @@ const MCPServersList: React.FC<MCPServersListProps> = ({ viewMode, onViewModeCha
       {showExtensionsModal && (
         <ExtensionsModal
           servers={availableServers}
-          categories={availableCategories}
           onClose={() => setShowExtensionsModal(false)}
           onInstall={handleInstallFromRegistry}
         />
       )}
     </Container>
-  );
-};
-
-// Extensions Modal Component
-const ExtensionsModal: React.FC<{
-  servers: MCPJSON[];
-  categories: string[];
-  onClose: () => void;
-  onInstall: (server: MCPJSON) => void;
-}> = ({ servers, categories, onClose, onInstall }) => {
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-
-  // Add escape key handler
-  React.useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
-
-  const filteredServers = servers.filter(server => {
-    const serverCategories = getMCPCategory(server.serverId) || ['Other'];
-    const matchesCategory = selectedCategory === 'All' || serverCategories.includes(selectedCategory);
-    const matchesSearch = (getMCPName(server.serverId).toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-                         (getMCPDescription(server.serverId).toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
-    return matchesCategory && matchesSearch;
-  });
-
-  return (
-    <ModalOverlay onClick={onClose}>
-      <Modal onClick={(e) => e.stopPropagation()}>
-        <ModalHeader>
-          <ModalTitle>Add New Extensions</ModalTitle>
-          <CloseButton onClick={onClose}>
-            <X size={20} />
-          </CloseButton>
-        </ModalHeader>
-
-        <ModalContent>
-          <ModalControls>
-            <ActionBar
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              searchPlaceholder="Search available extensions..."
-              selectedCategory={selectedCategory}
-              categories={categories}
-              onCategoryChange={setSelectedCategory}
-            />
-          </ModalControls>
-
-          <ExtensionsGrid>
-            {filteredServers.map((server, index) => (
-              <ExtensionCard key={server.serverId || `server-${index}`}>
-                <ExtensionIcon>
-                  <LogoImage 
-                    src={getMCPIcon(server.serverId || '')} 
-                    alt={getMCPName(server.serverId)}
-                    size={48}
-                  />
-                </ExtensionIcon>
-                <ExtensionInfo>
-                  <ExtensionName>{getMCPName(server.serverId)}</ExtensionName>
-                  <ExtensionDescription>{getMCPDescription(server.serverId)}</ExtensionDescription>
-                  <ExtensionCategory>{getMCPCategory(server.serverId)?.[0] || 'Other'}</ExtensionCategory>
-                </ExtensionInfo>
-                <InstallButton onClick={() => onInstall(server)}>
-                  <Download size={16} />
-                  Install
-                </InstallButton>
-              </ExtensionCard>
-            ))}
-          </ExtensionsGrid>
-        </ModalContent>
-      </Modal>
-    </ModalOverlay>
   );
 };
 

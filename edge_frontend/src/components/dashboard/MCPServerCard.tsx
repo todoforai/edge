@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
-import type { MCPEdgeExecutable } from '../../shared/REST_types_shared';
+import type { MCPEdgeExecutable } from '../../types';
 import { getMCPByCommandArgs, getMCPIcon } from '../../utils/mcpRegistry';
 import { LogoImage } from '../LogoImage';
 
