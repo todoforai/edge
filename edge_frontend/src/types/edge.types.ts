@@ -1,4 +1,4 @@
-import { InstalledMCP } from './mcp.types';
+import type { InstalledMCP } from './mcp.types';
 
 export enum EdgeStatus {
   ONLINE = 'ONLINE',

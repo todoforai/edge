@@ -79,3 +79,11 @@ async def async_request(client, method, endpoint, data=None):
         raise Exception(f"API request failed with status {response.status_code}: {response.text}")
         
     return response
+
+
+def normalize_api_url(api_url: str) -> str:
+    if api_url.startswith("localhost"):
+        return f"http://{api_url}"
+    elif not api_url.startswith(("http://", "https://")):
+        return f"https://{api_url}"
+    return api_url

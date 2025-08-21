@@ -10,7 +10,7 @@ import websockets
 from .constants.constants import (
     EdgeStatus, SR, FE, AE, EF, S2E
 )
-from .utils import generate_machine_fingerprint, async_request
+from .utils import generate_machine_fingerprint, async_request, normalize_api_url
 from .constants.messages import edge_status_msg
 from .constants.workspace_handler import handle_ctx_workspace_request
 from .apikey import authenticate_and_get_api_key
@@ -67,13 +67,7 @@ class TODOforAIEdge:
             raise ValueError("Config object must be provided to TODOforAIEdge")
             
         # Store the config object
-        self.api_url = client_config.api_url
-        # Normalize API URL - don't force localhost to http
-        if self.api_url.startswith("localhost"):
-            self.api_url = f"http://{self.api_url}"
-        elif not self.api_url.startswith(("http://", "https://")):
-            self.api_url = f"https://{self.api_url}"
-            
+        self.api_url = normalize_api_url(client_config.api_url)
         self.api_key = client_config.api_key
         self.email = client_config.email
         self.password = client_config.password

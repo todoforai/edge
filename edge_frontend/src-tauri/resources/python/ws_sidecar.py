@@ -21,6 +21,7 @@ from todoforai_edge.mcp_client import set_mcp_tool_call_callback
 from todoforai_edge.client import TODOforAIEdge
 from todoforai_edge.config import default_config, Config
 from todoforai_edge.handlers.file_sync import start_workspace_sync, stop_workspace_sync, active_sync_managers, WorkspaceSyncManager
+from todoforai_edge.utils import normalize_api_url
 
 async def _broadcast_auth_success():
     """Helper to broadcast auth success event"""
@@ -103,14 +104,6 @@ class WebSocketSidecar:
 
 # Global instance
 sidecar = WebSocketSidecar()
-
-def normalize_api_url(api_url: str) -> str:
-    """Normalize API URL format"""
-    if api_url.startswith("localhost"):
-        return f"http://{api_url}"
-    elif not api_url.startswith(("http://", "https://")):
-        return f"https://{api_url}"
-    return api_url
 
 @sidecar.rpc
 def ping(message):

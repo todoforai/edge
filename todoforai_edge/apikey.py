@@ -16,7 +16,7 @@ def authenticate_and_get_api_key(email, password, api_url):
     try:
         response = requests.post(login_url, json={"email": email, "password": password}, timeout=30)
     except requests.exceptions.RequestException as e:
-        raise Exception(f"Connection failed: {str(e)}")
+        raise Exception(f"Connection failed: {str(e)}") from e
     
     if response.status_code != 200:
         error_msg = f"Login failed: {response.text}"
@@ -27,6 +27,10 @@ def authenticate_and_get_api_key(email, password, api_url):
     token = data.get("token")
     print(f"{Colors.GREEN}✅ Authentication successful{Colors.END}")
     
+    # Add validation
+    if not token:
+        raise Exception("Server returned no authentication token")
+
     # Get or create API key
     headers = {"Authorization": f"Bearer {token}"}
     api_key_name = "python-client"
@@ -38,7 +42,7 @@ def authenticate_and_get_api_key(email, password, api_url):
     try:
         response = requests.get(get_key_url, headers=headers, timeout=30)
     except requests.exceptions.RequestException as e:
-        raise Exception(f"Failed to retrieve API key: {str(e)}")
+        raise Exception(f"Failed to retrieve API key: {str(e)}") from e
     
     if response.status_code == 404:
         # Create new API key
@@ -48,7 +52,7 @@ def authenticate_and_get_api_key(email, password, api_url):
         try:
             response2 = requests.post(create_key_url, headers=headers, json={"name": api_key_name}, timeout=30)
         except requests.exceptions.RequestException as e:
-            raise Exception(f"Failed to create API key: {str(e)}")
+            raise Exception(f"Failed to create API key: {str(e)}") from e
         
         if response2.status_code != 200:
             raise Exception(f"Failed to create API key: {response2.text}")
