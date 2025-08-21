@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useEdgeConfigStore } from '../store/edgeConfigStore';
-import { MOCK_MCP_REGISTRY } from '../components/dashboard/data/mcpServersData';
+import { MOCK_MCP_REGISTRY } from '../data/mcpServersData';
 import type { MCPJSON } from '../types';
 
 export const useMCPRegistry = () => {

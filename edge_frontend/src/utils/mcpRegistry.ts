@@ -1,4 +1,4 @@
-import { MOCK_MCP_REGISTRY } from '../components/dashboard/data/mcpServersData';
+import { MOCK_MCP_REGISTRY } from '../data/mcpServersData';
 import type { MCPRegistry } from '../types';
 
 
