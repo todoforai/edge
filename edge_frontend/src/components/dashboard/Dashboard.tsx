@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import MCPServersList from './GridView/MCPServersList';
 import { MCPServerJSONView } from './JSONView/MCPServerJSONView';
 import { ActionBar } from './ActionBar';
-import UserMenu from '../navbar/UserMenu';
+import Profile from '../navbar/Profile';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
 import { useMCPFilters } from '../../hooks/useMCPFilters';
 import pythonService from '../../services/python-service';
@@ -85,7 +85,7 @@ export const Dashboard: React.FC = () => {
 
   return (
     <DashboardContainer>
-      <UserMenu />
+      <Profile />
       <DashboardContent>
         <Container>
           <Header>

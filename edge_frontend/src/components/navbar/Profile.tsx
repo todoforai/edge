@@ -18,7 +18,7 @@ const LeftSection = styled.div`
   gap: 1rem;
 `;
 
-export const UserMenu: React.FC = () => {
+export const Profile: React.FC = () => {
   const { user } = useAuthStore();
 
   if (!user) return null;
@@ -33,4 +33,4 @@ export const UserMenu: React.FC = () => {
   );
 };
 
-export default UserMenu;
+export default Profile;
