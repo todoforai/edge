@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from typing import Any, Callable, Dict, List, TypeVar, Generic, Optional, Awaitable
 
 logger = logging.getLogger("todoforai-observable")
@@ -204,7 +205,7 @@ class ObservableDictionary(Observable[Dict]):
         del value_dict[key]
         self._value = value_dict
 
-        # Use debounced notification
+        # Use debounced notification with deletion info
         self._debounced_notify()
 
     def __contains__(self, key): return key in self._value

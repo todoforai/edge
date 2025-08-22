@@ -4,6 +4,8 @@ import shutil
 from typing import Dict, List, Any, Optional, Callable
 from pathlib import Path
 from fastmcp import Client
+import asyncio
+from .edge_config import MCPTool
 
 logger = logging.getLogger("todoforai-mcp")
 
@@ -37,7 +39,6 @@ class MCPCollector:
         """Handle config changes, specifically mcp_json updates"""
         if "mcp_json" in changes:
             logger.info("MCP JSON config changed, reloading tools and saving to file")
-            import asyncio
             asyncio.create_task(self._reload_tools_and_save())
     
     async def _reload_tools_and_save(self) -> None:
@@ -96,8 +97,8 @@ class MCPCollector:
         except Exception as e:
             logger.error(f"Error saving config to file: {e}")
     
-    def _serialize_tools(self, tools: List[Any]) -> List[Dict[str, Any]]:
-        """Convert Tool objects to JSON serializable format"""
+    def _serialize_tools(self, tools: List[Any]) -> List[MCPTool]:
+        """Convert Tool objects to typed format"""
         serialized = []
         for tool in tools:
             if '_' in tool.name:
@@ -187,15 +188,11 @@ class MCPCollector:
     
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call tool using unified client"""
-        if not self.unified_client:
-            raise RuntimeError("No MCP client available - call load_from_file first")
+        if not self.unified_client: raise RuntimeError("No MCP client available - call load_from_file first")
         
         server_id, actual_tool_name = _extract_server_id(tool_name)
         
         try:
-            # Validate tool exists
-            await self._validate_tool_exists(tool_name)
-            
             # Tool exists, proceed with the call
             async with self.unified_client as client:
                 result = await client.call_tool(tool_name, arguments)
@@ -224,18 +221,12 @@ class MCPCollector:
             logger.error(f"Error calling tool {tool_name}: {e}")
             return {"error": str(e), "success": False}
     
-    async def list_tools(self) -> List[Dict[str, Any]]:
+    async def list_tools(self) -> List[MCPTool]:
         """List all available tools"""
-        if not self.unified_client:
-            raise RuntimeError("No MCP client available")
-        
-        try:
-            async with self.unified_client as client:
-                tools = await client.list_tools()
-                return self._serialize_tools(tools)
-        except Exception as e:
-            logger.error(f"Error listing tools: {e}")
-            raise
+        if not self.unified_client: raise RuntimeError("No MCP client available")
+        async with self.unified_client as client:
+            tools = await client.list_tools()
+            return self._serialize_tools(tools)
     
     def disconnect(self):
         """Disconnect from all servers and unsubscribe from config changes"""

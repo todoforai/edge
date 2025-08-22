@@ -6,16 +6,17 @@ from .observable import registry
 logger = logging.getLogger("todoforai-client")
 
 
-class MCPToolSkeleton(TypedDict):
+class MCPTool(TypedDict):
     name: str
     description: str
-    inputSchema: Any
+    inputSchema: Dict[str, Any]
+    server_id: str
 
 
 class EdgeMCP(TypedDict):
     serverId: str
     status: str  # MCPRunningStatus equivalent
-    tools: List[MCPToolSkeleton]
+    tools: List[MCPTool]
     env: Dict[str, Any]  # MCPEnv equivalent
     config: Dict[str, Any]  # MCPEnv equivalent
     enabled: bool
@@ -89,9 +90,9 @@ class EdgeConfig:
             return True
         return False
 
-    def _group_tools_by_server(self, tools: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    def _group_tools_by_server(self, tools: List[MCPTool]) -> Dict[str, List[MCPTool]]:
         """Group tools by server_id"""
-        grouped: Dict[str, List[Dict[str, Any]]] = {}
+        grouped: Dict[str, List[MCPTool]] = {}
         for tool in tools:
             # Extract server_id from tool name (FastMCP format: {server_id}_{tool_name})
             server_id: str = tool.get('server_id') or tool['name'].split('_')[0]
@@ -106,10 +107,10 @@ class EdgeConfig:
         self.config.update_value(update_data)
         logger.info("Updated MCP JSON config - tools will be auto-updated")
 
-    def set_edge_mcps(self, tools: List[Dict[str, Any]]) -> None:
+    def set_edge_mcps(self, tools: List[MCPTool]) -> None:
         """Backend: Convert directly to final format"""
         servers: Dict[str, Dict[str, Any]] = {}  # Changed from List to Dict
-        grouped: Dict[str, List[Dict[str, Any]]] = self._group_tools_by_server(tools)
+        grouped: Dict[str, List[MCPTool]] = self._group_tools_by_server(tools)
         
         for server_id, server_tools in grouped.items():
             # Clean tool names by removing server prefix
