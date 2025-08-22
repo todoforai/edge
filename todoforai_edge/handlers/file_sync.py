@@ -498,7 +498,7 @@ async def ensure_workspace_synced(client, file_path: str) -> bool:
     file_path = os.path.abspath(file_path)
     
     # Check if the file is in one of the configured workspaces
-    for workspace_dir in client.edge_config.workspacepaths:
+    for workspace_dir in client.edge_config.config["workspacepaths"]:
         workspace_dir = os.path.abspath(workspace_dir)
         
         # Check if the file is in this workspace

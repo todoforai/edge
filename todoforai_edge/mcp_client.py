@@ -6,6 +6,7 @@ from pathlib import Path
 from fastmcp import Client
 import asyncio
 from .edge_config import MCPTool
+import traceback
 
 logger = logging.getLogger("todoforai-mcp")
 
@@ -31,9 +32,13 @@ class MCPCollector:
         self._unsubscribe_fn = None
         self.config_file_path = None  # Store the original config file path
         
-        # Subscribe to mcp_json changes if edge_config is provided
-        if self.edge_config:
+        # Don't subscribe immediately - wait until after initial load
+    
+    def _subscribe_to_config_changes(self):
+        """Subscribe to config changes after initial load is complete"""
+        if self.edge_config and not self._unsubscribe_fn:
             self._unsubscribe_fn = self.edge_config.config.subscribe(self._on_config_change)
+            logger.info("Subscribed to MCP config changes")
     
     def _on_config_change(self, changes: Dict[str, Any]) -> None:
         """Handle config changes, specifically mcp_json updates"""
@@ -41,31 +46,35 @@ class MCPCollector:
             logger.info("MCP JSON config changed, reloading tools and saving to file")
             asyncio.create_task(self._reload_tools_and_save())
     
+    async def _setup_client_and_tools(self, mcp_json: Dict[str, Any]) -> List[MCPTool]:
+        """Common logic to setup client and get tools from config"""
+        if not mcp_json:
+            logger.info("No MCP config, clearing tools")
+            return []
+        
+        # Process config and create client
+        processed_servers = self._process_config(mcp_json)
+        fastmcp_config = {"mcpServers": processed_servers}
+        client = Client(fastmcp_config)
+        self.unified_client = client
+        
+        # Get tools and return them
+        tools = await self.list_tools()
+        return tools
+    
     async def _reload_tools_and_save(self) -> None:
         """Reload tools from current mcp_json config and save to file"""
         try:
             mcp_json = self.edge_config.config.value.get("mcp_json", {})
-            print('mcp_json', mcp_json)
             
-            if not mcp_json:
-                logger.info("No MCP config, clearing tools")
-                self.edge_config.set_edge_mcps([])
-                return
+            # Setup client and get tools
+            tools = await self._setup_client_and_tools(mcp_json)
+            self.edge_config.set_edge_mcps(tools)
             
             # Save the updated config to file if we have a config file path
             if self.config_file_path and mcp_json:
                 await self._save_config_to_file(mcp_json)
                 
-            # Process config and create client
-            processed_servers = self._process_config(mcp_json)
-            # Create FastMCP config with the correct structure
-            fastmcp_config = {"mcpServers": processed_servers}
-            client = Client(fastmcp_config)
-            self.unified_client = client
-            
-            # Get tools and update config
-            tools = await self.list_tools()
-            self.edge_config.set_edge_mcps(tools)
             logger.info(f"Auto-reloaded {len(tools)} tools and saved config to file")
             
         except Exception as e:
@@ -111,23 +120,6 @@ class MCPCollector:
             serialized.append(tool_info)
         return serialized
 
-    async def _validate_tool_exists(self, tool_name: str) -> None:
-        """Validate that a tool exists and raise helpful error if not"""
-        available_tools = await self.list_tools()
-        available_tool_names = [tool["name"] for tool in available_tools]
-        
-        if tool_name not in available_tool_names:
-            server_id, _ = _extract_server_id(tool_name)
-            server_tools = [tool["name"] for tool in available_tools if tool.get("server_id") == server_id]
-            
-            error_msg = f"Tool '{tool_name}' does not exist."
-            if server_tools:
-                error_msg += f" Available tools for server '{server_id}': {', '.join(server_tools)}"
-            else:
-                error_msg += f" No tools available for server '{server_id}'."
-            
-            raise ValueError(error_msg)
-
     async def load_from_file(self, config_path: str) -> Dict[str, bool]:
         """Load servers from MCP config file"""
         try:
@@ -138,13 +130,20 @@ class MCPCollector:
             # Store the config file path for later saving
             self.config_file_path = config_path
             
-            # Parse and set config - this will trigger tool reload via observer
+            # Parse and set config - this will NOT trigger observer yet
             raw_config = self._parse_raw_config_file(config_path)
-            if self.edge_config:
-                self.edge_config.set_mcp_json(raw_config)
+            self.edge_config.set_mcp_json(raw_config)
+
+            # Setup client and get tools
+            tools = await self._setup_client_and_tools(raw_config)
+            self.edge_config.set_edge_mcps(tools)
+        
+            # Start subscribing to changes only after initial load
+            self._subscribe_to_config_changes()
             
-            # Process for return value
             processed_servers = self._process_config(raw_config)
+            logger.info(f"Initial MCP load complete: {len(tools)} tools from {len(processed_servers)} servers")
+            
             return {server: True for server in processed_servers}
                 
         except Exception as e:

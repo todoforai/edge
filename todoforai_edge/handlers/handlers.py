@@ -263,7 +263,7 @@ async def handle_block_save(payload, client):
         logger.info(f'Saving file: {filepath}')
 
         # Check if path is allowed before proceeding
-        if not is_path_allowed(filepath, client.edge_config.workspacepaths):
+        if not is_path_allowed(filepath, client.edge_config.config["workspacepaths"]):
             raise PermissionError("No permission to save file to the given path")
 
         # Only create directory if filepath has a directory component
@@ -301,7 +301,7 @@ async def handle_block_diff(payload, client):
 
     try:
         # Check if path is allowed before proceeding
-        if not is_path_allowed(filepath, client.edge_config.workspacepaths):
+        if not is_path_allowed(filepath, client.edge_config.config["workspacepaths"]):
             raise PermissionError("No permission to access the given file")
 
         # Check if the file exists
@@ -375,7 +375,7 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
         full_path = os.path.abspath(full_path)
 
         # Check if path is allowed before proceeding
-        if not is_path_allowed(full_path, client.edge_config.workspacepaths):
+        if not is_path_allowed(full_path, client.edge_config.config["workspacepaths"]):
             raise PermissionError(f"No permission to access the given file {full_path}")
 
         # Ensure the workspace containing this file is being synced

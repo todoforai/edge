@@ -79,7 +79,6 @@ class TODOforAIEdge:
         self.ws = None
         self.ws_url = get_ws_url(self.api_url)
         self.edge_config = EdgeConfig()
-        logger.info("EdgeConfig initialized.")
         
         # Subscribe to config changes
         self.config_syncable_fields = ["workspacepaths", "installedMCPs", "name", "isShellEnabled", "isFileSystemEnabled"]
@@ -100,8 +99,7 @@ class TODOforAIEdge:
     def _generate_fingerprint(self):
         """Generate fingerprint based on machine characteristics"""
         self.fingerprint = generate_machine_fingerprint()
-        logger.info(f'{Colors.CYAN}{Colors.BOLD}Generated fingerprint{Colors.END}')
-        print('self.fingerprint:', self.fingerprint)
+        print(f'👆 {Colors.CYAN}{Colors.BOLD}Generated fingerprint:{Colors.END} {self.fingerprint}')
         return self.fingerprint
 
     async def _on_config_change(self, changes: Dict[str, Any]) -> None:
@@ -133,9 +131,8 @@ class TODOforAIEdge:
             return {"valid": False, "error": "Email and password are required for authentication"}
             
         try:
-            logger.info(f"Authenticating with email: {self.email}")
             self.api_key = authenticate_and_get_api_key(self.email, self.password, self.api_url)
-            logger.info(f"Successfully authenticated as {self.email}")
+            print(f"{Colors.GREEN}✅ Successfully authenticated as {Colors.YELLOW}{Colors.BOLD}{self.email}{Colors.END}")
             return {"valid": True}
         except Exception as e:
             logger.error(f"Authentication failed: {str(e)}")
@@ -171,7 +168,7 @@ class TODOforAIEdge:
             logger.error(f"API key validation failed: {str(e)}")
             return {"valid": False, "error": str(e)}
 
-    async def ensure_api_key(self, prompt_if_missing=True):
+    async def ensure_api_key(self, prompt_if_missing=True): # TODO valószínűleg az error kezelés meg minden sokkal szebben megoldható lenne. 
         """Ensure we have a valid API key; validate existing or authenticate via email/password."""
         # If we already have an API key, validate it
         if self.api_key:
@@ -230,7 +227,7 @@ class TODOforAIEdge:
         # First stop any existing syncs to prevent duplicates
         await stop_all_syncs()
         
-        for workspace_path in self.edge_config.workspacepaths:
+        for workspace_path in self.edge_config.config["workspacepaths"]:
             try:
                 if os.path.exists(workspace_path):
                     logger.info(f"Starting file sync for workspace: {workspace_path}")
@@ -368,10 +365,9 @@ class TODOforAIEdge:
             logger.error("No API key available, cannot connect")
             return
             
-        fingerprint = self._generate_fingerprint()
         
         # Only include fingerprint in URL
-        ws_url = f"{self.ws_url}?fingerprint={fingerprint}"
+        ws_url = f"{self.ws_url}?fingerprint={self.fingerprint}"
         
         if self.debug:
             logger.info(f"Connecting to WebSocket: {ws_url}")
@@ -397,7 +393,9 @@ class TODOforAIEdge:
 
     async def start(self):
         """Start the client with reconnection logic"""
-        max_attempts = 20
+        self._generate_fingerprint()
+        
+        max_attempts = 10
         attempt = 0
         
         while attempt < max_attempts:
@@ -415,7 +413,7 @@ class TODOforAIEdge:
                 
                 # Wait before reconnecting
                 logger.info("Connection closed. Reconnecting in 4 seconds...")
-                await asyncio.sleep(4.0)
+                await asyncio.sleep(attempt * 2)
                 
             except AuthenticationError as error:
                 logger.error(f"Authentication error: {str(error)}")

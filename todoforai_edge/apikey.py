@@ -11,7 +11,7 @@ def authenticate_and_get_api_key(email, password, api_url):
     """Authenticate with the server and get an API key"""
     # Login only, no registration
     login_url = f"{api_url}/token/v1/auth/login"
-    print(f"{Colors.CYAN}🔐 Authenticating with {api_url}...{Colors.END}")
+    print(f"{Colors.CYAN}🔐 Authenticating with email: {Colors.YELLOW}{Colors.BOLD}{email}{Colors.END}{Colors.CYAN} on {Colors.GREEN}{Colors.BOLD}{api_url}{Colors.END}{Colors.CYAN}...{Colors.END}")
     
     try:
         response = requests.post(login_url, json={"email": email, "password": password}, timeout=30)
@@ -25,7 +25,6 @@ def authenticate_and_get_api_key(email, password, api_url):
         
     data = response.json()
     token = data.get("token")
-    print(f"{Colors.GREEN}✅ Authentication successful{Colors.END}")
     
     # Add validation
     if not token:

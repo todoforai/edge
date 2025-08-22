@@ -55,13 +55,9 @@ class EdgeConfig:
         }
         self.config = registry.create("edge_config", config_data)
     
-    @property
-    def workspacepaths(self) -> List[str]:
-        return self.config["workspacepaths"]
-
     def add_workspace_path(self, path: str) -> bool:
         """Add a workspace path if it doesn't already exist"""
-        current_paths = self.workspacepaths
+        current_paths = self.config["workspacepaths"]
         if path not in current_paths:
             # Create a new list with the added path
             new_paths = current_paths.copy()
