@@ -14,7 +14,6 @@ from .utils import generate_machine_fingerprint, async_request, normalize_api_ur
 from .constants.messages import edge_status_msg
 from .constants.workspace_handler import handle_ctx_workspace_request
 from .apikey import authenticate_and_get_api_key
-from .observable import registry
 from .config import get_ws_url
 from .edge_config import EdgeConfig
 from .colors import Colors

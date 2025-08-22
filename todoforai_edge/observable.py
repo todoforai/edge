@@ -1,17 +1,12 @@
 import asyncio
 import logging
-import time
 from typing import Any, Callable, Dict, List, TypeVar, Generic, Optional, Awaitable
 
 logger = logging.getLogger("todoforai-observable")
-
 T = TypeVar('T')
 
 class Observable(Generic[T]):
-    """
-    A generic observable value that can be watched for changes.
-    Supports both synchronous and asynchronous callbacks.
-    """
+    """A generic observable value that can be watched for changes."""
 
     def __init__(self, initial_value: T, name: str = "unnamed"):
         self._value = initial_value
@@ -25,7 +20,6 @@ class Observable(Generic[T]):
 
     @property
     def value(self) -> T:
-        """Get the current value"""
         return self._value
 
     @value.setter
@@ -157,10 +151,7 @@ class Observable(Generic[T]):
 
 
 class ObservableDictionary(Observable[Dict]):
-    """
-    An observable dictionary with special handling for dictionary operations.
-    Provides a more natural dictionary-like interface while maintaining observability.
-    """
+    """Observable dictionary with natural dict interface"""
 
     def __init__(self, initial_value: Dict = None, name: str = "unnamed"):
         super().__init__(initial_value or {}, name)
@@ -188,10 +179,7 @@ class ObservableDictionary(Observable[Dict]):
         # Notify observers with only the changes
         self._notify(actual_changes, source)
 
-    def __getitem__(self, key):
-        """Get an item from the dictionary"""
-        return self._value[key]
-
+    def __getitem__(self, key): return self._value[key]
     def __setitem__(self, key, value):
         """Set an item in the dictionary and notify observers"""
         if key in self._value and self._value[key] == value:
@@ -219,55 +207,29 @@ class ObservableDictionary(Observable[Dict]):
         # Use debounced notification
         self._debounced_notify()
 
-    def __contains__(self, key):
-        """Check if key exists in the dictionary"""
-        return key in self._value
-
-    def __len__(self):
-        """Get the length of the dictionary"""
-        return len(self._value)
-
-    def __iter__(self):
-        """Iterate over the dictionary keys"""
-        return iter(self._value)
-
-    def keys(self):
-        """Get dictionary keys"""
-        return self._value.keys()
-
-    def values(self):
-        """Get dictionary values"""
-        return self._value.values()
-
-    def items(self):
-        """Get dictionary items"""
-        return self._value.items()
-
-    def get(self, key, default=None):
-        """Get an item with a default value"""
-        return self._value.get(key, default)
+    def __contains__(self, key): return key in self._value
+    def __len__(self): return len(self._value)
+    def __iter__(self): return iter(self._value)
+    
+    def keys(self): return self._value.keys()
+    def values(self): return self._value.values()
+    def items(self): return self._value.items()
+    def get(self, key, default=None): return self._value.get(key, default)
 
     def pop(self, key, default=None):
-        """Remove and return an item from the dictionary"""
-        if key not in self._value and default is not None:
-            return default
+        if key not in self._value and default is not None: return default
 
-        # Create a new dictionary without the key
         new_dict = dict(self._value)
         value = new_dict.pop(key, default)
         self.value = new_dict
         return value
 
     def clear(self):
-        """Clear the dictionary"""
-        if not self._value:
-            return  # Already empty
+        if not self._value: return  # Already empty
         self.value = {}
 
     def update(self, other=None, **kwargs):
-        """Update the dictionary with another dictionary"""
-        if not other and not kwargs:
-            return  # Nothing to update
+        if not other and not kwargs: return  # Nothing to update
 
         new_dict = dict(self._value)
         if other:
@@ -293,22 +255,18 @@ class ObservableRegistry:
         self._observables: Dict[str, Observable] = {}
 
     def create(self, name: str, initial_value: Any) -> Observable:
-        """Create and register a new observable"""
         if name in self._observables:
             logger.warning(f"Observable '{name}' already exists, returning existing instance")
             return self._observables[name]
-
-        # Create appropriate observable type based on initial value
-        if isinstance(initial_value, dict):
-            observable = ObservableDictionary(initial_value, name)
-        else:
-            observable = Observable(initial_value, name)
-
+        
+        observable = (ObservableDictionary(initial_value, name) 
+                     if isinstance(initial_value, dict) 
+                     else Observable(initial_value, name))
+        
         self._observables[name] = observable
         return observable
 
     def get(self, name: str) -> Optional[Observable]:
-        """Get an observable by name"""
         return self._observables.get(name)
 
     def remove(self, name: str) -> None:
