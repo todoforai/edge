@@ -30,7 +30,8 @@ const ExtensionIcon = styled.div`
   overflow: hidden;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: center;  
+  box-shadow: 0 0 0 1px ${props => props.theme.colors.borderColor};
   
   img {
     border-radius: ${props => props.theme.radius.sm};
