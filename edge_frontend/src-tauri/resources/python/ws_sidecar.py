@@ -444,65 +444,6 @@ def register_edge_config_hooks(params=None):
         return _create_rpc_response(False, str(e))
 
 @sidecar.rpc
-def toggle_workspace_sync(params):
-    """Toggle sync for a specific workspace path"""
-    try:
-        if not sidecar.todo_client:
-            return {"status": "error", "message": "Client not initialized"}
-            
-        workspace_path = os.path.abspath(params.get("path", ""))
-        if not workspace_path:
-            return {"status": "error", "message": "No workspace path provided"}
-        
-        
-        # Check if this workspace is already being synced
-        is_active = workspace_path in active_sync_managers
-        
-        if is_active:
-            # Stop syncing
-            asyncio.create_task(stop_workspace_sync(workspace_path))
-            return {"status": "success", "isActive": False}
-        else:
-            # Start syncing if in configured workspaces
-            if workspace_path not in sidecar.todo_client.edge_config.workspacepaths:
-                return {"status": "error", "message": "Path not in configured workspaces"}
-                
-            asyncio.create_task(start_workspace_sync(sidecar.todo_client, workspace_path))
-            return {"status": "success", "isActive": True}
-            
-    except Exception as e:
-        log.error(f"Error toggling workspace sync: {e}")
-        return {"status": "error", "message": str(e)}
-
-@sidecar.rpc
-def remove_workspace_path(params):
-    """Remove a workspace path from the edge configuration"""
-    try:
-        if not sidecar.todo_client:
-            return {"status": "error", "message": "Client not initialized"}
-            
-        workspace_path = os.path.abspath(params.get("path", ""))
-        if not workspace_path:
-            return {"status": "error", "message": "No workspace path provided"}
-        
-        # Remove the path from the configuration
-        removed = sidecar.todo_client.edge_config.remove_workspace_path(workspace_path)
-        
-        if removed:
-            log.info(f"Removed workspace path: {workspace_path}")
-            
-            # Stop file sync for this path if it's active
-            asyncio.create_task(stop_workspace_sync(workspace_path))
-            
-            return {"status": "success", "message": f"Workspace path removed: {workspace_path}"}
-        else:
-            return {"status": "error", "message": "Workspace path not found"}
-            
-    except Exception as e:
-        log.error(f"Error removing workspace path: {e}")
-        return {"status": "error", "message": str(e)}
-
-@sidecar.rpc
 def update_edge_config(params):
     """Update edge config fields in local config after successful API call"""
     try:

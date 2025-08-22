@@ -371,18 +371,6 @@ class PythonService {
     }
   }
 
-  // Add this method to the PythonService class
-  async toggleWorkspaceSync(path: string): Promise<any> {
-    return this.callPython('toggle_workspace_sync', { path });
-  }
-
-  async removeWorkspacePath(path: string): Promise<any> {
-    console.log('🗑️ [PythonService] Calling remove_workspace_path with path:', path);
-    const result = await this.callPython('remove_workspace_path', { path });
-    console.log('🗑️ [PythonService] Result from remove_workspace_path:', result);
-    return result;
-  }
-
   // New method from patch
   async refreshMCPConfig(configPath?: string): Promise<{ status: string; message: string }> {
     return this.callPython('refresh_mcp_config', { configPath });

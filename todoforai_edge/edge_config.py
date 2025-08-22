@@ -75,20 +75,6 @@ class EdgeConfig:
             return True
         return False
 
-    def remove_workspace_path(self, path: str) -> bool:
-        """Remove a workspace path if it exists"""
-        current_paths = self.workspacepaths
-        if path in current_paths:
-            # Create a new list without the removed path
-            new_paths = [p for p in current_paths if p != path]
-            
-            # Update the config with the new paths
-            current = self.config.value
-            updated = current.copy()
-            updated["workspacepaths"] = new_paths
-            self.config.update_value(updated)
-            return True
-        return False
 
     def _group_tools_by_server(self, tools: List[MCPTool]) -> Dict[str, List[MCPTool]]:
         """Group tools by server_id"""
