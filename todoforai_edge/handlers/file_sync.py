@@ -37,8 +37,8 @@ class FileState:
 class WorkspaceSyncManager:
     """Manages synchronization of workspace files with the server"""
     
-    def __init__(self, client, workspace_dir: str):
-        self.client = client
+    def __init__(self, edge, workspace_dir: str):
+        self.edge = edge
         self.workspace_dir = os.path.abspath(workspace_dir)
         self.watch_task: Optional[asyncio.Task] = None
         self.is_running = False
@@ -326,12 +326,12 @@ class WorkspaceSyncManager:
         self.initial_sync_complete = True
         
         # Send completion signal to server
-        await self.client.send_response({
+        await self.edge.send_response({
             "type": EFA.WORKSPACE_FILE_DONE,
             "payload": {
                 "path": self.workspace_dir,
-                "edgeId": self.client.edge_id, # TODO check if this is correct edge_id???
-                "userId": self.client.user_id,
+                "edgeId": self.edge.edge_id, # TODO check if this is correct edge_id???
+                "userId": self.edge.user_id,
                 "stats": self.sync_stats  # Include sync statistics
             }
         })
@@ -401,13 +401,13 @@ class WorkspaceSyncManager:
         """Send file sync message to server"""
         message_type = EFA.WORKSPACE_FILE_CREATE_SYNC if action == "create" else EFA.WORKSPACE_FILE_MODIFY_SYNC
         
-        await self.client.send_response({
+        await self.edge.send_response({
             "type": message_type,
             "payload": {
                 "path": abs_path,
                 "content": content,
-                "edgeId": self.client.edge_id,
-                "userId": self.client.user_id
+                "edgeId": self.edge.edge_id,
+                "userId": self.edge.user_id
             }
         })
 
@@ -419,12 +419,12 @@ class WorkspaceSyncManager:
             self.project_files_abs.remove(abs_path)
             
             # Send delete notification
-            await self.client.send_response({
+            await self.edge.send_response({
                 "type": EFA.WORKSPACE_FILE_DELETE_SYNC,
                 "payload": {
                     "path": abs_path,
-                    "edgeId": self.client.edge_id,
-                    "userId": self.client.user_id
+                    "edgeId": self.edge.edge_id,
+                    "userId": self.edge.user_id
                 }
             })
             logger.info(f"Deleted file: {abs_path}")
@@ -435,7 +435,7 @@ class WorkspaceSyncManager:
 
 
 # Function to start syncing a workspace
-async def start_workspace_sync(client, workspace_dir: str) -> WorkspaceSyncManager:
+async def start_workspace_sync(edge, workspace_dir: str) -> WorkspaceSyncManager:
     """Start syncing a workspace directory"""
     workspace_dir = os.path.abspath(workspace_dir)
     
@@ -445,7 +445,7 @@ async def start_workspace_sync(client, workspace_dir: str) -> WorkspaceSyncManag
         return active_sync_managers[workspace_dir]
     
     # Create and start a new sync manager
-    sync_manager = WorkspaceSyncManager(client, workspace_dir)
+    sync_manager = WorkspaceSyncManager(edge, workspace_dir)
     
     # Store in registry before starting to prevent race conditions
     active_sync_managers[workspace_dir] = sync_manager
@@ -490,7 +490,7 @@ async def stop_all_syncs():
 
 
 # Function to check if a path is in a workspace and ensure that workspace is synced
-async def ensure_workspace_synced(client, file_path: str) -> bool:
+async def ensure_workspace_synced(edge, file_path: str) -> bool:
     """
     Ensure that the workspace containing the given file path is being synced.
     Returns True if sync was started, False if already syncing or not in a workspace.
@@ -498,7 +498,7 @@ async def ensure_workspace_synced(client, file_path: str) -> bool:
     file_path = os.path.abspath(file_path)
     
     # Check if the file is in one of the configured workspaces
-    for workspace_dir in client.edge_config.config["workspacepaths"]:
+    for workspace_dir in edge.edge_config.config["workspacepaths"]:
         workspace_dir = os.path.abspath(workspace_dir)
         
         # Check if the file is in this workspace
@@ -509,7 +509,7 @@ async def ensure_workspace_synced(client, file_path: str) -> bool:
             
             # Start syncing this workspace
             logger.info(f"Lazy-initializing sync for workspace: {workspace_dir}")
-            await start_workspace_sync(client, workspace_dir)
+            await start_workspace_sync(edge, workspace_dir)
             return True
     
     return False  # Not in any workspace

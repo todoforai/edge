@@ -9,7 +9,7 @@ import requests
 logger = logging.getLogger("todoforai-edge")
 
 def generate_machine_fingerprint():
-    """Generate a unique fingerprint for this client based on machine characteristics"""
+    """Generate a unique fingerprint for this edge based on machine characteristics"""
     identifiers = {}
     
     # Basic system info (OS, architecture, hostname)
@@ -51,15 +51,15 @@ def generate_machine_fingerprint():
     # Encode as base64 for transmission
     return base64.b64encode(json.dumps(identifiers).encode()).decode()
 
-async def async_request(client, method, endpoint, data=None):
+async def async_request(edge, method, endpoint, data=None):
     """Make an async request to the API"""
-    if not client.api_key:
+    if not edge.api_key:
         raise ValueError("Cannot make API request: missing API key")
         
-    url = f"{client.api_url}{endpoint}"
+    url = f"{edge.api_url}{endpoint}"
     headers = {
         "content-type": "application/json",
-        "x-api-key": f"{client.api_key}"
+        "x-api-key": f"{edge.api_key}"
         }
     
     if method.lower() == 'get':

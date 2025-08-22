@@ -32,7 +32,7 @@ def authenticate_and_get_api_key(email, password, api_url):
 
     # Get or create API key
     headers = {"Authorization": f"Bearer {token}"}
-    api_key_name = "python-client"
+    api_key_name = "todoforai-edge"
     
     # Try to get existing API key
     get_key_url = f"{api_url}/token/v1/users/apikeys/{api_key_name}"

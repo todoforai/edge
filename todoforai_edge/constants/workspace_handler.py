@@ -295,7 +295,7 @@ def is_project_file(filename, project_files, file_extensions):
 
     return False
 
-async def handle_ctx_workspace_request(payload, client):
+async def handle_ctx_workspace_request(payload, edge):
     """Handle workspace context request"""
     user_id = payload.get("userId", "")
     agent_id = payload.get("agentId", "")
@@ -306,13 +306,13 @@ async def handle_ctx_workspace_request(payload, client):
         logger.info(f"Workspace context request received for path: {path}")
 
         # Check if path is allowed
-        if not is_path_allowed(path, client.edge_config.config["workspacepaths"]):
+        if not is_path_allowed(path, edge.edge_config.config["workspacepaths"]):
             raise PermissionError(f"Access to path '{path}' is not allowed")
             
         # Get filtered files - use global constants directly
         project_files, filtered_files, filtered_dirs = get_filtered_files_and_folders(path)
 
-        await client.send_response(workspace_result_msg(
+        await edge.send_response(workspace_result_msg(
             request_id,
             user_id,
             agent_id,
@@ -324,7 +324,7 @@ async def handle_ctx_workspace_request(payload, client):
     except Exception as error:
         logger.error(f"Error processing workspace request: {str(error)}")
         # Send empty file chunks with error
-        await client.send_response(workspace_result_msg(request_id, user_id, agent_id, [], [], []))
+        await edge.send_response(workspace_result_msg(request_id, user_id, agent_id, [], [], []))
 
 
 def get_filtered_files_and_folders(path):

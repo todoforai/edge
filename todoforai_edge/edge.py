@@ -33,10 +33,10 @@ from .handlers.handlers import (
     handle_call_edge_method
 )
 from .handlers.file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
-from .mcp_client import setup_mcp_from_config
+from .mcp_collector import setup_mcp_from_config
 
 # Configure logging
-logger = logging.getLogger("todoforai-client")
+logger = logging.getLogger("todoforai-edge")
 
 # Type for callback functions
 T = TypeVar('T')
@@ -61,20 +61,20 @@ def invoke_callback(callback: CallbackType, arg: Any) -> None:
         cast(Callable[[Any], None], callback)(arg)
 
 class TODOforAIEdge:
-    def __init__(self, client_config):
-        if client_config is None:
+    def __init__(self, edge_config):
+        if edge_config is None:
             raise ValueError("Config object must be provided to TODOforAIEdge")
             
         # Store the config object
-        self.api_url = normalize_api_url(client_config.api_url)
-        self.api_key = client_config.api_key
-        self.email = client_config.email
-        self.password = client_config.password
+        self.api_url = normalize_api_url(edge_config.api_url)
+        self.api_key = edge_config.api_key
+        self.email = edge_config.email
+        self.password = edge_config.password
         # Add debug attribute for convenience
-        self.debug = client_config.debug
+        self.debug = edge_config.debug
         
         # Store only the add_workspace_path if provided
-        self.add_workspace_path = getattr(client_config, 'add_workspace_path', None)
+        self.add_workspace_path = getattr(edge_config, 'add_workspace_path', None)
         
         self.ws = None
         self.ws_url = get_ws_url(self.api_url)
@@ -243,7 +243,7 @@ class TODOforAIEdge:
             try:
                 logger.info("Found mcp.json, loading MCP configuration")
                 self.mcp_collector = await setup_mcp_from_config("mcp.json", self.edge_config)
-                logger.info("MCP client initialized successfully")
+                logger.info("MCP edge initialized successfully")
             except Exception as e:
                 logger.error(f"Failed to load MCP configuration: {str(e)}")
         else:
@@ -392,7 +392,7 @@ class TODOforAIEdge:
                 await self._handle_message(message)
 
     async def start(self):
-        """Start the client with reconnection logic"""
+        """Start the edge with reconnection logic"""
         self._generate_fingerprint()
         
         max_attempts = 10

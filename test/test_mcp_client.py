@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import tempfile
-from todoforai_edge.mcp_client import MCPCollector
+from todoforai_edge.mcp_collector import MCPCollector
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     if os.path.exists(echo_server_path):
         os.remove(echo_server_path)
 
-async def test_slack_mcp_client():
+async def test_slack_mcp_collector():
     mcp_collector = MCPCollector()
     
     # Add a test MCP server
@@ -227,7 +227,7 @@ if __name__ == "__main__":
             try:
                 result = await mcp_collector.call_tool(
                     "echo", 
-                    None,  # server_id not needed with unified client
+                    None,  # server_id not needed with unified edge
                     {"text": "Hello from FastMCP test!"}
                 )
                 print(f"Echo result: {result}")

@@ -5,7 +5,7 @@ import os
 from .colors import Colors
 from .config import DEFAULT_API_URL
 
-from todoforai_edge.client import TODOforAIEdge
+from todoforai_edge.edge import TODOforAIEdge
 from todoforai_edge.arg_parser import create_argparse_apply_config
 
 
@@ -27,17 +27,17 @@ async def run_app(api_key=None):
         
     set_terminal_title(f"TODO for AI Edge{f' ({config.api_url})' if config.api_url != DEFAULT_API_URL else ''}")
     
-    # Create a client
+    # Create a edge
     print(f"{Colors.CYAN}🚀 Starting TODOforAI Edge CLI...{Colors.END}")
-    todo_client = TODOforAIEdge(client_config=config)
+    todo_edge = TODOforAIEdge(edge_config=config)
     
     # Ensure we have a valid API key (validate existing or authenticate)
-    if not await todo_client.ensure_api_key():
+    if not await todo_edge.ensure_api_key():
         print(f"{Colors.RED}❌ Error: Unable to obtain a valid API key{Colors.END}")
         sys.exit(1)
     
     print(f"{Colors.GREEN}🔗 Connecting to TODOforAI...{Colors.END}")
-    await todo_client.start()
+    await todo_edge.start()
 
 
 def main():

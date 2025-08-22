@@ -1,9 +1,9 @@
 import os
 import json
-from todoforai_edge.mcp_client import MCPCollector
+from todoforai_edge.mcp_collector import MCPCollector
 
 
-async def test_slack_mcp_client():
+async def test_slack_mcp_collector():
     mcp_collector = MCPCollector()
     
     # Add a test MCP server

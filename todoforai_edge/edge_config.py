@@ -3,7 +3,7 @@ import uuid
 from typing import List, Optional, Dict, Any, TypedDict
 from .observable import registry
 
-logger = logging.getLogger("todoforai-client")
+logger = logging.getLogger("todoforai-edge")
 
 
 class MCPTool(TypedDict):

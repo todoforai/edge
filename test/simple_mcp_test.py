@@ -1,7 +1,7 @@
 import asyncio
 import json
 import subprocess
-from todoforai_edge.mcp_client import MCPCollector
+from todoforai_edge.mcp_collector import MCPCollector
 from todoforai_edge.handlers import mcp_list_tools, mcp_call_tool
 
 class MockClient:
@@ -12,16 +12,16 @@ async def test_current_mcp_config():
     """Test with the current mcp.json file"""
     print("Testing with current mcp.json file...")
     
-    mock_client = MockClient()
-    mock_client.mcp_collector = MCPCollector()
+    mock_edge = MockClient()
+    mock_edge.mcp_collector = MCPCollector()
     
     try:
         # Load the current mcp.json file
-        results = await mock_client.mcp_collector.load_servers("mcp.json")
+        results = await mock_edge.mcp_collector.load_servers("mcp.json")
         print(f"Server load results: {results}")
         
         # Test mcp_list_tools
-        tools_output = await mcp_list_tools(client_instance=mock_client)
+        tools_output = await mcp_list_tools(edge_instance=mock_edge)
         
         print("\nmcp_list_tools output:")
         print("=" * 50)
@@ -37,16 +37,16 @@ async def test_puppeteer_connect_active_tab():
     print("\nTesting puppeteer_puppeteer_connect_active_tab...")
     print("=" * 50)
     
-    mock_client = MockClient()
-    mock_client.mcp_collector = MCPCollector()
+    mock_edge = MockClient()
+    mock_edge.mcp_collector = MCPCollector()
     
     try:
         # Load servers first
-        results = await mock_client.mcp_collector.load_servers("mcp.json")
+        results = await mock_edge.mcp_collector.load_servers("mcp.json")
         print(f"Server load results: {results}")
         
         # Check if puppeteer tools are available
-        tools_output = await mcp_list_tools(client_instance=mock_client)
+        tools_output = await mcp_list_tools(edge_instance=mock_edge)
         puppeteer_tools = [tool for tool in tools_output.get('tools', []) if 'puppeteer' in tool.get('name', '').lower()]
         
         if not puppeteer_tools:
@@ -79,7 +79,7 @@ async def test_puppeteer_connect_active_tab():
         result = await mcp_call_tool(
             tool_name="puppeteer_puppeteer_connect_active_tab",
             arguments={},
-            client_instance=mock_client
+            edge_instance=mock_edge
         )
         print("Result with default parameters:")
         print(json.dumps(result, indent=2, default=str))
@@ -90,7 +90,7 @@ async def test_puppeteer_connect_active_tab():
             # nav_result = await mcp_call_tool(
             #     tool_name="puppeteer_puppeteer_navigate",
             #     arguments={"url": "https://example.com"},
-            #     client_instance=mock_client
+            #     edge_instance=mock_edge
             # )
             # print("Navigation result:")
             # print(json.dumps(nav_result, indent=2, default=str))
@@ -100,7 +100,7 @@ async def test_puppeteer_connect_active_tab():
             screenshot_result = await mcp_call_tool(
                 tool_name="puppeteer_puppeteer_screenshot",
                 arguments={"name": "test_screenshot", "width": 100, "height": 100},
-                client_instance=mock_client
+                edge_instance=mock_edge
             )
             print("Screenshot result:")
             print(json.dumps(screenshot_result, indent=2, default=str))
