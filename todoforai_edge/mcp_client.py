@@ -58,11 +58,6 @@ class MCPCollector:
                 
             # Process config and create client
             processed_servers = self._process_config(mcp_json)
-            if not processed_servers:
-                logger.info("No MCP servers, clearing tools")
-                self.edge_config.set_edge_mcps([])
-                return
-            
             # Create FastMCP config with the correct structure
             fastmcp_config = {"mcpServers": processed_servers}
             client = Client(fastmcp_config)
@@ -154,8 +149,7 @@ class MCPCollector:
                 
         except Exception as e:
             logger.error(f"Error loading MCP servers: {e}")
-            if self.edge_config:
-                self.edge_config.set_mcp_json({})
+            self.edge_config.set_mcp_json({})
             return {}
     
     def _parse_raw_config_file(self, config_path: str) -> Dict:
