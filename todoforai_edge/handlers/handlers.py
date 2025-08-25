@@ -509,6 +509,54 @@ async def get_system_info():
             "shell": "Unknown shell"
         }
 
+@register_function("execute_shell_command")
+async def execute_shell_command(command: str, timeout: int = 120, root_path: str = "", client_instance=None):
+    """Execute a shell command and return the full result when complete"""
+    if not client_instance:
+        raise ValueError("No client instance available")
+    
+    try:
+        shell = ShellProcess()
+        
+        # Generate a unique block ID for this execution
+        import uuid
+        block_id = str(uuid.uuid4())
+        
+        # We don't have todoId/messageId in this context, so use empty strings
+        # The visual updates will still work for any connected frontends
+        todo_id = ""
+        message_id = ""
+        
+        logger.info(f"Executing shell command via function call: {command[:50]}...")
+        
+        # Use existing execute_block method
+        await shell.execute_block(block_id, command, client_instance, todo_id, message_id, timeout, root_path)
+        
+        # Wait for the process to complete and collect output
+        full_output = ""
+        while block_id in shell.processes:
+            await asyncio.sleep(0.1)
+        
+        # Get the collected output from the shell process
+        if hasattr(shell, '_output_buffer') and block_id in shell._output_buffer:
+            full_output = shell._output_buffer[block_id]
+            del shell._output_buffer[block_id]
+        
+        return {
+            "command": command,
+            "result": full_output,
+            "success": True
+        }
+        
+    except Exception as error:
+        logger.error(f"Error executing shell command: {str(error)}")
+        return {
+            "command": command,
+            "result": str(error),
+            "success": False,
+            "error": str(error)
+        }
+
 # MCP-specific function registry
 @register_function("mcp_list_tools")
 async def mcp_list_tools(client_instance=None):
