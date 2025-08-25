@@ -9,7 +9,11 @@ import traceback
 import threading
 import queue
 
-from ..constants.messages import block_message_result_msg, block_done_result_msg
+from ..constants.messages import (
+    shell_block_message_result_msg,
+    shell_block_done_result_msg,
+    shell_block_start_result_msg,
+)
 
 logger = logging.getLogger("todoforai-edge")
 
@@ -19,10 +23,14 @@ _processes: Dict[str, subprocess.Popen] = {}
 class ShellProcess:
     def __init__(self):
         self.processes = _processes
+        self._output_buffer = {}  # Add output buffer for sync calls
         
     async def execute_block(self, block_id: str, content: str, client, todo_id: str, request_id: str, timeout: float, root_path: str = ""):
         """Execute a shell command block and stream results back to client."""
         logger.info(f"Executing shell block {block_id} with content: {content[:50]}...")
+        
+        # Initialize output buffer for this block
+        self._output_buffer[block_id] = ""
   
         try:
             # Determine working directory
@@ -80,7 +88,7 @@ class ShellProcess:
             stack_trace = traceback.format_exc()
             logger.error(f"Error creating process: {str(e)}\nStacktrace:\n{stack_trace}")
             # Send error message to client
-            await client.send_response(block_message_result_msg(
+            await client.send_response(shell_block_message_result_msg(
                 todo_id, block_id, f"Error creating process: {str(e)}\n\nStacktrace:\n{stack_trace}", request_id
             ))
 
@@ -98,7 +106,7 @@ class ShellProcess:
             self.interrupt_block(block_id)
             
             # Send timeout message
-            await client.send_response(block_message_result_msg(
+            await client.send_response(shell_block_message_result_msg(
                 todo_id, block_id, f"Execution timed out after {timeout} seconds", request_id
             ))
 
@@ -148,7 +156,10 @@ class ShellProcess:
                         break
                     
                     # Send the data immediately
-                    await client.send_response(block_message_result_msg(todo_id, block_id, data, request_id))
+                    await client.send_response(shell_block_message_result_msg(todo_id, block_id, data, request_id))
+                    # Buffer the output for sync calls
+                    if block_id in self._output_buffer:
+                        self._output_buffer[block_id] += data
                     
                 except Exception as e:
                     stack_trace = traceback.format_exc()
@@ -167,7 +178,10 @@ class ShellProcess:
                             break
                         
                         # Send the data immediately
-                        await client.send_response(block_message_result_msg(todo_id, block_id, data, request_id))
+                        await client.send_response(shell_block_message_result_msg(todo_id, block_id, data, request_id))
+                        # Buffer the output for sync calls
+                        if block_id in self._output_buffer:
+                            self._output_buffer[block_id] += data
                     else:
                         # Small sleep to prevent CPU spinning
                         await asyncio.sleep(0.01)
@@ -257,8 +271,14 @@ class ShellProcess:
             return_code = await asyncio.get_event_loop().run_in_executor(None, process.wait)
             logger.info(f"Process completed with return code {return_code}")
             
+            # If successful (return code 0) and no output was sent, send success message
+            if return_code == 0:
+                await client.send_response(shell_block_message_result_msg(
+                    todo_id, block_id, "Successful run", request_id
+                ))
+            
             # Send completion message
-            await client.send_response(block_done_result_msg(
+            await client.send_response(shell_block_done_result_msg(
                 todo_id, request_id, block_id, "execute", return_code
             ))
             
@@ -266,10 +286,11 @@ class ShellProcess:
             logger.error(f"Error waiting for process: {str(e)}")
             # Send completion message even on error
             return_code = process.returncode if process.returncode is not None else -1
-            await client.send_response(block_done_result_msg(
+            await client.send_response(shell_block_done_result_msg(
                 todo_id, request_id, block_id, "execute", return_code
             ))
         finally:
             # Clean up
             if block_id in self.processes:
                 del self.processes[block_id]
+            # Note: Don't delete _output_buffer here, let the sync caller handle it

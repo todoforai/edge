@@ -12,9 +12,8 @@ def edge_status_msg(edge_id, status):
         }
     }
 
-
-# Block message formatters
-def block_message_result_msg(todo_id, block_id, content, message_id):
+# New shell-prefixed block message functions
+def shell_block_message_result_msg(todo_id, block_id, content, message_id):
     return {
         "type": EF.BLOCK_SH_MSG_RESULT,  
         "payload": {
@@ -25,8 +24,7 @@ def block_message_result_msg(todo_id, block_id, content, message_id):
         }
     }
 
-
-def block_start_result_msg(todo_id, block_id, mode, message_id):
+def shell_block_start_result_msg(todo_id, block_id, mode, message_id):
     return {
         "type": EF.BLOCK_SH_MSG_START,  
         "payload": {
@@ -37,8 +35,7 @@ def block_start_result_msg(todo_id, block_id, mode, message_id):
         }
     }
 
-
-def block_done_result_msg(todo_id, message_id, block_id, mode, return_code):
+def shell_block_done_result_msg(todo_id, message_id, block_id, mode, return_code):
     return {
         "type": EF.BLOCK_SH_DONE,  # Updated to match protocol
         "payload": {
@@ -51,7 +48,7 @@ def block_done_result_msg(todo_id, message_id, block_id, mode, return_code):
     }
 
 
-def block_save_result_msg(block_id, todo_id, result):
+def block_save_result_msg(block_id, todo_id, result, request_id=None):
     return {
         "type": EF.BLOCK_SAVE_RESULT,
         "payload": {

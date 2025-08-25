@@ -9,9 +9,9 @@ import platform
 
 from .shell_handler import ShellProcess
 from ..constants.messages import (
-    block_start_result_msg, block_error_result_msg, get_folders_response_msg,
+    shell_block_start_result_msg, block_error_result_msg, get_folders_response_msg,
     dir_list_response_msg, cd_response_msg, block_save_result_msg, 
-    block_message_result_msg, block_diff_result_msg, task_action_update_msg,
+    shell_block_message_result_msg, block_diff_result_msg, task_action_update_msg,
     ctx_julia_result_msg, file_chunk_result_msg, 
     function_call_result_msg, call_edge_method_result_msg 
 )
@@ -119,16 +119,17 @@ async def handle_block_execute(payload, client):
     logger.info(f"handle_block_execute: {payload}")
 
     # Send start message
-    await client.send_response(block_start_result_msg(todo_id, block_id, "execute", message_id))
+    await client.send_response(shell_block_start_result_msg(todo_id, block_id, "execute", message_id))
 
     try:
         shell = ShellProcess()
 
         logger.debug(f"Executing shell block with content: {content[:20]}...")
+        timeout = payload.get("timeout", 120)
 
         # Start the execution in a separate task so we don't block
         asyncio.create_task(
-            shell.execute_block(block_id, content, client, todo_id, message_id, 120, root_path)
+            shell.execute_block(block_id, content, client, todo_id, message_id, timeout, root_path)
         )
 
         # Return immediately without waiting for the command to complete
@@ -257,6 +258,7 @@ async def handle_block_save(payload, client):
     rootpath = payload.get("rootPath")
     fallback_root_paths = payload.get("fallbackRootPaths", [])
     content = payload.get("content")
+    requestId = payload.get("requestId", None)
 
     try:
         filepath = resolve_file_path(filepath, rootpath, fallback_root_paths)
@@ -275,12 +277,12 @@ async def handle_block_save(payload, client):
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(content)
 
-        await client.send_response(block_save_result_msg(block_id, todo_id, "SUCCESS"))
+        await client.send_response(block_save_result_msg(block_id, todo_id, "SUCCESS", requestId))
 
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error saving file: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client.send_response(block_save_result_msg(block_id, todo_id, f"ERROR: {str(error)}\n\nStacktrace:\n{stack_trace}"))
+        await client.send_response(block_save_result_msg(block_id, todo_id, f"ERROR: {str(error)}\n\nStacktrace:\n{stack_trace}", requestId))
 
 
 async def handle_block_refresh(payload, client):
