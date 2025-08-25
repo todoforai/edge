@@ -57,7 +57,8 @@ def block_save_result_msg(block_id, todo_id, result):
         "payload": {
             "blockId": block_id,
             "todoId": todo_id,
-            "result": result
+            "result": result,
+            "requestId": request_id
         }
     }
 
