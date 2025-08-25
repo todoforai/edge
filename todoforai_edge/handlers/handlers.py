@@ -387,6 +387,15 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {full_path}")
 
+        # If it's a directory, return a simple listing (one per line, '/' suffix for dirs)
+        if file_path.is_dir():
+            names = sorted(os.listdir(full_path))
+            content = "\n".join([n + "/" if os.path.isdir(os.path.join(full_path, n)) else n for n in names])
+            await client.send_response(
+                file_chunk_result_msg(response_type, **payload, full_path=full_path, content=content)
+            )
+            return
+
         # Check file size before reading
         file_size = file_path.stat().st_size
         max_size = 100000  # 100KB limit for WebSocket messages
