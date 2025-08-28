@@ -271,8 +271,8 @@ class ShellProcess:
             return_code = await asyncio.get_event_loop().run_in_executor(None, process.wait)
             logger.info(f"Process completed with return code {return_code}")
             
-            # If successful (return code 0) and no output was sent, send success message
-            if return_code == 0:
+            # If no output was sent, send success message
+            if not self._output_buffer.get(block_id):
                 await client.send_response(shell_block_message_result_msg(
                     todo_id, block_id, "Successful run", request_id
                 ))
