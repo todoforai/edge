@@ -1,5 +1,5 @@
 import React from 'react';
-import styled from 'styled-components';
+import styled from '@emotion/styled';
 import { Trash2, Download, CheckCircle, XCircle } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types';
 import { useMCPLogStore } from '../../../store/mcpLogStore';

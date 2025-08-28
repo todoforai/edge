@@ -7,7 +7,7 @@ import { ExtensionsRegistryModal } from './ExtensionsRegistryModal';
 import { Grid } from '../../ui/Grid';
 import { useEdgeConfigStore } from '../../../store/edgeConfigStore';
 import { useMCPRegistry } from '../../../hooks/useMCPRegistry';
-import type { MCPEdgeExecutable, MCPJSON } from '../../../types';
+import type { MCPEdgeExecutable, MCPRegistry } from '../../../types';
 
 interface MCPServersListProps {
   instances: MCPEdgeExecutable[];
@@ -19,16 +19,18 @@ const MCPServersList: React.FC<MCPServersListProps> = ({
   selectedCategory 
 }) => {
   const { config } = useEdgeConfigStore();
+  console.log('config:', config)
   const { availableServers } = useMCPRegistry();
   
   const [showSettingsModal, setShowSettingsModal] = useState<MCPEdgeExecutable | null>(null);
   const [showLogsModal, setShowLogsModal] = useState<MCPEdgeExecutable | null>(null);
   const [showExtensionsRegistryModal, setShowExtensionsRegistryModal] = useState(false);
 
-  const handleInstallFromRegistry = (server: MCPJSON) => {
+  const handleInstallFromRegistry = (server: MCPRegistry) => {
+    const serverId = server.registryId || `temp-${Date.now()}`;
     const tempInstance: MCPEdgeExecutable = {
       id: `temp-${Date.now()}`,
-      serverId: server.serverId,
+      serverId: serverId,
       command: server.command,
       args: server.args || [],
       env: server.env || {}
@@ -38,6 +40,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({
   };
 
   const handleSaveInstance = async (updatedInstance: MCPEdgeExecutable) => {
+    
     try {
       const isNewInstallation = (updatedInstance.id || '').startsWith('temp-');
       
@@ -54,6 +57,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({
             }
           }
         };
+        console.log('updatedMcpJson:', updatedMcpJson)
 
         await useEdgeConfigStore.getState().saveConfigToBackend({
           mcp_json: updatedMcpJson
@@ -74,17 +78,8 @@ const MCPServersList: React.FC<MCPServersListProps> = ({
           }
         };
 
-        const instanceId = updatedInstance.id || updatedInstance.serverId;
-        const updatedInstalledMCPs = {
-          ...config.installedMCPs,
-          [instanceId]: {
-            ...updatedInstance
-          }
-        };
-
         await useEdgeConfigStore.getState().saveConfigToBackend({
           mcp_json: updatedMcpJson,
-          installedMCPs: updatedInstalledMCPs
         });
 
         console.log(`Updated MCP server config: ${updatedInstance.serverId}`);

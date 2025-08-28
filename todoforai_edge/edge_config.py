@@ -1,7 +1,7 @@
 import logging
 import uuid
 from typing import List, Optional, Dict, Any, TypedDict
-from .observable import registry
+from .observable import observable_registry
 
 logger = logging.getLogger("todoforai-edge")
 
@@ -10,7 +10,6 @@ class MCPTool(TypedDict):
     name: str
     description: str
     inputSchema: Dict[str, Any]
-    server_id: str
 
 
 class EdgeMCP(TypedDict):
@@ -53,7 +52,7 @@ class EdgeConfig:
             "isFileSystemEnabled": data.get("isFileSystemEnabled", False),
             "createdAt": data.get("createdAt", None)
         }
-        self.config = registry.create("edge_config", config_data)
+        self.config = observable_registry.create("edge_config", config_data)
     
     def add_workspace_path(self, path: str) -> bool:
         """Add a workspace path if it doesn't already exist"""
@@ -63,60 +62,13 @@ class EdgeConfig:
             new_paths = current_paths.copy()
             new_paths.append(path)
             
-            # Update the config with the new paths
-            current = self.config.value
-            updated = current.copy()
-            updated["workspacepaths"] = new_paths
-            self.config.update_value(updated)
+            # Update only the changed field
+            self.config.update_value({"workspacepaths": new_paths})
             return True
         return False
-
-
-    def _group_tools_by_server(self, tools: List[MCPTool]) -> Dict[str, List[MCPTool]]:
-        """Group tools by server_id"""
-        grouped: Dict[str, List[MCPTool]] = {}
-        for tool in tools:
-            # Extract server_id from tool name (FastMCP format: {server_id}_{tool_name})
-            server_id: str = tool.get('server_id') or tool['name'].split('_')[0]
-            if server_id not in grouped:
-                grouped[server_id] = []
-            grouped[server_id].append(tool)
-        return grouped
 
     def set_mcp_json(self, mcp_config: Dict[str, Any]) -> None:
         """Set raw MCP JSON configuration - tools will be auto-updated via observer"""
         update_data = {"mcp_json": mcp_config}
         self.config.update_value(update_data)
         logger.info("Updated MCP JSON config - tools will be auto-updated")
-
-    def set_edge_mcps(self, tools: List[MCPTool]) -> None:
-        """Backend: Convert directly to final format"""
-        servers: Dict[str, Dict[str, Any]] = {}  # Changed from List to Dict
-        grouped: Dict[str, List[MCPTool]] = self._group_tools_by_server(tools)
-        
-        for server_id, server_tools in grouped.items():
-            # Clean tool names by removing server prefix
-            clean_tools: List[Dict[str, Any]] = []
-            for tool in server_tools:
-                # Remove server_id prefix from tool name (e.g., "puppeteer_puppeteer_click" -> "click")
-                
-                clean_tool = {
-                    "name": tool["name"],
-                    "description": tool["description"], 
-                    "inputSchema": tool["inputSchema"]
-                }
-                clean_tools.append(clean_tool)
-            
-            # Create server matching frontend InstalledMCP structure
-            server = {
-                'serverId': server_id,
-                'tools': clean_tools,
-                'registryId': "provider@tool", # smithery@gmail
-                'env': {},
-            }
-            servers[server_id] = server  # Use serverId as key
-        
-        logger.info(f"Setting MCPs: {len(servers)} servers with cleaned tool names")
-        
-        update_data = {"installedMCPs": servers}
-        self.config.update_value(update_data)

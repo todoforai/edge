@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import styled from 'styled-components';
+import styled from '@emotion/styled';
 import { AlertTriangle } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types';
 import { useEdgeConfigStore } from '../../../store/edgeConfigStore';
@@ -40,7 +40,6 @@ const JsonTextArea = styled.textarea`
     background: rgba(59, 130, 246, 0.02);
   }
 `;
-
 
 interface MCPServerJSONViewProps {
   instances: MCPEdgeExecutable[];

@@ -1,0 +1,215 @@
+/* Reset some default styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Fonts */
+  --font-default: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  
+  /* Background colors */
+  --page-background: rgb(16, 16, 16);
+  --background: rgba(26, 26, 26, 1);
+  --background-color: rgba(26, 26, 26, 1);
+  --background-secondary: rgba(40, 40, 40, 1);
+  --background-tertiary: rgba(60, 60, 60, 1);
+  --foreground: #ffffff;
+  
+  /* UI Elements */
+  --card-background: #1a1a1a;
+  --card-hover: #202020;
+  --sidebar-bg: rgba(30, 30, 30, 0.95);
+  --navbar-bg: rgba(30, 30, 30, 0.9);
+  
+  /* Accent colors */
+  --CTA: linear-gradient(45deg, #ffa500, #ff6347, #ff4500);
+  --primary: #f96e2e;
+  --primary-hover: #ff8c40;
+  --success: #22c55e;
+  --warning: #c08114;
+  --danger: #ef4444;
+  --muted: #6b7280;
+  --unemphasized: #858b94;
+  --unemphasized-medium: #505050;
+  
+  /* Borders and shadows */
+  --border-color: rgba(255, 255, 255, 0.1);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  
+  /* Border radius */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-md-2: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 35px;
+  --radius-full: 50%;
+
+  /* Typography */
+  font-family: var(--font-default);
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: dark;
+  color: var(--foreground);
+  background-color: var(--page-background);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background: var(--page-background);
+  color: var(--foreground);
+  margin: 0;
+  padding: 0;
+  font-size: 18px;
+  height: 100%;
+  min-height: 100vh;
+  font-family: var(--font-default);
+}
+
+body {
+  min-width: 320px;
+  align-items: center;
+  justify-content: center;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  margin: 0 auto;
+}
+
+/* Typography */
+h1 { font-size: 2.7rem; }
+h2 { font-size: 2.1rem; }
+h3 { font-size: 1.9rem; }
+h4 { font-size: 1.6rem; }
+h5 { font-size: 1.4rem; }
+h6 { font-size: 1.2rem; }
+
+/* Responsive font sizes */
+@media (max-width: 768px) {
+  html, body {
+    font-size: 14px;
+  }
+}
+
+/* Links */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+a:hover {
+  text-decoration: none;
+}
+
+/* Buttons */
+button {
+  border-radius: var(--radius-lg);
+  font-weight: 500;
+  outline: none;
+  color: white;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+button:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.plain-button {
+  background: var(--card-background);
+  color: var(--foreground);
+  text-shadow: none;
+  border: 1px solid var(--border-color);
+  box-shadow: none;
+}
+
+.plain-button:hover {
+  background: var(--card-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Form elements */
+input, textarea {
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
+  color: var(--foreground);
+  border-radius: var(--radius-md);
+}
+
+input:focus, textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* Focus styles */
+*:focus {
+  outline: none;
+}
+
+input:focus-visible, 
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible {
+  outline: 1px solid var(--primary) !important;
+  outline-offset: -1px;
+}
+
+/* Global scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(26, 26, 26, 1);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(26, 26, 26, 1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+::-webkit-scrollbar-corner {
+  background: rgba(26, 26, 26, 1);
+}
+
+/* Monospace elements */
+code, pre, .mono {
+  font-family: var(--font-mono);
+}

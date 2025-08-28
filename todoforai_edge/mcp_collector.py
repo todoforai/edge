@@ -26,25 +26,26 @@ def _extract_server_id(tool_name: str) -> tuple[str, str]:
 class MCPCollector:
     """MCP client using FastMCP with server management integration"""
     
-    def __init__(self, edge_config=None):
+    def __init__(self, edge_config):
         self.unified_client = None
         self.edge_config = edge_config
         self._unsubscribe_fn = None
         self.config_file_path = None  # Store the original config file path
-        
-        # Don't subscribe immediately - wait until after initial load
+        self.server_id_to_registry_id = {}  # serverId -> registryId mapping
+
+        # Start subscribing to config changes only after initial load
+        self._subscribe_to_config_changes()
     
     def _subscribe_to_config_changes(self):
         """Subscribe to config changes after initial load is complete"""
-        if self.edge_config and not self._unsubscribe_fn:
-            self._unsubscribe_fn = self.edge_config.config.subscribe(self._on_config_change)
-            logger.info("Subscribed to MCP config changes")
+        self._unsubscribe_fn = self.edge_config.config.subscribe_async(self._on_config_change)
+        logger.info("Subscribed to MCP config changes")
     
-    def _on_config_change(self, changes: Dict[str, Any]) -> None:
+    async def _on_config_change(self, changes: Dict[str, Any]) -> None:
         """Handle config changes, specifically mcp_json updates"""
-        if "mcp_json" in changes:
+        if "mcp_json" in changes and changes["mcp_json"]:
             logger.info("MCP JSON config changed, reloading tools and saving to file")
-            asyncio.create_task(self._reload_tools_and_save())
+            await self._reload_tools_and_save()  # Use await instead of asyncio.create_task
     
     async def _setup_client_and_tools(self, mcp_json: Dict[str, Any]) -> List[MCPTool]:
         """Common logic to setup client and get tools from config"""
@@ -65,11 +66,14 @@ class MCPCollector:
     async def _reload_tools_and_save(self) -> None:
         """Reload tools from current mcp_json config and save to file"""
         try:
-            mcp_json = self.edge_config.config.value.get("mcp_json", {})
+            mcp_json = self.edge_config.config.safe_get("mcp_json", {})
             
+            # Rebuild mapping on reload
+            self._build_registry_mapping(mcp_json)
+
             # Setup client and get tools
             tools = await self._setup_client_and_tools(mcp_json)
-            self.edge_config.set_edge_mcps(tools)
+            self.setInstalledMCPs(tools)
             
             # Save the updated config to file if we have a config file path
             if self.config_file_path and mcp_json:
@@ -79,7 +83,7 @@ class MCPCollector:
             
         except Exception as e:
             logger.error(f"Error reloading tools and saving config: {e}")
-            self.edge_config.set_edge_mcps([])
+            self.setInstalledMCPs([])
     
     async def _save_config_to_file(self, mcp_json: Dict[str, Any]) -> None:
         """Save the MCP JSON config back to the original file with backup"""
@@ -102,20 +106,13 @@ class MCPCollector:
             logger.error(f"Error saving config to file: {e}")
     
     def _serialize_tools(self, tools: List[Any]) -> List[MCPTool]:
-        """Convert Tool objects to typed format"""
+        """Convert Tool objects to typed format without server_id extraction"""
         serialized = []
         for tool in tools:
-            if '_' in tool.name:
-                server_id, clean_name = tool.name.split('_', 1)
-            else:
-                server_id = 'unknown'
-                clean_name = tool.name
-            
             tool_info = {
                 "name": tool.name,
                 "description": getattr(tool, 'description', ''),
                 "inputSchema": getattr(tool, 'inputSchema', {}),
-                "server_id": server_id
             }
             serialized.append(tool_info)
         return serialized
@@ -132,15 +129,16 @@ class MCPCollector:
             
             # Parse and set config - this will NOT trigger observer yet
             raw_config = self._parse_raw_config_file(config_path)
+            
+            # Build serverId -> registryId mapping
+            self._build_registry_mapping(raw_config)
+            
             self.edge_config.set_mcp_json(raw_config)
 
             # Setup client and get tools
             tools = await self._setup_client_and_tools(raw_config)
-            self.edge_config.set_edge_mcps(tools)
+            self.setInstalledMCPs(tools)
         
-            # Start subscribing to changes only after initial load
-            self._subscribe_to_config_changes()
-            
             processed_servers = self._process_config(raw_config)
             logger.info(f"Initial MCP load complete: {len(tools)} tools from {len(processed_servers)} servers")
             
@@ -150,7 +148,74 @@ class MCPCollector:
             logger.error(f"Error loading MCP servers: {e}")
             self.edge_config.set_mcp_json({})
             return {}
-    
+
+    def _build_registry_mapping(self, mcp_json: Dict[str, Any]) -> None:
+        """Build serverId -> registryId mapping from mcp_json config"""
+        self.server_id_to_registry_id = {}
+        
+        # Get servers section
+        servers = {}
+        if "mcpServers" in mcp_json:
+            servers = mcp_json["mcpServers"]
+        elif "mcp" in mcp_json and "servers" in mcp_json["mcp"]:
+            servers = mcp_json["mcp"]["servers"]
+        
+        # Registry mapping based on command/args patterns
+        registry_mappings = {
+            ("npx", "@gongrzhe/server-gmail-autoauth-mcp"): "gmail",
+            ("npx", "github:Sixzero/puppeteer-mcp-server"): "puppeteer", 
+            ("npx", "@spotify-applescript/mcp-server"): "spotify-applescript",
+            ("npx", "@stripe/mcp-server"): "stripe",
+            ("npx", "@brave-applescript/mcp-server"): "brave-applescript",
+            ("npx", "@modelcontextprotocol/server-cloudflare"): "cloudflare",
+            ("npx", "@modelcontextprotocol/server-atlassian"): "atlassian",
+            ("npx", "@props-labs/mcp/fireflies"): "fireflies",
+            ("npx", "@modelcontextprotocol/server-google-drive"): "google-drive",
+            ("npx", "@modelcontextprotocol/server-google-calendar"): "google-calendar",
+            ("npx", "@modelcontextprotocol/server-google-mail"): "google-mail",
+            ("npx", "@canva/cli"): "canva",
+            ("npx", "@paypal/mcp"): "paypal",
+            ("npx", "@netlify/mcp"): "netlify",
+            ("npx", "@modelcontextprotocol/server-asana"): "asana",
+            ("npx", "@modelcontextprotocol/server-google-maps"): "google-maps",
+            ("npx", "@workato/mcp"): "workato",
+            ("npx", "@modelcontextprotocol/server-bluesky"): "bluesky",
+            ("npx", "slack-mcp-server"): "slack",
+            ("python", "whatsapp_mcp"): "whatsapp",
+            ("npx", "mcp-remote"): "weather-mcp",  # For weather and other remote services
+        }
+        
+        # Map each server
+        for server_id, server_config in servers.items():
+            command = server_config.get("command", "")
+            args = server_config.get("args", [])
+            first_arg = args[0] if args else ""
+            
+            # Try exact match first
+            key = (command, first_arg)
+            if key in registry_mappings:
+                registry_id = registry_mappings[key]
+            else:
+                # Try partial matches for complex args
+                registry_id = None
+                for (cmd, arg_pattern), reg_id in registry_mappings.items():
+                    if command == cmd and first_arg and arg_pattern in first_arg:
+                        registry_id = reg_id
+                        break
+                
+                # Fallback: derive from first arg or use server_id
+                if not registry_id:
+                    if command == "npx" and first_arg:
+                        if "/" in first_arg:
+                            registry_id = first_arg.split("/")[-1].replace("-server", "").replace("server-", "")
+                        else:
+                            registry_id = first_arg.replace("-server", "").replace("server-", "")
+                    else:
+                        registry_id = server_id
+            
+            self.server_id_to_registry_id[server_id] = registry_id
+            logger.info(f"Mapped serverId '{server_id}' -> registryId '{registry_id}'")
+
     def _parse_raw_config_file(self, config_path: str) -> Dict:
         """Parse raw MCP config file without modifications"""
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -221,6 +286,27 @@ class MCPCollector:
             tools = await client.list_tools()
             return self._serialize_tools(tools)
     
+    def setInstalledMCPs(self, tools: List[MCPTool]) -> None:
+        """Build installedMCPs using internal registry mapping and update config"""
+        servers: Dict[str, Dict[str, Any]] = {}
+        mcp_json = self.edge_config.config.safe_get("mcp_json", {})
+        mcp_servers = mcp_json.get("mcpServers") or mcp_json.get("mcp", {}).get("servers", {}) or {}
+        grouped: Dict[str, List[MCPTool]] = group_tools_by_server(tools, mcp_servers)
+
+        for server_id, server_tools in grouped.items():
+            clean_tools: List[Dict[str, Any]] = [
+                {"name": t["name"], "description": t["description"], "inputSchema": t["inputSchema"]}
+                for t in server_tools
+            ]
+            servers[server_id] = {
+                'tools': clean_tools,
+                'registryId': self.server_id_to_registry_id.get(server_id, server_id),
+                'env': {},
+            }
+
+        logger.info(f"Setting MCPs (via collector): {len(servers)} servers")
+        self.edge_config.config.update_value({"installedMCPs": servers})
+
     def disconnect(self):
         """Disconnect from all servers and unsubscribe from config changes"""
         if self._unsubscribe_fn:
@@ -230,10 +316,39 @@ class MCPCollector:
         self.config_file_path = None
         logger.info("Disconnected from MCP servers")
 
-# Simple setup function
-async def setup_mcp_from_config(config_path: str, edge_config) -> MCPCollector:
-    """Setup MCP collector with auto-reload on config changes"""
-    collector = MCPCollector(edge_config)
-    results = await collector.load_from_file(config_path)
-    logger.info(f"MCP setup completed. Loaded {len(results)} servers with auto-reload and file sync.")
-    return collector
+def group_tools_by_server(tools: List[MCPTool], mcp_servers: Dict[str, Any]) -> Dict[str, List[MCPTool]]:
+    """Group tools by server_id extracted from tool names"""
+    grouped: Dict[str, List[MCPTool]] = {}
+
+    # Known server IDs from current config
+    orig_ids = list(mcp_servers.keys())
+
+    # Single-server: all tools belong to that server
+    if len(orig_ids) == 1:
+        grouped[orig_ids[0]] = tools[:]
+        return grouped
+
+    # Create alias map so prefixes from fastmcp (which may use hyphens) map back to original ids
+    alias_to_orig = {}
+    for sid in orig_ids:
+        alias_to_orig[sid] = sid
+        alias_to_orig[sid.replace('_', '-')] = sid
+
+    # Multi-server: group only when prefix matches a known serverId (or its hyphen variant)
+    default_bucket = "global"
+    grouped[default_bucket] = []
+    for tool in tools:
+        name = tool.get("name", "")
+        if "_" in name:
+            prefix = name.split("_", 1)[0]
+            if prefix in alias_to_orig:
+                server_key = alias_to_orig[prefix]
+                if server_key not in grouped:
+                    grouped[server_key] = []
+                grouped[server_key].append(tool)
+                continue
+        grouped[default_bucket].append(tool)
+
+    if not grouped[default_bucket]:
+        del grouped[default_bucket]
+    return grouped

@@ -31,26 +31,30 @@ class Front2Edge:
     BLOCK_KEYBOARD = 'block:keyboard'
     BLOCK_SIGNAL = 'block:signal'
     BLOCK_DIFF = 'block:diff'
+    BLOCK_FILE_WATCH = 'block:file_watch'
     FRONTEND_FILE_CHUNK_REQUEST = 'frontend:file_chunk_request'
     
     # Function call operations
-    CALL_EDGE_METHOD = 'call_edge_method'
+    FUNCTION_CALL_REQUEST_FRONT = 'FUNCTION_CALL_REQUEST_FRONT'
     
 
 # Agent to Edge Messages
 class Agent2Edge:
     CTX_JULIA_REQUEST = 'ctx:julia_request'
     CTX_WORKSPACE_REQUEST = 'ctx:workspace_request'
+    DIFF_FILE_REQUEST = 'diff:file_request'
     FILE_CHUNK_REQUEST = 'file:chunk_request'
-    FUNCTION_CALL_REQUEST = 'FUNCTION_CALL_REQUEST'
+    FUNCTION_CALL_REQUEST_AGENT = 'FUNCTION_CALL_REQUEST_AGENT'
 
 
 # Edge to Agent Messages
 class Edge2Agent:
     CTX_JULIA_RESULT = 'ctx:julia_result'
     CTX_WORKSPACE_RESULT = 'ctx:workspace_result'
+    DIFF_FILE_RESULT = 'diff:file_result'
     FILE_CHUNK_RESULT = 'file:chunk_result'
-    FUNCTION_CALL_RESULT = 'FUNCTION_CALL_RESULT'
+    EDGE_DISCONNECTED = 'edge:disconnected'
+    FUNCTION_CALL_RESULT_AGENT = 'FUNCTION_CALL_RESULT_AGENT'
 
 
 # Edge to Frontend Messages
@@ -71,9 +75,10 @@ class Edge2Front:
     BLOCK_ERROR_RESULT = 'block:error_result'
     BLOCK_META_RESULT = 'block:meta_result'
     BLOCK_DIFF_RESULT = 'block:diff_result'
+    BLOCK_FILE_CHANGED = 'block:file_changed'
     
     # Function call responses
-    CALL_EDGE_METHOD_RESULT = 'call_edge_method_result'
+    FUNCTION_CALL_RESULT_FRONT = 'FUNCTION_CALL_RESULT_FRONT'
     
     # Shell block responses (updated to match protocol)
     BLOCK_SH_MSG_RESULT = 'block:sh_msg_result'

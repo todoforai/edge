@@ -12,7 +12,14 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react()],
+  plugins: [
+    react({
+      jsxImportSource: '@emotion/react',
+      plugins: [
+        ['@swc/plugin-emotion', {}]
+      ]
+    })
+  ],
 
   // Define environment variables
   define: {

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+import copy
 from typing import Any, Callable, Dict, List, TypeVar, Generic, Optional, Awaitable
 
 logger = logging.getLogger("todoforai-observable")
@@ -21,7 +22,12 @@ class Observable(Generic[T]):
 
     @property
     def value(self) -> T:
-        return self._value
+        raise AttributeError(f"Direct access to observable '{self._name}'.value is forbidden; use safe_value or safe_get")
+
+    @property 
+    def safe_value(self) -> T:
+        """Get a deep copy of the value to prevent accidental mutations"""
+        return copy.deepcopy(self._value)
 
     @value.setter
     def value(self, new_value: T) -> None:
@@ -169,7 +175,7 @@ class ObservableDictionary(Observable[Dict]):
                 actual_changes[key] = new_val
 
         if not actual_changes:
-            logger.debug(f"No actual changes for observable '{self._name}'")
+            logger.info(f"No actual changes for observable '{self._name}'")
             return
 
         # Update the dictionary
@@ -216,6 +222,7 @@ class ObservableDictionary(Observable[Dict]):
     def values(self): return self._value.values()
     def items(self): return self._value.items()
     def get(self, key, default=None): return self._value.get(key, default)
+    def safe_get(self, key, default=None): return copy.deepcopy(self._value.get(key, default))
 
     def pop(self, key, default=None):
         if key not in self._value and default is not None: return default
@@ -277,4 +284,4 @@ class ObservableRegistry:
 
 
 # Create a global registry
-registry = ObservableRegistry()
+observable_registry = ObservableRegistry()

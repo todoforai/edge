@@ -37,7 +37,7 @@ async def _broadcast_config_update():
     """Helper to broadcast config update event"""
     asyncio.create_task(broadcast_event({
         "type": "edge:config_update",
-        "payload": sidecar.todo_edge.edge_config.config.value
+        "payload": sidecar.todo_edge.edge_config.config.safe_value
     }))
 
 async def _broadcast_active_workspaces():

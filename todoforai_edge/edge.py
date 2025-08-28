@@ -29,11 +29,11 @@ from .handlers.handlers import (
     handle_ctx_julia_request,
     handle_file_chunk_request,
     handle_get_folders,
-    handle_function_call_request,
-    handle_call_edge_method
+    handle_function_call_request_front,
+    handle_function_call_request_agent,
 )
 from .handlers.file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
-from .mcp_collector import setup_mcp_from_config
+from .mcp_collector import MCPCollector
 
 # Configure logging
 logger = logging.getLogger("todoforai-edge")
@@ -90,7 +90,7 @@ class TODOforAIEdge:
         self.connected = False
         self.heartbeat_task = None
         self.fingerprint = None  # Will be generated when needed
-        self.mcp_collector = None  # Will be initialized if mcp.json exists
+        self.mcp_collector = MCPCollector(self.edge_config)  # Initialize MCP collector
         
         # Set logging level based on config
         if self.debug:
@@ -242,8 +242,8 @@ class TODOforAIEdge:
         if os.path.exists("mcp.json"):
             try:
                 logger.info("Found mcp.json, loading MCP configuration")
-                self.mcp_collector = await setup_mcp_from_config("mcp.json", self.edge_config)
-                logger.info("MCP edge initialized successfully")
+                results = await self.mcp_collector.load_from_file("mcp.json")
+                logger.info(f"MCP setup completed. Loaded {len(results)} servers with auto-reload and file sync.")
             except Exception as e:
                 logger.error(f"Failed to load MCP configuration: {str(e)}")
         else:
@@ -326,11 +326,11 @@ class TODOforAIEdge:
         elif msg_type == FE.GET_FOLDERS:
             asyncio.create_task(handle_get_folders(payload, self))
         
-        elif msg_type == FE.CALL_EDGE_METHOD:
-            asyncio.create_task(handle_call_edge_method(payload, self))
-
-        elif msg_type == AE.FUNCTION_CALL_REQUEST:
-            asyncio.create_task(handle_function_call_request(payload, self))
+        elif msg_type == AE.FUNCTION_CALL_REQUEST_AGENT:
+            asyncio.create_task(handle_function_call_request_agent(payload, self))
+        
+        elif msg_type == FE.FUNCTION_CALL_REQUEST_FRONT:
+            asyncio.create_task(handle_function_call_request_front(payload, self))
         
         else:
             logger.warning(f"Unknown message type: {msg_type}")

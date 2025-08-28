@@ -1,4 +1,4 @@
-import styled from 'styled-components';
+import styled from '@emotion/styled';
 
 export const Grid = styled.div<{ minWidth?: string; gap?: string }>`
   display: grid;

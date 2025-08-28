@@ -1,18 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
-import styled from 'styled-components';
+import styled from '@emotion/styled';
 import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
-import type { MCPEdgeExecutable } from '../../../types';
+import type { MCPEdgeExecutable } from '../../../types/mcp.types';
 import { getMCPByCommandArgs } from '../../../data/mcpServersRegistry';
 
 const ServerCard = styled.div`
-  border: 1px solid ${(props) => props.theme.colors.borderColor};
-  border-radius: ${(props) => props.theme.radius.lg};
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
   padding: 28px;
-  background: ${(props) => props.theme.colors.background};
+  background: var(--background);
   transition: all 0.2s;
 
   &:hover {
-    border-color: ${(props) => props.theme.colors.primary};
+    border-color: var(--primary);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 `;
@@ -31,12 +31,12 @@ const ServerIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: ${(props) => props.theme.radius.md};
+  border-radius: var(--radius-md);
   background: rgba(59, 130, 246, 0.1);
   overflow: hidden;
   
   img {
-    border-radius: ${(props) => props.theme.radius.md};
+    border-radius: var(--radius-md);
   }
 `;
 
@@ -50,7 +50,7 @@ const ServerInfo = styled.div`
 const ServerName = styled.h3`
   font-size: 20px;
   font-weight: 600;
-  color: ${(props) => props.theme.colors.foreground};
+  color: var(--foreground);
   margin: 0 0 4px 0;
   word-wrap: break-word;
   word-break: break-word;
@@ -59,7 +59,7 @@ const ServerName = styled.h3`
 
 const ServerId = styled.div`
   font-size: 12px;
-  color: ${(props) => props.theme.colors.mutedForeground};
+  color: var(--muted);
   font-family: monospace;
   margin-bottom: 8px;
 `;
@@ -80,10 +80,10 @@ const ServerNameAndCategory = styled.div`
 
 const ServerCategory = styled.span`
   font-size: 12px;
-  color: ${(props) => props.theme.colors.mutedForeground};
+  color: var(--muted);
   background: rgba(59, 130, 246, 0.1);
   padding: 2px 8px;
-  border-radius: ${(props) => props.theme.radius.md2};
+  border-radius: var(--radius-md-2);
   display: inline-block;
   flex-shrink: 0;
 `;
@@ -107,16 +107,23 @@ const ActionButton = styled.button`
   width: 44px;
   height: 44px;
   background: transparent;
-  border: 1px solid ${(props) => props.theme.colors.borderColor};
-  border-radius: ${(props) => props.theme.radius.md};
-  color: ${(props) => props.theme.colors.mutedForeground};
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--muted);
   cursor: pointer;
   transition: all 0.2s;
+  font-size: 16px;
+
+  svg {
+    width: 20px !important;
+    height: 20px !important;
+    flex: 0 0 auto;
+  }
 
   &:hover {
     background: rgba(59, 130, 246, 0.1);
-    border-color: ${(props) => props.theme.colors.primary};
-    color: ${(props) => props.theme.colors.primary};
+    border-color: var(--primary);
+    color: var(--primary);
   }
 `;
 
@@ -129,9 +136,9 @@ const DropdownMenu = styled.div<{ isOpen: boolean }>`
   top: 100%;
   right: 0;
   margin-top: 4px;
-  background: ${(props) => props.theme.colors.background};
-  border: 1px solid ${(props) => props.theme.colors.borderColor};
-  border-radius: ${(props) => props.theme.radius.md};
+  background: var(--background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 100;
   min-width: 160px;
@@ -146,7 +153,7 @@ const DropdownItem = styled.button<{ disabled?: boolean; danger?: boolean }>`
   padding: 12px 16px;
   background: transparent;
   border: none;
-  color: ${(props) => props.danger ? '#ef4444' : props.theme.colors.foreground};
+  color: ${(props) => props.danger ? '#ef4444' : 'var(--foreground)'};
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -157,11 +164,11 @@ const DropdownItem = styled.button<{ disabled?: boolean; danger?: boolean }>`
   }
 
   &:first-child {
-    border-radius: ${(props) => props.theme.radius.md} ${(props) => props.theme.radius.md} 0 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
   }
 
   &:last-child {
-    border-radius: 0 0 ${(props) => props.theme.radius.md} ${(props) => props.theme.radius.md};
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
   }
 
   ${(props) => props.disabled && `
@@ -176,7 +183,7 @@ const DropdownItem = styled.button<{ disabled?: boolean; danger?: boolean }>`
 
 const ServerDescription = styled.p`
   font-size: 14px;
-  color: ${(props) => props.theme.colors.mutedForeground};
+  color: var(--muted);
   line-height: 1.5;
   margin: 0;
 `;
@@ -247,25 +254,25 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
           <ServerActions>
             <ActionButtonsRow>
               <ActionButton onClick={() => onViewLogs(instance)} title="View Logs">
-                <Terminal size={16} />
+                <Terminal size={20} />
               </ActionButton>
               <ActionButton onClick={() => onOpenSettings(instance)} title="Settings">
-                <Settings size={16} />
+                <Settings size={20} />
               </ActionButton>
               <DropdownContainer ref={dropdownRef}>
                 <ActionButton 
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)} 
                   title="More options"
                 >
-                  <MoreVertical size={16} />
+                  <MoreVertical size={20} />
                 </ActionButton>
                 <DropdownMenu isOpen={isDropdownOpen}>
                   <DropdownItem onClick={() => onOpenSettings(instance)}>
-                    <Settings size={16} />
+                    <Settings size={18} />
                     Configure
                   </DropdownItem>
                   <DropdownItem onClick={() => onViewLogs(instance)}>
-                    <Terminal size={16} />
+                    <Terminal size={18} />
                     View Logs
                   </DropdownItem>
                   <DropdownItem 
@@ -273,7 +280,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
                     disabled={isBuiltIn}
                     danger={!isBuiltIn}
                   >
-                    {isBuiltIn ? <ShieldCheck size={16} /> : <Trash2 size={16} />}
+                    {isBuiltIn ? <ShieldCheck size={18} /> : <Trash2 size={18} />}
                     {isBuiltIn ? 'Built-in' : 'Remove'}
                   </DropdownItem>
                 </DropdownMenu>

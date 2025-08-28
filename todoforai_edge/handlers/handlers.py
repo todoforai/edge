@@ -13,7 +13,7 @@ from ..constants.messages import (
     dir_list_response_msg, cd_response_msg, block_save_result_msg, 
     shell_block_message_result_msg, block_diff_result_msg, task_action_update_msg,
     ctx_julia_result_msg, file_chunk_result_msg, 
-    function_call_result_msg, call_edge_method_result_msg 
+    function_call_result_msg, function_call_result_front_msg 
 )
 from ..constants.constants import Edge2Agent as EA
 from ..constants.workspace_handler import is_path_allowed
@@ -566,22 +566,6 @@ async def execute_shell_command(command: str, timeout: int = 120, root_path: str
             "error": str(error)
         }
 
-# MCP-specific function registry
-@register_function("mcp_list_tools")
-async def mcp_list_tools(client_instance=None):
-    """List all available MCP tools with raw MCP structure"""
-    if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
-        raise ValueError("No MCP collector available")
-    
-    # Return raw tools from MCP collector
-    tools = await client_instance.mcp_collector.list_tools()
-    
-    return {
-        "tools": tools,  # Raw MCP tool objects
-        "count": len(tools),
-        "description": "Available MCP tools (raw MCP format)"
-    }
-
 @register_function("mcp_call_tool")
 async def mcp_call_tool(tool_name: str, arguments: Dict[str, Any] = None, client_instance=None):
     """Call an MCP tool with given arguments"""
@@ -611,6 +595,57 @@ async def mcp_list_servers(client_instance=None):
         "description": "List of connected MCP servers"
     }
 
+@register_function("mcp_install_server")
+async def mcp_install_server(serverId: str, command: str, args: List[str] = None, env: Dict[str, str] = None, client_instance=None):
+    """Install or register an MCP server on the edge using the MCPCollector."""
+    if not client_instance:
+        raise ValueError("Client instance required")
+
+    if args is None:
+        args = []
+    if env is None:
+        env = {}
+
+    server_id = str(serverId).strip()
+    if not server_id:
+        raise ValueError("serverId is required")
+    cmd = str(command).strip()
+    if not cmd:
+        raise ValueError("command is required")
+
+    logger.info(f"Updating MCP server '{server_id}' with command='{cmd}', args={args}, env_keys={list(env.keys())}")
+
+    # Ensure MCPCollector exists and is subscribed before updating config
+    if not getattr(client_instance, 'mcp_collector', None):
+        from ..mcp_collector import MCPCollector
+        client_instance.mcp_collector = MCPCollector(client_instance.edge_config)
+
+    # Get current MCP JSON config - copy only the mcp_json field safely
+    mcp_json = dict(client_instance.edge_config.config.safe_get("mcp_json", {}))
+    logger.info(f'mcp_json: {mcp_json}')
+
+    # Ensure servers structure exists
+    if "mcpServers" not in mcp_json:
+        mcp_json["mcpServers"] = {}
+
+    # Add the server config
+    mcp_json["mcpServers"][server_id] = {
+        "command": cmd,
+        "args": args,
+        "env": env
+    }
+    logger.info(f'mcp_json after update: {mcp_json}')
+    # Update config (triggers auto-reload via subscription)
+    client_instance.edge_config.set_mcp_json(mcp_json)
+
+    return {
+        "installed": True,
+        "serverId": server_id,
+        "command": cmd,
+        "args": args,
+        "env_keys": list(env.keys())
+    }
+
 class FunctionCallResponse:
     """Encapsulates function call response logic"""
     
@@ -625,19 +660,20 @@ class FunctionCallResponse:
         if self.is_agent_request:
             return function_call_result_msg(self.request_id, self.edge_id, True, result=result, agent_id=self.agent_id)
         else:
-            return call_edge_method_result_msg(self.request_id, self.edge_id, True, result=result)
+            return function_call_result_front_msg(self.request_id, self.edge_id, True, result=result)
     
     def error_response(self, error_message: str):
         """Create error response based on request type"""
         if self.is_agent_request:
             return function_call_result_msg(self.request_id, self.edge_id, False, error=error_message, agent_id=self.agent_id)
         else:
-            return call_edge_method_result_msg(self.request_id, self.edge_id, False, error=error_message)
+            return function_call_result_front_msg(self.request_id, self.edge_id, False, error=error_message)
 
 async def _execute_function(function_name: str, args: dict, client) -> any:
     """Execute a registered function with proper argument handling"""
     if function_name not in FUNCTION_REGISTRY:
         available_functions = list(FUNCTION_REGISTRY.keys())
+        logger.warning(f"Unknown function: {function_name}")
         raise ValueError(f"Unknown function: {function_name}. Available functions: {available_functions}")
     
     func = FUNCTION_REGISTRY[function_name]
@@ -657,28 +693,32 @@ async def _execute_function(function_name: str, args: dict, client) -> any:
     
     return result
 
-async def handle_call_edge_method(payload, client):
-    await handle_function_call_request(payload, client)
-
 async def handle_function_call_request(payload, client):
     """Unified handler for function calls from both agent and frontend"""
     request_id = payload.get("requestId")
     function_name = payload.get("functionName")
     args = payload.get("args", {})
-    agent_id = payload.get("agentId")  # Only present for agent requests
+    agent_id = payload.get("agentId")
     edge_id = payload.get("edgeId")
 
     response_handler = FunctionCallResponse(request_id, edge_id, agent_id)
+    req_type = "agent" if agent_id else "frontend"
     
     try:
-        logger.info(f"Function call request received: {function_name} with args: {args}")
-        
+        logger.info(f"{req_type.capitalize()} function call request: {function_name} with args: {args}")
         result = await _execute_function(function_name, args, client)
         response = response_handler.success_response(result)
-        
     except Exception as error:
         stack_trace = traceback.format_exc()
-        logger.error(f"Error processing function call: {str(error)}\nStacktrace:\n{stack_trace}")
+        logger.error(f"Error processing {req_type} function call: {str(error)}\nStacktrace:\n{stack_trace}")
         response = response_handler.error_response(f"{str(error)}\n\nStacktrace:\n{stack_trace}")
     
     await client.send_response(response)
+
+async def handle_function_call_request_front(payload, client):
+    """Handle function call request from frontend (wrapper)"""
+    return await handle_function_call_request(payload, client)
+
+async def handle_function_call_request_agent(payload, client):
+    """Handle function call request from agent (wrapper)"""
+    return await handle_function_call_request(payload, client)

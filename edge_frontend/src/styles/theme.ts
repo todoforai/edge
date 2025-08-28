@@ -1,11 +1,13 @@
 // Define the color keys type
-export type ColorKey = 'background' | 'foreground' | 'cardBackground' | 'cardHover' | 
+export type ColorKey = 'background' | 'backgroundSecondary' | 'backgroundTertiary' | 'foreground' | 'cardBackground' | 'cardHover' | 
   'sidebarBg' | 'navbarBg' | 'primary' | 'primaryHover' | 
   'success' | 'warning' | 'danger' | 'muted' | 'mutedForeground' | 'borderColor';
 
 export const theme = {
   colors: {
     background: 'rgba(26, 26, 26, 1)',
+    backgroundSecondary: 'rgba(40, 40, 40, 1)',
+    backgroundTertiary: 'rgba(60, 60, 60, 1)',
     foreground: '#ffffff',
     cardBackground: '#1a1a1a',
     cardHover: '#2a2a2a',

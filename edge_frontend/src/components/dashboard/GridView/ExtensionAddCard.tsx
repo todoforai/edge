@@ -1,13 +1,13 @@
 import React from 'react';
-import styled from 'styled-components';
+import styled from '@emotion/styled';
 import { Plus } from 'lucide-react';
 
 const Card = styled.div`
-  border: 1px dashed ${props => props.theme.colors.borderColor};
+  border: 1px dashed var(--border-color);
   outline-offset: -3px;
-  border-radius: ${props => props.theme.radius.lg};
+  border-radius: var(--radius-lg);
   padding: 28px;
-  background: ${props => props.theme.colors.background};
+  background: var(--background);
   cursor: pointer;
   transition: all 0.2s;
   min-height: 120px;
@@ -16,7 +16,7 @@ const Card = styled.div`
   gap: 12px;
 
   &:hover {
-    border-color: ${props => props.theme.colors.primary};
+    border-color: var(--primary);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 `;
@@ -28,9 +28,9 @@ const IconContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: ${props => props.theme.radius.md};
+  border-radius: var(--radius-md);
   background: rgba(59, 130, 246, 0.1);
-  color: ${props => props.theme.colors.primary};
+  color: var(--primary);
 `;
 
 const Content = styled.div`
@@ -47,13 +47,13 @@ const TitleRow = styled.div`
 const Title = styled.h3`
   font-size: 20px;
   font-weight: 600;
-  color: ${props => props.theme.colors.foreground};
+  color: var(--foreground);
   margin: 0;
 `;
 
 const Description = styled.p`
   font-size: 14px;
-  color: ${props => props.theme.colors.mutedForeground};
+  color: var(--muted);
   margin: 0;
   line-height: 1.5;
 `;

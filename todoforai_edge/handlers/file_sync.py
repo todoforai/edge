@@ -10,7 +10,7 @@ from watchfiles import awatch, Change
 
 from ..constants.constants import Edge2FrontAgent as EFA
 from ..constants.workspace_handler import get_filtered_files_and_folders
-from ..observable import registry
+from ..observable import observable_registry
 
 logger = logging.getLogger("todoforai-edge-sync")
 
@@ -18,7 +18,7 @@ logger = logging.getLogger("todoforai-edge-sync")
 MAX_SYNC_BYTES = int(os.environ.get("TODOFORAI_EDGE_MAX_SYNC_BYTES", str(100 * 1024)))  # ~100 KiB
 
 # Global registry to track active sync managers
-active_sync_managers = registry.create("active_sync_managers", {})
+active_sync_managers = observable_registry.create("active_sync_managers", {})
 
 # Thread pool for CPU-bound operations
 _hash_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="hash_worker")

@@ -85,20 +85,23 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
     const { installedMCPs = {}, mcp_json = {} } = get().config;
     const mcpServers = mcp_json.mcpServers || {};
     
-    return Object.values(installedMCPs).map(instance => {
-      if (instance.serverId === 'todoforai') {
+    return Object.entries(installedMCPs).map(([serverId, instance]) => {
+      if (serverId === 'todoforai') {
         return {
           ...instance,
           id: instance.id || 'todoforai-builtin',
+          serverId,
           command: 'builtin',
           args: [],
           env: instance.env || {},
         };
       }
       
-      const mcpConfig = mcpServers[instance.serverId];
+      const mcpConfig = mcpServers[serverId];
       return {
         ...instance,
+        id: instance.id || serverId,
+        serverId,
         command: mcpConfig?.command || instance.command || 'node',
         args: mcpConfig?.args || instance.args || [],
         env: { ...(instance.env || {}), ...(mcpConfig?.env || {}) },

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import styled from 'styled-components';
+import styled from '@emotion/styled';
 import MCPServersList from './GridView/MCPServersList';
 import { MCPServerJSONView } from './JSONView/MCPServerJSONView';
 import { ActionBar } from './ActionBar';

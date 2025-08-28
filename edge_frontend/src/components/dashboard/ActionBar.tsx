@@ -1,5 +1,5 @@
 import React from 'react';
-import styled from 'styled-components';
+import styled from '@emotion/styled';
 import { Search, Filter, Eye, Braces, X, RefreshCw } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 

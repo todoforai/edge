@@ -1,5 +1,5 @@
 import React from 'react';
-import styled from 'styled-components';
+import styled from '@emotion/styled';
 import { useAuthStore } from '../../store/authStore';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
 import { renameEdge } from '../../services/edge-service';

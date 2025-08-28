@@ -3,7 +3,7 @@ import type { MCPRegistry } from '../types';
 export const MCP_REGISTRY: MCPRegistry[] = [
   // Built-in TODOforAI MCP
   {
-    serverId: 'todoforai',
+    registryId: 'todoforai',
     name: 'TODOforAI',
     description: 'Built-in file and shell operations',
     command: 'builtin',
@@ -61,7 +61,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     ]
   },
   {
-    serverId: 'gmail',
+    registryId: 'gmail',
     name: 'Gmail MCP',
     description: 'Access and manage Gmail emails with full authentication support',
     command: 'npx',
@@ -82,7 +82,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'puppeteer',
+    registryId: 'puppeteer',
     name: 'Puppeteer MCP',
     description: 'Web automation and scraping using Puppeteer browser control',
     command: 'npx',
@@ -103,7 +103,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'spotify-applescript',
+    registryId: 'spotify-applescript',
     name: 'Spotify (AppleScript)',
     description: 'Control Spotify via AppleScript',
     command: 'npx',
@@ -123,7 +123,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'stripe',
+    registryId: 'stripe',
     name: 'Stripe',
     description: 'Manage resources in your Stripe account and search the Stripe documentation',
     command: 'npx',
@@ -144,7 +144,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'brave-applescript',
+    registryId: 'brave-applescript',
     name: 'Brave (AppleScript)',
     description: 'Control Brave Browser tabs, windows, and navigation',
     command: 'npx',
@@ -164,7 +164,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'weather-mcp',
+    registryId: 'weather-mcp',
     name: 'Weather MCP (Smithery)',
     description: 'Weather information service using Smithery platform',
     command: 'npx',
@@ -194,7 +194,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'cloudflare',
+    registryId: 'cloudflare',
     name: 'Cloudflare',
     description: 'Manage Cloudflare resources and configurations',
     command: 'npx',
@@ -215,7 +215,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'atlassian',
+    registryId: 'atlassian',
     name: 'Atlassian',
     description: 'Access Atlassian services like Jira and Confluence',
     command: 'npx',
@@ -239,7 +239,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'fireflies',
+    registryId: 'fireflies',
     name: 'Fireflies',
     description: 'AI-powered meeting notes and transcription service',
     command: 'npx',
@@ -260,7 +260,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'google-drive',
+    registryId: 'google-drive',
     name: 'Google Drive',
     description: 'Access and manage Google Drive files and folders',
     command: 'npx',
@@ -281,7 +281,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'google-calendar',
+    registryId: 'google-calendar',
     name: 'Google Calendar',
     description: 'Manage Google Calendar events and schedules',
     command: 'npx',
@@ -302,7 +302,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'google-mail',
+    registryId: 'google-mail',
     name: 'Google Mail (Official)',
     description: 'Official Google Mail MCP server',
     command: 'npx',
@@ -323,7 +323,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'canva',
+    registryId: 'canva',
     name: 'Canva',
     description: 'Design and create graphics with Canva',
     command: 'npx',
@@ -344,7 +344,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'invideo',
+    registryId: 'invideo',
     name: 'InVideo',
     description: 'AI video creation and editing platform',
     command: 'npx',
@@ -365,7 +365,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'paypal',
+    registryId: 'paypal',
     name: 'PayPal',
     description: 'Manage PayPal payments and transactions',
     command: 'npx',
@@ -389,7 +389,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'sentry',
+    registryId: 'sentry',
     name: 'Sentry',
     description: 'Application monitoring and error tracking',
     command: 'npx',
@@ -413,7 +413,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'netlify',
+    registryId: 'netlify',
     name: 'Netlify',
     description: 'Deploy and manage websites on Netlify',
     command: 'npx',
@@ -434,7 +434,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'square',
+    registryId: 'square',
     name: 'Square',
     description: 'Point of sale and payment processing',
     command: 'npx',
@@ -455,7 +455,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'asana',
+    registryId: 'asana',
     name: 'Asana',
     description: 'Project management and task tracking',
     command: 'npx',
@@ -476,7 +476,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'vercel',
+    registryId: 'vercel',
     name: 'Vercel',
     description: 'Deploy and manage applications on Vercel',
     command: 'npx',
@@ -497,7 +497,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'google-maps',
+    registryId: 'google-maps',
     name: 'Google Maps',
     description: 'Location services and mapping functionality',
     command: 'npx',
@@ -518,7 +518,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'zapier',
+    registryId: 'zapier',
     name: 'Zapier',
     description: 'Automation and workflow integration',
     command: 'npx',
@@ -539,7 +539,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'workato',
+    registryId: 'workato',
     name: 'Workato',
     description: 'Enterprise automation and integration platform',
     command: 'npx',
@@ -560,7 +560,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'bluesky',
+    registryId: 'bluesky',
     name: 'Bluesky',
     description: 'Social media platform integration',
     command: 'npx',
@@ -581,7 +581,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'github',
+    registryId: 'github',
     name: 'GitHub',
     description: 'GitHub repository and development tools',
     command: 'npx',
@@ -602,7 +602,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'whatsapp',
+    registryId: 'whatsapp',
     name: 'WhatsApp',
     description: 'WhatsApp messaging integration',
     command: 'python',
@@ -626,7 +626,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
-    serverId: 'slack',
+    registryId: 'slack',
     name: 'Slack',
     description: 'Slack workspace and messaging integration',
     command: 'npx',
@@ -657,6 +657,16 @@ export const getMCPByCommandArgs = (command: string, args: string[] = []): MCPRe
   });
 };
 
-export const getMCPByServerId = (serverId: string): MCPRegistry | undefined => {
-  return MCP_REGISTRY.find(server => server.serverId === serverId);
+export const getMCPByRegistryID = (registryId: string | undefined): MCPRegistry | undefined => {
+  if (!registryId) return undefined;
+  return MCP_REGISTRY.find(server => server.registryId === registryId);
+};
+
+export const findMCPByAlias = (alias: string): MCPRegistry[] => {
+  const q = alias.trim().toLowerCase();
+  if (!q) return [];
+  
+  return MCP_REGISTRY.filter(server => 
+    server.aliases?.some((a: string) => a.toLowerCase().includes(q))
+  );
 };

@@ -14,7 +14,9 @@
     "tauri:dev:prod-mode": "TODOFORAI_FORCE_PYTHON=1 yarn tauri dev"
   },
   "dependencies": {
-    "@emotion/styled": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@swc/plugin-emotion": "^11.0.2",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-deep-link": "~2",
     "@tauri-apps/plugin-opener": "^2",
@@ -24,7 +26,6 @@
     "lucide-react": "^0.535.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "styled-components": "^6.1.18",
     "zustand": "^5.0.4"
   },
   "devDependencies": {
@@ -34,6 +35,7 @@
     "@types/node": "^22.15.18",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
+    "@vitejs/plugin-react-swc": "^4.0.1",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
