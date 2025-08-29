@@ -45,7 +45,7 @@ async def _broadcast_active_workspaces():
     asyncio.create_task(broadcast_event({
         "type": "active_workspaces_change",
         "payload": {
-            "activeWorkspaces": list(active_sync_managers.value.keys())
+            "activeWorkspaces": list(active_sync_managers.keys())
         }
     }))
 
