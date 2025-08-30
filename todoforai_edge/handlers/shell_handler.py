@@ -45,6 +45,11 @@ class ShellProcess:
                 else:
                     logger.warning(f"Invalid root_path provided: {root_path}, using current directory")
             
+            # Ensure sudo reads password from stdin if used
+            if os.name != 'nt' and 'sudo' in content:
+                content = f'sudo() {{ command sudo -S "$@"; }}; ' + content
+                logger.debug("Wrapped sudo to always use use -S for stdin password input")
+            
             # Determine shell and preexec_fn based on platform
             if os.name == 'nt':  # Windows
                 shell_cmd = ['cmd', '/c', content]
