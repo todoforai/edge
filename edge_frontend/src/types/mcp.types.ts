@@ -4,7 +4,12 @@ export enum MCPRunningStatus {
   ERROR = 'ERROR',
   UNINSTALLED = 'UNINSTALLED',
   INSTALLED = 'INSTALLED',
+  INSTALLING = 'INSTALLING',
+  CRASHED = 'CRASHED',
+  READY = 'READY',
 }
+
+// ... existing code ...
 
 export interface MCPToolSkeleton {
   name: string;
@@ -17,17 +22,13 @@ export interface MCPEnv {
 }
 
 export interface MCPJSON {
-  serverId: string;
   command: string;
   args?: string[];
   env?: MCPEnv;
 }
 
-export interface MCPRegistry {
+export interface MCPRegistry extends MCPJSON {
   registryId?: string;
-  command: string;
-  args?: string[];
-  env?: MCPEnv;
   icon?: string;
   name?: string;
   description?: string;
@@ -52,7 +53,9 @@ export interface MCPRegistry {
 export interface InstalledMCP extends MCPJSON {
   id?: string;
   registryId?: string; // Only if we are creating it.
+  serverId: string;
   tools?: MCPToolSkeleton[];
+  status?: string; // Add status field
 }
 
-export type MCPEdgeExecutable = InstalledMCP;
+export type MCPEdgeExecutable = InstalledMCP & { installing?: boolean };

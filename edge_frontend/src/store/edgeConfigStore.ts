@@ -9,16 +9,19 @@ const log = createLogger('edgeConfigStore');
 interface EdgeConfigState {
   config: EdgeData;
   unsubscribe?: () => void;
+  installingServerIds: Record<string, true>;
   
   // Actions
   initialize: () => void;
   cleanup: () => void;
   setConfig: (config: EdgeData) => void;
   saveConfigToBackend: (updates: Partial<EdgeData>) => Promise<void>;
+  beginInstall: (serverId: string) => void;
+  endInstall: (serverId: string) => void;
   
   // Computed values
   getWorkspacePaths: () => string[];
-  getMCPInstances: () => MCPEdgeExecutable[];
+  getMCPInstances: (config: EdgeData) => MCPEdgeExecutable[];
 }
 
 // Default empty config
@@ -38,6 +41,7 @@ const defaultConfig: EdgeData = {
 export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
   config: defaultConfig,
   unsubscribe: undefined,
+  installingServerIds: {},
 
   initialize: () => {
     const currentUnsubscribe = get().unsubscribe;
@@ -47,6 +51,16 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
       const config = event.payload;
       log.info('Edge config updated:', config);
       set({ config });
+      // Clear installing flags for servers now present in mcp_json
+      const installed = new Set(Object.keys(config?.mcp_json?.mcpServers || {}));
+      const installing = get().installingServerIds;
+      const remaining: Record<string, true> = {};
+      for (const sid of Object.keys(installing)) {
+        if (!installed.has(sid)) remaining[sid] = true;
+      }
+      if (Object.keys(remaining).length !== Object.keys(installing).length) {
+        set({ installingServerIds: remaining });
+      }
     });
 
     set({ unsubscribe });
@@ -79,13 +93,19 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
     }
   },
 
+  beginInstall: (serverId) => set(state => ({ installingServerIds: { ...state.installingServerIds, [serverId]: true } })),
+  endInstall: (serverId) => set(state => {
+    const { [serverId]: _removed, ...rest } = state.installingServerIds;
+    return { installingServerIds: rest };
+  }),
+
   getWorkspacePaths: () => get().config.workspacepaths || [],
 
-  getMCPInstances: () => {
-    const { installedMCPs = {}, mcp_json = {} } = get().config;
+  getMCPInstances: (config) => {
+    const { installedMCPs = {}, mcp_json = {} } = config || {};
     const mcpServers = mcp_json.mcpServers || {};
     
-    return Object.entries(installedMCPs).map(([serverId, instance]) => {
+    const base = Object.entries(installedMCPs).map(([serverId, instance]) => {
       if (serverId === 'todoforai') {
         return {
           ...instance,
@@ -94,7 +114,7 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
           command: 'builtin',
           args: [],
           env: instance.env || {},
-        };
+        } as MCPEdgeExecutable;
       }
       
       const mcpConfig = mcpServers[serverId];
@@ -105,8 +125,11 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
         command: mcpConfig?.command || instance.command || 'node',
         args: mcpConfig?.args || instance.args || [],
         env: { ...(instance.env || {}), ...(mcpConfig?.env || {}) },
-      };
+      } as MCPEdgeExecutable;
     });
+
+    const installing = get().installingServerIds;
+    return base.map(i => ({ ...i, installing: !!installing[i.serverId] }));
   },
 }));
 

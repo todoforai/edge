@@ -34,6 +34,7 @@ const SearchButton = styled.button`
   justify-content: center;
   width: 40px;
   height: 40px;
+  padding: 0;
   border: 1px solid ${props => props.theme.colors.borderColor};
   border-radius: ${props => props.theme.radius.md};
   background: ${props => props.theme.colors.background};
@@ -172,6 +173,7 @@ const RefreshButton = styled.button<{ $refreshing?: boolean }>`
   justify-content: center;
   width: 40px;
   height: 40px;
+  padding: 0; 
   border: 1px solid ${props => props.theme.colors.borderColor};
   border-radius: ${props => props.theme.radius.md};
   background: ${props => props.theme.colors.background};

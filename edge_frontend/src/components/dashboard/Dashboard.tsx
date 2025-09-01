@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import styled from '@emotion/styled';
 import MCPServersList from './GridView/MCPServersList';
 import { MCPServerJSONView } from './JSONView/MCPServerJSONView';
@@ -54,8 +54,10 @@ const Controls = styled.div`
 export const Dashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<'visual' | 'json'>('visual');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const { getMCPInstances } = useEdgeConfigStore();
-  
+  const config = useEdgeConfigStore(state => state.config);
+  const getMCPInstances = useEdgeConfigStore(state => state.getMCPInstances);
+  const instances = useMemo(() => getMCPInstances(config), [config, getMCPInstances]);
+
   const { 
     searchTerm, 
     setSearchTerm, 
@@ -63,7 +65,7 @@ export const Dashboard: React.FC = () => {
     setSelectedCategory,
     filteredInstances,
     categories 
-  } = useMCPFilters(getMCPInstances());
+  } = useMCPFilters(instances);
 
   const handleViewModeChange = (mode: 'visual' | 'json') => {
     setViewMode(mode);

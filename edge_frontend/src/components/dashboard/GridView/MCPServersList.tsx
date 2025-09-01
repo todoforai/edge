@@ -9,6 +9,23 @@ import { useEdgeConfigStore } from '../../../store/edgeConfigStore';
 import { useMCPRegistry } from '../../../hooks/useMCPRegistry';
 import type { MCPEdgeExecutable, MCPRegistry } from '../../../types';
 
+// Helper function to build/merge InstalledMCP entry optimistically
+const buildInstalledEntry = (serverId: string, mcpJson: any, prevInstalled: any) => {
+  const cfg = (mcpJson?.mcpServers || {})[serverId] || {};
+  const prevEntry = (prevInstalled || {})[serverId] || {};
+  return {
+    ...prevEntry,
+    serverId,
+    id: prevEntry.id || serverId,
+    command: cfg.command ?? prevEntry.command ?? 'node',
+    args: cfg.args ?? prevEntry.args ?? [],
+    env: { ...(prevEntry.env || {}), ...(cfg.env || {}) },
+    tools: prevEntry.tools || [],
+    registryId: prevEntry.registryId || serverId,
+    status: 'INSTALLING', // Start with INSTALLING, backend will update to READY/CRASHED
+  };
+};
+
 interface MCPServersListProps {
   instances: MCPEdgeExecutable[];
   selectedCategory: string;
@@ -40,50 +57,35 @@ const MCPServersList: React.FC<MCPServersListProps> = ({
   };
 
   const handleSaveInstance = async (updatedInstance: MCPEdgeExecutable) => {
-    
     try {
       const isNewInstallation = (updatedInstance.id || '').startsWith('temp-');
+      const currentMcpJson = config.mcp_json || {};
       
-      if (isNewInstallation) {
-        const currentMcpJson = config.mcp_json || {};
-        const updatedMcpJson = {
-          ...currentMcpJson,
-          mcpServers: {
-            ...currentMcpJson.mcpServers,
-            [updatedInstance.serverId]: {
-              command: updatedInstance.command,
-              args: updatedInstance.args || [],
-              env: updatedInstance.env || {}
-            }
+      const updatedMcpJson = {
+        ...currentMcpJson,
+        mcpServers: {
+          ...currentMcpJson.mcpServers,
+          [updatedInstance.serverId]: {
+            command: updatedInstance.command,
+            args: updatedInstance.args || [],
+            env: updatedInstance.env || {}
           }
-        };
-        console.log('updatedMcpJson:', updatedMcpJson)
+        }
+      };
 
-        await useEdgeConfigStore.getState().saveConfigToBackend({
-          mcp_json: updatedMcpJson
-        });
+      // Optimistic InstalledMCPs update
+      const prevInstalled = config.installedMCPs || {};
+      const installedMCPs = {
+        ...prevInstalled,
+        [updatedInstance.serverId]: buildInstalledEntry(updatedInstance.serverId, updatedMcpJson, prevInstalled),
+      };
 
-        console.log(`Installed new MCP server: ${updatedInstance.serverId}`);
-      } else {
-        const currentMcpJson = config.mcp_json || {};
-        const updatedMcpJson = {
-          ...currentMcpJson,
-          mcpServers: {
-            ...currentMcpJson.mcpServers,
-            [updatedInstance.serverId]: {
-              command: updatedInstance.command,
-              args: updatedInstance.args || [],
-              env: updatedInstance.env || {}
-            }
-          }
-        };
+      await useEdgeConfigStore.getState().saveConfigToBackend({
+        mcp_json: updatedMcpJson,
+        installedMCPs,
+      });
 
-        await useEdgeConfigStore.getState().saveConfigToBackend({
-          mcp_json: updatedMcpJson,
-        });
-
-        console.log(`Updated MCP server config: ${updatedInstance.serverId}`);
-      }
+      console.log(`${isNewInstallation ? 'Installed new' : 'Updated'} MCP server: ${updatedInstance.serverId}`);
     } catch (error) {
       console.error('Failed to save MCP server config:', error);
     }
@@ -99,8 +101,12 @@ const MCPServersList: React.FC<MCPServersListProps> = ({
         mcpServers: remainingServers
       };
 
+      // Optimistic InstalledMCPs removal
+      const { [serverId]: _removedInstalled, ...remainingInstalled } = config.installedMCPs || {};
+
       await useEdgeConfigStore.getState().saveConfigToBackend({
-        mcp_json: updatedMcpJson
+        mcp_json: updatedMcpJson,
+        installedMCPs: remainingInstalled,
       });
 
       console.log(`Removed MCP server: ${serverId}`);

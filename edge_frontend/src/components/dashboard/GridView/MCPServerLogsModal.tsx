@@ -18,6 +18,7 @@ const ActionButton = styled.button`
   justify-content: center;
   width: 32px;
   height: 32px;
+  padding: 0;
   background: transparent;
   border: 1px solid ${props => props.theme.colors.borderColor};
   border-radius: 6px;

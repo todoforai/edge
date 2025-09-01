@@ -106,6 +106,7 @@ const ActionButton = styled.button`
   justify-content: center;
   width: 44px;
   height: 44px;
+  padding: 0;
   background: transparent;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -113,12 +114,6 @@ const ActionButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   font-size: 16px;
-
-  svg {
-    width: 20px !important;
-    height: 20px !important;
-    flex: 0 0 auto;
-  }
 
   &:hover {
     background: rgba(59, 130, 246, 0.1);
@@ -153,14 +148,14 @@ const DropdownItem = styled.button<{ disabled?: boolean; danger?: boolean }>`
   padding: 12px 16px;
   background: transparent;
   border: none;
-  color: ${(props) => props.danger ? '#ef4444' : 'var(--foreground)'};
+  color: ${(props) => (props.danger ? '#ef4444' : 'var(--foreground)')};
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.2s;
   text-align: left;
 
   &:hover {
-    background: ${(props) => props.danger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)'};
+    background: ${(props) => (props.danger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)')};
   }
 
   &:first-child {
@@ -171,7 +166,9 @@ const DropdownItem = styled.button<{ disabled?: boolean; danger?: boolean }>`
     border-radius: 0 0 var(--radius-md) var(--radius-md);
   }
 
-  ${(props) => props.disabled && `
+  ${(props) =>
+    props.disabled &&
+    `
     opacity: 0.5;
     cursor: not-allowed;
     
@@ -186,6 +183,54 @@ const ServerDescription = styled.p`
   color: var(--muted);
   line-height: 1.5;
   margin: 0;
+`;
+
+const ServerStatus = styled.div<{ status: string }>`
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: ${props => {
+    switch (props.status) {
+      case 'READY':
+        return '#10b981';
+      case 'CRASHED':
+        return '#ef4444';
+      case 'INSTALLING':
+        return '#3b82f6';
+      default:
+        return 'var(--muted)';
+    }
+  }};
+  background: ${props => {
+    switch (props.status) {
+      case 'READY':
+        return 'rgba(16, 185, 129, 0.1)';
+      case 'CRASHED':
+        return 'rgba(239, 68, 68, 0.1)';
+      case 'INSTALLING':
+        return 'rgba(59, 130, 246, 0.1)';
+      default:
+        return 'rgba(0, 0, 0, 0.05)';
+    }
+  }};
+`;
+
+const Spinner = styled.div`
+  width: 12px;
+  height: 12px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 `;
 
 interface MCPServerCardProps {
@@ -226,6 +271,9 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   const displayIcon = displayInfo.icon || '/logos/default.png';
   const displayCategory = displayInfo.category?.[0] || 'Custom';
 
+  // Determine status inline (no helper)
+  const status = instance.status || 'READY';
+
   const handleUninstall = () => {
     if (isBuiltIn) return;
     onUninstall(instance.serverId);
@@ -259,8 +307,13 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
             <ServerNameAndCategory>
               <ServerName>{displayName}</ServerName>
               {showCategory && <ServerCategory>{displayCategory}</ServerCategory>}
+              <ServerStatus status={status}>
+                {status === 'INSTALLING' && <Spinner />}
+                {status}
+              </ServerStatus>
             </ServerNameAndCategory>
             <ServerId>{instance.serverId}</ServerId>
+            {/* removed separate status line */}
           </ServerInfo>
           <ServerActions>
             <ActionButtonsRow>

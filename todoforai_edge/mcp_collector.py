@@ -163,6 +163,7 @@ class MCPCollector:
         # Registry mapping based on command/args patterns
         registry_mappings = {
             ("npx", "@gongrzhe/server-gmail-autoauth-mcp"): "gmail",
+            ("npx", "@todoforai/server-gmail-autoauth-mcp"): "gmail",
             ("npx", "github:Sixzero/puppeteer-mcp-server"): "puppeteer", 
             ("npx", "@spotify-applescript/mcp-server"): "spotify-applescript",
             ("npx", "@stripe/mcp-server"): "stripe",
@@ -189,27 +190,40 @@ class MCPCollector:
         for server_id, server_config in servers.items():
             command = server_config.get("command", "")
             args = server_config.get("args", [])
-            first_arg = args[0] if args else ""
-            
+            # Determine the primary argument (skip flags like -y; handle python -m)
+            primary_arg = ""
+            if isinstance(args, list) and args:
+                if command == "python" and "-m" in args:
+                    i = args.index("-m")
+                    if i + 1 < len(args):
+                        primary_arg = args[i + 1]
+                if not primary_arg:
+                    for a in args:
+                        if isinstance(a, str) and not a.startswith("-"):
+                            primary_arg = a
+                            break
+                if not primary_arg:
+                    primary_arg = args[0] if args else ""
+             
             # Try exact match first
-            key = (command, first_arg)
+            key = (command, primary_arg)
             if key in registry_mappings:
                 registry_id = registry_mappings[key]
             else:
                 # Try partial matches for complex args
                 registry_id = None
                 for (cmd, arg_pattern), reg_id in registry_mappings.items():
-                    if command == cmd and first_arg and arg_pattern in first_arg:
+                    if command == cmd and primary_arg and arg_pattern in primary_arg:
                         registry_id = reg_id
                         break
                 
-                # Fallback: derive from first arg or use server_id
+                # Fallback: derive from primary_arg or use server_id
                 if not registry_id:
-                    if command == "npx" and first_arg:
-                        if "/" in first_arg:
-                            registry_id = first_arg.split("/")[-1].replace("-server", "").replace("server-", "")
+                    if command == "npx" and primary_arg:
+                        if "/" in primary_arg:
+                            registry_id = primary_arg.split("/")[-1].replace("-server", "").replace("server-", "")
                         else:
-                            registry_id = first_arg.replace("-server", "").replace("server-", "")
+                            registry_id = primary_arg.replace("-server", "").replace("server-", "")
                     else:
                         registry_id = server_id
             
@@ -302,11 +316,22 @@ class MCPCollector:
                 'tools': clean_tools,
                 'registryId': self.server_id_to_registry_id.get(server_id, server_id),
                 'env': {},
+                'status': 'READY',
             }
+
+        # Ensure servers defined in config but missing from listed tools still appear
+        for server_id, cfg in mcp_servers.items():
+            if server_id not in servers:
+                servers[server_id] = {
+                    'tools': [],
+                    'registryId': self.server_id_to_registry_id.get(server_id, server_id),
+                    'env': cfg.get('env', {}),
+                    'status': 'CRASHED',
+                }
 
         logger.info(f"Setting MCPs (via collector): {len(servers)} servers")
         self.edge_config.config.update_value({"installedMCPs": servers})
-
+    
     def disconnect(self):
         """Disconnect from all servers and unsubscribe from config changes"""
         if self._unsubscribe_fn:

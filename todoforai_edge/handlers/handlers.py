@@ -635,8 +635,28 @@ async def mcp_install_server(serverId: str, command: str, args: List[str] = None
         "env": env
     }
     logger.info(f'mcp_json after update: {mcp_json}')
-    # Update config (triggers auto-reload via subscription)
-    client_instance.edge_config.set_mcp_json(mcp_json)
+
+    # Optimistic installedMCPs update (similar to frontend logic)
+    current_installed = dict(client_instance.edge_config.config.safe_get("installedMCPs", {}))
+    prev_entry = current_installed.get(server_id, {})
+    
+    current_installed[server_id] = {
+        **prev_entry,
+        "serverId": server_id,
+        "id": prev_entry.get("id", server_id),
+        "command": cmd,
+        "args": args,
+        "env": {**(prev_entry.get("env", {})), **env},
+        "tools": prev_entry.get("tools", []),
+        "registryId": prev_entry.get("registryId", server_id),
+        "status": "INSTALLING",  # Start with INSTALLING, backend will update to READY/CRASHED
+    }
+
+    # Update both configs (triggers auto-reload via subscription)
+    client_instance.edge_config.config.update_value({
+        "mcp_json": mcp_json,
+        "installedMCPs": current_installed
+    })
 
     return {
         "installed": True,

@@ -4,9 +4,10 @@ import { MCP_REGISTRY } from '../data/mcpServersRegistry';
 import type { MCPRegistry } from '../types';
 
 export const useMCPRegistry = () => {
-  const { getMCPInstances } = useEdgeConfigStore();
+  const config = useEdgeConfigStore(state => state.config);
+  const getMCPInstances = useEdgeConfigStore(state => state.getMCPInstances);
   const [registryServers] = useState<MCPRegistry[]>(MCP_REGISTRY);
-  const instances = getMCPInstances();
+  const instances = useMemo(() => getMCPInstances(config), [config, getMCPInstances]);
 
   const availableServers = useMemo(() => 
     registryServers.filter(registry => 
