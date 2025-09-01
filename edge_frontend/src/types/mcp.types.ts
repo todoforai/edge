@@ -17,13 +17,17 @@ export interface MCPEnv {
 }
 
 export interface MCPJSON {
+  serverId: string;
   command: string;
   args?: string[];
   env?: MCPEnv;
 }
 
-export interface MCPRegistry extends MCPJSON {
+export interface MCPRegistry {
   registryId?: string;
+  command: string;
+  args?: string[];
+  env?: MCPEnv;
   icon?: string;
   name?: string;
   description?: string;
@@ -40,12 +44,14 @@ export interface MCPRegistry extends MCPJSON {
     release_date: string;
     is_latest: boolean;
   };
+  setup?: {
+    instructions?: string;
+  };
 }
 
 export interface InstalledMCP extends MCPJSON {
   id?: string;
   registryId?: string; // Only if we are creating it.
-  serverId: string;
   tools?: MCPToolSkeleton[];
 }
 
