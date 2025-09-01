@@ -157,11 +157,88 @@ async def handle_block_keyboard(payload, client):
         await client.send_response(block_error_result_msg(block_id, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
+def get_platform_default_directory():
+    """Get the default starting directory based on the platform"""
+    import platform
+    
+    system = platform.system().lower()
+    home = os.path.expanduser("~")
+    
+    # Try platform-specific defaults in order of preference
+    if system == "darwin":  # macOS
+        candidates = [
+            # 1. Primary development directories (highest priority)
+            os.path.join(home, "Developer"),      # Xcode default
+            os.path.join(home, "Projects"),       # Common convention
+            os.path.join(home, "Code"),           # VS Code default
+            # 2. Standard user directories (medium priority)
+            os.path.join(home, "Documents"),      # Standard documents folder
+            os.path.join(home, "Desktop"),        # Desktop folder
+            # 3. Home directory (lowest priority)
+            home                                  # User home directory
+        ]
+    elif system == "linux":  # Ubuntu/Linux
+        candidates = [
+            # 1. Primary development directories (highest priority)
+            os.path.join(home, "Projects"),       # Most common convention
+            os.path.join(home, "workspace"),      # Eclipse/IDE default
+            os.path.join(home, "dev"),            # Short development folder
+            os.path.join(home, "code"),           # VS Code default
+            os.path.join(home, "src"),            # Source code folder
+            # 2. Standard user directories (medium priority)
+            os.path.join(home, "Documents"),      # Standard documents folder
+            os.path.join(home, "Desktop"),        # Desktop folder
+            # 3. Home directory (lowest priority)
+            home                                  # User home directory
+        ]
+    elif system == "windows":  # Windows
+        documents = os.path.join(home, "Documents")
+        candidates = [
+            # 1. Primary development directories (highest priority)
+            os.path.join(documents, "Projects"),  # Projects in Documents
+            os.path.join(home, "Projects"),       # Projects in user folder
+            "C:\\Projects",                       # System-wide projects
+            "C:\\dev",                            # System-wide dev folder
+            "C:\\workspace",                      # System-wide workspace
+            # 2. Standard user directories (medium priority)
+            documents,                            # Documents folder
+            os.path.join(home, "Desktop"),        # Desktop folder
+            # 3. Home directory (lowest priority)
+            home                                  # User home directory
+        ]
+    else:
+        # Fallback for unknown systems (ordered by preference)
+        candidates = [
+            # 1. Development directories
+            os.path.join(home, "Projects"),       # Most universal
+            # 2. Standard directories
+            os.path.join(home, "Documents"),      # Standard fallback
+            # 3. Home directory
+            home                                  # Ultimate fallback
+        ]
+    
+    # Return the first existing directory
+    for candidate in candidates:
+        try:
+            if os.path.exists(candidate) and os.path.isdir(candidate):
+                return os.path.abspath(candidate)
+        except (OSError, PermissionError):
+            continue
+    
+    # Ultimate fallback
+    return os.getcwd()
+
+def get_path_or_platform_default(path):
+    if path in [".", "", None]:
+        path = get_platform_default_directory()
+        logger.info(f"Using platform default directory: {path}")
+    return path
+
 async def handle_get_folders(payload, client):
     """Handle request to get folders at depth 1 for a given path"""
     request_id = payload.get("requestId")
     edge_id = payload.get("edgeId")
-    path = payload.get("path", ".")
+    path = get_path_or_platform_default(payload.get("path", "."))
 
     try:
         # Normalize path
@@ -203,7 +280,7 @@ async def handle_get_folders(payload, client):
 async def handle_todo_dir_list(payload, client):
     """Handle todo directory listing request"""
     request_id = payload.get("requestId")
-    path = payload.get("path", ".")
+    path = get_path_or_platform_default(payload.get("path", "."))
     todo_id = payload.get("todoId", "")
 
     try:
@@ -227,7 +304,7 @@ async def handle_todo_cd(payload: Dict[str, Any], client: Any) -> None:
     """Handle todo change directory request and update workspace list"""
     request_id = payload.get("requestId")
     edge_id = payload.get("edgeId")
-    path = payload.get("path", ".")
+    path = get_path_or_platform_default(payload.get("path", "."))
 
     try:
         # Validate that the path exists and is a directory
@@ -244,7 +321,7 @@ async def handle_todo_cd(payload: Dict[str, Any], client: Any) -> None:
             if path_added:
                 logger.info(f"Added new workspace path: {abs_path}")
 
-        await client.send_response(cd_response_msg(edge_id, path, request_id, True))
+        await client.send_response(cd_response_msg(edge_id, abs_path, request_id, True))
     except Exception as error:
         stack_trace = traceback.format_exc()
         logger.error(f"Error changing directory: {str(error)}\nStacktrace:\n{stack_trace}")
@@ -263,7 +340,7 @@ async def handle_block_save(payload, client):
     try:
         filepath = resolve_file_path(filepath, rootpath, fallback_root_paths)
         logger.info(f'Saving file: {filepath}')
-
+get_current_directory
         # Check if path is allowed before proceeding
         if not is_path_allowed(filepath, client.edge_config.config["workspacepaths"]):
             raise PermissionError("No permission to save file to the given path")
