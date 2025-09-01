@@ -1,7 +1,8 @@
 import React from 'react';
 import styled from '@emotion/styled';
-import { User, Mail, LogOut } from 'lucide-react';
+import { User, Mail, LogOut, Info } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { getAppVersion } from '../../lib/tauri-api';
 
 const ProfileButton = styled.button`
   background: ${(props) => props.theme.colors.cardBackground};
@@ -90,8 +91,22 @@ const DropdownItem = styled.div`
   }
 `;
 
+const VersionItem = styled.div`
+  padding: 0.5rem 1rem;
+  color: ${(props) => props.theme.colors.muted};
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
 export const ProfileDropdown: React.FC = () => {
   const { user, logout } = useAuthStore();
+  const [appVersion, setAppVersion] = React.useState<string>('');
+
+  React.useEffect(() => {
+    getAppVersion().then(setAppVersion);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -113,6 +128,12 @@ export const ProfileDropdown: React.FC = () => {
           <Mail size={16} />
           {user.email || 'User'}
         </EmailHeader>
+        {appVersion && (
+          <VersionItem>
+            <Info size={16} />
+            <span>Version {appVersion}</span>
+          </VersionItem>
+        )}
         <DropdownItem onClick={handleLogout}>
           <LogOut size={16} />
           <span>Logout</span>

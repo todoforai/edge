@@ -2,6 +2,29 @@ import { useState, useMemo } from 'react';
 import { getMCPByCommandArgs } from '../data/mcpServersRegistry';
 import type { MCPEdgeExecutable } from '../types';
 
+// Helper function to create fallback display info for unknown MCPs
+const createFallbackMCPInfo = (instance: MCPEdgeExecutable) => ({
+  registryId: `unknown-${instance.serverId}`,
+  name: `Custom MCP (${instance.command})`,
+  description: `${instance.command} ${instance.args?.join(' ') || ''}`,
+  command: instance.command,
+  args: instance.args || [],
+  icon: '/logos/default.svg', // generic fallback icon
+  env: instance.env || {},
+  category: ['Custom'],
+  aliases: [instance.serverId],
+  repository: {
+    url: '',
+    source: 'custom',
+    id: instance.serverId
+  },
+  version_detail: {
+    version: 'unknown',
+    release_date: 'unknown',
+    is_latest: true
+  }
+});
+
 export const useMCPFilters = (instances: MCPEdgeExecutable[]) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -9,7 +32,7 @@ export const useMCPFilters = (instances: MCPEdgeExecutable[]) => {
   const categories = useMemo(() => {
     const cats = instances.map(instance => {
       const registryServer = getMCPByCommandArgs(instance.command, instance.args);
-      return registryServer?.category?.[0] || 'Unknown';
+      return registryServer?.category?.[0] || 'Custom'; // Changed from 'Unknown' to 'Custom'
     });
     return ['All', 'Built-in', ...Array.from(new Set(cats))];
   }, [instances]);
@@ -28,11 +51,13 @@ export const useMCPFilters = (instances: MCPEdgeExecutable[]) => {
 
     return allInstances.filter(instance => {
       const registryServer = getMCPByCommandArgs(instance.command, instance.args);
-      if (!registryServer) return false;
       
-      const category = registryServer.category?.[0] || 'Unknown';
-      const name = registryServer.name || instance.serverId || 'Unknown';
-      const description = registryServer.description || '';
+      // If not found in registry, create fallback info
+      const displayInfo = registryServer || createFallbackMCPInfo(instance);
+      
+      const category = displayInfo.category?.[0] || 'Custom';
+      const name = displayInfo.name || instance.serverId || 'Unknown';
+      const description = displayInfo.description || '';
       
       const matchesCategory = selectedCategory === 'All' || category === selectedCategory;
       const matchesSearch = 

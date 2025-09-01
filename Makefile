@@ -163,6 +163,6 @@ build-sidecar-dev:
 	python3 build_executable.py
 
 .PHONY: copy-sidecar-dev
-copy-sidecar-dev: build-sidecar-dev
+build-and-copy-sidecar: build-sidecar-dev
 	@echo "Copying sidecar for development testing..."
 	./scripts/copy_sidecar_to_resources.sh

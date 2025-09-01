@@ -1,5 +1,15 @@
 import type { MCPRegistry } from '../types';
 
+// Helper function to get default Gmail credentials path
+const getDefaultGmailCredPath = () => {
+  // For browser fallback, use the existing logic
+  const p = (navigator as any)?.userAgentData?.platform || navigator.platform || '';
+  const isWin = /win/i.test(p);
+  const home = isWin ? '%USERPROFILE%' : '~';
+  const sep = isWin ? '\\' : '/';
+  return `${home}${sep}.gmail-mcp${sep}credentials.json`;
+};
+
 export const MCP_REGISTRY: MCPRegistry[] = [
   // Built-in TODOforAI MCP
   {
@@ -65,15 +75,32 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     name: 'Gmail MCP',
     description: 'Access and manage Gmail emails with full authentication support',
     command: 'npx',
-    args: ['@gongrzhe/server-gmail-autoauth-mcp'],
-    icon: '/logos/gmail.png', // Local downloaded logo
-    env: { 'GMAIL_CREDENTIALS_PATH': '' },
+    args: ['-y', '@todoforai/server-gmail-autoauth-mcp'],
+    icon: '/logos/gmail.png',
+    env: { 
+      'GMAIL_CREDENTIALS_PATH': getDefaultGmailCredPath()
+    },
+    setup: {
+      instructions: [
+        'Before using Gmail you need to authenticate.',
+        'Quick auth:',
+        'npx -y @todoforai/server-gmail-autoauth-mcp auth',
+        '',
+        'BYO OAuth client (optional):',
+        '- Place gcp-oauth.keys.json in your project dir or ~/.gmail-mcp/',
+        '- Or set GMAIL_OAUTH_PATH or GMAIL_OAUTH_URL',
+        '',
+        'Notes:',
+        '- Uses GMAIL_OAUTH_URL or defaults to https://api.todofor.ai/gmail-oauth.json',
+        '- Stores tokens at ~/.gmail-mcp/credentials.json'
+      ].join('\n')
+    },
     category: ['Communication'],
     aliases: ['GMAIL'],
     repository: {
-      url: 'https://github.com/gongrzhe/server-gmail-autoauth-mcp',
+      url: 'https://github.com/todoforai/Gmail-MCP-Server',
       source: 'npm',
-      id: '@gongrzhe/server-gmail-autoauth-mcp'
+      id: '@todoforai/server-gmail-autoauth-mcp'
     },
     version_detail: {
       version: '1.0.0',

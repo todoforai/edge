@@ -209,11 +209,22 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   const isBuiltIn = instance.serverId === 'todoforai';
   const registryServer = getMCPByCommandArgs(instance.command, instance.args);
   
-  // All display data comes from registry now
-  const displayName = registryServer?.name || instance.serverId || 'Unknown Server';
-  const displayDescription = registryServer?.description || 'No description available';
-  const displayIcon = registryServer?.icon || '/logos/default.png';
-  const displayCategory = registryServer?.category?.[0] || 'Unknown';
+  // Create fallback info if not found in registry
+  const fallbackInfo = registryServer
+    ? null
+    : {
+        name: `Custom MCP (${instance.command})`,
+        description: `Unknown MCP server: ${instance.command} ${instance.args?.join(' ') || ''}`,
+        icon: '/logos/default.svg',
+        category: ['Custom'],
+      };
+  
+  // Use registry data or fallback
+  const displayInfo = registryServer || fallbackInfo!;
+  const displayName = displayInfo.name || instance.serverId || 'Unknown Server';
+  const displayDescription = displayInfo.description || 'No description available';
+  const displayIcon = displayInfo.icon || '/logos/default.png';
+  const displayCategory = displayInfo.category?.[0] || 'Custom';
 
   const handleUninstall = () => {
     if (isBuiltIn) return;
