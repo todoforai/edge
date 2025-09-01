@@ -19,11 +19,13 @@ logger = logging.getLogger("todoforai-edge")
 
 # Make processes dictionary a global variable so it's shared across all instances
 _processes: Dict[str, subprocess.Popen] = {}
+_stdin_writers = {}  # Make stdin writers global too so all instances can access
 
 class ShellProcess:
     def __init__(self):
         self.processes = _processes
         self._output_buffer = {}  # Add output buffer for sync calls
+        self._stdin_writers = _stdin_writers  # Use the shared global writers
         
     async def execute_block(self, block_id: str, content: str, client, todo_id: str, request_id: str, timeout: float, root_path: str = ""):
         """Execute a shell command block and stream results back to client."""
@@ -57,11 +59,16 @@ class ShellProcess:
             else:  # Unix-like systems
                 shell_cmd = ['/bin/bash', '-c', content]
                 preexec_fn = os.setsid
+
+            # Make stdin a TTY to prevent tools from reading from PIPE
+            master_fd, slave_fd = os.openpty()
+            stdin_stream = slave_fd  # child sees a TTY
+            stdin_writer = os.fdopen(master_fd, 'w', buffering=1)
             
             # Create process with pipes for stdin/stdout/stderr
             process = subprocess.Popen(
                 shell_cmd,
-                stdin=subprocess.PIPE,
+                stdin=stdin_stream,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -70,6 +77,15 @@ class ShellProcess:
                 cwd=cwd,  # Add working directory
                 preexec_fn=preexec_fn  # Only use setsid on Unix systems
             )
+
+            # Close parent's copy of slave FD, keep master writer for input
+            try:
+                os.close(slave_fd)
+            except OSError:
+                pass
+
+            # Store stdin writer (PTY master)
+            self._stdin_writers[block_id] = stdin_writer
             
             logger.debug(f"Process created with PID {process.pid}")
             
@@ -202,29 +218,29 @@ class ShellProcess:
         logger.info(f"Sending input to block {block_id}")
         
         if block_id in self.processes:
-            process = self.processes[block_id]
             try:
-                if process.stdin and not process.stdin.closed:
+                writer = self._stdin_writers.get(block_id)
+                if writer and not writer.closed:
                     # Add newline if not present
                     if not input_text.endswith('\n'):
                         input_text += '\n'
                         
                     # Write to stdin
-                    process.stdin.write(input_text)
-                    process.stdin.flush()
+                    writer.write(input_text)
+                    writer.flush()
                     
                     # Give the process a moment to process the input
                     await asyncio.sleep(0.1)
                     
                     return True
                 else:
-                    logger.warning(f"Process stdin is closed or not available for block {block_id}")
+                    logger.warning(f"Process stdin writer is closed or not available for block {block_id}")
             except Exception as e:
                 logger.error(f"Error sending input to process: {str(e)}")
         else:
             logger.warning(f"Process not found for block {block_id}")
         return False
-    
+
     def interrupt_block(self, block_id: str):
         """Interrupt a running process."""
         if block_id in self.processes:
@@ -268,6 +284,13 @@ class ShellProcess:
                 # Clean up the process entry
                 if block_id in self.processes:
                     del self.processes[block_id]
+                # Close and remove stdin writer if any
+                writer = self._stdin_writers.pop(block_id, None)
+                if writer:
+                    try:
+                        writer.close()
+                    except Exception:
+                        pass
 
     async def _wait_for_process(self, process, block_id, client, todo_id, request_id):
         """Wait for process to complete and send completion message."""
@@ -298,4 +321,11 @@ class ShellProcess:
             # Clean up
             if block_id in self.processes:
                 del self.processes[block_id]
+            # Close and remove stdin writer if any
+            writer = self._stdin_writers.pop(block_id, None)
+            if writer:
+                try:
+                    writer.close()
+                except Exception:
+                    pass
             # Note: Don't delete _output_buffer here, let the sync caller handle it
