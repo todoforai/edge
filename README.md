@@ -110,6 +110,18 @@ The UI provides:
 
 This is especially useful for users who prefer not to use the command line.
 
+## TO build
+
+```
+sudo apt update && sudo apt install -y \
+  build-essential pkg-config libwebkit2gtk-4.1-dev libgtk-3-dev \
+  libayatana-appindicator3-dev librsvg2-dev libssl-dev curl wget
+	
+cd edge_frontend
+yarn tauri build
+```
+
+
 ## Let Us Know You're Using TODOforAI!
 
 We'd love to hear from you! If you're using TODOforAI in your projects or organization, please consider dropping us a quick note at marcellhavlik@todofor.ai. 
