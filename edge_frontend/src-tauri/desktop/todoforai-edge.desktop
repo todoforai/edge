@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=TODOforAI Edge
+Comment=TODOforAI Edge client
+Exec=todoforai-edge %u
+Icon=todoforai_edge
+Terminal=false
+Categories=Utility;
+MimeType=x-scheme-handler/todoforai;x-scheme-handler/todoforaiedge;

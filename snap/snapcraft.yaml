@@ -141,6 +141,16 @@ parts:
         sed -i -e "s|Exec=todoforai_edge|Exec=todoforai-edge|g" "$DESKTOP_FILE"
         sed -i -e "s|Icon=todoforai_edge|Icon=todoforai-edge|g" "$DESKTOP_FILE"
         
+        # Ensure Exec includes URL placeholder so deep links pass the URL
+        if ! grep -q '^Exec=.*%[uU]' "$DESKTOP_FILE"; then
+          sed -i -e 's|^Exec=\(.*\)$|Exec=\1 %u|' "$DESKTOP_FILE"
+        fi
+        
+        # Ensure custom URL scheme is registered
+        if ! grep -q '^MimeType=.*x-scheme-handler/todoforai' "$DESKTOP_FILE"; then
+          sed -i -e '/^Categories=/a MimeType=x-scheme-handler/todoforai;x-scheme-handler/todoforaiedge;' "$DESKTOP_FILE"
+        fi
+        
         echo "=== Updated desktop file ==="
         cat "$DESKTOP_FILE"
       else

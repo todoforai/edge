@@ -340,7 +340,7 @@ async def handle_block_save(payload, client):
     try:
         filepath = resolve_file_path(filepath, rootpath, fallback_root_paths)
         logger.info(f'Saving file: {filepath}')
-get_current_directory
+        
         # Check if path is allowed before proceeding
         if not is_path_allowed(filepath, client.edge_config.config["workspacepaths"]):
             raise PermissionError("No permission to save file to the given path")
