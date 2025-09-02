@@ -176,15 +176,16 @@ def _create_config_from_credentials(credentials):
     """Create config object from credentials"""
     config = default_config()
     
-    if "email" in credentials:
+    # Only override with non-empty values from credentials
+    if credentials.get("email"):
         config.email = credentials["email"]
-    if "password" in credentials:
+    if credentials.get("password"):
         config.password = credentials["password"]
-    if "apiKey" in credentials:
+    if credentials.get("apiKey"):
         config.api_key = credentials["apiKey"]
         
-    # Use API URL from credentials or default
-    if "apiUrl" in credentials and credentials["apiUrl"]:
+    # Use API URL from credentials or keep env default; fall back to sidecar.default_api_url if set
+    if credentials.get("apiUrl"):
         config.api_url = credentials["apiUrl"]
     elif sidecar.default_api_url:
         config.api_url = sidecar.default_api_url
@@ -193,7 +194,9 @@ def _create_config_from_credentials(credentials):
     if config.api_url:
         config.api_url = normalize_api_url(config.api_url)
         
-    config.debug = credentials.get("debug", False)
+    # Only override debug if explicitly provided
+    if "debug" in credentials:
+        config.debug = bool(credentials["debug"])
     return config
 
 def _start_new_edge(config):
@@ -292,7 +295,7 @@ async def _run_edge():
         await register_all_hooks()
             
         # Start the edge
-        log.info("Logging in with todo_edge.start()")
+        log.info("Starting edge client")
         await sidecar.todo_edge.start()
     except Exception as e:
         log.error(f"Error in edge thread: {e}")
