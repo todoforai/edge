@@ -158,74 +158,13 @@ async def handle_block_keyboard(payload, client):
 
 
 def get_platform_default_directory():
-    """Get the default starting directory based on the platform"""
-    import platform
-    
-    system = platform.system().lower()
-    home = os.path.expanduser("~")
-    
-    # Try platform-specific defaults in order of preference
-    if system == "darwin":  # macOS
-        candidates = [
-            # 1. Primary development directories (highest priority)
-            os.path.join(home, "Developer"),      # Xcode default
-            os.path.join(home, "Projects"),       # Common convention
-            os.path.join(home, "Code"),           # VS Code default
-            # 2. Standard user directories (medium priority)
-            os.path.join(home, "Documents"),      # Standard documents folder
-            os.path.join(home, "Desktop"),        # Desktop folder
-            # 3. Home directory (lowest priority)
-            home                                  # User home directory
-        ]
-    elif system == "linux":  # Ubuntu/Linux
-        candidates = [
-            # 1. Primary development directories (highest priority)
-            os.path.join(home, "Projects"),       # Most common convention
-            os.path.join(home, "workspace"),      # Eclipse/IDE default
-            os.path.join(home, "dev"),            # Short development folder
-            os.path.join(home, "code"),           # VS Code default
-            os.path.join(home, "src"),            # Source code folder
-            # 2. Standard user directories (medium priority)
-            os.path.join(home, "Documents"),      # Standard documents folder
-            os.path.join(home, "Desktop"),        # Desktop folder
-            # 3. Home directory (lowest priority)
-            home                                  # User home directory
-        ]
-    elif system == "windows":  # Windows
-        documents = os.path.join(home, "Documents")
-        candidates = [
-            # 1. Primary development directories (highest priority)
-            os.path.join(documents, "Projects"),  # Projects in Documents
-            os.path.join(home, "Projects"),       # Projects in user folder
-            "C:\\Projects",                       # System-wide projects
-            "C:\\dev",                            # System-wide dev folder
-            "C:\\workspace",                      # System-wide workspace
-            # 2. Standard user directories (medium priority)
-            documents,                            # Documents folder
-            os.path.join(home, "Desktop"),        # Desktop folder
-            # 3. Home directory (lowest priority)
-            home                                  # User home directory
-        ]
-    else:
-        # Fallback for unknown systems (ordered by preference)
-        candidates = [
-            # 1. Development directories
-            os.path.join(home, "Projects"),       # Most universal
-            # 2. Standard directories
-            os.path.join(home, "Documents"),      # Standard fallback
-            # 3. Home directory
-            home                                  # Ultimate fallback
-        ]
-    
-    # Return the first existing directory
-    for candidate in candidates:
-        try:
-            if os.path.exists(candidate) and os.path.isdir(candidate):
-                return os.path.abspath(candidate)
-        except (OSError, PermissionError):
-            continue
-    
-    # Ultimate fallback
+    """Get a simple default starting directory: home if exists else current working directory"""
+    try:
+        home = os.path.expanduser("~")
+        if home and os.path.isdir(home):
+            return os.path.abspath(home)
+    except Exception:
+        pass
     return os.getcwd()
 
 def get_path_or_platform_default(path):
@@ -594,6 +533,15 @@ async def get_system_info():
             "system": f"Unknown system (error: {str(error)})",
             "shell": "Unknown shell"
         }
+
+@register_function("getOSAwareDefaultPath")
+async def get_os_aware_default_path():
+    """Return default path for the current OS: home directory if exists, else cwd"""
+    path = get_platform_default_directory()
+    # Ensure path ends with separator to indicate we're in that directory
+    if not path.endswith(os.sep):
+        path += os.sep
+    return {"path": path}
 
 @register_function("execute_shell_command")
 async def execute_shell_command(command: str, timeout: int = 120, root_path: str = "", client_instance=None):
