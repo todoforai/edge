@@ -39,7 +39,7 @@ export const useApiVersionEffect = () => {
 
 // Hook to initialize with cached authentication
 export const useCachedLoginEffect = () => {
-  const { initializeWithCachedAuth, apiUrl } = useAuthStore();
+  const { initializeWithCachedAuth, apiUrl, loginWithApiKey } = useAuthStore();
 
   useEffect(() => {
     const loadCachedUser = async () => {
@@ -47,6 +47,15 @@ export const useCachedLoginEffect = () => {
 
       if (loadedUser?.apiUrl) {
         initializeWithCachedAuth(loadedUser);
+        return;
+      }
+
+      // Fallback: consume deeplink API key once, then remove it
+      const deeplinkKey = localStorage.getItem('deeplink_api_key');
+      if (deeplinkKey) {
+        const targetApiUrl = apiUrl || (await getApiBase());
+        await loginWithApiKey(deeplinkKey, targetApiUrl);
+        localStorage.removeItem('deeplink_api_key');
       }
     };
 
@@ -61,6 +70,8 @@ export const useAuthEventListenersEffect = () => {
   const { setUser, setError, apiUrl } = useAuthStore();
 
   useEffect(() => {
+    // Set
+
     // Set up auth success listener
     const successUnsubscribe = pythonService.addEventListener('auth_success', async (data) => {
       const payload = data.payload;

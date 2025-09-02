@@ -3,12 +3,11 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './styles/globals.css'
 import { listen } from '@tauri-apps/api/event';
-import pythonService from './services/python-service';
-import { getApiBase } from './config/api-config';
 
 listen<string>('deep-link://url', (e) => {
   const url = e.payload;
   try {
+    console.log('Received deep link URL!!!!!!!!!!!!!!!!!!!!!:', url);
     const u = new URL(url);
     // Expect: todoforai://auth/apikey/<KEY>
     const host = u.host || u.hostname;
@@ -23,16 +22,10 @@ listen<string>('deep-link://url', (e) => {
       if (key) {
         const apiKey = decodeURIComponent(key);
         console.log('Received API key via deep link:', key);
-        // Trigger login via Python sidecar (not through the store)
-        (async () => {
-          try {
-            const apiUrl = await getApiBase();
-            await pythonService.initialize();
-            await pythonService.login({ apiKey, apiUrl });
-          } catch (err) {
-            console.error('Deep link API key login failed:', err);
-          }
-        })();
+        // Defer to normal login flow: stash and return
+        localStorage.setItem('deeplink_api_key', apiKey);
+        // Optionally navigate UI or emit a custom event here if needed
+        return;
       }
     }
   } catch (err) {
