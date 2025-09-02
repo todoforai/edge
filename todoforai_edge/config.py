@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from .utils import normalize_api_url
 
 # Try to load .env file from current directory
 load_dotenv()
@@ -63,6 +64,24 @@ class Config:
         if hasattr(args, 'add_workspace_path') and args.add_workspace_path:
             import os
             self.add_workspace_path = os.path.abspath(os.path.expanduser(args.add_workspace_path))
+
+    def apply_overrides(self, overrides):
+        """Apply overrides from a dict (e.g., credentials) in a unified way"""
+        if not overrides:
+            return
+        if overrides.get("email"):
+            self.email = overrides["email"]
+        if overrides.get("password"):
+            self.password = overrides["password"]
+        if overrides.get("apiKey"):
+            self.api_key = overrides["apiKey"]
+        if overrides.get("apiUrl"):
+            self.api_url = normalize_api_url(overrides["apiUrl"])
+        if "debug" in overrides:
+            self.debug = bool(overrides["debug"])
+            self.log_level = "DEBUG" if self.debug else "INFO"
+        if overrides.get("add_workspace_path"):
+            self.add_workspace_path = os.path.abspath(os.path.expanduser(overrides["add_workspace_path"]))
             
 def default_config():
     """Factory function to create a new config instance"""

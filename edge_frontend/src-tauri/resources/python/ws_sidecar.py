@@ -175,28 +175,7 @@ def _has_same_credentials(config: Config) -> bool:
 def _create_config_from_credentials(credentials):
     """Create config object from credentials"""
     config = default_config()
-    
-    # Only override with non-empty values from credentials
-    if credentials.get("email"):
-        config.email = credentials["email"]
-    if credentials.get("password"):
-        config.password = credentials["password"]
-    if credentials.get("apiKey"):
-        config.api_key = credentials["apiKey"]
-        
-    # Use API URL from credentials or keep env default; fall back to sidecar.default_api_url if set
-    if credentials.get("apiUrl"):
-        config.api_url = credentials["apiUrl"]
-    elif sidecar.default_api_url:
-        config.api_url = sidecar.default_api_url
-        
-    # Normalize URL format
-    if config.api_url:
-        config.api_url = normalize_api_url(config.api_url)
-        
-    # Only override debug if explicitly provided
-    if "debug" in credentials:
-        config.debug = bool(credentials["debug"])
+    config.apply_overrides(credentials)
     return config
 
 def _start_new_edge(config):
