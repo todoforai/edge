@@ -3,7 +3,8 @@ import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './styles/globals.css'
 import { listen } from '@tauri-apps/api/event';
-import { useAuthStore } from './store/authStore';
+import pythonService from './services/python-service';
+import { getApiBase } from './config/api-config';
 
 listen<string>('deep-link://url', (e) => {
   const url = e.payload;
@@ -22,10 +23,16 @@ listen<string>('deep-link://url', (e) => {
       if (key) {
         const apiKey = decodeURIComponent(key);
         console.log('Received API key via deep link:', key);
-        // Trigger login with API key
-        useAuthStore.getState().loginWithApiKey(apiKey).catch((err) => {
-          console.error('Deep link API key login failed:', err);
-        });
+        // Trigger login via Python sidecar (not through the store)
+        (async () => {
+          try {
+            const apiUrl = await getApiBase();
+            await pythonService.initialize();
+            await pythonService.login({ apiKey, apiUrl });
+          } catch (err) {
+            console.error('Deep link API key login failed:', err);
+          }
+        })();
       }
     }
   } catch (err) {
