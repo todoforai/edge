@@ -75,7 +75,6 @@ export const restoreUserFromStorage = async (apiUrl: string | null): Promise<Use
           log.info(`User session restored from storage for API URL: ${apiUrl}`);
           return {
             ...userData,
-            isAuthenticated: true,
           };
         } else {
           // Session expired

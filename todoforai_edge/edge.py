@@ -61,20 +61,20 @@ def invoke_callback(callback: CallbackType, arg: Any) -> None:
         cast(Callable[[Any], None], callback)(arg)
 
 class TODOforAIEdge:
-    def __init__(self, edge_config):
-        if edge_config is None:
+    def __init__(self, config):
+        if config is None:
             raise ValueError("Config object must be provided to TODOforAIEdge")
             
         # Store the config object
-        self.api_url = normalize_api_url(edge_config.api_url)
-        self.api_key = edge_config.api_key
-        self.email = edge_config.email
-        self.password = edge_config.password
+        self.api_url = normalize_api_url(config.api_url)
+        self.api_key = config.api_key
+        self.email = config.email
+        self.password = config.password
         # Add debug attribute for convenience
-        self.debug = edge_config.debug
+        self.debug = config.debug
         
         # Store only the add_workspace_path if provided
-        self.add_workspace_path = getattr(edge_config, 'add_workspace_path', None)
+        self.add_workspace_path = getattr(config, 'add_workspace_path', None)
         
         self.ws = None
         self.ws_url = get_ws_url(self.api_url)
@@ -176,6 +176,7 @@ class TODOforAIEdge:
             if result.get("valid"):
                 return True
             logger.warning(f"API key invalid: {result.get('error')}")
+            self.api_key = None
         
         # Fallback to email/password authentication
         if not self.email or not self.password:
@@ -279,8 +280,8 @@ class TODOforAIEdge:
             if self.edge_id:
                 self.edge_config.config.update_value({"id": self.edge_id}, source="server_connection")
             
-            # Load MCP if exists (only once on initial connection)
-            await self._load_mcp_if_exists()
+            # Load MCP if exists (run in background, don't block)
+            asyncio.create_task(self._load_mcp_if_exists())
             
         elif msg_type == S2E.EDGE_CONFIG_UPDATE:  # Handle EDGE_CONFIG_UPDATE
             asyncio.create_task(self._handle_edge_config_update(payload))
