@@ -9,5 +9,3 @@ from .constants.constants import (
     SR, FE, EA, AE, EF
 )
 from .config import Config
-
-__version__ = "0.10.73"  # Changed from "0.1.0" to match pyproject.toml
