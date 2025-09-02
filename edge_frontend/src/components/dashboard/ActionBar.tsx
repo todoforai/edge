@@ -222,6 +222,7 @@ const ViewPicker = styled.div`
 const ViewButton = styled.button<{ $active?: boolean }>`
   background: ${props => props.$active ? props.theme.colors.primary : 'transparent'};
   border: none;
+  border-radius: ${props => props.theme.radius.sm};
   padding: 0;
   cursor: pointer;
   display: flex;
