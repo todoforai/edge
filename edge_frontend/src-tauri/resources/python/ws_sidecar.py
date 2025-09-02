@@ -110,12 +110,6 @@ def ping(message):
     """Simple ping function that returns a pong with the message"""
     return {"response": f"pong: {message}"}
 
-@sidecar.rpc
-def validate_stored_credentials(credentials):
-    """Validate stored credentials with the server"""
-    # This function is deprecated - validation should happen during normal auth flow
-    return {"valid": True, "message": "Validation will happen during authentication"}
-
 async def _send_initial_state_events():
     """Send all initial state events for reconnected edges"""
     if not sidecar.todo_edge:
@@ -128,7 +122,8 @@ async def _send_initial_state_events():
 def login(credentials):
     """Login with email and password or API key"""
     try:
-        config = _create_config_from_credentials(credentials)
+        config = default_config()
+        config.apply_overrides(credentials)
         log.info(f"Using API URL: {config.api_url}")
         
         with sidecar.edge_lock:
@@ -154,12 +149,6 @@ def login(credentials):
         asyncio.create_task(_broadcast_auth_error(error_msg))
         return {"status": "error", "message": error_msg}
 
-
-def _create_config_from_credentials(credentials):
-    """Create config object from credentials"""
-    config = default_config()
-    config.apply_overrides(credentials)
-    return config
 
 def _start_new_edge(config):
     """Start a new edge with the given config"""
@@ -267,37 +256,33 @@ async def _run_edge():
 async def register_all_hooks():
     """Register all hooks automatically"""
     _setup_edge_hooks()
+    # Register file sync hooks
     try:
-        # Register file sync hooks
-        try:
-            await register_file_sync_hooks_internal()
-            log.info("Frontend file sync hooks registered")
-        except Exception as e:
-            log.warning(f"Failed to register file sync hooks: {e}")
-
-        # Register active workspaces hooks
-        try:
-            await register_active_workspaces_hooks_internal()
-            log.info("Frontend active workspaces hooks registered")
-        except Exception as e:
-            log.warning(f"Failed to register active workspaces hooks: {e}")
-
-        # Register edge config hooks
-        try:
-            await register_edge_config_hooks_internal()
-            log.info("Frontend edge config hooks registered")
-        except Exception as e:
-            log.warning(f"Failed to register edge config hooks: {e}")
-
-        # Register MCP tool call hooks
-        try:
-            await register_mcp_hooks_internal()
-            log.info("Frontend MCP tool call hooks registered")
-        except Exception as e:
-            log.warning(f"Failed to register MCP hooks: {e}")
-            
+        await register_file_sync_hooks_internal()
+        log.info("Frontend file sync hooks registered")
     except Exception as e:
-        log.error(f"Error registering hooks: {e}")
+        log.warning(f"Failed to register file sync hooks: {e}")
+
+    # Register active workspaces hooks
+    try:
+        await register_active_workspaces_hooks_internal()
+        log.info("Frontend active workspaces hooks registered")
+    except Exception as e:
+        log.warning(f"Failed to register active workspaces hooks: {e}")
+
+    # Register edge config hooks
+    try:
+        await register_edge_config_hooks_internal()
+        log.info("Frontend edge config hooks registered")
+    except Exception as e:
+        log.warning(f"Failed to register edge config hooks: {e}")
+
+    # Register MCP tool call hooks
+    try:
+        await register_mcp_hooks_internal()
+        log.info("Frontend MCP tool call hooks registered")
+    except Exception as e:
+        log.warning(f"Failed to register MCP hooks: {e}")
 
 async def register_file_sync_hooks_internal():
     """Internal function to register file sync hooks"""

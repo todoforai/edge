@@ -44,7 +44,7 @@ async def run_app(api_key=None):
     
     # Create a edge
     print(f"{Colors.CYAN}🚀 Starting TODOforAI Edge CLI v{get_cli_version()}...{Colors.END}")
-    todo_edge = TODOforAIEdge(config=config)
+    todo_edge = TODOforAIEdge(config)
     
     # Ensure we have a valid API key (validate existing or authenticate)
     if not await todo_edge.ensure_api_key():
