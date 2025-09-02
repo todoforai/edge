@@ -82,7 +82,25 @@ class Config:
             self.log_level = "DEBUG" if self.debug else "INFO"
         if overrides.get("add_workspace_path"):
             self.add_workspace_path = os.path.abspath(os.path.expanduser(overrides["add_workspace_path"]))
+    
+    def has_same_credentials(self, credentials) -> bool:
+        """Check if this config has the same credentials as another config or edge"""
+        if not credentials:
+            return False
             
+        # Check if API key matches
+        if self.api_key and credentials.api_key and self.api_key == credentials.api_key:
+            return True
+            
+        # Or check if email/password match
+        if ((self.email    and credentials.email    and self.email == credentials.email) and 
+            (self.password and credentials.password and self.password == credentials.password)):
+            return True
+            
+        return False
+
+
 def default_config():
     """Factory function to create a new config instance"""
     return Config()
+

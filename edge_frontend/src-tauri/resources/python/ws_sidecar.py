@@ -134,7 +134,7 @@ def login(credentials):
         with sidecar.edge_lock:
             # Check if we're already connected with the same credentials
             if sidecar.todo_edge and sidecar.todo_edge.connected:
-                if _has_same_credentials(config):
+                if if config.has_same_credentials(sidecar.todo_edge)::
                     log.info("Already connected with the same credentials, sending auth_success")
                     asyncio.create_task(_broadcast_auth_success())
                     asyncio.create_task(_send_initial_state_events())
@@ -154,23 +154,6 @@ def login(credentials):
         asyncio.create_task(_broadcast_auth_error(error_msg))
         return {"status": "error", "message": error_msg}
 
-def _has_same_credentials(config: Config) -> bool:
-    """Check if the new config has the same credentials as the current edge"""
-    if not sidecar.todo_edge:
-        return False
-        
-    # Check if API key matches
-    if config.api_key and sidecar.todo_edge.api_key and config.api_key == sidecar.todo_edge.api_key:
-        return True
-        
-    # Or check if email/password match
-    if (config.email and config.password and 
-        sidecar.todo_edge.email and sidecar.todo_edge.password and
-        config.email == sidecar.todo_edge.email and 
-        config.password == sidecar.todo_edge.password):
-        return True
-        
-    return False
 
 def _create_config_from_credentials(credentials):
     """Create config object from credentials"""
