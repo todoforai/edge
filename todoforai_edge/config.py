@@ -67,30 +67,23 @@ class Config:
 
     def apply_overrides(self, overrides):
         """Apply overrides from a dict (e.g., credentials) in a unified way"""
-        if not overrides:
-            return
-        if overrides.get("email"):
-            self.email = overrides["email"]
-        if overrides.get("password"):
-            self.password = overrides["password"]
-        if overrides.get("apiKey"):
-            self.api_key = overrides["apiKey"]
-        if overrides.get("apiUrl"):
-            self.api_url = normalize_api_url(overrides["apiUrl"])
+        if not overrides: return
+        
+        self.email = overrides.get("email") or self.email
+        self.password = overrides.get("password") or self.password
+        self.api_key = overrides.get("apiKey") or self.api_key
+        self.api_url = normalize_api_url(overrides.get("apiUrl") or self.api_url)
         if "debug" in overrides:
             self.debug = bool(overrides["debug"])
             self.log_level = "DEBUG" if self.debug else "INFO"
-        if overrides.get("add_workspace_path"):
-            self.add_workspace_path = os.path.abspath(os.path.expanduser(overrides["add_workspace_path"]))
+        self.add_workspace_path = os.path.abspath(os.path.expanduser(overrides.get("add_workspace_path") or self.add_workspace_path))
     
     def has_same_credentials(self, credentials) -> bool:
         """Check if this config has the same credentials as another config or edge"""
-        if not credentials:
-            return False
+        if not credentials: return False
             
         # Check if API key matches
-        if self.api_key and credentials.api_key and self.api_key == credentials.api_key:
-            return True
+        if self.api_key and credentials.api_key and self.api_key == credentials.api_key: return True
             
         # Or check if email/password match
         if ((self.email    and credentials.email    and self.email == credentials.email) and 
