@@ -33,6 +33,7 @@ class Config:
         self.api_url  = get_env_var("API_URL") or DEFAULT_API_URL
         self.debug    = get_env_var("DEBUG").lower() in ("true", "1", "yes")
         self.log_level = "INFO"
+        self.add_workspace_path = None
         
         # Authentication settings
         self.email    = get_env_var("EMAIL")
@@ -72,11 +73,12 @@ class Config:
         self.email = overrides.get("email") or self.email
         self.password = overrides.get("password") or self.password
         self.api_key = overrides.get("apiKey") or self.api_key
-        self.api_url = normalize_api_url(overrides.get("apiUrl") or self.api_url)
+        self.api_url = normalize_api_url(overrides.get("apiUrl")) or self.api_url
         if "debug" in overrides:
             self.debug = bool(overrides["debug"])
             self.log_level = "DEBUG" if self.debug else "INFO"
-        self.add_workspace_path = os.path.abspath(os.path.expanduser(overrides.get("add_workspace_path") or self.add_workspace_path))
+        if "add_workspace_path" in overrides:
+            self.add_workspace_path = os.path.abspath(os.path.expanduser(overrides["add_workspace_path"]))
     
     def has_same_credentials(self, credentials) -> bool:
         """Check if this config has the same credentials as another config or edge"""

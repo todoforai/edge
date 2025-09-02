@@ -74,7 +74,7 @@ class TODOforAIEdge:
         self.debug = config.debug
         
         # Store only the add_workspace_path if provided
-        self.add_workspace_path = getattr(config, 'add_workspace_path', None)
+        self.add_workspace_path = config.add_workspace_path
         
         self.ws = None
         self.ws_url = get_ws_url(self.api_url)
