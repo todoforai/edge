@@ -50,6 +50,12 @@
       ],
       "linux": {
         "register": true
+      },
+      "windows": {
+        "register": true
+      },
+      "macOS": {
+        "register": true
       }
     }
   }
