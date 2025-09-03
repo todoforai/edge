@@ -28,9 +28,6 @@ jobs:
           - os: ubuntu-latest
             target_triple: x86_64-unknown-linux-gnu
             container: ubuntu:20.04
-          - os: ubuntu-latest
-            target_triple: x86_64-unknown-linux-musl
-            container: ubuntu:20.04
 
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
@@ -114,53 +111,17 @@ jobs:
     - name: Install Tauri dependencies (Ubuntu)
       if: contains(matrix.target_triple, 'linux')
       run: |
-        if [ "${{ matrix.container }}" ]; then
-          # Container environment - use apt-get directly
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y libwebkit2gtk-4.0-dev \
-            build-essential \
-            curl \
-            wget \
-            libssl-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            pkg-config
-          # Install musl tools and cross-compilation dependencies
-          if [[ "${{ matrix.target_triple }}" == *musl* ]]; then
-            DEBIAN_FRONTEND=noninteractive apt-get install -y musl-tools musl-dev
-            # Set up pkg-config for musl cross-compilation
-            export PKG_CONFIG_ALLOW_CROSS=1
-            export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-musl/pkgconfig:/usr/share/pkgconfig"
-            export PKG_CONFIG_SYSROOT_DIR="/"
-            echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-            echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-musl/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
-            echo "PKG_CONFIG_SYSROOT_DIR=/" >> $GITHUB_ENV
-          fi
-        else
-          # Regular Ubuntu runner - use sudo
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev \
-            build-essential \
-            curl \
-            wget \
-            libssl-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            pkg-config
-          # Install musl tools for static linking
-          if [[ "${{ matrix.target_triple }}" == *musl* ]]; then
-            sudo apt-get install -y musl-tools musl-dev
-            # Set up pkg-config for musl cross-compilation
-            export PKG_CONFIG_ALLOW_CROSS=1
-            export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-musl/pkgconfig:/usr/share/pkgconfig"
-            export PKG_CONFIG_SYSROOT_DIR="/"
-            echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-            echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-musl/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
-            echo "PKG_CONFIG_SYSROOT_DIR=/" >> $GITHUB_ENV
-          fi
-        fi
+        # Container environment - use apt-get directly
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y libwebkit2gtk-4.0-dev \
+          build-essential \
+          curl \
+          wget \
+          libssl-dev \
+          libgtk-3-dev \
+          libayatana-appindicator3-dev \
+          librsvg2-dev \
+          pkg-config
       shell: bash
 
     - name: Build sidecar executable
@@ -334,12 +295,7 @@ jobs:
 
     # Build the Tauri application
     - name: Build Tauri application
-      run: |
-        if [[ "${{ matrix.target_triple }}" == *musl* ]]; then
-          cd edge_frontend && npm run tauri build -- --target ${{ matrix.target_triple }}
-        else
-          make tauri-build
-        fi
+      run: make tauri-build
       env:
         TAURI_SKIP_UPDATE_CHECK: 1
         APPLE_SIGNING_IDENTITY: ${{ steps.dev-id.outputs.CERT_NAME }}
