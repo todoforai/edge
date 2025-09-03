@@ -424,8 +424,8 @@ pub fn run() {
             
             // Just log deep link detection for debugging
             for arg in &args {
-                if arg.starts_with("todoforai-edge://auth/apikey/") {
-                    if let Some(api_key) = arg.strip_prefix("todoforai-edge://auth/apikey/") {
+                if arg.starts_with("todoforaiedge://auth/apikey/") {
+                    if let Some(api_key) = arg.strip_prefix("todoforaiedge://auth/apikey/") {
                         info!("🔑 API KEY DETECTED: {}", api_key);
                     }
                 }

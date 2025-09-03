@@ -36,6 +36,8 @@ interface AuthState {
   error: string | null;
   isLoading: boolean;
   apiUrl: string | null;
+  shouldAutoLogin: boolean;
+  deeplinkApiKey: string | null; // Add deeplink API key
 
   // Actions
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -50,6 +52,9 @@ interface AuthState {
   setUser: (user: User) => void;
   setError: (error: string | null) => void;
   getCurrentUser: () => User;
+  setShouldAutoLogin: (shouldAutoLogin: boolean) => void;
+  setDeeplinkApiKey: (apiKey: string) => void; // Add setter
+  clearDeeplinkApiKey: () => void; // Add clearer
 }
 
 // Utility function to restore user from storage
@@ -100,6 +105,8 @@ export const useAuthStore = create<AuthState>()((set, get) => {
     error: null,
     isLoading: false,
     apiUrl: null,
+    shouldAutoLogin: false,
+    deeplinkApiKey: null, // Initialize deeplink API key
 
     login: async (credentials) => {
       if (isAuthenticating) {
@@ -216,6 +223,18 @@ export const useAuthStore = create<AuthState>()((set, get) => {
 
     setUser: (user: User) => {
       set({ user });
+    },
+
+    setShouldAutoLogin: (shouldAutoLogin: boolean) => {
+      set({ shouldAutoLogin });
+    },
+
+    setDeeplinkApiKey: (apiKey: string) => {
+      set({ deeplinkApiKey: apiKey });
+    },
+
+    clearDeeplinkApiKey: () => {
+      set({ deeplinkApiKey: null });
     },
 
     setError: (error: string | null) => {
