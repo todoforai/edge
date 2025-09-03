@@ -38,7 +38,7 @@ export const useApiVersionEffect = () => {
 };
 
 // Hook to initialize with cached authentication
-export const useCachedLoginEffect = () => {
+export const useCachedLoginEffect = () => { // TODO w why we don't use this function!!! @tamashavlik!!
   const { initializeWithCachedAuth, apiUrl } = useAuthStore();
 
   useEffect(() => {
