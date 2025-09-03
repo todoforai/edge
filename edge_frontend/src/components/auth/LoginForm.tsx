@@ -10,178 +10,6 @@ import { createLogger } from '../../utils/logger';
 
 const log = createLogger('login-form');
 
-export const LoginForm = () => {
-  const { login, isLoading, error, clearError, loginWithApiKey } = useAuthStore();
-  const [loginMethod, setLoginMethod] = useState<'credentials' | 'apiKey'>('credentials');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [clickCount, setClickCount] = useState(0);
-  const [isApiUrlEditable, setIsApiUrlEditable] = useState(false);
-  const [eventListenersReady, setEventListenersReady] = useState(false);
-
-  // Use custom hooks
-  useDevAuthEffect(setEmail, setPassword);
-  const { apiUrl, setApiUrl, appVersion } = useApiVersionEffect();
-  useAuthEventListenersEffect();
-
-  // Mark event listeners as ready after a short delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setEventListenersReady(true);
-    }, 50);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Handle deeplink login after event listeners are ready
-  useEffect(() => {
-    const handleDeeplinkLogin = async () => {
-      if (!eventListenersReady || !apiUrl) return;
-
-      const deeplinkKey = localStorage.getItem('deeplink_api_key');
-      if (deeplinkKey) {
-        log.info('Processing deeplink API key login');
-        try {
-          await loginWithApiKey(deeplinkKey, apiUrl);
-          localStorage.removeItem('deeplink_api_key');
-        } catch (error) {
-          log.error('Deeplink login failed:', error);
-        }
-      }
-    };
-
-    handleDeeplinkLogin();
-  }, [eventListenersReady, apiUrl, loginWithApiKey]);
-
-  // ... existing code ...
-
-  const handleApiUrlClick = useCallback(() => {
-    const newCount = clickCount + 1;
-    setClickCount(newCount);
-    
-    if (newCount >= 7) {
-      setIsApiUrlEditable(true);
-      setClickCount(0);
-    }
-  }, [clickCount]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    clearError();
-
-    if (loginMethod === 'credentials') {
-      // Send only email/password credentials, explicitly clear apiKey
-      login({ 
-        email, 
-        password, 
-        apiKey: '', // Explicitly clear apiKey
-        apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined 
-      });
-    } else {
-      // Send only apiKey credentials, explicitly clear email/password
-      login({ 
-        apiKey, 
-        email: '', // Explicitly clear email
-        password: '', // Explicitly clear password
-        apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined 
-      });
-    }
-  };
-
-  return (
-    <LoginContainer>
-      <LoginCard>
-        <LoginHeader>Connect your PC to TODOforAI</LoginHeader>
-
-        <TabContainer>
-          <TabButton $active={loginMethod === 'credentials'} onClick={() => setLoginMethod('credentials')} type="button">
-            Email & Password
-          </TabButton>
-          <TabButton $active={loginMethod === 'apiKey'} onClick={() => setLoginMethod('apiKey')} type="button">
-            API Key
-          </TabButton>
-        </TabContainer>
-
-        <LoginFormRoot onSubmit={handleSubmit}>
-          {loginMethod === 'credentials' ? (
-            <>
-              <FormGroup>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  required
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label htmlFor="password">Password</Label>
-                <PasswordContainer>
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    required
-                  />
-                  <ToggleButton type="button" onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? 'Hide' : 'Show'}
-                  </ToggleButton>
-                </PasswordContainer>
-              </FormGroup>
-            </>
-          ) : (
-            <FormGroup>
-              <Label htmlFor="apiKey">API Key</Label>
-              <Input
-                id="apiKey"
-                type="text"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your API key"
-                required
-              />
-            </FormGroup>
-          )}
-
-          {error && <ErrorMessage>{error}</ErrorMessage>}
-
-          <LoginButton type="submit" disabled={isLoading}>
-            {isLoading ? 'Logging in...' : 'Login'}
-          </LoginButton>
-        </LoginFormRoot>
-
-        <LoginFooter>
-          <ApiUrlContainer>
-            {isApiUrlEditable ? (
-              <ApiUrlInput 
-                type="text" 
-                value={apiUrl || ''} 
-                onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="API URL"
-              />
-            ) : (
-              // Only show API URL if it's not the default TODOforAI URL
-              apiUrl && !apiUrl.includes('todofor.ai') && (
-                <ApiUrlText onClick={handleApiUrlClick}>
-                  API: {apiUrl}
-                </ApiUrlText>
-              )
-            )}
-            {appVersion && <VersionText>Version: {appVersion}</VersionText>}
-          </ApiUrlContainer>
-        </LoginFooter>
-      </LoginCard>
-    </LoginContainer>
-  );
-};
-
-// Styled Components
 const LoginContainer = styled.div`
   display: flex;
   justify-content: center;
@@ -350,3 +178,177 @@ const VersionText = styled.div`
   color: ${(props) => props.theme.colors.muted};
   margin-top: 5px;
 `;
+
+
+type LoginMethod = 'email' | 'apiKey';
+
+export const LoginForm = () => {
+  const { 
+    login, 
+    isLoading, 
+    error, 
+    clearError, 
+    shouldAutoLogin, 
+    setShouldAutoLogin,
+    deeplinkApiKey,
+    clearDeeplinkApiKey
+  } = useAuthStore();
+  
+  // Determine initial login method based on deeplink API key
+  const [apiKey, setApiKey] = useState(deeplinkApiKey || '');
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>(deeplinkApiKey ? 'apiKey' : 'email');
+  
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+  const [isApiUrlEditable, setIsApiUrlEditable] = useState(false);
+
+  // Use custom hooks
+  useDevAuthEffect(setEmail, setPassword);
+  const { apiUrl, setApiUrl, appVersion } = useApiVersionEffect();
+  useAuthEventListenersEffect();
+
+  // Auto-login effect - triggers from store state
+  useEffect(() => {
+    if (shouldAutoLogin && apiKey && !isLoading) {
+      log.info('Auto-login triggered with API key:', apiKey.substring(0, 8) + '...');
+      setShouldAutoLogin(false); // Prevent multiple auto-login attempts
+      
+      // Small delay to let UI update
+      setTimeout(() => {
+        handleSubmit(null, true); // Pass true to indicate auto-login
+      }, 500);
+    }
+  }, [shouldAutoLogin, apiKey, isLoading, setShouldAutoLogin]);
+
+  const handleSubmit = (e: React.FormEvent | null, isAuto = false) => {
+    if (e) e.preventDefault();
+    clearError();
+
+    // Clear deeplink API key when login starts
+    if (deeplinkApiKey && (isAuto || apiKey === deeplinkApiKey)) {
+      log.info('Clearing deeplink API key as login starts');
+      clearDeeplinkApiKey();
+    }
+
+    if (loginMethod === 'email') {
+      // Send only email/password credentials, explicitly clear apiKey
+      login({ 
+        email, 
+        password, 
+        apiKey: '', // Explicitly clear apiKey
+        apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined 
+      });
+    } else {
+      // Send only apiKey credentials, explicitly clear email/password
+      login({ 
+        apiKey, 
+        email: '', // Explicitly clear email
+        password: '', // Explicitly clear password
+        apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined 
+      });
+    }
+  };
+
+  const handleApiUrlClick = useCallback(() => {
+    const newCount = clickCount + 1;
+    setClickCount(newCount);
+    
+    if (newCount >= 7) {
+      setIsApiUrlEditable(true);
+      setClickCount(0);
+    }
+  }, [clickCount]);
+
+  return (
+    <LoginContainer>
+      <LoginCard>
+        <LoginHeader>Connect your PC to TODOforAI</LoginHeader>
+
+        <TabContainer>
+          <TabButton $active={loginMethod === 'email'} onClick={() => setLoginMethod('email')} type="button">
+            Email & Password
+          </TabButton>
+          <TabButton $active={loginMethod === 'apiKey'} onClick={() => setLoginMethod('apiKey')} type="button">
+            API Key
+          </TabButton>
+        </TabContainer>
+
+        <LoginFormRoot onSubmit={handleSubmit}>
+          {loginMethod === 'email' ? (
+            <>
+              <FormGroup>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label htmlFor="password">Password</Label>
+                <PasswordContainer>
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                  />
+                  <ToggleButton type="button" onClick={() => setShowPassword(!showPassword)}>
+                    {showPassword ? 'Hide' : 'Show'}
+                  </ToggleButton>
+                </PasswordContainer>
+              </FormGroup>
+            </>
+          ) : (
+            <FormGroup>
+              <Label htmlFor="apiKey">API Key</Label>
+              <Input
+                id="apiKey"
+                type="text"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="Enter your API key"
+                required
+              />
+            </FormGroup>
+          )}
+
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+
+          <LoginButton type="submit" disabled={isLoading}>
+            {isLoading ? 'Logging in...' : 'Login'}
+          </LoginButton>
+        </LoginFormRoot>
+
+        <LoginFooter>
+          <ApiUrlContainer>
+            {isApiUrlEditable ? (
+              <ApiUrlInput 
+                type="text" 
+                value={apiUrl || ''} 
+                onChange={(e) => setApiUrl(e.target.value)}
+                placeholder="API URL"
+              />
+            ) : (
+              // Only show API URL if it's not the default TODOforAI URL
+              apiUrl && !apiUrl.includes('todofor.ai') && (
+                <ApiUrlText onClick={handleApiUrlClick}>
+                  API: {apiUrl}
+                </ApiUrlText>
+              )
+            )}
+            {appVersion && <VersionText>Version: {appVersion}</VersionText>}
+          </ApiUrlContainer>
+        </LoginFooter>
+      </LoginCard>
+    </LoginContainer>
+  );
+};
