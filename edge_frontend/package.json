@@ -1,7 +1,7 @@
 {
   "name": "todoforai-edge",
   "private": true,
-  "version": "0.11.35",
+  "version": "0.11.36",
   "type": "module",
   "scripts": {
     "dev": "vite",
