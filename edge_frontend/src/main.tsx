@@ -13,7 +13,7 @@ const processDeepLinks = async () => {
     const args = await desktopApi.getCliArgs();
     logger.info('CLI args received by app:', args);
     
-    const deepLinkArgs = args?.filter(arg => arg.startsWith('todoforai://')) || [];
+    const deepLinkArgs = args?.filter(arg => arg.startsWith('todoforai-edge://')) || [];
     
     for (const url of deepLinkArgs) {
       try {
