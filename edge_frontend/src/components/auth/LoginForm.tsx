@@ -1,15 +1,17 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { useAuthStore } from '../../store/authStore';
 import { 
   useDevAuthEffect, 
   useApiVersionEffect, 
-  useCachedLoginEffect,
   useAuthEventListenersEffect
 } from '../../hooks/auth-hooks';
+import { createLogger } from '../../utils/logger';
+
+const log = createLogger('login-form');
 
 export const LoginForm = () => {
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { login, isLoading, error, clearError, loginWithApiKey } = useAuthStore();
   const [loginMethod, setLoginMethod] = useState<'credentials' | 'apiKey'>('credentials');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,12 +19,42 @@ export const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [clickCount, setClickCount] = useState(0);
   const [isApiUrlEditable, setIsApiUrlEditable] = useState(false);
+  const [eventListenersReady, setEventListenersReady] = useState(false);
 
   // Use custom hooks
   useDevAuthEffect(setEmail, setPassword);
   const { apiUrl, setApiUrl, appVersion } = useApiVersionEffect();
-  useCachedLoginEffect();
   useAuthEventListenersEffect();
+
+  // Mark event listeners as ready after a short delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setEventListenersReady(true);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Handle deeplink login after event listeners are ready
+  useEffect(() => {
+    const handleDeeplinkLogin = async () => {
+      if (!eventListenersReady || !apiUrl) return;
+
+      const deeplinkKey = localStorage.getItem('deeplink_api_key');
+      if (deeplinkKey) {
+        log.info('Processing deeplink API key login');
+        try {
+          await loginWithApiKey(deeplinkKey, apiUrl);
+          localStorage.removeItem('deeplink_api_key');
+        } catch (error) {
+          log.error('Deeplink login failed:', error);
+        }
+      }
+    };
+
+    handleDeeplinkLogin();
+  }, [eventListenersReady, apiUrl, loginWithApiKey]);
+
+  // ... existing code ...
 
   const handleApiUrlClick = useCallback(() => {
     const newCount = clickCount + 1;
@@ -171,7 +203,6 @@ const TabContainer = styled.div`
   border-bottom: 1px solid ${(props) => props.theme.colors.borderColor};
 `;
 
-// Alternative approach - change the styled component definition
 const TabButton = styled.button<{ $active: boolean }>`
   flex: 1;
   padding: 10px 0;
