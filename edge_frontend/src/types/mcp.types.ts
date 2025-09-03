@@ -10,8 +10,6 @@ export enum MCPRunningStatus {
   READY = 'READY',
 }
 
-// ... existing code ...
-
 export interface MCPToolSkeleton {
   name: string;
   description: string;
@@ -59,4 +57,4 @@ export interface InstalledMCP extends MCPJSON {
   status?: string; // Add status field
 }
 
-export type MCPEdgeExecutable = InstalledMCP & { installing?: boolean };
+export type MCPEdgeExecutable = InstalledMCP;
