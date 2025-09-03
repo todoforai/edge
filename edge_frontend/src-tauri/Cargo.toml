@@ -1,6 +1,6 @@
 [package]
 name = "todoforai-edge"
-version = "0.11.31"
+version = "0.11.32"
 description = "Desktop client for TODOforAI service enabling you to extend your AI agent's capabilities"
 authors = ["you"]
 edition = "2021"
@@ -34,3 +34,4 @@ tauri-plugin-shell = "2.3"
 tauri-plugin-deep-link = "2.4"
 tauri-plugin-opener = "2.3"
 tokio = { version = "1", features = ["time"] }
+url = "2.5"
