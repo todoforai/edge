@@ -201,6 +201,8 @@ const ServerStatus = styled.div<{ status: string }>`
         return '#ef4444';
       case 'INSTALLING':
         return '#3b82f6';
+      case 'STARTING':
+        return '#f59e0b';
       default:
         return 'var(--muted)';
     }
@@ -213,6 +215,8 @@ const ServerStatus = styled.div<{ status: string }>`
         return 'rgba(239, 68, 68, 0.1)';
       case 'INSTALLING':
         return 'rgba(59, 130, 246, 0.1)';
+      case 'STARTING':
+        return 'rgba(245, 158, 11, 0.1)';
       default:
         return 'rgba(0, 0, 0, 0.05)';
     }
@@ -308,12 +312,11 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
               <ServerName>{displayName}</ServerName>
               {showCategory && <ServerCategory>{displayCategory}</ServerCategory>}
               <ServerStatus status={status}>
-                {status === 'INSTALLING' && <Spinner />}
+                {(status === 'INSTALLING' || status === 'STARTING') && <Spinner />}
                 {status}
               </ServerStatus>
             </ServerNameAndCategory>
             <ServerId>{instance.serverId}</ServerId>
-            {/* removed separate status line */}
           </ServerInfo>
           <ServerActions>
             <ActionButtonsRow>

@@ -665,6 +665,9 @@ async def mcp_install_server(serverId: str, command: str, args: List[str] = None
     current_installed = dict(client_instance.edge_config.config.safe_get("installedMCPs", {}))
     prev_entry = current_installed.get(server_id, {})
     
+    # Determine if this is a new installation
+    is_new_installation = not prev_entry or not prev_entry.get("tools")
+    
     current_installed[server_id] = {
         **prev_entry,
         "serverId": server_id,
@@ -674,7 +677,7 @@ async def mcp_install_server(serverId: str, command: str, args: List[str] = None
         "env": {**(prev_entry.get("env", {})), **env},
         "tools": prev_entry.get("tools", []),
         "registryId": prev_entry.get("registryId", server_id),
-        "status": "INSTALLING",  # Start with INSTALLING, backend will update to READY/CRASHED
+        "status": "INSTALLING" if is_new_installation else "STARTING",
     }
 
     # Update both configs (triggers auto-reload via subscription)

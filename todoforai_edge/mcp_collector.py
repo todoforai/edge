@@ -56,8 +56,8 @@ class MCPCollector:
         # Process config and create client
         processed_servers = self._process_config(mcp_json)
         fastmcp_config = {"mcpServers": processed_servers}
-        client = Client(fastmcp_config)
-        self.unified_client = client
+        
+        self.unified_client = Client(fastmcp_config)
         
         # Get tools and return them
         tools = await self.list_tools()
@@ -70,6 +70,9 @@ class MCPCollector:
             
             # Rebuild mapping on reload
             self._build_registry_mapping(mcp_json)
+
+            # Optimistically set status to STARTING for all servers before loading
+            self._set_servers_status_optimistically(mcp_json, "STARTING")
 
             # Setup client and get tools
             tools = await self._setup_client_and_tools(mcp_json)
@@ -85,6 +88,34 @@ class MCPCollector:
             logger.error(f"Error reloading tools and saving config: {e}")
             self.setInstalledMCPs([])
     
+    def _set_servers_status_optimistically(self, mcp_json: Dict[str, Any], status: str) -> None:
+        """Optimistically set status for all servers in mcp_json"""
+        mcp_servers = mcp_json.get("mcpServers", {})
+        if not mcp_servers:
+            return
+            
+        current_installed = dict(self.edge_config.config.safe_get("installedMCPs", {}))
+        
+        for server_id in mcp_servers.keys():
+            prev_entry = current_installed.get(server_id, {})
+            # Determine if this is a new installation or restart
+            is_new_installation = not prev_entry or not prev_entry.get("tools")
+            actual_status = "INSTALLING" if is_new_installation else "STARTING"
+            
+            current_installed[server_id] = {
+                **prev_entry,
+                "serverId": server_id,
+                "id": prev_entry.get("id", server_id),
+                "registryId": self.server_id_to_registry_id.get(server_id, server_id),
+                "status": actual_status,
+                "tools": prev_entry.get("tools", []),
+                "env": prev_entry.get("env", {}),
+            }
+        
+        # Update config with optimistic status
+        self.edge_config.config.update_value({"installedMCPs": current_installed})
+        logger.info(f"Optimistically set {len(mcp_servers)} servers with appropriate status")
+
     async def _save_config_to_file(self, mcp_json: Dict[str, Any]) -> None:
         """Save the MCP JSON config back to the original file with backup"""
         try:
@@ -135,6 +166,9 @@ class MCPCollector:
             
             self.edge_config.set_mcp_json(raw_config)
 
+            # Optimistically set status based on whether servers are new or existing
+            self._set_servers_status_optimistically(raw_config, "STARTING")  # This will determine INSTALLING vs STARTING internally
+
             # Setup client and get tools
             tools = await self._setup_client_and_tools(raw_config)
             self.setInstalledMCPs(tools)
@@ -148,7 +182,7 @@ class MCPCollector:
             logger.error(f"Error loading MCP servers: {e}")
             self.edge_config.set_mcp_json({})
             return {}
-
+    
     def _build_registry_mapping(self, mcp_json: Dict[str, Any]) -> None:
         """Build serverId -> registryId mapping from mcp_json config"""
         self.server_id_to_registry_id = {}
@@ -268,7 +302,14 @@ class MCPCollector:
             # Tool exists, proceed with the call
             async with self.unified_client as client:
                 result = await client.call_tool(tool_name, arguments)
-                result_text = result.text if hasattr(result, 'text') else str(result)
+                
+                # Handle different result types
+                if hasattr(result, 'text'):
+                    result_text = result.text
+                elif hasattr(result, 'content'):
+                    result_text = str(result.content)
+                else:
+                    result_text = str(result)
                 
                 if _tool_call_callback:
                     _tool_call_callback({

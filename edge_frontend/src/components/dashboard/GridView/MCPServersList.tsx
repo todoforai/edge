@@ -10,7 +10,7 @@ import { useMCPRegistry } from '../../../hooks/useMCPRegistry';
 import type { MCPEdgeExecutable, MCPRegistry } from '../../../types';
 
 // Helper function to build/merge InstalledMCP entry optimistically
-const buildInstalledEntry = (serverId: string, mcpJson: any, prevInstalled: any) => {
+const buildInstalledEntry = (serverId: string, mcpJson: any, prevInstalled: any, isNewInstallation: boolean = false) => {
   const cfg = (mcpJson?.mcpServers || {})[serverId] || {};
   const prevEntry = (prevInstalled || {})[serverId] || {};
   return {
@@ -22,7 +22,7 @@ const buildInstalledEntry = (serverId: string, mcpJson: any, prevInstalled: any)
     env: { ...(prevEntry.env || {}), ...(cfg.env || {}) },
     tools: prevEntry.tools || [],
     registryId: prevEntry.registryId || serverId,
-    status: 'INSTALLING', // Start with INSTALLING, backend will update to READY/CRASHED
+    status: isNewInstallation ? 'INSTALLING' : 'STARTING', // Use INSTALLING for new, STARTING for existing
   };
 };
 
@@ -77,7 +77,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({
       const prevInstalled = config.installedMCPs || {};
       const installedMCPs = {
         ...prevInstalled,
-        [updatedInstance.serverId]: buildInstalledEntry(updatedInstance.serverId, updatedMcpJson, prevInstalled),
+        [updatedInstance.serverId]: buildInstalledEntry(updatedInstance.serverId, updatedMcpJson, prevInstalled, isNewInstallation),
       };
 
       await useEdgeConfigStore.getState().saveConfigToBackend({
