@@ -302,7 +302,7 @@ class ShellProcess:
             # If no output was sent, send success message
             if not self._output_buffer.get(block_id):
                 await client.send_response(shell_block_message_result_msg(
-                    todo_id, block_id, "Successful run", request_id
+                    todo_id, block_id, "Finished with no output", request_id
                 ))
             
             # Send completion message
