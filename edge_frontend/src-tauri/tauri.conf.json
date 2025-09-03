@@ -4,9 +4,9 @@
   "mainBinaryName": "todoforai-edge",
   "identifier": "com.todoforai.edge",
   "build": {
-    "beforeDevCommand": "yarn dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1440",
-    "beforeBuildCommand": "yarn build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
