@@ -51,9 +51,15 @@ jobs:
       if: matrix.container
       run: |
         set -eu
-        add-apt-repository ppa:deadsnakes/ppa -y
-        apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y python3.10 python3.10-venv python3.10-dev python3.10-distutils
+        # Try adding PPA with fallback
+        if ! add-apt-repository ppa:deadsnakes/ppa -y; then
+          echo "Failed to add deadsnakes PPA, trying with ubuntu-toolchain-r/ppa as fallback"
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y python3.10 python3.10-venv python3.10-dev || true
+        else
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y python3.10 python3.10-venv python3.10-dev python3.10-distutils
+        fi
         # Install pip using get-pip.py with retry and fallback
         for i in {1..3}; do
           if curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10; then
