@@ -1,0 +1,55 @@
+name: Setup Env (Node + Rust + npm)
+description: Common setup for Node, Rust and npm for building Tauri
+inputs:
+  node-version:
+    description: Node.js version
+    required: false
+    default: '20'
+  target-triple:
+    description: Rust target triple to add
+    required: true
+  frontend-path:
+    description: Path to the frontend directory
+    required: false
+    default: edge_frontend
+  cache-dependency-path:
+    description: Path used by setup-node for npm cache
+    required: false
+    default: edge_frontend/package.json
+  install-tauri-cli:
+    description: Install Tauri CLI globally
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs['node-version'] }}
+        cache: npm
+        cache-dependency-path: ${{ inputs['cache-dependency-path'] }}
+
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        targets: ${{ inputs['target-triple'] }}
+
+    - name: Cache Rust build
+      uses: Swatinem/rust-cache@v2
+
+    - name: Fresh Node install
+      shell: bash
+      run: |
+        cd "${{ inputs['frontend-path'] }}"
+        rm -rf node_modules package-lock.json
+        npm install --no-audit --progress=false
+
+    - name: Install Tauri CLI
+      if: ${{ inputs['install-tauri-cli'] == 'true' }}
+      shell: bash
+      run: npm install -g @tauri-apps/cli
