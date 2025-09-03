@@ -1,0 +1,175 @@
+name: Deploy Artifacts
+
+on:
+  workflow_call:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Debug environment
+      run: |
+        # Check if secrets are available (without revealing them)
+        if [ -n "${{ secrets.R2_BUCKET_NAME }}" ]; then
+          echo "R2_BUCKET_NAME is set"
+        else
+          echo "R2_BUCKET_NAME is NOT set"
+        fi
+        if [ -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+          echo "CLOUDFLARE_API_TOKEN is set"
+        else
+          echo "CLOUDFLARE_API_TOKEN is NOT set"
+        fi
+        if [ -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+          echo "CLOUDFLARE_ACCOUNT_ID is set"
+        else
+          echo "CLOUDFLARE_ACCOUNT_ID is NOT set"
+        fi
+        
+        echo "::group::Artifacts"
+        ls -R
+        echo "::endgroup::"
+
+    - name: Install Cloudflare Wrangler
+      run: npm install -g wrangler
+
+    - name: Upload to Cloudflare R2 using Wrangler
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        R2_BUCKET_NAME:       ${{ secrets.R2_BUCKET_NAME }}
+      run: |
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/v}; FOLDER="$VERSION"
+        else
+          FOLDER="latest"
+        fi
+        echo "Uploading to folder: $FOLDER"
+        
+        # Function to upload with retry
+        upload_with_retry() {
+          local file="$1"
+          local remote_path="$2"
+          local max_retries=3
+          local retry_count=0
+          
+          while [ $retry_count -lt $max_retries ]; do
+            echo "Uploading $file to $remote_path (attempt $((retry_count + 1))/$max_retries)"
+            
+            if cat "$file" | wrangler r2 object put "$remote_path" --pipe --content-type application/octet-stream --remote; then
+              echo "✅ Successfully uploaded $file"
+              return 0
+            else
+              retry_count=$((retry_count + 1))
+              if [ $retry_count -lt $max_retries ]; then
+                echo "❌ Upload failed, retrying in 10 seconds..."
+                sleep 10
+              else
+                echo "❌ Upload failed after $max_retries attempts: $file"
+                return 1
+              fi
+            fi
+          done
+        }
+
+        # Create a directory for each platform's artifacts
+        mkdir -p uploads
+        
+        # Handle Python distribution artifacts
+        if [ -d "todoforai-edge-python-dist" ]; then
+          echo "Processing Python distribution artifacts..."
+          find todoforai-edge-python-dist -name "*.whl" -exec cp {} uploads/ \;
+          find todoforai-edge-python-dist -name "*.tar.gz" -exec cp {} uploads/ \;
+          
+          # Upload Python wheel and source distribution
+          for FILE in uploads/*.whl uploads/*.tar.gz; do
+            if [ -f "$FILE" ]; then
+              FILENAME=$(basename "$FILE")
+              upload_with_retry "$FILE" "$R2_BUCKET_NAME/edge/$FOLDER/$FILENAME"
+            fi
+          done
+        fi
+        
+        # Find and prepare all Tauri app bundles for upload
+        for DIR in todoforai-edge-*; do
+          if [ -d "$DIR" ] && [ "$DIR" != "todoforai-edge-python-dist" ]; then
+            TARGET_TRIPLE=$(echo $DIR | sed 's/todoforai-edge-//')
+            
+            # Map target triple to user-friendly platform name
+            if [[ "$TARGET_TRIPLE" == *windows* ]]; then
+              PLATFORM="windows"
+              ARCH="x64"
+              if [[ "$TARGET_TRIPLE" == *aarch64* ]]; then
+                ARCH="arm64"
+              fi
+              
+              # For Windows, find and copy the MSI installer
+              find "$DIR" -name "*.msi" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" \;
+              
+              # Upload the MSI
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" ]; then
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.msi"
+              fi
+            elif [[ "$TARGET_TRIPLE" == *linux* ]]; then
+              PLATFORM="linux"
+              ARCH="x64"
+              if [[ "$TARGET_TRIPLE" == *aarch64* ]]; then
+                ARCH="arm64"
+              fi
+              
+              # For Linux, find and copy both AppImage and DEB
+              find "$DIR" -name "*.AppImage" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" \;
+              find "$DIR" -name "*.deb" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" \;
+              
+              # Upload the AppImage
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" ]; then
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.AppImage"
+              fi
+              
+              # Upload the DEB with extra retry for this problematic file
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" ]; then
+                echo "📦 DEB file size: $(du -h "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" | cut -f1)"
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.deb"
+              fi
+            elif [[ "$TARGET_TRIPLE" == *darwin* || "$TARGET_TRIPLE" == *apple* ]]; then
+              PLATFORM="macos"
+              ARCH="x64"
+              if [[ "$TARGET_TRIPLE" == *aarch64* ]]; then
+                ARCH="arm64"
+              fi
+              
+              # For macOS, prioritize DMG installer
+              find "$DIR" -name "*.dmg" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" \;
+              
+              # Upload the DMG
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" ]; then
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.dmg"
+              fi
+            fi
+          fi
+        done
+        
+        # If this is a tag release, also copy to latest
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          echo "🔄 Copying files to latest folder..."
+          for FILE in uploads/*; do
+            if [ -f "$FILE" ]; then
+              FILENAME=$(basename "$FILE")
+              upload_with_retry "$FILE" "$R2_BUCKET_NAME/edge/latest/$FILENAME"
+            fi
+          done
+        fi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/v')
+      with:
+        files: uploads/*
