@@ -111,7 +111,7 @@ jobs:
         if [ "${{ matrix.container }}" ]; then
           # Container environment - use apt-get directly
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y libwebkit2gtk-4.1-dev \
+          DEBIAN_FRONTEND=noninteractive apt-get install -y libwebkit2gtk-4.0-dev \
             build-essential \
             curl \
             wget \
@@ -126,7 +126,7 @@ jobs:
         else
           # Regular Ubuntu runner - use sudo
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev \
+          sudo apt-get install -y libwebkit2gtk-4.0-dev \
             build-essential \
             curl \
             wget \
@@ -359,15 +359,15 @@ jobs:
             if ($signedSize -gt ($originalSize * 0.9)) {
               Move-Item "$signedMsiPath" "$msiPath" -Force
               Write-Host "✅ Successfully signed MSI installer"
-              echo "MSI_SIGNED=true" >> $env:GITHUB_OUTPUT
+              echo "MSI_SIGNED=true" >> $GITHUB_OUTPUT
             } else {
               Write-Warning "⚠️ Signed MSI too small - likely an error response"
               Remove-Item "$signedMsiPath" -ErrorAction SilentlyContinue
-              echo "MSI_SIGNED=false" >> $env:GITHUB_OUTPUT
+              echo "MSI_SIGNED=false" >> $GITHUB_OUTPUT
             }
           } else {
             Write-Warning "⚠️ MSI signing failed (curl exit code: $LASTEXITCODE)"
-            echo "MSI_SIGNED=false" >> $env:GITHUB_OUTPUT
+            echo "MSI_SIGNED=false" >> $GITHUB_OUTPUT
           }
         } else {
           Write-Warning "MSI installer not found"
