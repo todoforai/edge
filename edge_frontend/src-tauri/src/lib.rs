@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::Arc;
 use std::{env, fs, path::PathBuf, sync::Mutex, time::Duration};
-use tauri::{path::BaseDirectory, AppHandle, Manager, PhysicalSize, WebviewWindow, Listener, Emitter};
+use tauri::{path::BaseDirectory, AppHandle, Manager, PhysicalSize, WebviewWindow};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandEvent, CommandChild};
 
@@ -424,8 +424,8 @@ pub fn run() {
             
             // Just log deep link detection for debugging
             for arg in &args {
-                if arg.starts_with("todoforai://auth/apikey/") {
-                    if let Some(api_key) = arg.strip_prefix("todoforai://auth/apikey/") {
+                if arg.starts_with("todoforai-edge://auth/apikey/") {
+                    if let Some(api_key) = arg.strip_prefix("todoforai-edge://auth/apikey/") {
                         info!("🔑 API KEY DETECTED: {}", api_key);
                     }
                 }

@@ -50,7 +50,7 @@
   },
   "plugins": {
     "deep-link": {
-      "schemes": ["todoforai", "todoforai-edge"],
+      "schemes": ["todoforai-edge"],
       "linux": {
         "register": false
       },
