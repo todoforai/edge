@@ -83,7 +83,7 @@ You can also set the following environment variables:
 
 ## URL Protocol Handler
 
-TODO for AI supports a custom URL protocol (`todoforai-edge://`) that allows you to start the client directly from a web browser. This is useful for authentication and quick access to the application.
+TODO for AI supports a custom URL protocol (`todoforaiedge://`) that allows you to start the client directly from a web browser. This is useful for authentication and quick access to the application.
 
 ### Usage
 
@@ -91,7 +91,7 @@ You can use the following URL formats:
 
 1. Authenticate with an API key:
 ```
-todoforai-edge://auth/apikey/YOUR_API_KEY_HERE
+todoforaiedge://auth/apikey/YOUR_API_KEY_HERE
 ```
 
 ## Graphical User Interface
