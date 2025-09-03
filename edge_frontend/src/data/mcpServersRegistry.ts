@@ -677,9 +677,10 @@ export const MCP_REGISTRY: MCPRegistry[] = [
 
 // Simple helper functions without global maps
 export const getMCPByCommandArgs = (command: string, args: string[] = []): MCPRegistry | undefined => {
-  const key = `${command}|${args.join('|')}`;
+  const norm = (a: string[] = []) => a.map(s => (s?.startsWith('github:') ? s.slice(7) : s));
+  const key = `${command}|${norm(args).join('|')}`;
   return MCP_REGISTRY.find(server => {
-    const serverKey = `${server.command}|${(server.args || []).join('|')}`;
+    const serverKey = `${server.command}|${norm(server.args || []).join('|')}`;
     return serverKey === key;
   });
 };
