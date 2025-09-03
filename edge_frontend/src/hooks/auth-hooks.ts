@@ -43,26 +43,28 @@ export const useCachedLoginEffect = () => {
 
   useEffect(() => {
     const loadCachedUser = async () => {
-      const loadedUser = await restoreUserFromStorage(apiUrl);
-
-      if (loadedUser?.apiUrl) {
-        initializeWithCachedAuth(loadedUser);
-        return;
-      }
-
-      // Fallback: consume deeplink API key once, then remove it
+      // First check for deeplink API key
       const deeplinkKey = localStorage.getItem('deeplink_api_key');
+      
       if (deeplinkKey) {
+        log.info('Auto-logging in with deep link API key');
         const targetApiUrl = apiUrl || (await getApiBase());
         await loginWithApiKey(deeplinkKey, targetApiUrl);
         localStorage.removeItem('deeplink_api_key');
+        return;
+      }
+
+      // Fallback to cached user session
+      const loadedUser = await restoreUserFromStorage(apiUrl);
+      if (loadedUser?.apiUrl && loadedUser?.apiKey && loadedUser?.email) {
+        initializeWithCachedAuth(loadedUser);
       }
     };
 
     if (apiUrl) {
       loadCachedUser();
     }
-  }, [apiUrl]);
+  }, [apiUrl, initializeWithCachedAuth, loginWithApiKey]);
 };
 
 // Hook to set up auth event listeners

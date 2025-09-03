@@ -1,4 +1,4 @@
-// Tauri V2
+ // Tauri V2
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, TcpStream};
@@ -422,37 +422,16 @@ pub fn run() {
             let args: Vec<String> = std::env::args().collect();
             info!("🔍 CLI ARGS: {:?}", args);
             
-            // Check CLI args for deep links
+            // Just log deep link detection for debugging
             for arg in &args {
                 if arg.starts_with("todoforai://auth/apikey/") {
                     if let Some(api_key) = arg.strip_prefix("todoforai://auth/apikey/") {
-                        info!("🔑 API KEY: {}", api_key);
-                        
-                        // Emit to frontend
-                        let _ = app.handle().emit("deep-link://url", vec![arg]);
+                        info!("🔑 API KEY DETECTED: {}", api_key);
                     }
                 }
             }
 
-            // Set up deep link event handler for when app is properly installed
-            app.handle().listen("deep-link://url", move |event| {
-                let payload = event.payload();
-                if !payload.is_empty() {
-                    info!("🎯 DEEPLINK RECEIVED: {}", payload);
-                    
-                    if let Ok(urls) = serde_json::from_str::<Vec<String>>(payload) {
-                        for url in &urls {
-                            if url.starts_with("todoforai://auth/apikey/") {
-                                if let Some(api_key) = url.strip_prefix("todoforai://auth/apikey/") {
-                                    info!("🔑 API KEY FROM EVENT: {}", api_key);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            info!("🔗 Deep link event handler set up");
+            info!("🔗 Deep link processing will be handled by frontend via CLI args");
 
             // restore size and position before the window shows up
             if let Ok(state) = get_saved_window_size(app.handle().clone()) {
