@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::Arc;
 use std::{env, fs, path::PathBuf, sync::Mutex, time::Duration};
-use tauri::{path::BaseDirectory, AppHandle, Manager, PhysicalSize, WebviewWindow};
+use tauri::{path::BaseDirectory, AppHandle, Manager, PhysicalSize, WebviewWindow, Listener, Emitter};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandEvent, CommandChild};
 
@@ -416,7 +416,43 @@ pub fn run() {
                     .level(log::LevelFilter::Debug)
                     .build(),
             )?;
-            info!("Logging initialized with tauri_plugin_log");
+            info!("Logging initialized with tauri_plugin_log!");
+
+            // Debug: Print all CLI args
+            let args: Vec<String> = std::env::args().collect();
+            info!("🔍 CLI ARGS: {:?}", args);
+            
+            // Check CLI args for deep links
+            for arg in &args {
+                if arg.starts_with("todoforai://auth/apikey/") {
+                    if let Some(api_key) = arg.strip_prefix("todoforai://auth/apikey/") {
+                        info!("🔑 API KEY: {}", api_key);
+                        
+                        // Emit to frontend
+                        let _ = app.handle().emit("deep-link://url", vec![arg]);
+                    }
+                }
+            }
+
+            // Set up deep link event handler for when app is properly installed
+            app.handle().listen("deep-link://url", move |event| {
+                let payload = event.payload();
+                if !payload.is_empty() {
+                    info!("🎯 DEEPLINK RECEIVED: {}", payload);
+                    
+                    if let Ok(urls) = serde_json::from_str::<Vec<String>>(payload) {
+                        for url in &urls {
+                            if url.starts_with("todoforai://auth/apikey/") {
+                                if let Some(api_key) = url.strip_prefix("todoforai://auth/apikey/") {
+                                    info!("🔑 API KEY FROM EVENT: {}", api_key);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            info!("🔗 Deep link event handler set up");
 
             // restore size and position before the window shows up
             if let Ok(state) = get_saved_window_size(app.handle().clone()) {
