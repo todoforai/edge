@@ -15,10 +15,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-20.04
-            target_triple: x86_64-unknown-linux-gnu
-          - os: ubuntu-20.04
-            target_triple: x86_64-unknown-linux-musl
           - os: windows-latest
             target_triple: x86_64-pc-windows-msvc
           - os: macos-14
@@ -420,9 +416,132 @@ jobs:
         name: todoforai-edge-python-dist
         path: dist/
 
+  # New: Linux build job inside Ubuntu 20.04 container to ensure GLIBC 2.31
+  build-linux:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target_triple: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target_triple: x86_64-unknown-linux-musl
+
+    runs-on: ${{ matrix.os }}
+    container: ubuntu:20.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install base dependencies (container)
+      run: |
+        set -eu
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          curl wget git ca-certificates software-properties-common gnupg build-essential
+
+    - name: Install Python 3.10 (deadsnakes) and pip
+      run: |
+        set -eu
+        add-apt-repository ppa:deadsnakes/ppa -y
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y python3.10 python3.10-venv python3.10-dev
+        curl -sS https://bootstrap.pypa.org/get-pip.py | python3.10
+        update-alternatives --install /usr/bin/python python /usr/bin/python3.10 2
+        update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 2
+        update-alternatives --install /usr/bin/pip pip /usr/local/bin/pip3.10 2
+        update-alternatives --install /usr/bin/pip3 pip3 /usr/local/bin/pip3.10 2
+
+    - name: Install Node.js 20
+      run: |
+        set -eu
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+
+    - name: Install Rust toolchain
+      run: |
+        set -eu
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        . "$HOME/.cargo/env"
+        rustup target add ${{ matrix.target_triple }}
+
+    - name: Fresh Node install for this runner
+      run: |
+        cd edge_frontend
+        rm -rf node_modules package-lock.json
+        npm install --no-audit --progress=false
+        npm install -g @tauri-apps/cli
+
+    - name: Install Tauri dependencies (Ubuntu 20.04 container)
+      run: |
+        set -eu
+        apt-get update
+        # libwebkit fallback: 4.1 not in 20.04, fall back to 4.0
+        DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          libwebkit2gtk-4.1-dev || DEBIAN_FRONTEND=noninteractive apt-get install -y libwebkit2gtk-4.0-dev
+        DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+        if [[ "${{ matrix.target_triple }}" == *musl* ]]; then
+          DEBIAN_FRONTEND=noninteractive apt-get install -y musl-tools
+        fi
+
+    - name: Install Python dependencies
+      run: |
+        set -eu
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install PyInstaller>=5.0 build
+
+    - name: Build sidecar executable
+      run: make build-sidecar
+
+    - name: Prepare sidecar for Tauri
+      run: make copy-sidecar
+
+    - name: Verify sidecar placement
+      run: |
+        echo "Checking for sidecar executable..."
+        ls -la edge_frontend/src-tauri/binaries/ || echo "Binaries directory not found"
+        find edge_frontend/src-tauri/binaries/ -name "*sidecar*" -type f || echo "No sidecar files found"
+
+    - name: Build Tauri application
+      run: |
+        if [[ "${{ matrix.target_triple }}" == *musl* ]]; then
+          cd edge_frontend && npm run tauri build -- --target ${{ matrix.target_triple }}
+        else
+          make tauri-build
+        fi
+      env:
+        TAURI_SKIP_UPDATE_CHECK: 1
+
+    - name: Build Python distribution
+      run: |
+        rm -f dist/todoforai-edge-sidecar*
+        python -m build --wheel --sdist
+
+    - name: Set Tauri bundle path
+      id: bundle-path
+      run: |
+        # Linux: collect both AppImage and DEB
+        echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle" >> $GITHUB_OUTPUT
+        echo "BUNDLE_EXTENSION=*" >> $GITHUB_OUTPUT
+
+    - name: Upload Tauri application bundle
+      uses: actions/upload-artifact@v4
+      with:
+        name: todoforai-edge-${{ matrix.target_triple }}
+        path: ${{ steps.bundle-path.outputs.BUNDLE_PATH }}
+
+    - name: Upload Python distribution (single runner to avoid duplicates)
+      if: matrix.target_triple == 'x86_64-unknown-linux-gnu'
+      uses: actions/upload-artifact@v4
+      with:
+        name: todoforai-edge-python-dist
+        path: dist/
+
   # ─────────────────────────── Deployment ───────────────────────────
   deploy:
-    needs: build
+    needs: [build, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/prod'
 
@@ -591,7 +710,7 @@ jobs:
 
   # New job for PyPI deployment - directly to production
   deploy-pypi:
-    needs: build
+    needs: [build, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/prod'  # Deploy on both version tags and prod branch
     
