@@ -15,8 +15,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
             target_triple: x86_64-unknown-linux-gnu
+          - os: ubuntu-20.04
+            target_triple: x86_64-unknown-linux-musl
           - os: windows-latest
             target_triple: x86_64-pc-windows-msvc
           - os: macos-14
@@ -64,6 +66,7 @@ jobs:
         toolchain: stable
         profile: minimal
         override: true
+        targets: ${{ matrix.target_triple }}
 
     # Install Node dependencies and Tauri CLI
     - name: Install Node dependencies
@@ -75,7 +78,7 @@ jobs:
       shell: bash
 
     - name: Install Tauri dependencies (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
+      if: contains(matrix.target_triple, 'linux')
       run: |
         sudo apt-get update
         sudo apt-get install -y libwebkit2gtk-4.1-dev \
@@ -86,6 +89,10 @@ jobs:
           libgtk-3-dev \
           libayatana-appindicator3-dev \
           librsvg2-dev
+        # Install musl tools for static linking
+        if [[ "${{ matrix.target_triple }}" == *musl* ]]; then
+          sudo apt-get install -y musl-tools
+        fi
       shell: bash
 
     - name: Build sidecar executable
@@ -254,7 +261,12 @@ jobs:
 
     # Build the Tauri application
     - name: Build Tauri application
-      run: make tauri-build
+      run: |
+        if [[ "${{ matrix.target_triple }}" == *musl* ]]; then
+          cd edge_frontend && npm run tauri build -- --target ${{ matrix.target_triple }}
+        else
+          make tauri-build
+        fi
       env:
         TAURI_SKIP_UPDATE_CHECK: 1
         APPLE_SIGNING_IDENTITY: ${{ steps.dev-id.outputs.CERT_NAME }}
@@ -402,7 +414,7 @@ jobs:
 
     # Upload Python distribution artifacts (only from one runner to avoid duplicates)
     - name: Upload Python distribution
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.target_triple == 'x86_64-unknown-linux-gnu'
       uses: actions/upload-artifact@v4
       with:
         name: todoforai-edge-python-dist
