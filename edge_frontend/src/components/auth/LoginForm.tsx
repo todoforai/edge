@@ -71,9 +71,21 @@ export const LoginForm = () => {
     clearError();
 
     if (loginMethod === 'credentials') {
-      login({ email, password, apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined });
+      // Send only email/password credentials, explicitly clear apiKey
+      login({ 
+        email, 
+        password, 
+        apiKey: '', // Explicitly clear apiKey
+        apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined 
+      });
     } else {
-      login({ apiKey, apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined });
+      // Send only apiKey credentials, explicitly clear email/password
+      login({ 
+        apiKey, 
+        email: '', // Explicitly clear email
+        password: '', // Explicitly clear password
+        apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined 
+      });
     }
   };
 

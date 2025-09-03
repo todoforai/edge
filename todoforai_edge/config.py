@@ -67,13 +67,20 @@ class Config:
             self.add_workspace_path = os.path.abspath(os.path.expanduser(args.add_workspace_path))
 
     def apply_overrides(self, overrides):
-        """Apply overrides from a dict (e.g., credentials) in a unified way"""
+        """Apply overrides from a dict (e.g., credentials)"""
         if not overrides: return
         
-        self.email = overrides.get("email") or self.email
-        self.password = overrides.get("password") or self.password
-        self.api_key = overrides.get("apiKey") or self.api_key
-        self.api_url = normalize_api_url(overrides.get("apiUrl")) or self.api_url
+        # Apply the credentials as provided (form already ensures mutual exclusivity)
+        if "apiKey" in overrides:
+            self.api_key = overrides["apiKey"] or ""
+        if "email" in overrides:
+            self.email = overrides["email"] or ""
+        if "password" in overrides:
+            self.password = overrides["password"] or ""
+        
+        # Handle other fields
+        if "apiUrl" in overrides:
+            self.api_url = normalize_api_url(overrides.get("apiUrl")) if overrides.get("apiUrl") else self.api_url
         if "debug" in overrides:
             self.debug = bool(overrides["debug"])
             self.log_level = "DEBUG" if self.debug else "INFO"
@@ -98,4 +105,3 @@ class Config:
 def default_config():
     """Factory function to create a new config instance"""
     return Config()
-

@@ -52,7 +52,7 @@ def create_argparse_apply_config():
     # Print server info early, before requesting credentials
     print(f'Connecting to: {config.api_url}')
     
-    # Interactive credential prompts if not provided
+    # Interactive credential prompts if not provided and no existing values
     if not config.api_key:
         if not config.email:
             try:
