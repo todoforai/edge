@@ -41,6 +41,8 @@ runs:
 
     - name: Cache Rust build
       uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: ${{ inputs['frontend-path'] }}/src-tauri
 
     - name: Fresh Node install
       shell: bash

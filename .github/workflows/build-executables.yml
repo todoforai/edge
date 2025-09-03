@@ -45,7 +45,7 @@ jobs:
         set -eu
         apt-get update
         DEBIAN_FRONTEND=noninteractive apt-get install -y \
-          curl wget git ca-certificates software-properties-common gnupg build-essential
+          curl wget git ca-certificates software-properties-common gnupg build-essential sudo
 
     - name: Install Python 3.10 (deadsnakes) and pip
       if: matrix.container
@@ -104,21 +104,40 @@ jobs:
         cache-dependency-path: edge_frontend/package.json
         install-tauri-cli: 'true'
 
+    # Install Tauri dependencies (Ubuntu)
     - name: Install Tauri dependencies (Ubuntu)
       if: contains(matrix.target_triple, 'linux')
       run: |
-        sudo apt-get update
-        sudo apt-get install -y libwebkit2gtk-4.1-dev \
-          build-essential \
-          curl \
-          wget \
-          libssl-dev \
-          libgtk-3-dev \
-          libayatana-appindicator3-dev \
-          librsvg2-dev
-        # Install musl tools for static linking
-        if [[ "${{ matrix.target_triple }}" == *musl* ]]; then
-          sudo apt-get install -y musl-tools
+        if [ "${{ matrix.container }}" ]; then
+          # Container environment - use apt-get directly
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+          # Install musl tools for static linking
+          if [[ "${{ matrix.target_triple }}" == *musl* ]]; then
+            DEBIAN_FRONTEND=noninteractive apt-get install -y musl-tools
+          fi
+        else
+          # Regular Ubuntu runner - use sudo
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+          # Install musl tools for static linking
+          if [[ "${{ matrix.target_triple }}" == *musl* ]]; then
+            sudo apt-get install -y musl-tools
+          fi
         fi
       shell: bash
 
@@ -352,7 +371,7 @@ jobs:
           }
         } else {
           Write-Warning "MSI installer not found"
-          echo "MSI_SIGNED=false" >> $env:GITHUB_OUTPUT
+          echo "MSI_SIGNED=false" >> $GITHUB_OUTPUT
         }
       env:
         SIGNING_SERVICE_URL: ${{ secrets.SIGNING_SERVICE_URL }}
