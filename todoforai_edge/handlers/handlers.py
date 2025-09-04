@@ -746,6 +746,52 @@ async def mcp_install_server(serverId: str, command: str, args: List[str] = None
         "env_keys": list(env.keys())
     }
 
+@register_function("mcp_uninstall_server")
+async def mcp_uninstall_server(serverId: str, client_instance=None):
+    """Uninstall/remove an MCP server from the edge completely."""
+    if not client_instance:
+        raise ValueError("Client instance required")
+
+    server_id = str(serverId).strip()
+    if not server_id:
+        raise ValueError("serverId is required")
+
+    logger.info(f"Uninstalling MCP server '{server_id}'")
+
+    # Get current MCP JSON config - copy only the mcp_json field safely
+    mcp_json = dict(client_instance.edge_config.config.safe_get("mcp_json", {}))
+    
+    # Remove from mcpServers if it exists
+    if "mcpServers" in mcp_json and server_id in mcp_json["mcpServers"]:
+        del mcp_json["mcpServers"][server_id]
+        logger.info(f"Removed '{server_id}' from mcp_json mcpServers")
+
+    # Remove from installedMCPs
+    current_installed = dict(client_instance.edge_config.config.safe_get("installedMCPs", {}))
+    if server_id in current_installed:
+        del current_installed[server_id]
+        logger.info(f"Removed '{server_id}' from installedMCPs")
+
+    # Stop the MCP server if it's running
+    if hasattr(client_instance, 'mcp_collector') and client_instance.mcp_collector:
+        try:
+            await client_instance.mcp_collector.stop_server(server_id)
+            logger.info(f"Stopped MCP server '{server_id}'")
+        except Exception as e:
+            logger.warning(f"Failed to stop MCP server '{server_id}': {e}")
+
+    # Update both configs (triggers auto-reload via subscription)
+    client_instance.edge_config.config.update_value({
+        "mcp_json": mcp_json,
+        "installedMCPs": current_installed
+    })
+
+    return {
+        "uninstalled": True,
+        "serverId": server_id,
+        "message": f"MCP server '{server_id}' has been completely removed"
+    }
+
 class FunctionCallResponse:
     """Encapsulates function call response logic"""
     
