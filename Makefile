@@ -12,15 +12,17 @@ help:
 	@echo "  make update-icons      - Update icons with 'Edge' text"
 
 run:
-	@echo "Running TODOforAI Edge client..."
-	python3 run_edge.py
+	@echo "Running TodoForAI Edge client..."
+	python3 run_edge.py --email six@todofor.ai --password Test123 --api-url https://api.todofor.ai
 
 run-test:
-	@echo "Running TODOforAI Edge client with test credentials..."
+	@echo "Running TodoForAI Edge client with test credentials..."
+	# python3 run_edge.py --email test@todofor.ai --password Test123 --api-url https://api.todofor.ai
 	python3 run_edge.py --email lfg@todofor.ai --password Test123 --api-url http://localhost:4000
 
 run-ws:
   # joins where the frontend asks to:
+	TODO4AI_API_URL=https://api.todofor.ai
 	python3 edge_frontend/src-tauri/resources/python/ws_sidecar.py
 
 run-frontend:
@@ -87,8 +89,17 @@ start-services: start-signer start-tunnel
 
 # Stop signing server
 stop-signer:
-	@for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":9999"') do taskkill /PID %%a /F > nul 2>&1 || echo "No process found on port 9999"
-	@echo "🛑 Signing server stopped"
+	@if command -v netstat >/dev/null 2>&1; then \
+		PID=$$(netstat -ano 2>/dev/null | grep ":9999" | awk '{print $$5}' | head -1); \
+		if [ -n "$$PID" ]; then \
+			kill -9 $$PID 2>/dev/null || taskkill //PID $$PID //F 2>/dev/null || echo "Failed to kill process $$PID"; \
+			echo "🛑 Signing server stopped (PID: $$PID)"; \
+		else \
+			echo "🛑 No process found on port 9999"; \
+		fi; \
+	else \
+		pkill -f "signing_server.py" 2>/dev/null || echo "🛑 No signing server process found"; \
+	fi
 
 # Stop cloudflared tunnel
 stop-tunnel:
@@ -122,8 +133,10 @@ tauri-dev:
 	cd edge_frontend && npm run tauri:dev
 
 # Build Tauri application with the sidecar
-tauri-build: copy-sidecar
+tauri-build:
+	bash scripts/copy_sidecar_to_resources.sh
 	# Ensure fresh node dependencies are installed for the current platform
+	cd edge_frontend && rm -rf node_modules package-lock.json
 	cd edge_frontend && npm install --no-audit --progress=false
 	cd edge_frontend && TAURI_SKIP_UPDATE_CHECK=1 npm run tauri build
 
