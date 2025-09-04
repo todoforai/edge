@@ -259,9 +259,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   const registryServer = getMCPByCommandArgs(instance.command, instance.args);
   
   // Create fallback info if not found in registry
-  const fallbackInfo = registryServer
-    ? null
-    : {
+  const fallbackInfo = {
         name: `Custom MCP (${instance.command})`,
         description: `Unknown MCP server: ${instance.command} ${instance.args?.join(' ') || ''}`,
         icon: '/logos/default.svg',

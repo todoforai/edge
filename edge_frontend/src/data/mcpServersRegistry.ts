@@ -698,11 +698,15 @@ export const MCP_REGISTRY: MCPRegistry[] = [
 
 // Simple helper functions without global maps
 export const getMCPByCommandArgs = (command: string, args: string[] = []): MCPRegistry | undefined => {
-  const norm = (a: string[] = []) => a.map(s => (s?.startsWith('github:') ? s.slice(7) : s));
-  const key = `${command}|${norm(args).join('|')}`;
+  const norm = (a: string[] = []) => a
+    .filter(s => s !== '-y')
+    .map(s => (s?.startsWith('github:') ? s.slice(7) : s));
+  const normalizedArgs = norm(args);
+  const key = `${command}|${normalizedArgs.join('|')}`;
+  
   return MCP_REGISTRY.find(server => {
     const serverKey = `${server.command}|${norm(server.args || []).join('|')}`;
-    return serverKey === key;
+    return key.startsWith(serverKey);
   });
 };
 
