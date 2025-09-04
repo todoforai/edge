@@ -15,21 +15,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-22.04
-            target_triple: x86_64-unknown-linux-gnu
-            bundle_type: deb
           - os: ubuntu-latest
             target_triple: x86_64-unknown-linux-gnu
-            bundle_type: appimage
           - os: windows-latest
             target_triple: x86_64-pc-windows-msvc
-            bundle_type: msi
           - os: macos-14
             target_triple: aarch64-apple-darwin
-            bundle_type: dmg
           - os: macos-13
             target_triple: x86_64-apple-darwin
-            bundle_type: dmg
 
     runs-on: ${{ matrix.os }}
 
@@ -46,10 +39,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .
         pip install PyInstaller>=5.0
-        # Only install build on ubuntu-22.04 for Python distribution
-        if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-          pip install build
-        fi
+        # Install build for Python distribution
+        pip install build
       shell: bash
 
     - name: Set up Node.js
@@ -81,7 +72,7 @@ jobs:
       shell: bash
 
     - name: Install Tauri dependencies (Ubuntu)
-      if: contains(matrix.os, 'ubuntu')
+      if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
         sudo apt-get install -y libwebkit2gtk-4.1-dev \
@@ -251,39 +242,8 @@ jobs:
         echo "CERT_NAME=$CERT_NAME" >> $GITHUB_OUTPUT
         echo "Certificate name: $CERT_NAME"
 
-    # Build specific bundle types per platform
-    - name: Build Tauri application (DEB)
-      if: matrix.bundle_type == 'deb'
-      run: |
-        cd edge_frontend
-        npm run tauri build -- --bundles deb
-      env:
-        TAURI_SKIP_UPDATE_CHECK: 1
-      shell: bash
-
-    - name: Build Tauri application (AppImage)
-      if: matrix.bundle_type == 'appimage'
-      run: |
-        cd edge_frontend
-        npm run tauri build -- --bundles appimage
-      env:
-        TAURI_SKIP_UPDATE_CHECK: 1
-      shell: bash
-
-    - name: Build Tauri application (MSI)
-      if: matrix.bundle_type == 'msi'
-      run: |
-        cd edge_frontend
-        npm run tauri build -- --bundles msi
-      env:
-        TAURI_SKIP_UPDATE_CHECK: 1
-      shell: bash
-
-    - name: Build Tauri application (DMG)
-      if: matrix.bundle_type == 'dmg'
-      run: |
-        cd edge_frontend
-        npm run tauri build -- --bundles dmg,app
+    - name: Build Tauri application
+      run: make tauri-build
       env:
         TAURI_SKIP_UPDATE_CHECK: 1
         APPLE_SIGNING_IDENTITY: ${{ steps.dev-id.outputs.CERT_NAME }}
@@ -293,7 +253,6 @@ jobs:
       shell: bash
 
     - name: Build Python distribution
-      if: matrix.os == 'ubuntu-22.04'
       run: |
         rm -f dist/todoforai-edge-sidecar*
         python -m build --wheel --sdist
@@ -397,32 +356,187 @@ jobs:
     - name: Set Tauri bundle path
       id: bundle-path
       run: |
-        echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle" >> $GITHUB_OUTPUT
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle/msi" >> $GITHUB_OUTPUT
+          echo "BUNDLE_EXTENSION=msi" >> $GITHUB_OUTPUT
+        elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle" >> $GITHUB_OUTPUT
+          echo "BUNDLE_EXTENSION=*" >> $GITHUB_OUTPUT
+        else
+          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle" >> $GITHUB_OUTPUT
+          echo "BUNDLE_EXTENSION=*" >> $GITHUB_OUTPUT
+        fi
       shell: bash
 
     - name: Upload Tauri application bundle
       uses: actions/upload-artifact@v4
       with:
-        name: todoforai-edge-${{ matrix.target_triple }}-${{ matrix.bundle_type }}
+        name: todoforai-edge-${{ matrix.target_triple }}
         path: ${{ steps.bundle-path.outputs.BUNDLE_PATH }}
 
     - name: Upload Python distribution
-      if: matrix.os == 'ubuntu-22.04'
+      if: matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v4
       with:
         name: todoforai-edge-python-dist
         path: dist/
 
-  # ─────────────────────────── Deployment ───────────────────────────
+  # ... existing code ...
   deploy:
-    needs: [build]
-    uses: ./.github/workflows/deploy.yml
+    needs: build
+    runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/prod'
-    secrets: inherit
 
-  # New job for PyPI deployment - directly to production
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Debug environment
+      run: |
+        if [ -n "${{ secrets.R2_BUCKET_NAME }}" ]; then
+          echo "R2_BUCKET_NAME is set"
+        else
+          echo "R2_BUCKET_NAME is NOT set"
+        fi
+        if [ -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+          echo "CLOUDFLARE_API_TOKEN is set"
+        else
+          echo "CLOUDFLARE_API_TOKEN is NOT set"
+        fi
+        if [ -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+          echo "CLOUDFLARE_ACCOUNT_ID is set"
+        else
+          echo "CLOUDFLARE_ACCOUNT_ID is NOT set"
+        fi
+        
+        echo "::group::Artifacts"
+        ls -R
+        echo "::endgroup::"
+
+    - name: Install Cloudflare Wrangler
+      run: npm install -g wrangler
+
+    - name: Upload to Cloudflare R2 using Wrangler
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        R2_BUCKET_NAME:       ${{ secrets.R2_BUCKET_NAME }}
+      run: |
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/v}; FOLDER="$VERSION"
+        else
+          FOLDER="latest"
+        fi
+        echo "Uploading to folder: $FOLDER"
+        
+        upload_with_retry() {
+          local file="$1"
+          local remote_path="$2"
+          local max_retries=3
+          local retry_count=0
+          
+          while [ $retry_count -lt $max_retries ]; do
+            echo "Uploading $file to $remote_path (attempt $((retry_count + 1))/$max_retries)"
+            
+            if cat "$file" | wrangler r2 object put "$remote_path" --pipe --content-type application/octet-stream --remote; then
+              echo "✅ Successfully uploaded $file"
+              return 0
+            else
+              retry_count=$((retry_count + 1))
+              if [ $retry_count -lt $max_retries ]; then
+                echo "❌ Upload failed, retrying in 10 seconds..."
+                sleep 10
+              else
+                echo "❌ Upload failed after $max_retries attempts: $file"
+                return 1
+              fi
+            fi
+          done
+        }
+
+        mkdir -p uploads
+        
+        if [ -d "todoforai-edge-python-dist" ]; then
+          echo "Processing Python distribution artifacts..."
+          find todoforai-edge-python-dist -name "*.whl" -exec cp {} uploads/ \;
+          find todoforai-edge-python-dist -name "*.tar.gz" -exec cp {} uploads/ \;
+          
+          for FILE in uploads/*.whl uploads/*.tar.gz; do
+            if [ -f "$FILE" ]; then
+              FILENAME=$(basename "$FILE")
+              upload_with_retry "$FILE" "$R2_BUCKET_NAME/edge/$FOLDER/$FILENAME"
+            fi
+          done
+        fi
+        
+        for DIR in todoforai-edge-*; do
+          if [ -d "$DIR" ] && [ "$DIR" != "todoforai-edge-python-dist" ]; then
+            TARGET_TRIPLE=$(echo $DIR | sed 's/todoforai-edge-//')
+            
+            if [[ "$TARGET_TRIPLE" == *windows* ]]; then
+              PLATFORM="windows"
+              ARCH="x64"
+              if [[ "$TARGET_TRIPLE" == *aarch64* ]]; then
+                ARCH="arm64"
+              fi
+              
+              find "$DIR" -name "*.msi" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" \;
+              
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" ]; then
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.msi"
+              fi
+            elif [[ "$TARGET_TRIPLE" == *linux* ]]; then
+              PLATFORM="linux"
+              ARCH="x64"
+              if [[ "$TARGET_TRIPLE" == *aarch64* ]]; then
+                ARCH="arm64"
+              fi
+              
+              find "$DIR" -name "*.AppImage" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" \;
+              find "$DIR" -name "*.deb" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" \;
+              
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" ]; then
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.AppImage"
+              fi
+              
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" ]; then
+                echo "📦 DEB file size: $(du -h "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" | cut -f1)"
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.deb"
+              fi
+            elif [[ "$TARGET_TRIPLE" == *darwin* || "$TARGET_TRIPLE" == *apple* ]]; then
+              PLATFORM="macos"
+              ARCH="x64"
+              if [[ "$TARGET_TRIPLE" == *aarch64* ]]; then
+                ARCH="arm64"
+              fi
+              
+              find "$DIR" -name "*.dmg" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" \;
+              
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" ]; then
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.dmg"
+              fi
+            fi
+          fi
+        done
+        
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          echo "🔄 Copying files to latest folder..."
+          for FILE in uploads/*; do
+            if [ -f "$FILE" ]; then
+              FILENAME=$(basename "$FILE")
+              upload_with_retry "$FILE" "$R2_BUCKET_NAME/edge/latest/$FILENAME"
+            fi
+          done
+        fi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/v')
+      with:
+        files: uploads/*
+
   deploy-pypi:
-    needs: [build]
+    needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/prod'
     
