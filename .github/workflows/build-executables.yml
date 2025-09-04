@@ -127,7 +127,10 @@ jobs:
           patchelf \
           libjavascriptcoregtk-4.1-dev \
           libsoup-3.0-dev \
-          xdg-utils
+          xdg-utils \
+          file \
+          desktop-file-utils \
+          libfuse2
       shell: bash
 
     # Build newer GLib locally (keep glibc from Ubuntu 20.04)
@@ -385,7 +388,7 @@ jobs:
     # Notarize and staple the macOS application using manual commands
     # Only run if Tauri's built-in notarization fails
     - name: Manual Notarize & staple macOS app
-      if: startsWith(matrix.os, 'macos') && !contains(env.TAURI_BUILD_LOG, 'notarization complete')
+      if: startsWith(matrix.os, 'macos') && failure()
       run: |
         # Create keychain profile for notarization
         echo "Creating notarization keychain profile"
