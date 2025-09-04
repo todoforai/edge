@@ -25,9 +25,9 @@ jobs:
           - os: macos-13
             target_triple: x86_64-apple-darwin
             container: null
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             target_triple: x86_64-unknown-linux-gnu
-            container: ubuntu:22.04
+            container: null
 
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
@@ -111,9 +111,9 @@ jobs:
     - name: Install Tauri dependencies (Ubuntu)
       if: contains(matrix.target_triple, 'linux')
       run: |
-        # Container environment - use apt-get directly
-        apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y libwebkit2gtk-4.1-dev \
+        # Hosted runner - use sudo apt-get
+        sudo apt-get update
+        DEBIAN_FRONTEND=noninteractive sudo apt-get install -y libwebkit2gtk-4.1-dev \
           build-essential \
           curl \
           wget \
