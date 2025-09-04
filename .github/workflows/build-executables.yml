@@ -339,47 +339,46 @@ jobs:
         echo "Certificate name: $CERT_NAME"
 
 
-    # Build the Tauri application (without AppImage)
-    - name: Build Tauri application
-      run: make tauri-build
+    # Build Tauri apps per platform (replace the old step)
+    - name: Build Tauri app (Linux)
+      if: contains(matrix.target_triple, 'linux')
+      run: |
+        cd edge_frontend
+        npm run tauri build -- --bundles deb,rpm
+      env:
+        TAURI_SKIP_UPDATE_CHECK: 1
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      shell: bash
+
+    - name: Build Tauri app (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        cd edge_frontend
+        npm run tauri build -- --bundles msi
+      env:
+        TAURI_SKIP_UPDATE_CHECK: 1
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      shell: bash
+
+    - name: Build Tauri app (macOS)
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        cd edge_frontend
+        npm run tauri build -- --bundles dmg,app
       env:
         TAURI_SKIP_UPDATE_CHECK: 1
         APPLE_SIGNING_IDENTITY: ${{ steps.dev-id.outputs.CERT_NAME }}
         APPLE_ID: ${{ secrets.APPLE_ID }}
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       shell: bash
-
-    # New steps for building Tauri apps per platform
-    - name: Build Tauri app (Linux)
-      if: matrix.platform == 'ubuntu-22.04'
-      run: |
-        cd edge_frontend
-        npm run tauri build -- --bundles deb,rpm
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-
-    - name: Build Tauri app (Windows)
-      if: matrix.platform == 'windows-latest'
-      run: |
-        cd edge_frontend
-        npm run tauri build -- --bundles msi
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-
-    - name: Build Tauri app (macOS)
-      if: matrix.platform == 'macos-latest'
-      run: |
-        cd edge_frontend
-        npm run tauri build -- --bundles dmg,app
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
     # Create AppImage (Linux)
     - name: Create AppImage (Linux)
