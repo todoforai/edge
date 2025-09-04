@@ -126,7 +126,8 @@ jobs:
           libglib2.0-dev-bin \
           patchelf \
           libjavascriptcoregtk-4.1-dev \
-          libsoup-3.0-dev
+          libsoup-3.0-dev \
+          xdg-utils
       shell: bash
 
     # Build newer GLib locally (keep glibc from Ubuntu 20.04)
