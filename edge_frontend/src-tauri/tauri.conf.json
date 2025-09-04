@@ -23,19 +23,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": {
-      "linux": [
-        "deb",
-        "rpm"
-      ],
-      "windows": [
-        "msi"
-      ],
-      "macos": [
-        "dmg",
-        "app"
-      ]
-    },
+    "targets": "all",
     "resources": [
       "resources/python/ws_sidecar.py"
     ],
