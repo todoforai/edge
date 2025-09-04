@@ -136,7 +136,18 @@ jobs:
           libgtk-3-bin \
           squashfs-tools \
           binutils \
-          appstream
+          appstream \
+          libc6-dev \
+          libgcc-s1 \
+          libstdc++6 \
+          zlib1g-dev \
+          libfontconfig1-dev \
+          libfreetype6-dev \
+          libxrandr2 \
+          libxss1 \
+          libgconf-2-4 \
+          libxkbfile1 \
+          libsecret-1-0
       shell: bash
 
     # Build newer GLib locally (keep glibc from Ubuntu 20.04)
@@ -363,7 +374,7 @@ jobs:
         if ($msiPath) {
           $originalSize = (Get-Item "$msiPath").Length
           $signedMsiPath = [System.IO.Path]::ChangeExtension($msiPath, ".signed.msi")
-          Write-Host "Signing MSI installer: $msiPath ($(($originalSize / 1MB).ToString('F1')) MB)"
+          Write-Host "Signing MSI installer: $msiPath ($(($originalSize / 1MB).ToString('F1')) MB"
           
           & curl.exe -f -X POST -H "Authorization: Bearer $env:SIGNING_API_KEY" -F "file=@$msiPath" "$env:SIGNING_SERVICE_URL/sign" -o "$signedMsiPath"
           
