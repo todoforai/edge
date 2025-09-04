@@ -350,6 +350,37 @@ jobs:
         APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
       shell: bash
 
+    # New steps for building Tauri apps per platform
+    - name: Build Tauri app (Linux)
+      if: matrix.platform == 'ubuntu-22.04'
+      run: |
+        cd edge_frontend
+        npm run tauri build -- --bundles deb,rpm
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+    - name: Build Tauri app (Windows)
+      if: matrix.platform == 'windows-latest'
+      run: |
+        cd edge_frontend
+        npm run tauri build -- --bundles msi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+    - name: Build Tauri app (macOS)
+      if: matrix.platform == 'macos-latest'
+      run: |
+        cd edge_frontend
+        npm run tauri build -- --bundles dmg,app
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
     # Create AppImage (Linux)
     - name: Create AppImage (Linux)
       if: contains(matrix.target_triple, 'linux')
