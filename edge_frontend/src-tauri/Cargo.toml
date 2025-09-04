@@ -20,7 +20,7 @@ name = "todoforai_edge_lib"
 crate-type = ["cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.4", features = [] }
+tauri-build = { version = "2.7.0", features = [] }
 
 [dependencies]
 tauri = { version = "2.7.0", features = ["devtools"] }
