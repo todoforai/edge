@@ -6,6 +6,10 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 
 import platform
+import zipfile
+import shutil
+import xml.dom.minidom
+import xml.etree.ElementTree as ET
 
 from .shell_handler import ShellProcess
 from ..constants.messages import (
@@ -266,6 +270,57 @@ async def handle_todo_cd(payload: Dict[str, Any], client: Any) -> None:
         logger.error(f"Error changing directory: {str(error)}\nStacktrace:\n{stack_trace}")
         await client.send_response(cd_response_msg(edge_id, path, request_id, False, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
+def is_valid_xml(content):
+    """Check if content is valid XML"""
+    return True
+    try:
+        ET.fromstring(content)
+        return True
+    except ET.ParseError:
+        return False
+
+def save_docx_content(docx_path, xml_content):
+    """Save XML content back to DOCX file by updating the document.xml inside the ZIP"""
+    try:
+        # Read the existing DOCX file
+        with zipfile.ZipFile(docx_path, 'r') as zip_read:
+            # Get all files in the ZIP
+            file_list = zip_read.namelist()
+            if 'word/document.xml' not in file_list:
+                raise ValueError("Invalid DOCX: 'word/document.xml' not found")
+            
+            # Create a new DOCX file with updated content
+            temp_path = docx_path + '.tmp'
+            with zipfile.ZipFile(temp_path, 'w', zipfile.ZIP_DEFLATED) as zip_write:
+                # Copy all files except document.xml
+                for file_name in file_list:
+                    if file_name != 'word/document.xml':
+                        zip_write.writestr(file_name, zip_read.read(file_name))
+                
+                # Write the new document.xml content
+                # Remove the header comments if they exist
+                clean_xml = xml_content
+                if clean_xml.startswith('# DOCX Document XML Content'):
+                    lines = clean_xml.split('\n')
+                    # Find where the actual XML starts (after the comments)
+                    xml_start = 0
+                    for i, line in enumerate(lines):
+                        if line.strip().startswith('<?xml'):
+                            xml_start = i
+                            break
+                    clean_xml = '\n'.join(lines[xml_start:])
+                
+                zip_write.writestr('word/document.xml', clean_xml.encode('utf-8'))
+        
+        # Replace the original file with the updated one
+        shutil.move(temp_path, docx_path)
+        
+    except Exception as e:
+        # Clean up temp file if it exists
+        if os.path.exists(docx_path + '.tmp'):
+            os.remove(docx_path + '.tmp')
+        raise ValueError(f"Failed to save DOCX content: {str(e)}")
+
 async def handle_block_save(payload, client):
     """Handle file save request - simple implementation"""
     block_id = payload.get("blockId")
@@ -284,14 +339,27 @@ async def handle_block_save(payload, client):
         if not is_path_allowed(filepath, client.edge_config.config["workspacepaths"]):
             raise PermissionError("No permission to save file to the given path")
 
-        # Only create directory if filepath has a directory component
-        dirname = os.path.dirname(filepath)
-        if dirname:  # Check if dirname is not empty
-            os.makedirs(dirname, exist_ok=True)
+        # Special handling for DOCX files
+        if filepath.lower().endswith('.docx'):
+            if not is_valid_xml(content):
+                raise ValueError("Cannot save non-XML content to DOCX file. DOCX files require valid XML content.")
+            
+            # Check if the DOCX file exists
+            if not os.path.exists(filepath):
+                raise FileNotFoundError(f"DOCX file does not exist: {filepath}. Cannot create new DOCX files, only modify existing ones.")
+            
+            logger.info("Saving XML content to existing DOCX file")
+            save_docx_content(filepath, content)
+        else:
+            # Regular file saving
+            # Only create directory if filepath has a directory component
+            dirname = os.path.dirname(filepath)
+            if dirname:  # Check if dirname is not empty
+                os.makedirs(dirname, exist_ok=True)
 
-        # Write content to file
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(content)
+            # Write content to file
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
 
         await client.send_response(block_save_result_msg(block_id, todo_id, "SUCCESS", requestId))
 
@@ -393,21 +461,23 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
             )
             return
 
-        # Try to read file content as text
-        try:
-            with open(full_path, 'r', encoding='utf-8', errors='replace') as f:
-                content = f.read()
-                
-            # Log file and content size for debugging
-            content_size = len(content.encode('utf-8'))
+        # Decide content source and set content type
+        if file_path.suffix.lower() == '.docx':
+            content = extract_docx_content(full_path)
+            content_type = "docx-xml"
+            logger.info(f"DOCX content extracted as XML, size: {len(content):,} chars")
+        else:
+            try:
+                with open(full_path, 'r', encoding='utf-8', errors='replace') as f:
+                    content = f.read()
+                content_type = "text"
+            except UnicodeDecodeError:
+                raise ValueError(f"Cannot read binary file {full_path}")
             logger.info(f"File content size: {len(content):,} chars")
-                
-        except UnicodeDecodeError:
-            raise ValueError(f"Cannot read binary file {full_path}")
 
-        # Send the response using the message formatter
+        # Send the response with content type indicator
         await client.send_response(
-            file_chunk_result_msg(response_type, **payload, full_path=full_path, content=content)
+            file_chunk_result_msg(response_type, **payload, full_path=full_path, content=content, content_type=content_type)
         )
 
     except Exception as error:
@@ -417,6 +487,19 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
         await client.send_response(
             file_chunk_result_msg(response_type, **payload, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}")
         )
+
+def extract_docx_content(docx_path):
+    """Extract readable content from DOCX file"""
+    try:
+        with zipfile.ZipFile(docx_path, 'r') as zip_file:
+            # Extract main document XML
+            xml_content = zip_file.read("word/document.xml").decode('utf-8')
+            formatted_xml = xml.dom.minidom.parseString(xml_content).toprettyxml()
+            
+            # Add a header to indicate this is DOCX XML content
+            return f"# DOCX Document XML Content\n# File: {docx_path}\n\n{formatted_xml}"
+    except Exception as e:
+        raise ValueError(f"Failed to extract DOCX content: {str(e)}")
 
 # Function registry for dynamic function calls
 FUNCTION_REGISTRY = {}

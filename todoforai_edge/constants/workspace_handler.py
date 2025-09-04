@@ -24,7 +24,7 @@ FILE_EXTENSIONS = {
     "fasl", "jl", "r", "R", "rmd", "Rmd", "mat", "asm", "s", "dart", "sql", "md", "mdx", "markdown",
     "rst", "adoc", "tex", "sty", "gradle", "sbt", "xml", "properties", "plist",
     "proto", "proto3", "graphql", "prisma", "yml", "yaml", "svg",
-    "code-workspace", "txt", "json", "desktop",
+    "code-workspace", "txt", "json", "desktop", "docx",
     # Shell and scripting
     "ps1", "psm1", "psd1", "bat", "cmd", "vbs", "ahk",
     # Configuration and data
@@ -55,7 +55,7 @@ FILE_EXTENSIONS = {
 
 NONVERBOSE_FILTERED_EXTENSIONS = {
     "jld2", "png", "jpg", "jpeg", "ico", "gif", "pdf", "zip", "tar", "tgz", "lock", "gz", "bz2", "xz",
-    "doc", "docx", "ppt", "pptx", "xls", "xlsx", "db", "sqlite", "sqlite3",
+    "doc", "ppt", "pptx", "xls", "xlsx", "db", "sqlite", "sqlite3",
     "mp3", "mp4", "wav", "avi", "mov", "mkv", "webm", "ttf", "otf", "woff", "woff2", "eot",
     "lock", "arrow", "exe"
 }
