@@ -30,7 +30,6 @@ class Front2Edge:
     BLOCK_SAVE = 'block:save'
     BLOCK_KEYBOARD = 'block:keyboard'
     BLOCK_SIGNAL = 'block:signal'
-    BLOCK_DIFF = 'block:diff'
     BLOCK_FILE_WATCH = 'block:file_watch'
     FRONTEND_FILE_CHUNK_REQUEST = 'frontend:file_chunk_request'
     
@@ -74,7 +73,6 @@ class Edge2Front:
     BLOCK_SAVE_RESULT = 'block:save_result'
     BLOCK_ERROR_RESULT = 'block:error_result'
     BLOCK_META_RESULT = 'block:meta_result'
-    BLOCK_DIFF_RESULT = 'block:diff_result'
     BLOCK_FILE_CHANGED = 'block:file_changed'
     
     # Function call responses

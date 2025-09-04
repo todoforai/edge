@@ -83,19 +83,6 @@ def block_meta_result_msg(block_id, **kwargs):
         "payload": payload
     }
 
-
-def block_diff_result_msg(todo_id, block_id, original_content, ai_generated_content):
-    return {
-        "type": EF.BLOCK_DIFF_RESULT,
-        "payload": {
-            "todoId": todo_id,
-            "blockId": block_id,
-            "original_content": original_content,
-            "ai_generated_content": ai_generated_content
-        }
-    }
-
-
 # Task action messages
 def task_action_update_msg(task_id, edge_id, status, message=None):
     payload = {

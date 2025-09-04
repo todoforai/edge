@@ -24,7 +24,6 @@ from .handlers.handlers import (
     handle_block_save,
     handle_block_refresh,
     handle_block_keyboard,
-    handle_block_diff,
     handle_task_action_new,
     handle_ctx_julia_request,
     handle_file_chunk_request,
@@ -304,8 +303,6 @@ class TODOforAIEdge:
         elif msg_type == FE.BLOCK_KEYBOARD:
             asyncio.create_task(handle_block_keyboard(payload, self))
         
-        elif msg_type == FE.BLOCK_DIFF:
-            asyncio.create_task(handle_block_diff(payload, self))
         
         elif msg_type == FE.TASK_ACTION_NEW:
             asyncio.create_task(handle_task_action_new(payload, self))

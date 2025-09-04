@@ -11,7 +11,7 @@ from .shell_handler import ShellProcess
 from ..constants.messages import (
     shell_block_start_result_msg, block_error_result_msg, get_folders_response_msg,
     dir_list_response_msg, cd_response_msg, block_save_result_msg, 
-    shell_block_message_result_msg, block_diff_result_msg, task_action_update_msg,
+    shell_block_message_result_msg, task_action_update_msg,
     ctx_julia_result_msg, file_chunk_result_msg, 
     function_call_result_msg, function_call_result_front_msg 
 )
@@ -308,37 +308,6 @@ async def handle_block_refresh(payload, client):
     data = payload.get("data", "")
 
     await client.send_response(block_message_result_msg(todo_id, block_id, "REFRESHING"))
-
-
-async def handle_block_diff(payload, client):
-    """Handle diff requests"""
-    block_id = payload.get("blockId")
-    todo_id = payload.get("todoId", "")
-    filepath = payload.get("filepath", "")
-    content = payload.get("content", "")
-
-    try:
-        # Check if path is allowed before proceeding
-        if not is_path_allowed(filepath, client.edge_config.config["workspacepaths"]):
-            raise PermissionError("No permission to access the given file")
-
-        # Check if the file exists
-        file_path = Path(filepath)
-        if not file_path.exists():
-            # If file doesn't exist, just return the new content as the diff
-            await client.send_response(block_diff_result_msg(todo_id, block_id, "", content))
-        else:
-            # Read the original file content
-            with open(filepath, 'r') as f:
-                original_content = f.read()
-
-            # Send the diff result using the new protocol structure
-            await client.send_response(block_diff_result_msg(todo_id, block_id, original_content, content))
-    except Exception as error:
-        stack_trace = traceback.format_exc()
-        logger.error(f"Error generating diff: {str(error)}\nStacktrace:\n{stack_trace}")
-        await client.send_response(block_error_result_msg(block_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
-
 
 async def handle_task_action_new(payload, client):
     """Handle new task action request"""
