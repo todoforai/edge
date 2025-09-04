@@ -130,7 +130,8 @@ jobs:
           xdg-utils \
           file \
           desktop-file-utils \
-          libfuse2
+          libfuse2 \
+          libgtk-3-bin
       shell: bash
 
     # Build newer GLib locally (keep glibc from Ubuntu 20.04)
@@ -332,6 +333,7 @@ jobs:
         APPLE_ID: ${{ secrets.APPLE_ID }}
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        APPIMAGE_EXTRACT_AND_RUN: 1
       shell: bash
 
     # Build Python distribution (console-based edge client)
