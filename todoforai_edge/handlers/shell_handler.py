@@ -47,10 +47,6 @@ class ShellProcess:
                 else:
                     logger.warning(f"Invalid root_path provided: {root_path}, using current directory")
             
-            # Ensure sudo reads password from stdin if used
-            if os.name != 'nt' and 'sudo' in content:
-                content = f'sudo() {{ command sudo -S "$@"; }}; ' + content
-                logger.debug("Wrapped sudo to always use use -S for stdin password input")
             
             # Determine shell and preexec_fn based on platform
             if os.name == 'nt':  # Windows
@@ -65,16 +61,23 @@ class ShellProcess:
             stdin_stream = slave_fd  # child sees a TTY
             stdin_writer = os.fdopen(master_fd, 'w', buffering=1)
             
-            # Create process with pipes for stdin/stdout/stderr
+            # If sudo is used on Unix, attach stdout/stderr to the same PTY so prompts are visible
+            use_pty_for_io = os.name != 'nt' and 'sudo' in content
+            # Ensure sudo reads password from stdin if used
+            if use_pty_for_io:
+                content = f'sudo() {{ command sudo -S "$@"; }};\n' + content
+                logger.debug("Wrapped sudo to always use use -S for stdin password input")
+
+            # Create process
             process = subprocess.Popen(
                 shell_cmd,
                 stdin=stdin_stream,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                universal_newlines=True,
-                cwd=cwd,  # Add working directory
+                stdout=(stdin_stream if use_pty_for_io else subprocess.PIPE),
+                stderr=(stdin_stream if use_pty_for_io else subprocess.PIPE),
+                text=(False if use_pty_for_io else True),
+                bufsize=(0 if use_pty_for_io else 1),
+                universal_newlines=(False if use_pty_for_io else True),
+                cwd=cwd,
                 preexec_fn=preexec_fn  # Only use setsid on Unix systems
             )
 
@@ -92,9 +95,12 @@ class ShellProcess:
             # Store process for potential interruption
             self.processes[block_id] = process
             
-            # Start tasks to read stdout and stderr - don't wait for them
-            asyncio.create_task(self._stream_output(process.stdout, client, todo_id, request_id, block_id, "stdout"))
-            asyncio.create_task(self._stream_output(process.stderr, client, todo_id, request_id, block_id, "stderr"))
+            # Start tasks to read output
+            if use_pty_for_io:
+                asyncio.create_task(self._stream_from_fd(master_fd, client, todo_id, request_id, block_id))
+            else:
+                asyncio.create_task(self._stream_output(process.stdout, client, todo_id, request_id, block_id, "stdout"))
+                asyncio.create_task(self._stream_output(process.stderr, client, todo_id, request_id, block_id, "stderr"))
             
             # Start timeout task - don't wait for it
             asyncio.create_task(self._handle_timeout(block_id, timeout, client, todo_id, request_id))
@@ -130,6 +136,33 @@ class ShellProcess:
             await client.send_response(shell_block_message_result_msg(
                 todo_id, block_id, f"Execution timed out after {timeout} seconds", request_id
             ))
+
+    # Read from a raw file descriptor (PTY master)
+    async def _stream_from_fd(self, fd, client, todo_id: str, request_id: str, block_id: str):
+        logger.debug(f"Starting to stream PTY fd for block {block_id}")
+        while block_id in self.processes:
+            try:
+                if select.select([fd], [], [], 0.3)[0]:
+                    try:
+                        data = os.read(fd, 1024)
+                        if not data:
+                            break
+                        text = data.decode('utf-8', errors='replace')
+                        await client.send_response(shell_block_message_result_msg(todo_id, block_id, text, request_id))
+                        if block_id in self._output_buffer:
+                            self._output_buffer[block_id] += text
+                    except OSError as e:
+                        if e.errno == 5:  # EIO - process closed PTY
+                            logger.debug(f"PTY closed for block {block_id}")
+                            break
+                        raise
+                else:
+                    await asyncio.sleep(0.01)
+            except Exception as e:
+                stack_trace = traceback.format_exc()
+                logger.error(f"Error reading PTY fd: {str(e)}\nStacktrace:\n{stack_trace}")
+                break
+        logger.debug(f"PTY fd stream for block {block_id} finished")
 
     def _read_stream_thread(self, stream, output_queue, block_id):
         """Thread function to read from a stream and put data into a queue."""
