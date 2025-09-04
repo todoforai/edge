@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "todoforai-edge-cli"
-version = "0.11.78"
+version = "0.11.79"
 description = "TODO for AI service console client"
 readme = "README.md"
 authors = [
