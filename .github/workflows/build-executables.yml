@@ -15,21 +15,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-22.04
-            target_triple: x86_64-unknown-linux-gnu
-            bundle_type: deb
           - os: ubuntu-latest
             target_triple: x86_64-unknown-linux-gnu
-            bundle_type: appimage
           - os: windows-latest
             target_triple: x86_64-pc-windows-msvc
-            bundle_type: msi
           - os: macos-14
             target_triple: aarch64-apple-darwin
-            bundle_type: dmg
           - os: macos-13
             target_triple: x86_64-apple-darwin
-            bundle_type: dmg
 
     runs-on: ${{ matrix.os }}
 
@@ -44,12 +37,10 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
+        # Skip Node install that make install does locally
         pip install -e .
+        # Install PyInstaller for building sidecar
         pip install PyInstaller>=5.0
-        # Only install build on ubuntu-22.04 for Python distribution
-        if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-          pip install build
-        fi
       shell: bash
 
     - name: Set up Node.js
@@ -59,10 +50,11 @@ jobs:
         cache: 'npm'
         cache-dependency-path: 'edge_frontend/package.json'
     
+    # Fresh install for the current platform to ensure platform-specific binaries are available
     - name: Fresh Node install for this runner
       run: |
         cd edge_frontend
-        rm -rf node_modules package-lock.json
+        rm -rf node_modules package-lock.json   # Delete BOTH to ensure clean install
         npm install --no-audit --progress=false
       shell: bash
 
@@ -73,15 +65,17 @@ jobs:
         profile: minimal
         override: true
 
+    # Install Node dependencies and Tauri CLI
     - name: Install Node dependencies
       run: |
         cd edge_frontend
         npm install --no-audit --progress=false
+        # Install Tauri CLI globally to avoid platform-specific module issues
         npm install -g @tauri-apps/cli
       shell: bash
 
     - name: Install Tauri dependencies (Ubuntu)
-      if: contains(matrix.os, 'ubuntu')
+      if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
         sudo apt-get install -y libwebkit2gtk-4.1-dev \
@@ -91,23 +85,14 @@ jobs:
           libssl-dev \
           libgtk-3-dev \
           libayatana-appindicator3-dev \
-          librsvg2-dev \
-          libglib2.0-dev \
-          pkg-config \
-          patchelf \
-          libjavascriptcoregtk-4.1-dev \
-          libsoup-3.0-dev \
-          xdg-utils \
-          file \
-          desktop-file-utils \
-          libfuse2 \
-          squashfs-tools
+          librsvg2-dev
       shell: bash
 
     - name: Build sidecar executable
       run: make build-sidecar
       shell: bash
 
+    # Install Windows SDK for signtool.exe
     - name: Install Windows SDK (Windows)
       if: matrix.os == 'windows-latest'
       run: |
@@ -115,6 +100,7 @@ jobs:
         choco install windows-sdk-10-version-2004-all -y
       shell: powershell
 
+    # Sign the sidecar executable on Windows using remote signing service
     - name: Sign sidecar executable
       if: matrix.os == 'windows-latest'
       continue-on-error: true
@@ -128,6 +114,7 @@ jobs:
           $originalSize = (Get-Item $originalPath).Length
           Write-Host "Original sidecar size: $($originalSize / 1MB) MB"
           
+          # Check if signing service is available first
           Write-Host "Checking signing service availability..."
           & curl.exe -f -s -H "Authorization: Bearer $env:SIGNING_API_KEY" "$env:SIGNING_SERVICE_URL/status" -o "service_status.json"
           
@@ -135,19 +122,24 @@ jobs:
             Write-Host "✅ Signing service is available"
             Remove-Item "service_status.json" -ErrorAction SilentlyContinue
             
+            # Attempt signing - download to separate file
             & curl.exe -f -X POST -H "Authorization: Bearer $env:SIGNING_API_KEY" -F "file=@$originalPath" "$env:SIGNING_SERVICE_URL/sign" -o $signedPath
             
             if ($LASTEXITCODE -eq 0 -and (Test-Path $signedPath)) {
               $signedSize = (Get-Item $signedPath).Length
               Write-Host "Downloaded signed file size: $($signedSize / 1MB) MB"
               
+              # Strict validation: signed file should be similar size or larger
               if ($signedSize -gt ($originalSize * 0.95) -and $signedSize -lt ($originalSize * 1.5)) {
+                # Additional validation: check if it's actually an executable
                 $fileHeader = [System.IO.File]::ReadAllBytes($signedPath)[0..1]
-                if ($fileHeader[0] -eq 0x4D -and $fileHeader[1] -eq 0x5A) {
+                if ($fileHeader[0] -eq 0x4D -and $fileHeader[1] -eq 0x5A) {  # "MZ" header
+                  # Replace original with signed version
                   Move-Item $signedPath $originalPath -Force
                   Write-Host "✅ Successfully signed sidecar executable"
                   echo "SIDECAR_SIGNED=true" >> $env:GITHUB_OUTPUT
                   
+                  # Verify the signature
                   $sig = Get-AuthenticodeSignature $originalPath
                   Write-Host "Signature Status: $($sig.Status)"
                   if ($sig.Status -eq "Valid") {
@@ -175,6 +167,7 @@ jobs:
             echo "SIDECAR_SIGNED=false" >> $env:GITHUB_OUTPUT
           }
           
+          # Clean up any leftover signed file if validation failed
           if (Test-Path $signedPath) {
             Remove-Item $signedPath -ErrorAction SilentlyContinue
           }
@@ -188,10 +181,12 @@ jobs:
         SIGNING_API_KEY: ${{ secrets.SIGNING_API_KEY }}
       shell: powershell
 
+    # Prepare sidecar for Tauri with correct target triple
     - name: Prepare sidecar for Tauri
       run: make copy-sidecar
       shell: bash
 
+    # Verify sidecar was copied correctly
     - name: Verify sidecar placement
       run: |
         echo "Checking for sidecar executable..."
@@ -199,6 +194,7 @@ jobs:
         find edge_frontend/src-tauri/binaries/ -name "*sidecar*" -type f || echo "No sidecar files found"
       shell: bash
 
+    # ─── 🍏 Create simplified entitlements file for macOS ─────────────────────
     - name: Write entitlements (macOS)
       if: startsWith(matrix.os, 'macos')
       run: |
@@ -214,14 +210,16 @@ jobs:
         EOF
         cat edge_frontend/src-tauri/entitlements.plist
 
+    # ─── 🍏 1. Import the certificate ───────────────────────────────────────
     - name: Import Code‑Signing Certificates (macOS)
       if: startsWith(matrix.os, 'macos')
       uses: apple-actions/import-codesign-certs@v2
       with:
         p12-file-base64:      ${{ secrets.APPLE_CERTIFICATE }}
         p12-password:         ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        keychain-password:    ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        keychain-password:    ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}  # Use same password for keychain
 
+    # ─── 🍏 2. Verify Developer ID certificate is present ─────────────────────
     - name: Verify Developer ID certificate (macOS)
       id: dev-id
       if: startsWith(matrix.os, 'macos')
@@ -230,6 +228,7 @@ jobs:
         security find-identity -v -p codesigning
         echo "::endgroup::"
         
+        # Look for Developer ID Application certificate without team ID filtering
         SHA=$(security find-identity -v -p codesigning | 
               grep "Developer ID Application:" | 
               head -1 | 
@@ -245,60 +244,36 @@ jobs:
         echo "SHA=$SHA" >> $GITHUB_OUTPUT
         echo "Found Developer ID Application certificate: $SHA"
         
+        # Get the full name of the certificate for Tauri config
         CERT_NAME=$(security find-identity -v -p codesigning | 
                    grep "$SHA" | 
                    sed -E 's/.*"([^"]+)".*/\1/')
         echo "CERT_NAME=$CERT_NAME" >> $GITHUB_OUTPUT
         echo "Certificate name: $CERT_NAME"
 
-    # Build specific bundle types per platform
-    - name: Build Tauri application (DEB)
-      if: matrix.bundle_type == 'deb'
-      run: |
-        cd edge_frontend
-        npm run tauri build -- --bundles deb
-      env:
-        TAURI_SKIP_UPDATE_CHECK: 1
-      shell: bash
 
-    - name: Build Tauri application (AppImage)
-      if: matrix.bundle_type == 'appimage'
-      run: |
-        cd edge_frontend
-        npm run tauri build -- --bundles appimage
-      env:
-        TAURI_SKIP_UPDATE_CHECK: 1
-      shell: bash
-
-    - name: Build Tauri application (MSI)
-      if: matrix.bundle_type == 'msi'
-      run: |
-        cd edge_frontend
-        npm run tauri build -- --bundles msi
-      env:
-        TAURI_SKIP_UPDATE_CHECK: 1
-      shell: bash
-
-    - name: Build Tauri application (DMG)
-      if: matrix.bundle_type == 'dmg'
-      run: |
-        cd edge_frontend
-        npm run tauri build -- --bundles dmg,app
+    # Build the Tauri application
+    - name: Build Tauri application
+      run: make tauri-build
       env:
         TAURI_SKIP_UPDATE_CHECK: 1
         APPLE_SIGNING_IDENTITY: ${{ steps.dev-id.outputs.CERT_NAME }}
+        # Let Tauri handle notarization
         APPLE_ID: ${{ secrets.APPLE_ID }}
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
       shell: bash
 
+    # Build Python distribution (console-based edge client)
     - name: Build Python distribution
-      if: matrix.os == 'ubuntu-22.04'
       run: |
+        # Clean dist directory of any non-Python artifacts first
         rm -f dist/todoforai-edge-sidecar*
+        python -m pip install build
         python -m build --wheel --sdist
       shell: bash
 
+    # Sign MSI installer using remote signing service  
     - name: Sign MSI installer
       if: matrix.os == 'windows-latest'
       continue-on-error: true
@@ -316,42 +291,42 @@ jobs:
             $signedSize = (Get-Item "$signedMsiPath").Length
             Write-Host "Downloaded signed MSI size: $(($signedSize / 1MB).ToString('F1')) MB"
             
+            # Validate signed MSI is reasonable size
             if ($signedSize -gt ($originalSize * 0.9)) {
               Move-Item "$signedMsiPath" "$msiPath" -Force
               Write-Host "✅ Successfully signed MSI installer"
-              echo "MSI_SIGNED=true" >> $GITHUB_OUTPUT
+              echo "MSI_SIGNED=true" >> $env:GITHUB_OUTPUT
             } else {
               Write-Warning "⚠️ Signed MSI too small - likely an error response"
               Remove-Item "$signedMsiPath" -ErrorAction SilentlyContinue
-              echo "MSI_SIGNED=false" >> $GITHUB_OUTPUT
-            fi
+              echo "MSI_SIGNED=false" >> $env:GITHUB_OUTPUT
+            }
           } else {
             Write-Warning "⚠️ MSI signing failed (curl exit code: $LASTEXITCODE)"
-            echo "MSI_SIGNED=false" >> $GITHUB_OUTPUT
-          fi
+            echo "MSI_SIGNED=false" >> $env:GITHUB_OUTPUT
+          }
         } else {
           Write-Warning "MSI installer not found"
-          echo "MSI_SIGNED=false" >> $GITHUB_OUTPUT
-        fi
+          echo "MSI_SIGNED=false" >> $env:GITHUB_OUTPUT
+        }
       env:
         SIGNING_SERVICE_URL: ${{ secrets.SIGNING_SERVICE_URL }}
         SIGNING_API_KEY: ${{ secrets.SIGNING_API_KEY }}
       shell: powershell
 
-    - name: Install jq (macOS)
-      if: startsWith(matrix.os, 'macos')
-      run: brew install jq
-      shell: bash
-
+    # Notarize and staple the macOS application using manual commands
+    # Only run this if Tauri's built-in notarization fails
     - name: Manual Notarize & staple macOS app
       if: startsWith(matrix.os, 'macos') && !contains(env.TAURI_BUILD_LOG, 'notarization complete')
       run: |
+        # Create keychain profile for notarization
         echo "Creating notarization keychain profile"
         xcrun notarytool store-credentials "notary-profile" \
           --apple-id "${{ secrets.APPLE_ID }}" \
           --team-id "${{ secrets.APPLE_TEAM_ID }}" \
           --password "${{ secrets.APPLE_APP_PASSWORD }}"
         
+        # Find the DMG file
         DMG_PATH=$(find edge_frontend/src-tauri/target/release/bundle/dmg -name "*.dmg" | head -n 1)
         if [ -z "$DMG_PATH" ]; then
           echo "::error::DMG file not found"
@@ -359,6 +334,7 @@ jobs:
         fi
         echo "Found DMG at: $DMG_PATH"
         
+        # Submit for notarization and capture the submission ID using JSON output
         echo "Submitting for notarization..."
         SUBMISSION_JSON=$(xcrun notarytool submit "$DMG_PATH" \
           --keychain-profile "notary-profile" \
@@ -368,15 +344,18 @@ jobs:
         echo "Notarization submission output:"
         echo "$SUBMISSION_JSON"
         
+        # Extract the submission ID and status using jq
         SUBMISSION_ID=$(echo "$SUBMISSION_JSON" | jq -r '.id')
         STATUS=$(echo "$SUBMISSION_JSON" | jq -r '.status')
         
         echo "Notarization submission ID: $SUBMISSION_ID"
         echo "Notarization status: $STATUS"
         
+        # Check if notarization was successful
         if [ "$STATUS" != "Accepted" ]; then
           echo "::error::Notarization failed with status: $STATUS"
           
+          # Get detailed log for the submission
           echo "Fetching detailed notarization log..."
           xcrun notarytool log "$SUBMISSION_ID" \
             --keychain-profile "notary-profile" > notarization.log
@@ -388,41 +367,221 @@ jobs:
           exit 1
         fi
         
+        # Staple the notarization ticket to the DMG
         echo "Stapling notarization ticket..."
         xcrun stapler staple "$DMG_PATH"
         
+        # Verify the stapling
         xcrun stapler validate "$DMG_PATH"
       shell: bash
 
+    # Determine the Tauri app bundle path based on OS
     - name: Set Tauri bundle path
       id: bundle-path
       run: |
-        echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle" >> $GITHUB_OUTPUT
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
+          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle/msi" >> $GITHUB_OUTPUT
+          echo "BUNDLE_EXTENSION=msi" >> $GITHUB_OUTPUT
+        elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          # For Linux, we'll collect both AppImage and DEB
+          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle" >> $GITHUB_OUTPUT
+          echo "BUNDLE_EXTENSION=*" >> $GITHUB_OUTPUT
+        else
+          # For macOS, we'll collect both .app and .dmg
+          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle" >> $GITHUB_OUTPUT
+          echo "BUNDLE_EXTENSION=*" >> $GITHUB_OUTPUT
+        fi
       shell: bash
 
+    # Upload the Tauri application bundle as an artifact
     - name: Upload Tauri application bundle
       uses: actions/upload-artifact@v4
       with:
-        name: todoforai-edge-${{ matrix.target_triple }}-${{ matrix.bundle_type }}
+        name: todoforai-edge-${{ matrix.target_triple }}
         path: ${{ steps.bundle-path.outputs.BUNDLE_PATH }}
 
+    # Upload Python distribution artifacts (only from one runner to avoid duplicates)
     - name: Upload Python distribution
-      if: matrix.os == 'ubuntu-22.04'
+      if: matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v4
       with:
         name: todoforai-edge-python-dist
         path: dist/
 
+  # ─────────────────────────── Deployment ───────────────────────────
   deploy:
-    needs: [build]
-    uses: ./.github/workflows/deploy.yml
-    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/prod'
-    secrets: inherit
-
-  deploy-pypi:
-    needs: [build]
+    needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/prod'
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Debug environment
+      run: |
+        # Check if secrets are available (without revealing them)
+        if [ -n "${{ secrets.R2_BUCKET_NAME }}" ]; then
+          echo "R2_BUCKET_NAME is set"
+        else
+          echo "R2_BUCKET_NAME is NOT set"
+        fi
+        if [ -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+          echo "CLOUDFLARE_API_TOKEN is set"
+        else
+          echo "CLOUDFLARE_API_TOKEN is NOT set"
+        fi
+        if [ -n "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+          echo "CLOUDFLARE_ACCOUNT_ID is set"
+        else
+          echo "CLOUDFLARE_ACCOUNT_ID is NOT set"
+        fi
+        
+        echo "::group::Artifacts"
+        ls -R
+        echo "::endgroup::"
+
+    - name: Install Cloudflare Wrangler
+      run: npm install -g wrangler
+
+    - name: Upload to Cloudflare R2 using Wrangler
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        R2_BUCKET_NAME:       ${{ secrets.R2_BUCKET_NAME }}
+      run: |
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/v}; FOLDER="$VERSION"
+        else
+          FOLDER="latest"
+        fi
+        echo "Uploading to folder: $FOLDER"
+        
+        # Function to upload with retry
+        upload_with_retry() {
+          local file="$1"
+          local remote_path="$2"
+          local max_retries=3
+          local retry_count=0
+          
+          while [ $retry_count -lt $max_retries ]; do
+            echo "Uploading $file to $remote_path (attempt $((retry_count + 1))/$max_retries)"
+            
+            if cat "$file" | wrangler r2 object put "$remote_path" --pipe --content-type application/octet-stream --remote; then
+              echo "✅ Successfully uploaded $file"
+              return 0
+            else
+              retry_count=$((retry_count + 1))
+              if [ $retry_count -lt $max_retries ]; then
+                echo "❌ Upload failed, retrying in 10 seconds..."
+                sleep 10
+              else
+                echo "❌ Upload failed after $max_retries attempts: $file"
+                return 1
+              fi
+            fi
+          done
+        }
+
+        # Create a directory for each platform's artifacts
+        mkdir -p uploads
+        
+        # Handle Python distribution artifacts
+        if [ -d "todoforai-edge-python-dist" ]; then
+          echo "Processing Python distribution artifacts..."
+          find todoforai-edge-python-dist -name "*.whl" -exec cp {} uploads/ \;
+          find todoforai-edge-python-dist -name "*.tar.gz" -exec cp {} uploads/ \;
+          
+          # Upload Python wheel and source distribution
+          for FILE in uploads/*.whl uploads/*.tar.gz; do
+            if [ -f "$FILE" ]; then
+              FILENAME=$(basename "$FILE")
+              upload_with_retry "$FILE" "$R2_BUCKET_NAME/edge/$FOLDER/$FILENAME"
+            fi
+          done
+        fi
+        
+        # Find and prepare all Tauri app bundles for upload
+        for DIR in todoforai-edge-*; do
+          if [ -d "$DIR" ] && [ "$DIR" != "todoforai-edge-python-dist" ]; then
+            TARGET_TRIPLE=$(echo $DIR | sed 's/todoforai-edge-//')
+            
+            # Map target triple to user-friendly platform name
+            if [[ "$TARGET_TRIPLE" == *windows* ]]; then
+              PLATFORM="windows"
+              ARCH="x64"
+              if [[ "$TARGET_TRIPLE" == *aarch64* ]]; then
+                ARCH="arm64"
+              fi
+              
+              # For Windows, find and copy the MSI installer
+              find "$DIR" -name "*.msi" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" \;
+              
+              # Upload the MSI
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" ]; then
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.msi" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.msi"
+              fi
+            elif [[ "$TARGET_TRIPLE" == *linux* ]]; then
+              PLATFORM="linux"
+              ARCH="x64"
+              if [[ "$TARGET_TRIPLE" == *aarch64* ]]; then
+                ARCH="arm64"
+              fi
+              
+              # For Linux, find and copy both AppImage and DEB
+              find "$DIR" -name "*.AppImage" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" \;
+              find "$DIR" -name "*.deb" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" \;
+              
+              # Upload the AppImage
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" ]; then
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.AppImage" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.AppImage"
+              fi
+              
+              # Upload the DEB with extra retry for this problematic file
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" ]; then
+                echo "📦 DEB file size: $(du -h "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" | cut -f1)"
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.deb" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.deb"
+              fi
+            elif [[ "$TARGET_TRIPLE" == *darwin* || "$TARGET_TRIPLE" == *apple* ]]; then
+              PLATFORM="macos"
+              ARCH="x64"
+              if [[ "$TARGET_TRIPLE" == *aarch64* ]]; then
+                ARCH="arm64"
+              fi
+              
+              # For macOS, prioritize DMG installer
+              find "$DIR" -name "*.dmg" -exec cp {} "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" \;
+              
+              # Upload the DMG
+              if [ -f "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" ]; then
+                upload_with_retry "uploads/todoforai-edge-${PLATFORM}-${ARCH}.dmg" "$R2_BUCKET_NAME/edge/$FOLDER/todoforai-edge-${PLATFORM}-${ARCH}.dmg"
+              fi
+            fi
+          fi
+        done
+        
+        # If this is a tag release, also copy to latest
+        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          echo "🔄 Copying files to latest folder..."
+          for FILE in uploads/*; do
+            if [ -f "$FILE" ]; then
+              FILENAME=$(basename "$FILE")
+              upload_with_retry "$FILE" "$R2_BUCKET_NAME/edge/latest/$FILENAME"
+            fi
+          done
+        fi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/v')
+      with:
+        files: uploads/*
+
+  # New job for PyPI deployment - directly to production
+  deploy-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/prod'  # Deploy on both version tags and prod branch
     
     steps:
     - uses: actions/checkout@v4
