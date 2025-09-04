@@ -199,6 +199,7 @@ class MCPCollector:
             ("npx", "@gongrzhe/server-gmail-autoauth-mcp"): "gmail",
             ("npx", "@todoforai/server-gmail-autoauth-mcp"): "gmail",
             ("npx", "github:Sixzero/puppeteer-mcp-server"): "puppeteer", 
+            ("npx", "@playwright/mcp@latest"): "playwright",
             ("npx", "@spotify-applescript/mcp-server"): "spotify-applescript",
             ("npx", "@stripe/mcp-server"): "stripe",
             ("npx", "@brave-applescript/mcp-server"): "brave-applescript",
