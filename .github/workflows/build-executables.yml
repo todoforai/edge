@@ -27,7 +27,7 @@ jobs:
             container: null
           - os: ubuntu-latest
             target_triple: x86_64-unknown-linux-gnu
-            container: ubuntu:20.04
+            container: ubuntu:22.04
 
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
@@ -113,7 +113,7 @@ jobs:
       run: |
         # Container environment - use apt-get directly
         apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y libwebkit2gtk-4.0-dev \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y libwebkit2gtk-4.1-dev \
           build-essential \
           curl \
           wget \
@@ -124,7 +124,9 @@ jobs:
           librsvg2-dev \
           pkg-config \
           libglib2.0-dev-bin \
-          patchelf
+          patchelf \
+          libjavascriptcoregtk-4.1-dev \
+          libsoup-3.0-dev
       shell: bash
 
     # Build newer GLib locally (keep glibc from Ubuntu 20.04)
