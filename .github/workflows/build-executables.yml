@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             target_triple: x86_64-unknown-linux-gnu
             bundle_type: deb
           - os: ubuntu-latest
@@ -46,8 +46,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .
         pip install PyInstaller>=5.0
-        # Only install build on ubuntu-20.04 for Python distribution
-        if [ "${{ matrix.os }}" = "ubuntu-20.04" ]; then
+        # Only install build on ubuntu-22.04 for Python distribution
+        if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
           pip install build
         fi
       shell: bash
@@ -293,7 +293,7 @@ jobs:
       shell: bash
 
     - name: Build Python distribution
-      if: matrix.os == 'ubuntu-20.04'
+      if: matrix.os == 'ubuntu-22.04'
       run: |
         rm -f dist/todoforai-edge-sidecar*
         python -m build --wheel --sdist
@@ -407,7 +407,7 @@ jobs:
         path: ${{ steps.bundle-path.outputs.BUNDLE_PATH }}
 
     - name: Upload Python distribution
-      if: matrix.os == 'ubuntu-20.04'
+      if: matrix.os == 'ubuntu-22.04'
       uses: actions/upload-artifact@v4
       with:
         name: todoforai-edge-python-dist
