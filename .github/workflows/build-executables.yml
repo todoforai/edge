@@ -123,7 +123,9 @@ jobs:
           libayatana-appindicator3-dev \
           librsvg2-dev \
           pkg-config \
-          libglib2.0-dev-bin \
+          libglib2.0-bin \
+          libgdk-pixbuf2.0-0 \
+          libgdk-pixbuf2.0-bin \
           patchelf \
           libjavascriptcoregtk-4.1-dev \
           libsoup-3.0-dev \
@@ -131,7 +133,10 @@ jobs:
           file \
           desktop-file-utils \
           libfuse2 \
-          libgtk-3-bin
+          libgtk-3-bin \
+          squashfs-tools \
+          binutils \
+          appstream
       shell: bash
 
     # Build newer GLib locally (keep glibc from Ubuntu 20.04)
@@ -334,6 +339,8 @@ jobs:
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         APPLE_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         APPIMAGE_EXTRACT_AND_RUN: 1
+        TAURI_BUNDLER_DEBUG: 1
+        RUST_LOG: debug
       shell: bash
 
     # Build Python distribution (console-based edge client)
