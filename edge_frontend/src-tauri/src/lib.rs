@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::Arc;
 use std::{env, fs, path::PathBuf, sync::Mutex, time::Duration};
+use std::io::{Read, Write}; // add
 use tauri::{path::BaseDirectory, AppHandle, Manager, PhysicalSize, WebviewWindow};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandEvent, CommandChild};
@@ -165,16 +166,39 @@ async fn wait_for_sidecar_ready(port: u16, timeout_seconds: u64) -> Result<(), S
     info!("Waiting for sidecar to be ready on port {}...", port);
     
     while start_time.elapsed() < timeout {
-        if is_port_in_use(port) {
+        // Send a minimal valid HTTP request so the WS server parses the line,
+        // avoiding "opening handshake failed" caused by immediate EOF.
+        if http_probe_ws_port(port) {
             info!("Sidecar is ready on port {}", port);
             return Ok(());
         }
-        
-        // Wait a bit before checking again
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
     
     Err(format!("Timeout waiting for sidecar to be ready on port {} after {} seconds", port, timeout_seconds))
+}
+
+// Minimal HTTP probe over TCP to avoid noisy handshake errors
+fn http_probe_ws_port(port: u16) -> bool {
+    match TcpStream::connect_timeout(
+        &SocketAddr::from(([127, 0, 0, 1], port)),
+        Duration::from_millis(200)
+    ) {
+        Ok(mut stream) => {
+            let _ = stream.set_write_timeout(Some(Duration::from_millis(200)));
+            let _ = stream.set_read_timeout(Some(Duration::from_millis(200)));
+            let req = format!(
+                "GET / HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nConnection: close\r\n\r\n",
+                port
+            );
+            let _ = stream.write_all(req.as_bytes());
+            let mut buf = [0u8; 1];
+            let _ = stream.read(&mut buf); // optional: try to read a byte
+            let _ = stream.shutdown(std::net::Shutdown::Both);
+            true
+        }
+        Err(_) => false
+    }
 }
 
 // Fixed WebSocket port
