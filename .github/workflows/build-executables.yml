@@ -15,14 +15,21 @@ jobs:
     strategy:
       matrix:
         include:
+          - os: ubuntu-22.04
+            target_triple: x86_64-unknown-linux-gnu
+            bundle_type: deb
           - os: ubuntu-latest
             target_triple: x86_64-unknown-linux-gnu
+            bundle_type: appimage
           - os: windows-latest
             target_triple: x86_64-pc-windows-msvc
+            bundle_type: msi
           - os: macos-14
             target_triple: aarch64-apple-darwin
+            bundle_type: dmg
           - os: macos-13
             target_triple: x86_64-apple-darwin
+            bundle_type: dmg
 
     runs-on: ${{ matrix.os }}
 
@@ -39,8 +46,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .
         pip install PyInstaller>=5.0
-        # Install build for Python distribution
-        pip install build
+        # Only install build on ubuntu-22.04 for Python distribution
+        if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+          pip install build
+        fi
       shell: bash
 
     - name: Set up Node.js
@@ -72,7 +81,7 @@ jobs:
       shell: bash
 
     - name: Install Tauri dependencies (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
+      if: contains(matrix.os, 'ubuntu')
       run: |
         sudo apt-get update
         sudo apt-get install -y libwebkit2gtk-4.1-dev \
@@ -242,8 +251,39 @@ jobs:
         echo "CERT_NAME=$CERT_NAME" >> $GITHUB_OUTPUT
         echo "Certificate name: $CERT_NAME"
 
-    - name: Build Tauri application
-      run: make tauri-build
+    # Build specific bundle types per platform
+    - name: Build Tauri application (DEB)
+      if: matrix.bundle_type == 'deb'
+      run: |
+        cd edge_frontend
+        npm run tauri build -- --bundles deb
+      env:
+        TAURI_SKIP_UPDATE_CHECK: 1
+      shell: bash
+
+    - name: Build Tauri application (AppImage)
+      if: matrix.bundle_type == 'appimage'
+      run: |
+        cd edge_frontend
+        npm run tauri build -- --bundles appimage
+      env:
+        TAURI_SKIP_UPDATE_CHECK: 1
+      shell: bash
+
+    - name: Build Tauri application (MSI)
+      if: matrix.bundle_type == 'msi'
+      run: |
+        cd edge_frontend
+        npm run tauri build -- --bundles msi
+      env:
+        TAURI_SKIP_UPDATE_CHECK: 1
+      shell: bash
+
+    - name: Build Tauri application (DMG)
+      if: matrix.bundle_type == 'dmg'
+      run: |
+        cd edge_frontend
+        npm run tauri build -- --bundles dmg,app
       env:
         TAURI_SKIP_UPDATE_CHECK: 1
         APPLE_SIGNING_IDENTITY: ${{ steps.dev-id.outputs.CERT_NAME }}
@@ -253,6 +293,7 @@ jobs:
       shell: bash
 
     - name: Build Python distribution
+      if: matrix.os == 'ubuntu-22.04'
       run: |
         rm -f dist/todoforai-edge-sidecar*
         python -m build --wheel --sdist
@@ -356,32 +397,22 @@ jobs:
     - name: Set Tauri bundle path
       id: bundle-path
       run: |
-        if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle/msi" >> $GITHUB_OUTPUT
-          echo "BUNDLE_EXTENSION=msi" >> $GITHUB_OUTPUT
-        elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle" >> $GITHUB_OUTPUT
-          echo "BUNDLE_EXTENSION=*" >> $GITHUB_OUTPUT
-        else
-          echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle" >> $GITHUB_OUTPUT
-          echo "BUNDLE_EXTENSION=*" >> $GITHUB_OUTPUT
-        fi
+        echo "BUNDLE_PATH=edge_frontend/src-tauri/target/release/bundle" >> $GITHUB_OUTPUT
       shell: bash
 
     - name: Upload Tauri application bundle
       uses: actions/upload-artifact@v4
       with:
-        name: todoforai-edge-${{ matrix.target_triple }}
+        name: todoforai-edge-${{ matrix.target_triple }}-${{ matrix.bundle_type }}
         path: ${{ steps.bundle-path.outputs.BUNDLE_PATH }}
 
     - name: Upload Python distribution
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-22.04'
       uses: actions/upload-artifact@v4
       with:
         name: todoforai-edge-python-dist
         path: dist/
 
-  # ... existing code ...
   deploy:
     needs: build
     runs-on: ubuntu-latest
