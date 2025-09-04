@@ -23,7 +23,19 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": {
+      "linux": [
+        "deb",
+        "rpm"
+      ],
+      "windows": [
+        "msi"
+      ],
+      "macos": [
+        "dmg",
+        "app"
+      ]
+    },
     "resources": [
       "resources/python/ws_sidecar.py"
     ],
@@ -50,7 +62,9 @@
   },
   "plugins": {
     "deep-link": {
-      "schemes": ["todoforai-edge"],
+      "schemes": [
+        "todoforai-edge"
+      ],
       "linux": {
         "register": false
       },
