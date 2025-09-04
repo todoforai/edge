@@ -17,9 +17,9 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@tauri-apps/api": "^2.7.0",
+    "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-deep-link": "~2",
-    "@tauri-apps/plugin-opener": "^2.3.0",
+    "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-os": "^2.2.1",
     "@tauri-apps/plugin-store": "^2.0.0",
     "@typescript-eslint/parser": "^8.32.0",
