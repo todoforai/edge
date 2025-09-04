@@ -109,6 +109,27 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     }
   },
   {
+    registryId: 'playwright',
+    name: 'Playwright',
+    description: 'Web automation and testing using Playwright',
+    command: 'npx',
+    args: ['@playwright/mcp@latest'],
+    icon: '/logos/playwright.png',
+    env: {},
+    category: ['Web Automation'],
+    aliases: ['PLAYWRIGHT'],
+    repository: {
+      url: 'https://github.com/microsoft/playwright',
+      source: 'npm',
+      id: '@playwright/mcp'
+    },
+    version_detail: {
+      version: 'latest',
+      release_date: '2025-08-01',
+      is_latest: true
+    }
+  },
+  {
     registryId: 'puppeteer',
     name: 'Puppeteer MCP',
     description: 'Web automation and scraping using Puppeteer browser control',
