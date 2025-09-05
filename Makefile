@@ -117,6 +117,7 @@ update-icons:
 
 # Install dependencies
 install:
+	pip install -r requirements.txt
 	pip install -e .
 	cd edge_frontend && npm install
 
