@@ -287,6 +287,8 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
 
                 command
                     .args(["--port", &WEBSOCKET_PORT.to_string()])
+                    .env("PYTHONIOENCODING", "utf-8")  // ensure UTF-8 for stdout/stderr
+                    .env("PYTHONUTF8", "1")            // force UTF-8 mode
                     .spawn()
                     .map_err(|e| format!("Failed to spawn sidecar: {}", e))?
             }
