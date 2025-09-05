@@ -5,3 +5,4 @@ watchdog>=4.0.0
 fastmcp
 watchfiles
 aiofiles
+aiohttp>=3.8.0
