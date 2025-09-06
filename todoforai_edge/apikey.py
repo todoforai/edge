@@ -1,6 +1,7 @@
 import logging
 import requests
 from .colors import Colors
+from .utils import safe_print
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -11,7 +12,7 @@ def authenticate_and_get_api_key(email, password, api_url):
     """Authenticate with the server and get an API key"""
     # Login only, no registration
     login_url = f"{api_url}/token/v1/auth/login"
-    print(f"{Colors.CYAN}🔐 Authenticating with email: {Colors.YELLOW}{Colors.BOLD}{email}{Colors.END}{Colors.CYAN} on {Colors.GREEN}{Colors.BOLD}{api_url}{Colors.END}{Colors.CYAN}...{Colors.END}")
+    safe_print(f"{Colors.CYAN}🔐 Authenticating with email: {Colors.YELLOW}{Colors.BOLD}{email}{Colors.END}{Colors.CYAN} on {Colors.GREEN}{Colors.BOLD}{api_url}{Colors.END}{Colors.CYAN}...{Colors.END}")
     
     try:
         response = requests.post(login_url, json={"email": email, "password": password}, timeout=30)
@@ -36,7 +37,7 @@ def authenticate_and_get_api_key(email, password, api_url):
     
     # Try to get existing API key
     get_key_url = f"{api_url}/token/v1/users/apikeys/{api_key_name}"
-    print(f"{Colors.CYAN}🔑 Retrieving API key...{Colors.END}")
+    safe_print(f"{Colors.CYAN}🔑 Retrieving API key...{Colors.END}")
     
     try:
         response = requests.get(get_key_url, headers=headers, timeout=30)
@@ -46,7 +47,7 @@ def authenticate_and_get_api_key(email, password, api_url):
     if response.status_code == 404:
         # Create new API key
         create_key_url = f"{api_url}/token/v1/users/apikeys"
-        print(f"{Colors.YELLOW}📝 Creating new API key...{Colors.END}")
+        safe_print(f"{Colors.YELLOW}📝 Creating new API key...{Colors.END}")
         
         try:
             response2 = requests.post(create_key_url, headers=headers, json={"name": api_key_name}, timeout=30)
@@ -61,7 +62,7 @@ def authenticate_and_get_api_key(email, password, api_url):
         if not api_key:
             raise ValueError(f"Server returned invalid API key response: {data}")
             
-        print(f"{Colors.GREEN}✅ Created new API key{Colors.END}")
+        safe_print(f"{Colors.GREEN}✅ Created new API key{Colors.END}")
         return api_key
     else:
         if response.status_code != 200:
@@ -70,7 +71,7 @@ def authenticate_and_get_api_key(email, password, api_url):
         data = response.json()
         api_key = data.get("id")
             
-        print(f"{Colors.GREEN}✅ Retrieved existing API key{Colors.END}")
+        safe_print(f"{Colors.GREEN}✅ Retrieved existing API key{Colors.END}")
         
         return api_key
 

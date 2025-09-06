@@ -5,8 +5,16 @@ import platform
 import subprocess
 import logging
 import requests
+import sys
 
 logger = logging.getLogger("todoforai-edge")
+
+def safe_print(s):
+    """Safely print strings that may contain emojis or unicode characters"""
+    try:
+        sys.stdout.write(s + "\n")
+    except Exception:
+        sys.stdout.write((s.encode('ascii', 'ignore').decode('ascii')) + "\n")
 
 def generate_machine_fingerprint():
     """Generate a unique fingerprint for this edge based on machine characteristics"""

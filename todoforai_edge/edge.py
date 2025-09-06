@@ -10,7 +10,7 @@ import websockets
 from .constants.constants import (
     EdgeStatus, SR, FE, AE, EF, S2E
 )
-from .utils import generate_machine_fingerprint, async_request, normalize_api_url
+from .utils import generate_machine_fingerprint, async_request, normalize_api_url, safe_print
 from .constants.messages import edge_status_msg
 from .constants.workspace_handler import handle_ctx_workspace_request
 from .apikey import authenticate_and_get_api_key
@@ -98,7 +98,7 @@ class TODOforAIEdge:
     def _generate_fingerprint(self):
         """Generate fingerprint based on machine characteristics"""
         self.fingerprint = generate_machine_fingerprint()
-        print(f'👆 {Colors.CYAN}{Colors.BOLD}Generated fingerprint:{Colors.END} {self.fingerprint}')
+        safe_print(f'👆 {Colors.CYAN}{Colors.BOLD}Generated fingerprint:{Colors.END} {self.fingerprint}')
         return self.fingerprint
 
     async def _on_config_change(self, changes: Dict[str, Any]) -> None:
@@ -131,7 +131,7 @@ class TODOforAIEdge:
             
         try:
             self.api_key = authenticate_and_get_api_key(self.email, self.password, self.api_url)
-            print(f"{Colors.GREEN}✅ Successfully authenticated as {Colors.YELLOW}{Colors.BOLD}{self.email}{Colors.END}")
+            safe_print(f"{Colors.GREEN}✅ Successfully authenticated as {Colors.YELLOW}{Colors.BOLD}{self.email}{Colors.END}")
             return {"valid": True}
         except Exception as e:
             logger.error(f"Authentication failed: {str(e)}")
@@ -273,7 +273,7 @@ class TODOforAIEdge:
         elif msg_type == SR.CONNECTED_EDGE:
             self.edge_id = payload.get("edgeId", "")
             self.user_id = payload.get("userId", "")
-            logger.info(f"{Colors.GREEN}{Colors.BOLD}🔗 Connected with edge ID: {self.edge_id} and user ID: {self.user_id}{Colors.END}")
+            safe_print(f"{Colors.GREEN}{Colors.BOLD}🔗 Connected with edge ID: {self.edge_id} and user ID: {self.user_id}{Colors.END}")
             
             # Update the edge config with the edge ID
             if self.edge_id:
