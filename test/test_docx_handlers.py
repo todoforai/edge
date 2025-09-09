@@ -2,7 +2,7 @@ from pathlib import Path
 import shutil
 import xml.etree.ElementTree as ET
 
-from todoforai_edge.handlers.handlers import extract_docx_content, save_docx_content, is_valid_xml
+from todoforai_edge.handlers.docx_handler import extract_docx_content, save_docx_content, is_valid_xml
 
 def _xml_only(s: str) -> str:
     lines = s.split("\n")

@@ -24,7 +24,7 @@ FILE_EXTENSIONS = {
     "fasl", "jl", "r", "R", "rmd", "Rmd", "mat", "asm", "s", "dart", "sql", "md", "mdx", "markdown",
     "rst", "adoc", "tex", "sty", "gradle", "sbt", "xml", "properties", "plist",
     "proto", "proto3", "graphql", "prisma", "yml", "yaml", "svg",
-    "code-workspace", "txt", "json", "desktop", "docx",
+    "code-workspace", "txt", "json", "desktop", "docx", "xlsx",
     # Shell and scripting
     "ps1", "psm1", "psd1", "bat", "cmd", "vbs", "ahk",
     # Configuration and data
@@ -125,14 +125,14 @@ def gitignore_to_regex(pattern):
 
     # Handle gitignore pattern syntax
     pattern = pattern.replace('?', '.')
-    
+
     # Handle ** patterns - use placeholders to avoid interference with single * replacement
     pattern = re.sub(r'\*\*/', r'__DOUBLESTAR_SLASH__', pattern)
     pattern = re.sub(r'\*\*', r'__DOUBLESTAR__', pattern)
-    
+
     # Handle single * - should not cross directory boundaries
     pattern = re.sub(r'\*', r'[^/]*', pattern)
-    
+
     # Replace placeholders with actual regex
     pattern = pattern.replace('__DOUBLESTAR_SLASH__', '.*/')
     pattern = pattern.replace('__DOUBLESTAR__', '.*')
