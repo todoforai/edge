@@ -131,21 +131,7 @@ install:
 
 # Build the WebSocket sidecar executable
 build-sidecar:
-	@if command -v python3 >/dev/null 2>&1; then \
-		if [ -f "venv/Scripts/activate" ]; then \
-			echo "Activating Windows venv..."; \
-			. venv/Scripts/activate && python3 build_executable.py; \
-		elif [ -f "venv/bin/activate" ]; then \
-			echo "Activating Unix venv..."; \
-			. venv/bin/activate && python3 build_executable.py; \
-		else \
-			echo "No virtual environment found, using system Python..."; \
-			python3 build_executable.py; \
-		fi; \
-	else \
-		echo "Python3 not found"; \
-		exit 1; \
-	fi
+	python3 build_executable.py
 
 # Copy the sidecar executable to the Tauri resources directory
 copy-sidecar:

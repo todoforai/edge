@@ -107,7 +107,7 @@ jobs:
         else
           source venv/bin/activate
         fi
-        make build-sidecar
+        python3 build_executable.py
       shell: bash
 
     # Install Windows SDK for signtool.exe
