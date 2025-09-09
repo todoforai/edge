@@ -271,7 +271,14 @@ jobs:
 
     # Build the Tauri application
     - name: Build Tauri application
-      run: make tauri-build
+      run: |
+        # Ensure DMG bundler is available on macOS runners
+        if [[ "${{ matrix.os }}" == macos* ]]; then
+          echo "Installing create-dmg for DMG bundling..."
+          brew update
+          brew install create-dmg || brew reinstall create-dmg
+        fi
+        make tauri-build
       env:
         TAURI_SKIP_UPDATE_CHECK: 1
         APPIMAGE_EXTRACT_AND_RUN: 1
