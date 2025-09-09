@@ -103,11 +103,10 @@ jobs:
     - name: Build sidecar executable
       run: |
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          source venv/Scripts/activate
+          ./venv/Scripts/python.exe build_executable.py
         else
-          source venv/bin/activate
+          ./venv/bin/python build_executable.py
         fi
-        python3 build_executable.py
       shell: bash
 
     # Install Windows SDK for signtool.exe
@@ -287,14 +286,16 @@ jobs:
     - name: Build Python distribution
       run: |
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          source venv/Scripts/activate
+          # Clean dist directory of any non-Python artifacts first
+          rm -f dist/todoforai-edge-sidecar*
+          ./venv/Scripts/python.exe -m pip install build
+          ./venv/Scripts/python.exe -m build --wheel --sdist
         else
-          source venv/bin/activate
+          # Clean dist directory of any non-Python artifacts first
+          rm -f dist/todoforai-edge-sidecar*
+          ./venv/bin/python -m pip install build
+          ./venv/bin/python -m build --wheel --sdist
         fi
-        # Clean dist directory of any non-Python artifacts first
-        rm -f dist/todoforai-edge-sidecar*
-        python -m pip install build
-        python -m build --wheel --sdist
       shell: bash
 
     # Sign MSI installer using remote signing service  
