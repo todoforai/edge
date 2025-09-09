@@ -36,6 +36,8 @@ jobs:
 
     - name: Install Python dependencies
       run: |
+        python -m venv venv
+        source venv/bin/activate
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         # Skip Node install that make install does locally
@@ -95,7 +97,9 @@ jobs:
       shell: bash
 
     - name: Build sidecar executable
-      run: make build-sidecar
+      run: |
+        source venv/bin/activate
+        make build-sidecar
       shell: bash
 
     # Install Windows SDK for signtool.exe
@@ -274,6 +278,7 @@ jobs:
     # Build Python distribution (console-based edge client)
     - name: Build Python distribution
       run: |
+        source venv/bin/activate
         # Clean dist directory of any non-Python artifacts first
         rm -f dist/todoforai-edge-sidecar*
         python -m pip install build

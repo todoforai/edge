@@ -72,12 +72,16 @@ parts:
       # Configure Rust toolchain
       rustup default stable
       
-      # Install Python dependencies
+      # Create and use virtual environment for Python
+      python3 -m venv venv
+      . venv/bin/activate
+      
+      # Install Python dependencies in venv
       python3 -m pip install --upgrade pip
       pip install -r requirements.txt
       pip install . --prefix=$SNAPCRAFT_PART_INSTALL/usr
       
-      # Install PyInstaller
+      # Install PyInstaller in venv
       pip install PyInstaller
       
       # Build sidecar using make (simpler approach)
