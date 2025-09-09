@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any, Callable, Coroutine, Union, TypeVa
 import json
 import asyncio
 import websockets
+import ssl
 
 # Import constants
 from .constants.constants import (
@@ -100,6 +101,16 @@ class TODOforAIEdge:
         self.fingerprint = generate_machine_fingerprint()
         safe_print(f'👆 {Colors.CYAN}{Colors.BOLD}Generated fingerprint:{Colors.END} {self.fingerprint}')
         return self.fingerprint
+
+    def _create_ssl_context(self):
+        """Create SSL context that doesn't verify certificates"""
+        if not self.ws_url.startswith("wss://"):
+            return None
+            
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        return context
 
     async def _on_config_change(self, changes: Dict[str, Any]) -> None:
         """Callback when config changes - receives only the changed fields"""
@@ -373,10 +384,13 @@ class TODOforAIEdge:
         # Use a custom subprotocol that includes the API key
         custom_protocol = f"{self.api_key}"
         
+        ssl_context = self._create_ssl_context()
+        
         async with websockets.connect(
             ws_url,
             subprotocols=[custom_protocol],
-            max_size=5 * 1024 * 1024  # 5MB limit for legitimate large messages
+            max_size=5 * 1024 * 1024,
+            ssl=ssl_context
         ) as ws:
             self.ws = ws
             self.connected = True
