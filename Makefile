@@ -162,7 +162,7 @@ tauri-build:
 	# Ensure fresh node dependencies are installed for the current platform
 	cd edge_frontend && rm -rf node_modules package-lock.json
 	cd edge_frontend && npm install --no-audit --progress=false
-	cd edge_frontend && TAURI_SKIP_UPDATE_CHECK=1 npm run tauri build
+	cd edge_frontend && APPIMAGE_EXTRACT_AND_RUN=1 TAURI_SKIP_UPDATE_CHECK=1 npm run tauri build
 
 # Clean build artifacts
 clean:
