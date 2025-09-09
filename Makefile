@@ -31,7 +31,6 @@ run-test:
 
 run-ws:
   # joins where the frontend asks to:
-	TODO4AI_API_URL=https://api.todofor.ai
 	python3 edge_frontend/src-tauri/resources/python/ws_sidecar.py
 
 run-frontend:
