@@ -46,20 +46,37 @@ class ShellProcess:
                     logger.info(f"Using working directory: {cwd}")
                 else:
                     logger.warning(f"Invalid root_path provided: {root_path}, using current directory")
-            
-            
-            # Determine shell and preexec_fn based on platform
-            if os.name == 'nt':  # Windows
-                shell_cmd = ['cmd', '/c', content]
+                 
+            # Force UTF-8 and determine shell based on platform
+            if os.name == 'nt':
+                # Try PowerShell first (better streaming), fallback to cmd
+                try:
+                    # Test if PowerShell is available
+                    subprocess.run(['powershell', '-Command', 'exit'], 
+                                 capture_output=True, timeout=2)
+                    # PowerShell with UTF-8 output encoding
+                    shell_cmd = ['powershell', '-Command', 
+                               f'[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; {content}']
+                except (subprocess.TimeoutExpired, FileNotFoundError):
+                    # Fallback to cmd with UTF-8 codepage
+                    logger.warning("PowerShell not available, falling back to cmd.exe")
+                    content = f'chcp 65001>nul & {content}'
+                    shell_cmd = ['cmd', '/c', content]
                 preexec_fn = None
             else:  # Unix-like systems
                 shell_cmd = ['/bin/bash', '-c', content]
                 preexec_fn = os.setsid
 
-            # Make stdin a TTY to prevent tools from reading from PIPE
-            master_fd, slave_fd = os.openpty()
-            stdin_stream = slave_fd  # child sees a TTY
-            stdin_writer = os.fdopen(master_fd, 'w', buffering=1)
+            # Make stdin a TTY to prevent tools from reading from PIPE (only on Unix)
+            if os.name != 'nt':
+                master_fd, slave_fd = os.openpty()
+                stdin_stream = slave_fd  # child sees a TTY
+                stdin_writer = os.fdopen(master_fd, 'w', buffering=1)
+            else:
+                master_fd = None
+                slave_fd = None
+                stdin_stream = subprocess.PIPE
+                stdin_writer = None
             
             # If sudo is used on Unix, attach stdout/stderr to the same PTY so prompts are visible
             use_pty_for_io = os.name != 'nt' and 'sudo' in content
@@ -78,17 +95,20 @@ class ShellProcess:
                 bufsize=(0 if use_pty_for_io else 1),
                 universal_newlines=(False if use_pty_for_io else True),
                 cwd=cwd,
-                preexec_fn=preexec_fn  # Only use setsid on Unix systems
+                preexec_fn=preexec_fn,  # Only use setsid on Unix systems
+                encoding='utf-8' if os.name == 'nt' else None,
+                errors='replace' if os.name == 'nt' else None
             )
 
-            # Close parent's copy of slave FD, keep master writer for input
-            try:
-                os.close(slave_fd)
-            except OSError:
-                pass
+            # Close parent's copy of slave FD, keep master writer for input (Unix only)
+            if slave_fd is not None:
+                try:
+                    os.close(slave_fd)
+                except OSError:
+                    pass
 
-            # Store stdin writer (PTY master)
-            self._stdin_writers[block_id] = stdin_writer
+            # Store stdin writer (PTY master on Unix, PIPE on Windows)
+            self._stdin_writers[block_id] = (process.stdin if os.name == 'nt' else stdin_writer)
             
             logger.debug(f"Process created with PID {process.pid}")
             
@@ -254,17 +274,11 @@ class ShellProcess:
             try:
                 writer = self._stdin_writers.get(block_id)
                 if writer and not writer.closed:
-                    # Add newline if not present
                     if not input_text.endswith('\n'):
                         input_text += '\n'
-                        
-                    # Write to stdin
-                    writer.write(input_text)
+                    writer.write(input_text)  # write text for both Windows and Unix
                     writer.flush()
-                    
-                    # Give the process a moment to process the input
                     await asyncio.sleep(0.1)
-                    
                     return True
                 else:
                     logger.warning(f"Process stdin writer is closed or not available for block {block_id}")

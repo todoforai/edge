@@ -522,9 +522,16 @@ async def get_system_info():
             if shell_env:
                 shell_info = os.path.basename(shell_env)
             else:
-                # Fallback: try to detect shell on Windows
+                # Enhanced Windows shell detection - test for PowerShell like shell_handler does
                 if system_info == "Windows":
-                    shell_info = "cmd.exe"
+                    try:
+                        # Test if PowerShell is available (same logic as shell_handler)
+                        import subprocess
+                        subprocess.run(['powershell', '-Command', 'exit'], 
+                                     capture_output=True, timeout=2)
+                        shell_info = "PowerShell"
+                    except (subprocess.TimeoutExpired, FileNotFoundError):
+                        shell_info = "cmd.exe"
         except:
             pass
 
