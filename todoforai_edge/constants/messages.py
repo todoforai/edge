@@ -173,17 +173,21 @@ def file_chunk_result_msg(response_type, content=None, error=None, full_path=Non
         "payload": payload
     }
 
-def get_folders_response_msg(request_id, edge_id, folders, files, error=None):
+def get_folders_response_msg(request_id, edge_id, folders, files, error=None, actual_path=None):
     """Format a get folders response message"""
+    payload = {
+        "requestId": request_id,
+        "edgeId": edge_id,
+        "folders": folders,
+        "files": files,
+        "error": error
+    }
+    if actual_path is not None:
+        payload["actualPath"] = actual_path
+
     return {
         "type": EF.EDGE_GET_FOLDERS_RESPONSE,
-        "payload": {
-            "requestId": request_id,
-            "edgeId": edge_id,
-            "folders": folders,
-            "files": files,
-            "error": error
-        }
+        "payload": payload
     }
 
 def general_result_msg(response_type: str, request_id: str, edge_id: str, success: bool, result: Any = None, error: str = None, agent_id: str = None):

@@ -22,6 +22,13 @@ from ..constants.constants import Edge2Agent as EA
 from ..constants.workspace_handler import is_path_allowed
 from .file_sync import ensure_workspace_synced
 
+# NEW: import registry and helpers from separated module
+from ..edge_functions import (
+    FUNCTION_REGISTRY,
+    get_platform_default_directory,
+    get_path_or_platform_default,
+)
+
 logger = logging.getLogger("todoforai-edge")
 
 def get_parent_directory_if_needed(path: str, root_path: Optional[str], fallback_root_paths: List[str]) -> Optional[str]:
@@ -160,22 +167,6 @@ async def handle_block_keyboard(payload, client):
         await client.send_response(block_error_result_msg(block_id, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
 
-def get_platform_default_directory():
-    """Get a simple default starting directory: home if exists else current working directory"""
-    try:
-        home = os.path.expanduser("~")
-        if home and os.path.isdir(home):
-            return os.path.abspath(home)
-    except Exception:
-        pass
-    return os.getcwd()
-
-def get_path_or_platform_default(path):
-    if path in [".", "", None]:
-        path = get_platform_default_directory()
-        logger.info(f"Using platform default directory: {path}")
-    return path
-
 async def handle_get_folders(payload, client):
     """Handle request to get folders at depth 1 for a given path"""
     request_id = payload.get("requestId")
@@ -183,34 +174,37 @@ async def handle_get_folders(payload, client):
     path = get_path_or_platform_default(payload.get("path", "."))
 
     try:
-        # Normalize path
-        target_path = Path(path).expanduser().resolve()
+        # Resolve to nearest existing directory
+        probe = Path(path).expanduser()
+        while True:
+            if probe.exists() and probe.is_dir():
+                break
+            parent = probe.parent
+            if parent == probe:  # Hit filesystem root
+                break
+            probe = parent
 
-        # Check if path exists
-        if not target_path.exists():
-            raise FileNotFoundError(f"Path does not exist: {path}")
+        if not probe.exists():
+            raise FileNotFoundError(f"No existing ancestor for path: {path}")
 
-        # If path is a file, use its parent directory
-        if target_path.is_file():
-            target_path = target_path.parent
+        actual_path = str(probe.resolve())
 
-        # Get all folders at depth 1
         folders = []
         files = []
 
-        for item in target_path.iterdir():
+        for item in Path(actual_path).iterdir():
             if item.is_dir():
                 folders.append(str(item))
             else:
                 files.append(str(item))
 
-        # Sort the lists for consistent output
         folders.sort()
         files.sort()
 
-
-        # Send the response
-        await client.send_response(get_folders_response_msg(request_id, edge_id, folders, files))
+        # Send with actualPath included
+        await client.send_response(get_folders_response_msg(
+            request_id, edge_id, folders, files, actual_path=actual_path
+        ))
 
     except Exception as error:
         logger.error(f"Error getting folders: {str(error)}")
@@ -218,7 +212,7 @@ async def handle_get_folders(payload, client):
             request_id, edge_id, [], [], f"{str(error)}"
         ))
 
-# Handler functions
+
 async def handle_todo_dir_list(payload, client):
     """Handle todo directory listing request"""
     request_id = payload.get("requestId")
@@ -452,306 +446,6 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
         await client.send_response(
             file_chunk_result_msg(response_type, **payload, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}")
         )
-
-
-
-# Function registry for dynamic function calls
-FUNCTION_REGISTRY = {}
-
-def register_function(name: str):
-    """Decorator to register functions for dynamic calling"""
-    def decorator(func):
-        FUNCTION_REGISTRY[name] = func
-        return func
-    return decorator
-
-@register_function("list_available_functions")
-async def list_available_functions():
-    """List all available functions in the registry"""
-    return {
-        "functions": list(FUNCTION_REGISTRY.keys()),
-        "count": len(FUNCTION_REGISTRY)
-    }
-
-@register_function("get_current_directory")
-async def get_current_directory():
-    """Get the current working directory"""
-    return {
-        "current_directory": os.getcwd()
-    }
-
-@register_function("get_environment_variable")
-async def get_environment_variable(var_name: str):
-    """Get an environment variable value"""
-    return {
-        "variable": var_name,
-        "value": os.environ.get(var_name, None)
-    }
-
-@register_function("get_system_info")
-async def get_system_info():
-    """Get system information including OS and shell"""
-    try:
-        # Get OS information
-        system_info = platform.system()
-        if system_info == "Darwin":
-            system_name = "macOS"
-        elif system_info == "Linux":
-            # Try to get more specific Linux distribution info
-            try:
-                with open('/etc/os-release', 'r') as f:
-                    lines = f.readlines()
-                    for line in lines:
-                        if line.startswith('PRETTY_NAME='):
-                            system_name = line.split('=')[1].strip().strip('"')
-                            break
-                    else:
-                        system_name = "Linux"
-            except:
-                system_name = "Linux"
-        elif system_info == "Windows":
-            system_name = f"Windows {platform.release()}"
-        else:
-            system_name = system_info
-
-        # Get shell information
-        shell_info = "Unknown shell"
-        try:
-            # Try to get shell from environment
-            shell_env = os.environ.get('SHELL', '')
-            if shell_env:
-                shell_info = os.path.basename(shell_env)
-            else:
-                # Enhanced Windows shell detection - test for PowerShell like shell_handler does
-                if system_info == "Windows":
-                    try:
-                        # Test if PowerShell is available (same logic as shell_handler)
-                        import subprocess
-                        subprocess.run(['powershell', '-Command', 'exit'], 
-                                     capture_output=True, timeout=2)
-                        shell_info = "PowerShell"
-                    except (subprocess.TimeoutExpired, FileNotFoundError):
-                        shell_info = "cmd.exe"
-        except:
-            pass
-
-        return {
-            "system": system_name,
-            "shell": shell_info
-        }
-
-    except Exception as error:
-        logger.error(f"Error getting system info: {str(error)}")
-        return {
-            "system": f"Unknown system (error: {str(error)})",
-            "shell": "Unknown shell"
-        }
-
-@register_function("getOSAwareDefaultPath")
-async def get_os_aware_default_path():
-    """Return default path for the current OS: home directory if exists, else cwd"""
-    path = get_platform_default_directory()
-    # Ensure path ends with separator to indicate we're in that directory
-    if not path.endswith(os.sep):
-        path += os.sep
-    return {"path": path}
-
-@register_function("execute_shell_command")
-async def execute_shell_command(command: str, timeout: int = 120, root_path: str = "", client_instance=None):
-    """Execute a shell command and return the full result when complete"""
-    if not client_instance:
-        raise ValueError("No client instance available")
-    
-    try:
-        shell = ShellProcess()
-        
-        # Generate a unique block ID for this execution
-        import uuid
-        block_id = str(uuid.uuid4())
-        
-        # We don't have todoId/messageId in this context, so use empty strings
-        # The visual updates will still work for any connected frontends
-        todo_id = ""
-        message_id = ""
-        
-        logger.info(f"Executing shell command via function call: {command[:50]}...")
-        
-        # Use existing execute_block method
-        await shell.execute_block(block_id, command, client_instance, todo_id, message_id, timeout, root_path)
-        
-        # Wait for the process to complete and collect output
-        full_output = ""
-        while block_id in shell.processes:
-            await asyncio.sleep(0.1)
-        
-        # Get the collected output from the shell process
-        if hasattr(shell, '_output_buffer') and block_id in shell._output_buffer:
-            full_output = shell._output_buffer[block_id]
-            del shell._output_buffer[block_id]
-        
-        return {
-            "command": command,
-            "result": full_output,
-            "success": True
-        }
-        
-    except Exception as error:
-        logger.error(f"Error executing shell command: {str(error)}")
-        return {
-            "command": command,
-            "result": str(error),
-            "success": False,
-            "error": str(error)
-        }
-
-@register_function("mcp_call_tool")
-async def mcp_call_tool(tool_name: str, arguments: Dict[str, Any] = None, client_instance=None):
-    """Call an MCP tool with given arguments"""
-    if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
-        raise ValueError("No MCP collector available")
-    
-    if arguments is None:
-        arguments = {}
-    
-    result = await client_instance.mcp_collector.call_tool(tool_name, arguments)
-    return result
-
-@register_function("mcp_list_servers")
-async def mcp_list_servers(client_instance=None):
-    """List all connected MCP servers with raw MCP structure"""
-    if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
-        raise ValueError("No MCP collector available")
-    
-    # Get server information from the collector
-    servers = []
-    if hasattr(client_instance.mcp_collector, 'clients'):
-        servers = list(client_instance.mcp_collector.clients.keys())
-    
-    return {
-        "servers": servers,
-        "count": len(servers),
-        "description": "List of connected MCP servers"
-    }
-
-@register_function("mcp_install_server")
-async def mcp_install_server(serverId: str, command: str, args: List[str] = None, env: Dict[str, str] = None, client_instance=None):
-    """Install or register an MCP server on the edge using the MCPCollector."""
-    if not client_instance:
-        raise ValueError("Client instance required")
-
-    if args is None:
-        args = []
-    if env is None:
-        env = {}
-
-    server_id = str(serverId).strip()
-    if not server_id:
-        raise ValueError("serverId is required")
-    cmd = str(command).strip()
-    if not cmd:
-        raise ValueError("command is required")
-
-    logger.info(f"Updating MCP server '{server_id}' with command='{cmd}', args={args}, env_keys={list(env.keys())}")
-
-    # Ensure MCPCollector exists and is subscribed before updating config
-    if not getattr(client_instance, 'mcp_collector', None):
-        from ..mcp_collector import MCPCollector
-        client_instance.mcp_collector = MCPCollector(client_instance.edge_config)
-
-    # Get current MCP JSON config - copy only the mcp_json field safely
-    mcp_json = dict(client_instance.edge_config.config.safe_get("mcp_json", {}))
-    logger.info(f'mcp_json: {mcp_json}')
-
-    # Ensure servers structure exists
-    if "mcpServers" not in mcp_json:
-        mcp_json["mcpServers"] = {}
-
-    # Add the server config
-    mcp_json["mcpServers"][server_id] = {
-        "command": cmd,
-        "args": args,
-        "env": env
-    }
-    logger.info(f'mcp_json after update: {mcp_json}')
-
-    # Optimistic installedMCPs update (similar to frontend logic)
-    current_installed = dict(client_instance.edge_config.config.safe_get("installedMCPs", {}))
-    prev_entry = current_installed.get(server_id, {})
-    
-    # Determine if this is a new installation
-    is_new_installation = not prev_entry or not prev_entry.get("tools")
-    
-    current_installed[server_id] = {
-        **prev_entry,
-        "serverId": server_id,
-        "id": prev_entry.get("id", server_id),
-        "command": cmd,
-        "args": args,
-        "env": {**(prev_entry.get("env", {})), **env},
-        "tools": prev_entry.get("tools", []),
-        "registryId": prev_entry.get("registryId", server_id),
-        "status": "INSTALLING" if is_new_installation else "STARTING",
-    }
-
-    # Update both configs (triggers auto-reload via subscription)
-    client_instance.edge_config.config.update_value({
-        "mcp_json": mcp_json,
-        "installedMCPs": current_installed
-    })
-
-    return {
-        "installed": True,
-        "serverId": server_id,
-        "command": cmd,
-        "args": args,
-        "env_keys": list(env.keys())
-    }
-
-@register_function("mcp_uninstall_server")
-async def mcp_uninstall_server(serverId: str, client_instance=None):
-    """Uninstall/remove an MCP server from the edge completely."""
-    if not client_instance:
-        raise ValueError("Client instance required")
-
-    server_id = str(serverId).strip()
-    if not server_id:
-        raise ValueError("serverId is required")
-
-    logger.info(f"Uninstalling MCP server '{server_id}'")
-
-    # Get current MCP JSON config - copy only the mcp_json field safely
-    mcp_json = dict(client_instance.edge_config.config.safe_get("mcp_json", {}))
-    
-    # Remove from mcpServers if it exists
-    if "mcpServers" in mcp_json and server_id in mcp_json["mcpServers"]:
-        del mcp_json["mcpServers"][server_id]
-        logger.info(f"Removed '{server_id}' from mcp_json mcpServers")
-
-    # Remove from installedMCPs
-    current_installed = dict(client_instance.edge_config.config.safe_get("installedMCPs", {}))
-    if server_id in current_installed:
-        del current_installed[server_id]
-        logger.info(f"Removed '{server_id}' from installedMCPs")
-
-    # Stop the MCP server if it's running
-    if hasattr(client_instance, 'mcp_collector') and client_instance.mcp_collector:
-        try:
-            await client_instance.mcp_collector.stop_server(server_id)
-            logger.info(f"Stopped MCP server '{server_id}'")
-        except Exception as e:
-            logger.warning(f"Failed to stop MCP server '{server_id}': {e}")
-
-    # Update both configs (triggers auto-reload via subscription)
-    client_instance.edge_config.config.update_value({
-        "mcp_json": mcp_json,
-        "installedMCPs": current_installed
-    })
-
-    return {
-        "uninstalled": True,
-        "serverId": server_id,
-        "message": f"MCP server '{server_id}' has been completely removed"
-    }
 
 class FunctionCallResponse:
     """Encapsulates function call response logic"""
