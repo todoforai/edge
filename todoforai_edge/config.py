@@ -36,17 +36,14 @@ class Config:
         self.add_workspace_path = None
         
         # Authentication settings
-        self.email    = get_env_var("EMAIL")
-        self.password = get_env_var("PASSWORD")
         self.api_key  = get_env_var("API_KEY")
     
     def __repr__(self):
         """Return a detailed string representation of the config"""
         api_key_display = f"{self.api_key[:8]}..." if self.api_key else "None"
-        password_display = "***" if self.password else "None"
         
-        return (f"Config(api_url='{self.api_url}', email='{self.email}', "
-                f"api_key='{api_key_display}', password='{password_display}', "
+        return (f"Config(api_url='{self.api_url}', "
+                f"api_key='{api_key_display}', "
                 f"debug={self.debug}, log_level='{self.log_level}', "
                 f"add_workspace_path={getattr(self, 'add_workspace_path', None)})")
             
@@ -57,8 +54,6 @@ class Config:
             self.log_level = "DEBUG" if self.debug else "INFO"
         
         self.api_url  = args.api_url  or self.api_url
-        self.email    = args.email    or self.email
-        self.password = args.password or self.password
         self.api_key  = args.api_key  or self.api_key
         
         # Store the add_workspace_path from args, resolving to absolute path
@@ -70,13 +65,9 @@ class Config:
         """Apply overrides from a dict (e.g., credentials)"""
         if not overrides: return
         
-        # Apply the credentials as provided (form already ensures mutual exclusivity)
+        # Apply the credentials as provided
         if "apiKey" in overrides:
             self.api_key = overrides["apiKey"] or ""
-        if "email" in overrides:
-            self.email = overrides["email"] or ""
-        if "password" in overrides:
-            self.password = overrides["password"] or ""
         
         # Handle other fields
         if "apiUrl" in overrides:
@@ -93,11 +84,6 @@ class Config:
             
         # Check if API key matches
         if self.api_key and credentials.api_key and self.api_key == credentials.api_key: return True
-            
-        # Or check if email/password match
-        if ((self.email    and credentials.email    and self.email == credentials.email) and 
-            (self.password and credentials.password and self.password == credentials.password)):
-            return True
             
         return False
 

@@ -66,17 +66,14 @@ export class Config {
         this.addWorkspacePath = null;
         
         // Authentication settings
-        this.email = getEnvVar("EMAIL");
-        this.password = getEnvVar("PASSWORD");
         this.apiKey = getEnvVar("API_KEY");
     }
 
     toString() {
         const apiKeyDisplay = this.apiKey ? `${this.apiKey.slice(0, 8)}...` : "None";
-        const passwordDisplay = this.password ? "***" : "None";
         
-        return `Config(apiUrl='${this.apiUrl}', email='${this.email}', ` +
-               `apiKey='${apiKeyDisplay}', password='${passwordDisplay}', ` +
+        return `Config(apiUrl='${this.apiUrl}', ` +
+               `apiKey='${apiKeyDisplay}', ` +
                `debug=${this.debug}, logLevel='${this.logLevel}', ` +
                `addWorkspacePath=${this.addWorkspacePath})`;
     }
@@ -91,8 +88,6 @@ export class Config {
         }
         
         this.apiUrl = args.apiUrl || this.apiUrl;
-        this.email = args.email || this.email;
-        this.password = args.password || this.password;
         this.apiKey = args.apiKey || this.apiKey;
         
         // Store the add_workspace_path from args, resolving to absolute path
@@ -112,12 +107,6 @@ export class Config {
         // Apply the credentials as provided
         if ("apiKey" in overrides) {
             this.apiKey = overrides.apiKey || "";
-        }
-        if ("email" in overrides) {
-            this.email = overrides.email || "";
-        }
-        if ("password" in overrides) {
-            this.password = overrides.password || "";
         }
         
         // Handle other fields
@@ -143,12 +132,6 @@ export class Config {
         
         // Check if API key matches
         if (this.apiKey && credentials.apiKey && this.apiKey === credentials.apiKey) {
-            return true;
-        }
-        
-        // Or check if email/password match
-        if ((this.email && credentials.email && this.email === credentials.email) &&
-            (this.password && credentials.password && this.password === credentials.password)) {
             return true;
         }
         

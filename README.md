@@ -5,7 +5,7 @@ This is a Python client for the TODO for AI service that runs as a background ta
 ## Features
 
 - WebSocket connection to TODO for AI server
-- Authentication with email/password or API key
+- Authentication with API key
 - Automatic reconnection logic
 - File system operations (directory listing)
 - Shell script execution
@@ -58,7 +58,7 @@ todoforai-edge-cli
 ```
 
 The UI provides:
-- Authentication via email/password or API key
+- Authentication via API key
 - Client status monitoring
 - Start/stop controls for the client
 
@@ -67,19 +67,15 @@ The UI provides:
 For automation, headless environments, or server deployments:
 
 ```bash
-# Using email/password authentication
-todoforai-edge-cli --email your@email.com --password yourpassword
-
-# Using an existing API key
-todoforai-edge-cli --no-ui --apikey your-api-key
+# Using an API key
+todoforai-edge-cli --no-ui --api-key your-api-key
 ```
 
 ### Environment Variables
 
-You can also set the following environment variables:
+You can also set the following environment variable:
 
-- `TODO4AI_EMAIL` & `TODO4AI_PASSWORD`: Your email & password for default authentication
-- `TODO4AI_API_KEY`: If you already have an API key, you can provide it directly
+- `TODO4AI_API_KEY`: Your API key for authentication
 
 ## URL Protocol Handler
 
@@ -87,10 +83,9 @@ TODO for AI supports a custom URL protocol (`todoforaiedge://`) that allows you 
 
 ### Usage
 
-You can use the following URL formats:
+You can use the following URL format:
 
-1. Authenticate with an API key:
-```
+```text
 todoforaiedge://auth/apikey/YOUR_API_KEY_HERE
 ```
 
@@ -104,7 +99,7 @@ todoforai-edge
 ```
 
 The UI provides:
-- Authentication via email/password or API key
+- Authentication via API key
 - Client status monitoring
 - Start/stop controls for the client
 
@@ -112,7 +107,7 @@ This is especially useful for users who prefer not to use the command line.
 
 ## TO build
 
-```
+```sh
 sudo apt update && sudo apt install -y \
   build-essential pkg-config libwebkit2gtk-4.1-dev libgtk-3-dev \
   libayatana-appindicator3-dev librsvg2-dev libssl-dev curl wget

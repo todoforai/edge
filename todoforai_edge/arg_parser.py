@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import getpass
 import sys
 import subprocess
 from .config import default_config
@@ -26,9 +25,7 @@ def create_argparse_apply_config():
     parser.add_argument("--version", "-V", action="store_true", help="Show version and exit")
     
     # Authentication arguments
-    parser.add_argument("--email", help="Email for authentication")
-    parser.add_argument("--password", help="Password for authentication")
-    parser.add_argument("--api-key", help="API key (if already authenticated)")
+    parser.add_argument("--api-key", help="API key for authentication")
     
     # Configuration arguments
     parser.add_argument("--api-url", help="API URL")
@@ -43,33 +40,19 @@ def create_argparse_apply_config():
         print(_get_package_version())
         sys.exit(0)
     
-    # Priority logic: if email/password args provided, clear env API key
-    if args.email is not None or args.password is not None:
-        config.api_key = ""
-    
     config.update_from_args(args)
     
     # Print server info early, before requesting credentials
     print(f'Connecting to: {config.api_url}')
     
-    # Interactive credential prompts if not provided and no existing values
+    # Interactive credential prompt if not provided and no existing value
     if not config.api_key:
-        if not config.email:
-            try:
-                config.email = input("Email: ").strip()
-            except KeyboardInterrupt:
-                print("\nOperation cancelled.")
-                sys.exit(1)
-        
-        if not config.password and config.email:
-            try:
-                config.password = getpass.getpass("Password: ")
-            except KeyboardInterrupt:
-                print("\nOperation cancelled.")
-                sys.exit(1)
+        try:
+            config.api_key = input("API Key: ").strip()
+        except KeyboardInterrupt:
+            print("\nOperation cancelled.")
+            sys.exit(1)
     
-    if config.email:
-        print(f'Email: {config.email}')
     if config.api_key:
         print(f'Using API key: {config.api_key[:8]}...')
     

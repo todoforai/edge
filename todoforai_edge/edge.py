@@ -14,7 +14,6 @@ from .constants.constants import (
 from .utils import generate_machine_fingerprint, async_request, normalize_api_url, safe_print
 from .constants.messages import edge_status_msg
 from .constants.workspace_handler import handle_ctx_workspace_request
-from .apikey import authenticate_and_get_api_key
 from .config import get_ws_url
 from .edge_config import EdgeConfig
 from .colors import Colors
@@ -68,8 +67,6 @@ class TODOforAIEdge:
         # Store the config object
         self.api_url = normalize_api_url(config.api_url)
         self.api_key = config.api_key
-        self.email = config.email
-        self.password = config.password
         # Add debug attribute for convenience
         self.debug = config.debug
         
@@ -130,24 +127,6 @@ class TODOforAIEdge:
                 except Exception as e:
                     logger.error(f"Error updating edge config on server: {str(e)}")
         
-    async def authenticate(self):
-        """Authenticate with email and password to get API key"""
-        if self.api_key and self.email:
-            logger.info("Already have API key and email, skipping authentication")
-            return {"valid": True}
-            
-        if not self.email or not self.password:
-            logger.error("Email and password are required for authentication")
-            return {"valid": False, "error": "Email and password are required for authentication"}
-            
-        try:
-            self.api_key = authenticate_and_get_api_key(self.email, self.password, self.api_url)
-            safe_print(f"{Colors.GREEN}✅ Successfully authenticated as {Colors.YELLOW}{Colors.BOLD}{self.email}{Colors.END}")
-            return {"valid": True}
-        except Exception as e:
-            logger.error(f"Authentication failed: {str(e)}")
-            return {"valid": False, "error": str(e)}
-        
     async def validate_api_key(self):
         """Validate the current API key by making a test request"""
         if not self.api_key:
@@ -178,8 +157,8 @@ class TODOforAIEdge:
             logger.error(f"API key validation failed: {str(e)}")
             return {"valid": False, "error": str(e)}
 
-    async def ensure_api_key(self, prompt_if_missing=True): # TODO valószínűleg az error kezelés meg minden sokkal szebben megoldható lenne. 
-        """Ensure we have a valid API key; validate existing or authenticate via email/password."""
+    async def ensure_api_key(self, prompt_if_missing=True):
+        """Ensure we have a valid API key"""
         # If we already have an API key, validate it
         if self.api_key:
             result = await self.validate_api_key()
@@ -188,22 +167,25 @@ class TODOforAIEdge:
             logger.warning(f"API key invalid: {result.get('error')}")
             self.api_key = None
         
-        # Fallback to email/password authentication
-        if not self.email or not self.password:
-            if not prompt_if_missing:
-                logger.error("Email and password are required for authentication")
+        # If no API key and prompting is disabled, fail
+        if not prompt_if_missing:
+            logger.error("No valid API key available")
+            return False
+            
+        # Prompt for API key
+        print(f"{Colors.YELLOW}Please provide your API key{Colors.END}")
+        try:
+            self.api_key = input("API Key: ").strip()
+            if not self.api_key:
+                logger.error("No API key provided")
                 return False
-            print(f"{Colors.YELLOW}Please sign in to get an API key{Colors.END}")
-            try:
-                import getpass
-                self.email = self.email or input("Email: ").strip()
-                self.password = self.password or getpass.getpass("Password: ")
-            except KeyboardInterrupt:
-                print("\nOperation cancelled.")
-                return False
+        except KeyboardInterrupt:
+            print("\nOperation cancelled.")
+            return False
 
-        auth = await self.authenticate()
-        return auth.get("valid", False)
+        # Validate the new API key
+        result = await self.validate_api_key()
+        return result.get("valid", False)
 
     async def _handle_edge_config_update(self, payload):
         """Handle edge config update from server"""
@@ -363,18 +345,10 @@ class TODOforAIEdge:
 
     async def connect(self):
         """Connect to the WebSocket server"""
-        # Authenticate if needed
-        if not self.api_key and (self.email and self.password):
-            auth_result = await self.authenticate()
-            if not auth_result["valid"]:
-                logger.error("Authentication failed, cannot connect")
-                return
-                
         if not self.api_key:
             logger.error("No API key available, cannot connect")
             return
             
-        
         # Only include fingerprint in URL
         ws_url = f"{self.ws_url}?fingerprint={self.fingerprint}"
         

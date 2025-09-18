@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createArgparseApplyConfig } from './arg-parser.js';
-import { authenticateAndGetApiKey, validateApiKey, AuthenticationError } from './auth.js';
+import { validateApiKey, AuthenticationError } from './auth.js';
 import { createLogger } from './logger.js';
 
 const log = createLogger('main');
@@ -18,7 +18,7 @@ async function main() {
         
         // Test authentication
         if (config.apiKey) {
-            log.info('Validating existing API key...');
+            log.info('Validating API key...');
             const validation = await validateApiKey(config.apiKey, config.apiUrl);
             
             if (validation.valid) {
@@ -27,23 +27,8 @@ async function main() {
                 log.error('❌ API key validation failed:', validation.error);
                 process.exit(1);
             }
-        } else if (config.email && config.password) {
-            log.info('Authenticating with email and password...');
-            
-            try {
-                const apiKey = await authenticateAndGetApiKey(config.email, config.password, config.apiUrl);
-                config.apiKey = apiKey;
-                log.info('✅ Authentication successful, API key obtained');
-            } catch (error) {
-                if (error instanceof AuthenticationError) {
-                    log.error('❌ Authentication failed:', error.message);
-                } else {
-                    log.error('❌ Unexpected error during authentication:', error.message);
-                }
-                process.exit(1);
-            }
         } else {
-            log.error('❌ No authentication method provided. Please provide either --api-key or --email/--password');
+            log.error('❌ No API key provided. Please provide --api-key');
             process.exit(1);
         }
         

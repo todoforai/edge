@@ -4,7 +4,7 @@ A Node.js implementation of the TODOforAI Edge service that provides local AI ag
 
 ## Features
 
-- ✅ **Authentication**: Email/password and API key authentication
+- ✅ **Authentication**: API key authentication
 - ✅ **Configuration**: Environment variables and CLI arguments
 - ✅ **Argument Parsing**: Interactive prompts for missing credentials
 - 🚧 **WebSocket Server**: Real-time communication with AI agents (coming next)
@@ -25,32 +25,23 @@ npm install
 node src/index.js --api-key your-api-key-here
 ```
 
-### With Email/Password
-```bash
-node src/index.js --email your@email.com --password yourpassword
-```
-
 ### Interactive Mode
 ```bash
 node src/index.js
-# Will prompt for email and password
+# Will prompt for API key
 ```
 
 ### Environment Variables
 Create a `.env` file:
 ```env
 TODOFORAI_API_KEY=your-api-key
-TODOFORAI_EMAIL=your-email@example.com
-TODOFORAI_PASSWORD=your-password
 TODOFORAI_API_URL=https://api.todofor.ai
 TODOFORAI_DEBUG=true
 ```
 
 ## CLI Options
 
-- `--email <email>` - Email for authentication
-- `--password <password>` - Password for authentication  
-- `--api-key <key>` - API key (if already authenticated)
+- `--api-key <key>` - API key for authentication
 - `--api-url <url>` - API URL (default: https://api.todofor.ai)
 - `--debug` - Enable debug logging
 - `--add-path <path>` - Add a workspace path to configuration

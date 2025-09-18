@@ -55,40 +55,6 @@ function promptInput(question) {
 }
 
 /**
- * Prompt for password (hidden input)
- */
-function promptPassword(question) {
-    return new Promise((resolve) => {
-        const rl = createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-        
-        // Hide input for password
-        const stdin = process.openStdin();
-        process.stdin.on('data', (char) => {
-            char = char + '';
-            switch (char) {
-                case '\n':
-                case '\r':
-                case '\u0004':
-                    stdin.pause();
-                    break;
-                default:
-                    process.stdout.write('\b \b'); // Clear the character
-                    break;
-            }
-        });
-        
-        rl.question(question, (answer) => {
-            rl.close();
-            console.log(); // New line after password input
-            resolve(answer.trim());
-        });
-    });
-}
-
-/**
  * Create argument parser and apply configuration
  */
 export async function createArgparseApplyConfig() {
@@ -102,9 +68,7 @@ export async function createArgparseApplyConfig() {
     
     // Authentication arguments
     program
-        .option('--email <email>', 'Email for authentication')
-        .option('--password <password>', 'Password for authentication')
-        .option('--api-key <key>', 'API key (if already authenticated)');
+        .option('--api-key <key>', 'API key for authentication');
     
     // Configuration arguments
     program
@@ -120,48 +84,27 @@ export async function createArgparseApplyConfig() {
     
     // Convert commander options to match Python structure
     const processedArgs = {
-        email: args.email,
-        password: args.password,
         apiKey: args.apiKey,
         apiUrl: args.apiUrl,
         debug: args.debug,
         addWorkspacePath: args.addPath
     };
     
-    // Priority logic: if email/password args provided, clear env API key
-    if (processedArgs.email !== undefined || processedArgs.password !== undefined) {
-        config.apiKey = "";
-    }
-    
     config.updateFromArgs(processedArgs);
     
     // Print server info early, before requesting credentials
     console.log(`Connecting to: ${config.apiUrl}`);
     
-    // Interactive credential prompts if not provided and no existing values
+    // Interactive credential prompt if not provided and no existing value
     if (!config.apiKey) {
-        if (!config.email) {
-            try {
-                config.email = await promptInput("Email: ");
-            } catch (error) {
-                console.log("\nOperation cancelled.");
-                process.exit(1);
-            }
-        }
-        
-        if (!config.password && config.email) {
-            try {
-                config.password = await promptPassword("Password: ");
-            } catch (error) {
-                console.log("\nOperation cancelled.");
-                process.exit(1);
-            }
+        try {
+            config.apiKey = await promptInput("API Key: ");
+        } catch (error) {
+            console.log("\nOperation cancelled.");
+            process.exit(1);
         }
     }
     
-    if (config.email) {
-        console.log(`Email: ${config.email}`);
-    }
     if (config.apiKey) {
         console.log(`Using API key: ${config.apiKey.slice(0, 8)}...`);
     }
