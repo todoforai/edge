@@ -21,7 +21,7 @@ export interface MCPEnv {
 }
 
 export interface MCPJSON {
-  serverId: string;
+  registryId: string;
   command: string;
   args?: string[];
   env?: MCPEnv;
@@ -51,6 +51,7 @@ export interface MCPRegistry extends MCPJSON {
 
 export interface InstalledMCP extends MCPJSON {
   id?: string;
+  serverId: string;
   tools?: MCPToolSkeleton[];
   status?: string; // Add status field
 }
