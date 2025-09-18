@@ -1,248 +1,319 @@
 import React from 'react';
-import styled from '@emotion/styled';
+import { styled } from '../../../styled-system/jsx';
 import { Search, Filter, Eye, Braces, X, RefreshCw } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
 // Styled Components
-const Container = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: 600px;
-`;
+const Container = styled('div', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    maxWidth: '600px',
+  },
+});
 
-const SearchContainer = styled.div<{ $expanded: boolean }>`
-  position: relative;
-  display: flex;
-  align-items: center;
-  flex: ${props => props.$expanded ? '1' : '0 0 auto'};
-  transition: all 0.3s ease;
+const SearchContainer = styled('div', {
+  base: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'all 0.3s ease',
 
-  svg {
-    position: absolute;
-    left: 12px;
-    width: 20px;
-    height: 20px;
-    color: ${props => props.theme.colors.mutedForeground};
-    z-index: 1;
-  }
-`;
+    '& svg': {
+      position: 'absolute',
+      left: '12px',
+      width: '20px',
+      height: '20px',
+      color: 'token(colors.mutedForeground)',
+      zIndex: '1',
+    },
+  },
+  variants: {
+    expanded: {
+      true: {
+        flex: '1',
+      },
+      false: {
+        flex: '0 0 auto',
+      },
+    },
+  },
+});
 
-const SearchButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.md};
-  background: ${props => props.theme.colors.background};
-  color: ${props => props.theme.colors.foreground};
-  cursor: pointer;
-  transition: all 0.2s;
+const SearchButton = styled('button', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '40px',
+    height: '40px',
+    padding: '0',
+    border: '1px solid token(colors.borderColor)',
+    borderRadius: 'token(radii.md)',
+    background: 'token(colors.background)',
+    color: 'token(colors.foreground)',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
 
-  svg {
-    position: static !important;
-    width: 20px;
-    height: 20px;
-  }
+    '& svg': {
+      position: 'static !important',
+      width: '20px',
+      height: '20px',
+    },
 
-  &:hover {
-    border-color: ${props => props.theme.colors.primary};
-    background: rgba(59, 130, 246, 0.1);
-  }
-`;
+    '&:hover': {
+      borderColor: 'token(colors.primary)',
+      background: 'rgba(59, 130, 246, 0.1)',
+    },
+  },
+});
 
-const SearchInput = styled.input`
-  width: 100%;
-  padding: 12px 40px 12px 40px;
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.md};
-  background: ${props => props.theme.colors.background};
-  color: ${props => props.theme.colors.foreground};
-  font-size: 14px;
+const SearchInput = styled('input', {
+  base: {
+    width: '100%',
+    padding: '12px 40px 12px 40px',
+    border: '1px solid token(colors.borderColor)',
+    borderRadius: 'token(radii.md)',
+    background: 'token(colors.background)',
+    color: 'token(colors.foreground)',
+    fontSize: '14px',
 
-  &:focus {
-    outline: none;
-    border-color: ${props => props.theme.colors.primary};
-  }
-`;
+    '&:focus': {
+      outline: 'none',
+      borderColor: 'token(colors.primary)',
+    },
+  },
+});
 
-const ClearButton = styled.button`
-  position: absolute;
-  right: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: ${props => props.theme.radius.sm};
-  background: transparent;
-  color: ${props => props.theme.colors.mutedForeground};
-  cursor: pointer;
-  transition: all 0.2s;
+const ClearButton = styled('button', {
+  base: {
+    position: 'absolute',
+    right: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '24px',
+    height: '24px',
+    border: 'none',
+    borderRadius: 'token(radii.sm)',
+    background: 'transparent',
+    color: 'token(colors.mutedForeground)',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
 
-  &:hover {
-    background: rgba(0, 0, 0, 0.1);
-    color: ${props => props.theme.colors.foreground};
-  }
-`;
+    '&:hover': {
+      background: 'rgba(0, 0, 0, 0.1)',
+      color: 'token(colors.foreground)',
+    },
+  },
+});
 
-const FilterContainer = styled.div`
-  position: relative;
-`;
+const FilterContainer = styled('div', {
+  base: {
+    position: 'relative',
+  },
+});
 
-const FilterButton = styled.button<{ $active: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 12px;
-  height: 40px;
-  width: 40px;
-  border: 1px solid ${props => props.$active ? props.theme.colors.primary : props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.md};
-  background: ${props => props.$active ? 'rgba(59, 130, 246, 0.1)' : props.theme.colors.background};
-  color: ${props => props.$active ? props.theme.colors.primary : props.theme.colors.foreground};
-  cursor: pointer;
-  transition: all 0.2s;
+const FilterButton = styled('button', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '0 12px',
+    height: '40px',
+    width: '40px',
+    border: '1px solid token(colors.borderColor)',
+    borderRadius: 'token(radii.md)',
+    background: 'token(colors.background)',
+    color: 'token(colors.foreground)',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
 
-  svg {
-    width: 20px;
-    height: 20px;
-    color: ${props => props.$active ? props.theme.colors.primary : props.theme.colors.mutedForeground};
-  }
+    '& svg': {
+      width: '20px',
+      height: '20px',
+      color: 'token(colors.mutedForeground)',
+    },
 
-  &:hover {
-    border-color: ${props => props.theme.colors.primary};
-    background: rgba(59, 130, 246, 0.1);
-    
-  }
-`;
+    '&:hover': {
+      borderColor: 'token(colors.primary)',
+      background: 'rgba(59, 130, 246, 0.1)',
+    },
+  },
+  variants: {
+    active: {
+      true: {
+        borderColor: 'token(colors.primary)',
+        background: 'rgba(59, 130, 246, 0.1)',
+        color: 'token(colors.primary)',
 
-const FilterBadge = styled.span`
-  font-size: 12px;
-  background: ${props => props.theme.colors.primary};
-  color: white;
-  padding: 2px 6px;
-  border-radius: ${props => props.theme.radius.md};
-  max-width: 80px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
+        '& svg': {
+          color: 'token(colors.primary)',
+        },
+      },
+    },
+  },
+});
 
-const FilterDropdown = styled.div`
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 4px;
-  background: ${props => props.theme.colors.background};
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.md};
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 100;
-  min-width: 150px;
-`;
+const FilterBadge = styled('span', {
+  base: {
+    fontSize: '12px',
+    background: 'token(colors.primary)',
+    color: 'white',
+    padding: '2px 6px',
+    borderRadius: 'token(radii.md)',
+    maxWidth: '80px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+});
 
-const FilterOption = styled.div<{ $active: boolean }>`
-  padding: 12px 16px;
-  cursor: pointer;
-  background: ${props => props.$active ? 'rgba(59, 130, 246, 0.1)' : 'transparent'};
-  color: ${props => props.$active ? props.theme.colors.primary : props.theme.colors.foreground};
-  font-size: 14px;
+const FilterDropdown = styled('div', {
+  base: {
+    position: 'absolute',
+    top: '100%',
+    left: '0',
+    right: '0',
+    marginTop: '4px',
+    background: 'token(colors.background)',
+    border: '1px solid token(colors.borderColor)',
+    borderRadius: 'token(radii.md)',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+    zIndex: '100',
+    minWidth: '150px',
+  },
+});
 
-  &:hover {
-    background: rgba(59, 130, 246, 0.1);
-  }
+const FilterOption = styled('div', {
+  base: {
+    padding: '12px 16px',
+    cursor: 'pointer',
+    background: 'transparent',
+    color: 'token(colors.foreground)',
+    fontSize: '14px',
 
-  &:first-child {
-    border-radius: ${props => props.theme.radius.sm} ${props => props.theme.radius.sm} 0 0;
-  }
+    '&:hover': {
+      background: 'rgba(59, 130, 246, 0.1)',
+    },
 
-  &:last-child {
-    border-radius: 0 0 ${props => props.theme.radius.sm} ${props => props.theme.radius.sm};
-  }
-`;
+    '&:first-child': {
+      borderRadius: 'token(radii.sm) token(radii.sm) 0 0',
+    },
 
-const RefreshButton = styled.button<{ $refreshing?: boolean }>`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0; 
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.md};
-  background: ${props => props.theme.colors.background};
-  color: ${props => props.theme.colors.foreground};
-  cursor: pointer;
-  transition: all 0.2s;
+    '&:last-child': {
+      borderRadius: '0 0 token(radii.sm) token(radii.sm)',
+    },
+  },
+  variants: {
+    active: {
+      true: {
+        background: 'rgba(59, 130, 246, 0.1)',
+        color: 'token(colors.primary)',
+      },
+    },
+  },
+});
 
-  svg {
-    width: 20px;
-    height: 20px;
-    transition: transform 0.3s ease;
-  }
+const RefreshButton = styled('button', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '40px',
+    height: '40px',
+    padding: '0',
+    border: '1px solid token(colors.borderColor)',
+    borderRadius: 'token(radii.md)',
+    background: 'token(colors.background)',
+    color: 'token(colors.foreground)',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
 
-  &:hover {
-    border-color: ${props => props.theme.colors.primary};
-    background: rgba(59, 130, 246, 0.1);
-  }
+    '& svg': {
+      width: '20px',
+      height: '20px',
+      transition: 'transform 0.3s ease',
+    },
 
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+    '&:hover': {
+      borderColor: 'token(colors.primary)',
+      background: 'rgba(59, 130, 246, 0.1)',
+    },
 
-  ${props => props.$refreshing && `
-    svg {
-      animation: spin 1s linear infinite;
-    }
-  `}
+    '&:disabled': {
+      opacity: '0.5',
+      cursor: 'not-allowed',
+    },
 
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-`;
+    '@keyframes spin': {
+      from: { transform: 'rotate(0deg)' },
+      to: { transform: 'rotate(360deg)' },
+    },
+  },
+  variants: {
+    refreshing: {
+      true: {
+        '& svg': {
+          animation: 'spin 1s linear infinite',
+        },
+      },
+    },
+  },
+});
 
-const ViewPicker = styled.div`
-  display: flex;
-  align-items: center;
-  height: 40px;
-  background: ${props => props.theme.colors.background};
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.md};
-  overflow: hidden;
-`;
+const ViewPicker = styled('div', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    height: '40px',
+    background: 'token(colors.background)',
+    border: '1px solid token(colors.borderColor)',
+    borderRadius: 'token(radii.md)',
+    overflow: 'hidden',
+  },
+});
 
-const ViewButton = styled.button<{ $active?: boolean }>`
-  background: ${props => props.$active ? props.theme.colors.primary : 'transparent'};
-  border: none;
-  border-radius: ${props => props.theme.radius.sm};
-  padding: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: ${props => props.$active ? '#ffffff' : props.theme.colors.mutedForeground};
-  transition: all 0.2s ease;
-  width: 40px;
-  height: 40px;
+const ViewButton = styled('button', {
+  base: {
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 'token(radii.sm)',
+    padding: '0',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'token(colors.mutedForeground)',
+    transition: 'all 0.2s ease',
+    width: '40px',
+    height: '40px',
 
-  &:hover {
-    background: ${props => props.$active ? props.theme.colors.primary : 'rgba(59, 130, 246, 0.1)'};
-    color: ${props => props.$active ? '#ffffff' : props.theme.colors.primary};
-  }
+    '& svg': {
+      width: '24px',
+      height: '24px',
+    },
 
-  svg {
-    width: 24px;
-    height: 24px;
-  }
-`;
+    '&:hover': {
+      background: 'rgba(59, 130, 246, 0.1)',
+      color: 'token(colors.primary)',
+    },
+  },
+  variants: {
+    active: {
+      true: {
+        background: 'token(colors.primary)',
+        color: '#ffffff',
+
+        '&:hover': {
+          background: 'token(colors.primary)',
+          color: '#ffffff',
+        },
+      },
+    },
+  },
+});
 
 interface ActionBarProps {
   searchTerm: string;
@@ -281,7 +352,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
 
   return (
     <Container>
-      <SearchContainer $expanded={isSearchExpanded}>
+      <SearchContainer expanded={isSearchExpanded}>
         {!isSearchExpanded ? (
           <SearchButton onClick={() => setIsSearchExpanded(true)}>
             <Search size={20} />
@@ -318,7 +389,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
       <FilterContainer ref={filterRef}>
         <FilterButton 
           onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-          $active={selectedCategory !== 'All'}
+          active={selectedCategory !== 'All'}
         >
           <Filter size={20} />
           {selectedCategory !== 'All' && <FilterBadge>{selectedCategory}</FilterBadge>}
@@ -329,7 +400,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
             {categories.map(category => (
               <FilterOption
                 key={category}
-                $active={selectedCategory === category}
+                active={selectedCategory === category}
                 onClick={() => {
                   onCategoryChange(category);
                   setShowCategoryDropdown(false);
@@ -346,7 +417,7 @@ export const ActionBar: React.FC<ActionBarProps> = ({
         <RefreshButton
           onClick={onRefresh}
           disabled={isRefreshing}
-          $refreshing={isRefreshing}
+          refreshing={isRefreshing}
           title="Refresh MCP Configuration"
         >
           <RefreshCw size={20} />
@@ -356,14 +427,14 @@ export const ActionBar: React.FC<ActionBarProps> = ({
       {showViewPicker && viewMode && onViewModeChange && (
         <ViewPicker>
           <ViewButton
-            $active={viewMode === 'visual'}
+            active={viewMode === 'visual'}
             onClick={() => onViewModeChange('visual')}
             title="Visual View"
           >
             <Eye size={20} />
           </ViewButton>
           <ViewButton
-            $active={viewMode === 'json'}
+            active={viewMode === 'json'}
             onClick={() => onViewModeChange('json')}
             title="JSON View"
           >

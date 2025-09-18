@@ -1,45 +1,51 @@
 import React, { useState, useRef, useEffect } from 'react';
-import styled from '@emotion/styled';
+import { styled } from '../../../../styled-system/jsx';
 import { AlertTriangle } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types';
 import { useEdgeConfigStore } from '../../../store/edgeConfigStore';
 
-const JsonError = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 8px;
-  color: #ef4444;
-  font-size: 14px;
-  margin-bottom: 20px;
-`;
+const JsonError = styled('div', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '12px 16px',
+    background: 'rgba(239, 68, 68, 0.1)',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
+    borderRadius: '8px',
+    color: '#ef4444',
+    fontSize: '14px',
+    marginBottom: '20px',
+  },
+});
 
-const JsonContainer = styled.div`
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  border-radius: ${props => props.theme.radius.md2};
-  overflow: hidden;
-`;
+const JsonContainer = styled('div', {
+  base: {
+    border: '1px solid token(colors.borderColor)',
+    borderRadius: 'token(radii.md2)',
+    overflow: 'hidden',
+  },
+});
 
-const JsonTextArea = styled.textarea`
-  width: 100%;
-  min-height: 600px;
-  padding: 20px;
-  border: none;
-  background: ${props => props.theme.colors.background};
-  color: ${props => props.theme.colors.foreground};
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 14px;
-  line-height: 1.5;
-  resize: vertical;
-  outline: none;
+const JsonTextArea = styled('textarea', {
+  base: {
+    width: '100%',
+    minHeight: '600px',
+    padding: '20px',
+    border: 'none',
+    background: 'token(colors.background)',
+    color: 'token(colors.foreground)',
+    fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+    fontSize: '14px',
+    lineHeight: '1.5',
+    resize: 'vertical',
+    outline: 'none',
 
-  &:focus {
-    background: rgba(59, 130, 246, 0.02);
-  }
-`;
+    '&:focus': {
+      background: 'rgba(59, 130, 246, 0.02)',
+    },
+  },
+});
 
 interface MCPServerJSONViewProps {
   instances: MCPEdgeExecutable[];

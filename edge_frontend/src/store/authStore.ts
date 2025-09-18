@@ -10,7 +10,6 @@ let isAuthenticating = false;
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
 export interface User {
-  email?: string;
   apiKey?: string;
   name?: string;
   isAuthenticated: boolean;
@@ -19,9 +18,7 @@ export interface User {
 }
 
 export interface LoginCredentials {
-  email?: string;
-  password?: string;
-  apiKey?: string;
+  apiKey: string;
   apiUrl?: string;
   debug?: boolean;
 }
@@ -37,12 +34,10 @@ interface AuthState {
   isLoading: boolean;
   apiUrl: string | null;
   shouldAutoLogin: boolean;
-  deeplinkApiKey: string | null; // Add deeplink API key
+  deeplinkApiKey: string | null;
 
   // Actions
   login: (credentials: LoginCredentials) => Promise<void>;
-  loginWithCredentials: (email: string, password: string, apiUrl?: string, debug?: boolean) => Promise<void>;
-  loginWithApiKey: (apiKey: string, apiUrl?: string, debug?: boolean) => Promise<void>;
   logout: () => void;
   clearError: () => void;
   initializeWithCachedAuth: (user: User) => Promise<void>;
@@ -53,8 +48,8 @@ interface AuthState {
   setError: (error: string | null) => void;
   getCurrentUser: () => User;
   setShouldAutoLogin: (shouldAutoLogin: boolean) => void;
-  setDeeplinkApiKey: (apiKey: string) => void; // Add setter
-  clearDeeplinkApiKey: () => void; // Add clearer
+  setDeeplinkApiKey: (apiKey: string) => void;
+  clearDeeplinkApiKey: () => void;
 }
 
 // Utility function to restore user from storage
@@ -71,8 +66,8 @@ export const restoreUserFromStorage = async (apiUrl: string | null): Promise<Use
     if (storedUser) {
       const userData = JSON.parse(storedUser);
 
-      // Check if we have the required auth data (both apiKey and email are required)
-      if (userData.apiKey && userData.email) {
+      // Check if we have the required auth data (apiKey is required)
+      if (userData.apiKey) {
         // Check if the session is still valid (e.g., not expired)
         const sessionAge = Date.now() - (userData.lastLoginTime || 0);
 
@@ -144,14 +139,6 @@ export const useAuthStore = create<AuthState>()((set, get) => {
       }
     },
 
-    loginWithCredentials: async (email, password, apiUrl, debug) => {
-      await get().login({ email, password, apiUrl, debug });
-    },
-
-    loginWithApiKey: async (apiKey, apiUrl, debug) => {
-      await get().login({ apiKey, apiUrl, debug });
-    },
-
     logout: () => {
       const { apiUrl } = get();
       if (apiUrl) {
@@ -169,14 +156,13 @@ export const useAuthStore = create<AuthState>()((set, get) => {
       try {
         if (user) {
           // If we have a valid session, initialize Python service
-          if (user.isAuthenticated && user.apiKey && user.email) {
-            // Initialize Python service and login with cached API key and email
+          if (user.isAuthenticated && user.apiKey) {
+            // Initialize Python service and login with cached API key
             await pythonService.initialize();
 
             // Login with the cached API key
             await pythonService.login({
               apiKey: user.apiKey,
-              email: user.email,
               apiUrl: get().apiUrl,
             });
             set({ user });
@@ -184,7 +170,7 @@ export const useAuthStore = create<AuthState>()((set, get) => {
             // User will be updated via auth_success event
             log.info('Initialized with cached authentication');
           } else {
-            log.info('Invalid cached session (missing apiKey or email)');
+            log.info('Invalid cached session (missing apiKey)');
             set({ user: { isAuthenticated: false } });
           }
         } else {

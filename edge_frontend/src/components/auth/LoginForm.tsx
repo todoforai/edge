@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
-import styled from '@emotion/styled';
+import { styled } from '../../../styled-system/jsx';
 import { useAuthStore } from '../../store/authStore';
 import { 
-  useDevAuthEffect, 
   useApiVersionEffect, 
   useAuthEventListenersEffect
 } from '../../hooks/auth-hooks';
@@ -10,175 +9,218 @@ import { createLogger } from '../../utils/logger';
 
 const log = createLogger('login-form');
 
-const LoginContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  padding: 20px;
-  width: 100%;
-  box-sizing: border-box;
-`;
+const LoginContainer = styled('div', {
+  base: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh',
+    padding: '20px',
+    width: '100%',
+    boxSizing: 'border-box',
+  },
+});
 
-const LoginCard = styled.div`
-  width: 100%;
-  max-width: 400px;
-  padding: 30px;
-  background-color: ${(props) => props.theme.colors.cardBackground};
-  border-radius: ${(props) => props.theme.radius.lg};
-  box-shadow: ${(props) => props.theme.shadows.md};
-  border: 1px solid ${(props) => props.theme.colors.borderColor};
-`;
+const LoginCard = styled('div', {
+  base: {
+    width: '100%',
+    maxWidth: '400px',
+    padding: '30px',
+    backgroundColor: 'token(colors.cardBackground)',
+    borderRadius: 'token(radii.lg)',
+    boxShadow: 'token(shadows.md)',
+    border: '1px solid token(colors.borderColor)',
+  },
+});
 
-const LoginHeader = styled.h2`
-  margin-top: 0;
-  margin-bottom: 24px;
-  text-align: center;
-  color: ${(props) => props.theme.colors.foreground};
-`;
+const LoginHeader = styled('h2', {
+  base: {
+    marginTop: '0',
+    marginBottom: '24px',
+    textAlign: 'center',
+    color: 'token(colors.foreground)',
+  },
+});
 
-const TabContainer = styled.div`
-  display: flex;
-  margin-bottom: 20px;
-  border-bottom: 1px solid ${(props) => props.theme.colors.borderColor};
-`;
+const TabContainer = styled('div', {
+  base: {
+    display: 'flex',
+    marginBottom: '20px',
+    borderBottom: '1px solid token(colors.borderColor)',
+  },
+});
 
-const TabButton = styled.button<{ $active: boolean }>`
-  flex: 1;
-  padding: 10px 0;
-  background: none;
-  border: none;
-  border-radius: 0;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: ${(props) => (props.$active ? '600' : 'normal')};
-  color: ${(props) => (props.$active ? props.theme.colors.primary : props.theme.colors.muted)};
-  border-bottom: 2px solid ${(props) => (props.$active ? props.theme.colors.primary : 'transparent')};
-  transition: all 0.2s;
-  background: transparent;
-  text-shadow: none;
-  margin: 0 10px;
-  position: relative;
+const TabButton = styled('button', {
+  base: {
+    flex: '1',
+    padding: '10px 0',
+    background: 'none',
+    border: 'none',
+    borderRadius: '0',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: 'normal',
+    color: 'token(colors.muted)',
+    borderBottom: '2px solid transparent',
+    transition: 'all 0.2s',
+    textShadow: 'none',
+    margin: '0 10px',
+    position: 'relative',
 
-  &:hover {
-    color: ${(props) => props.theme.colors.primary};
-  }
-`;
-const LoginFormRoot = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-`;
+    '&:hover': {
+      color: 'token(colors.primary)',
+    },
+  },
+  variants: {
+    active: {
+      true: {
+        fontWeight: '600',
+        color: 'token(colors.primary)',
+        borderBottom: '2px solid token(colors.primary)',
+      },
+    },
+  },
+});
 
-const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%; /* Ensure the form group takes full width */
-`;
+const LoginFormRoot = styled('form', {
+  base: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+  },
+});
 
-const Label = styled.label`
-  font-size: 14px;
-  color: ${(props) => props.theme.colors.muted};
-`;
+const FormGroup = styled('div', {
+  base: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    width: '100%',
+  },
+});
 
-const Input = styled.input`
-  width: 100%;
-  padding: 10px 12px;
-  background-color: ${(props) => props.theme.colors.cardBackground};
-  border: 1px solid ${(props) => props.theme.colors.borderColor};
-  border-radius: ${(props) => props.theme.radius.md};
-  color: ${(props) => props.theme.colors.foreground};
-  font-size: 16px;
-  transition: border-color 0.2s;
-  box-sizing: border-box; /* Add this to fix the sizing issue */
+const Label = styled('label', {
+  base: {
+    fontSize: '14px',
+    color: 'token(colors.muted)',
+  },
+});
 
-  &:focus {
-    border-color: ${(props) => props.theme.colors.primary};
-  }
-`;
+const Input = styled('input', {
+  base: {
+    width: '100%',
+    padding: '10px 12px',
+    backgroundColor: 'token(colors.cardBackground)',
+    border: '1px solid token(colors.borderColor)',
+    borderRadius: 'token(radii.md)',
+    color: 'token(colors.foreground)',
+    fontSize: '16px',
+    transition: 'border-color 0.2s',
+    boxSizing: 'border-box',
 
-const PasswordContainer = styled.div`
-  position: relative;
-`;
+    '&:focus': {
+      borderColor: 'token(colors.primary)',
+    },
+  },
+});
 
-const ToggleButton = styled.button`
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: ${(props) => props.theme.colors.muted};
-  cursor: pointer;
-  font-size: 14px;
-  background: transparent;
-  text-shadow: none;
-  padding: 0;
-`;
+const PasswordContainer = styled('div', {
+  base: {
+    position: 'relative',
+  },
+});
 
-const LoginButton = styled.button`
-  width: 100%;
-  padding: 12px;
-  background: linear-gradient(45deg, #ffa500, #ff6347, #ff4500);
-  color: white;
-  border: none;
-  border-radius: ${(props) => props.theme.radius.lg};
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+const ToggleButton = styled('button', {
+  base: {
+    position: 'absolute',
+    right: '10px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: 'none',
+    border: 'none',
+    color: 'token(colors.muted)',
+    cursor: 'pointer',
+    fontSize: '14px',
+    textShadow: 'none',
+    padding: '0',
+  },
+});
 
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: ${(props) => props.theme.shadows.md};
-  }
+const LoginButton = styled('button', {
+  base: {
+    width: '100%',
+    padding: '12px',
+    background: 'linear-gradient(45deg, #ffa500, #ff6347, #ff4500)',
+    color: 'white',
+    border: 'none',
+    borderRadius: 'token(radii.lg)',
+    fontSize: '16px',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)',
 
-  &:disabled {
-    background: ${(props) => props.theme.colors.muted};
-    cursor: not-allowed;
-  }
-`;
+    '&:hover': {
+      transform: 'translateY(-1px)',
+      boxShadow: 'token(shadows.md)',
+    },
 
-const ErrorMessage = styled.div`
-  color: ${(props) => props.theme.colors.danger};
-  font-size: 14px;
-`;
+    '&:disabled': {
+      background: 'token(colors.muted)',
+      cursor: 'not-allowed',
+    },
+  },
+});
 
-const LoginFooter = styled.div`
-  margin-top: 20px;
-  text-align: center;
-`;
+const ErrorMessage = styled('div', {
+  base: {
+    color: 'token(colors.danger)',
+    fontSize: '14px',
+  },
+});
 
-const ApiUrlContainer = styled.div`
-  margin-top: 15px;
-  text-align: center;
-`;
+const LoginFooter = styled('div', {
+  base: {
+    marginTop: '20px',
+    textAlign: 'center',
+  },
+});
 
-const ApiUrlText = styled.div`
-  font-size: 12px;
-  color: ${(props) => props.theme.colors.muted};
-  cursor: pointer;
-  user-select: none;
-`;
+const ApiUrlContainer = styled('div', {
+  base: {
+    marginTop: '15px',
+    textAlign: 'center',
+  },
+});
 
-const ApiUrlInput = styled.input`
-  width: 100%;
-  padding: 6px 8px;
-  font-size: 12px;
-  background-color: ${(props) => props.theme.colors.cardBackground};
-  border: 1px solid ${(props) => props.theme.colors.borderColor};
-  border-radius: ${(props) => props.theme.radius.md};
-  color: ${(props) => props.theme.colors.foreground};
-  text-align: center;
-`;
+const ApiUrlText = styled('div', {
+  base: {
+    fontSize: '12px',
+    color: 'token(colors.muted)',
+    cursor: 'pointer',
+    userSelect: 'none',
+  },
+});
 
-const VersionText = styled.div`
-  font-size: 12px;
-  color: ${(props) => props.theme.colors.muted};
-  margin-top: 5px;
-`;
+const ApiUrlInput = styled('input', {
+  base: {
+    width: '100%',
+    padding: '6px 8px',
+    fontSize: '12px',
+    backgroundColor: 'token(colors.cardBackground)',
+    border: '1px solid token(colors.borderColor)',
+    borderRadius: 'token(radii.md)',
+    color: 'token(colors.foreground)',
+    textAlign: 'center',
+  },
+});
 
+const VersionText = styled('div', {
+  base: {
+    fontSize: '12px',
+    color: 'token(colors.muted)',
+    marginTop: '5px',
+  },
+});
 
 type LoginMethod = 'email' | 'apiKey';
 
@@ -196,16 +238,10 @@ export const LoginForm = () => {
   
   // Determine initial login method based on deeplink API key
   const [apiKey, setApiKey] = useState(deeplinkApiKey || '');
-  const [loginMethod, setLoginMethod] = useState<LoginMethod>(deeplinkApiKey ? 'apiKey' : 'email');
-  
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [clickCount, setClickCount] = useState(0);
   const [isApiUrlEditable, setIsApiUrlEditable] = useState(false);
 
   // Use custom hooks
-  useDevAuthEffect(setEmail, setPassword);
   const { apiUrl, setApiUrl, appVersion } = useApiVersionEffect();
   useAuthEventListenersEffect();
 
@@ -232,23 +268,11 @@ export const LoginForm = () => {
       clearDeeplinkApiKey();
     }
 
-    if (loginMethod === 'email') {
-      // Send only email/password credentials, explicitly clear apiKey
-      login({ 
-        email, 
-        password, 
-        apiKey: '', // Explicitly clear apiKey
-        apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined 
-      });
-    } else {
-      // Send only apiKey credentials, explicitly clear email/password
-      login({ 
-        apiKey, 
-        email: '', // Explicitly clear email
-        password: '', // Explicitly clear password
-        apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined 
-      });
-    }
+    // Send only apiKey credentials
+    login({ 
+      apiKey, 
+      apiUrl: isApiUrlEditable && apiUrl ? apiUrl : undefined 
+    });
   };
 
   const handleApiUrlClick = useCallback(() => {
@@ -266,65 +290,23 @@ export const LoginForm = () => {
       <LoginCard>
         <LoginHeader>Connect your PC to TODOforAI</LoginHeader>
 
-        <TabContainer>
-          <TabButton $active={loginMethod === 'email'} onClick={() => setLoginMethod('email')} type="button">
-            Email & Password
-          </TabButton>
-          <TabButton $active={loginMethod === 'apiKey'} onClick={() => setLoginMethod('apiKey')} type="button">
-            API Key
-          </TabButton>
-        </TabContainer>
-
         <LoginFormRoot onSubmit={handleSubmit}>
-          {loginMethod === 'email' ? (
-            <>
-              <FormGroup>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  required
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label htmlFor="password">Password</Label>
-                <PasswordContainer>
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    required
-                  />
-                  <ToggleButton type="button" onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? 'Hide' : 'Show'}
-                  </ToggleButton>
-                </PasswordContainer>
-              </FormGroup>
-            </>
-          ) : (
-            <FormGroup>
-              <Label htmlFor="apiKey">API Key</Label>
-              <Input
-                id="apiKey"
-                type="text"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your API key"
-                required
-              />
-            </FormGroup>
-          )}
+          <FormGroup>
+            <Label htmlFor="apiKey">API Key</Label>
+            <Input
+              id="apiKey"
+              type="text"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Enter your API key"
+              required
+            />
+          </FormGroup>
 
           {error && <ErrorMessage>{error}</ErrorMessage>}
 
           <LoginButton type="submit" disabled={isLoading}>
-            {isLoading ? 'Logging in...' : 'Login'}
+            {isLoading ? 'Connecting...' : 'Connect'}
           </LoginButton>
         </LoginFormRoot>
 

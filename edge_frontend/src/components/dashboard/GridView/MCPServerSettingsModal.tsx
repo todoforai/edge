@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { styled } from '../../../../../../styled-system/jsx';
+import { styled } from '../../../../styled-system/jsx';
 import { AlertCircle, Plus, X } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types/mcp.types';
 

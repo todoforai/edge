@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { styled } from '../../../../../../styled-system/jsx';
+import { styled } from '../../../../styled-system/jsx';
 import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types/mcp.types';
 import { getMCPByCommandArgs } from '../../../data/mcpServersRegistry';

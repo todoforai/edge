@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import styled from '@emotion/styled';
+import { styled } from '../../../styled-system/jsx';
 import MCPServersList from './GridView/MCPServersList';
 import { MCPServerJSONView } from './JSONView/MCPServerJSONView';
 import { ActionBar } from './ActionBar';
@@ -8,48 +8,62 @@ import { useEdgeConfigStore } from '../../store/edgeConfigStore';
 import { useMCPFilters } from '../../hooks/useMCPFilters';
 import pythonService from '../../services/python-service';
 
-const DashboardContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  width: 100%;
-`;
+const DashboardContainer = styled('div', {
+  base: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100vh',
+    width: '100%',
+  },
+});
 
-const DashboardContent = styled.div`
-  flex: 1;
-  overflow: auto;
-`;
+const DashboardContent = styled('div', {
+  base: {
+    flex: '1',
+    overflow: 'auto',
+  },
+});
 
-const Container = styled.div`
-  padding: 20px;
-  max-width: 1200px;
-  margin: 0 auto;
-`;
+const Container = styled('div', {
+  base: {
+    padding: '20px',
+    maxWidth: '1200px',
+    margin: '0 auto',
+  },
+});
 
-const Header = styled.div`
-  margin-bottom: 30px;
-  text-align: center;
-`;
+const Header = styled('div', {
+  base: {
+    marginBottom: '30px',
+    textAlign: 'center',
+  },
+});
 
-const Title = styled.h1`
-  font-size: 28px;
-  font-weight: 600;
-  color: ${props => props.theme.colors.foreground};
-  margin: 0 0 8px 0;
-`;
+const Title = styled('h1', {
+  base: {
+    fontSize: '28px',
+    fontWeight: '600',
+    color: 'token(colors.foreground)',
+    margin: '0 0 8px 0',
+  },
+});
 
-const Subtitle = styled.p`
-  font-size: 16px;
-  color: ${props => props.theme.colors.mutedForeground};
-  margin: 0;
-`;
+const Subtitle = styled('p', {
+  base: {
+    fontSize: '16px',
+    color: 'token(colors.mutedForeground)',
+    margin: '0',
+  },
+});
 
-const Controls = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin-bottom: 30px;
-`;
+const Controls = styled('div', {
+  base: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+    marginBottom: '30px',
+  },
+});
 
 export const Dashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<'visual' | 'json'>('visual');

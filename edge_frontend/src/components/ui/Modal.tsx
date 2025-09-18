@@ -1,68 +1,80 @@
 import React from 'react';
-import styled from '@emotion/styled';
+import { styled } from '../../../styled-system/jsx';
 import { X } from 'lucide-react';
 
-const Overlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
+const Overlay = styled('div', {
+  base: {
+    position: 'fixed',
+    top: '0',
+    left: '0',
+    right: '0',
+    bottom: '0',
+    background: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: '1000',
+  },
+});
 
-const Container = styled.div`
-  background: ${props => props.theme.colors.background};
-  border-radius: ${props => props.theme.radius.lg};
-  border: 1px solid ${props => props.theme.colors.borderColor};
-  width: 90%;
-  max-width: 1200px;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-`;
+const Container = styled('div', {
+  base: {
+    background: 'token(colors.background)',
+    borderRadius: 'token(radii.lg)',
+    border: '1px solid token(colors.borderColor)',
+    width: '90%',
+    maxWidth: '1200px',
+    maxHeight: '80vh',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+});
 
-const Header = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 28px;
-  border-bottom: 1px solid ${props => props.theme.colors.borderColor};
-`;
+const Header = styled('div', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '28px',
+    borderBottom: '1px solid token(colors.borderColor)',
+  },
+});
 
-const Title = styled.h2`
-  font-size: 20px;
-  font-weight: 600;
-  color: ${props => props.theme.colors.foreground};
-  margin: 0;
-`;
+const Title = styled('h2', {
+  base: {
+    fontSize: '20px',
+    fontWeight: '600',
+    color: 'token(colors.foreground)',
+    margin: '0',
+  },
+});
 
-const CloseButton = styled.button`
-  background: transparent;
-  border: none;
-  color: ${props => props.theme.colors.mutedForeground};
-  cursor: pointer;
-  padding: 8px;
-  border-radius: ${props => props.theme.radius.sm};
-  display: flex;
-  align-items: center;
-  justify-content: center;
+const CloseButton = styled('button', {
+  base: {
+    background: 'transparent',
+    border: 'none',
+    color: 'token(colors.mutedForeground)',
+    cursor: 'pointer',
+    padding: '8px',
+    borderRadius: 'token(radii.sm)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
 
-  &:hover {
-    background: rgba(0, 0, 0, 0.1);
-  }
-`;
+    '&:hover': {
+      background: 'rgba(0, 0, 0, 0.1)',
+    },
+  },
+});
 
-const Content = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-`;
+const Content = styled('div', {
+  base: {
+    flex: '1',
+    overflowY: 'auto',
+    padding: '24px',
+  },
+});
 
 interface ModalProps {
   title: string;

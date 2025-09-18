@@ -29,7 +29,6 @@ async def _broadcast_auth_success():
         "type": "auth_success",
         "payload": {
             "apiKey": sidecar.todo_edge.api_key,
-            "email": sidecar.todo_edge.email,
         }
     }))
 
@@ -120,7 +119,7 @@ async def _send_initial_state_events():
   
 @sidecar.rpc
 def login(credentials):
-    """Login with email and password or API key"""
+    """Login with API key"""
     try:
         config = default_config()
         config.apply_overrides(credentials)

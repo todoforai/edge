@@ -7,16 +7,6 @@ import { createLogger } from '../utils/logger';
 
 const log = createLogger('auth-hooks');
 
-// Hook for development environment pre-filled credentials
-export const useDevAuthEffect = (setEmail: (email: string) => void, setPassword: (password: string) => void) => {
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      setEmail('lfg@todofor.ai');
-      setPassword('Test123');
-    }
-  }, [setEmail, setPassword]);
-};
-
 // Hook to fetch API URL and app version
 export const useApiVersionEffect = () => {
   const { apiUrl, setApiUrl } = useAuthStore();
@@ -38,14 +28,14 @@ export const useApiVersionEffect = () => {
 };
 
 // Hook to initialize with cached authentication
-export const useCachedLoginEffect = () => { // TODO w why we don't use this function!!! @tamashavlik!!
+export const useCachedLoginEffect = () => {
   const { initializeWithCachedAuth, apiUrl } = useAuthStore();
 
   useEffect(() => {
     const loadCachedUser = async () => {
       // Only handle cached user session (deeplink is now handled in LoginForm)
       const loadedUser = await restoreUserFromStorage(apiUrl);
-      if (loadedUser?.apiUrl && loadedUser?.apiKey && loadedUser?.email) {
+      if (loadedUser?.apiUrl && loadedUser?.apiKey) {
         initializeWithCachedAuth(loadedUser);
       }
     };
@@ -61,8 +51,6 @@ export const useAuthEventListenersEffect = () => {
   const { setUser, setError, apiUrl } = useAuthStore();
 
   useEffect(() => {
-    // Set
-
     // Set up auth success listener
     const successUnsubscribe = pythonService.addEventListener('auth_success', async (data) => {
       const payload = data.payload;
@@ -70,7 +58,6 @@ export const useAuthEventListenersEffect = () => {
 
       const updatedUser = {
         apiKey: payload.apiKey,
-        email: payload.email,
         name: payload.name,
         isAuthenticated: true,
         lastLoginTime: Date.now(),
@@ -79,11 +66,9 @@ export const useAuthEventListenersEffect = () => {
 
       // Save user to storage
       try {
-        if (updatedUser.isAuthenticated && updatedUser.apiUrl && updatedUser.apiKey && updatedUser.email) {
-          // Store both apiKey and email as they're both required for fingerprint generation
+        if (updatedUser.isAuthenticated && updatedUser.apiUrl && updatedUser.apiKey) {
           const storageData = {
             apiKey: updatedUser.apiKey,
-            email: updatedUser.email,
             name: updatedUser.name,
             lastLoginTime: updatedUser.lastLoginTime,
             apiUrl: updatedUser.apiUrl,
@@ -91,7 +76,7 @@ export const useAuthEventListenersEffect = () => {
           localStorage.setItem(`currentUser_${updatedUser.apiUrl}`, JSON.stringify(storageData));
           log.info(`User data saved to storage for API URL: ${updatedUser.apiUrl}`);
         } else {
-          log.warn('Cannot save user to storage: missing required fields (apiKey, email, or apiUrl)');
+          log.warn('Cannot save user to storage: missing required fields (apiKey or apiUrl)');
         }
       } catch (error) {
         log.error('Failed to save user to storage:', error);

@@ -1,107 +1,131 @@
 import React from 'react';
-import styled from '@emotion/styled';
+import { styled } from '../../../styled-system/jsx';
 import { useAuthStore } from '../../store/authStore';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
 import { renameEdge } from '../../services/edge-service';
 
-const InfoContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background-color: ${(props) => props.theme.colors.cardBackground};
-  border-radius: ${(props) => props.theme.radius.md2};
-  border: 1px solid ${(props) => props.theme.colors.borderColor};
-`;
+const InfoContainer = styled('div', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '6px 10px',
+    backgroundColor: 'token(colors.cardBackground)',
+    borderRadius: 'token(radii.md2)',
+    border: '1px solid token(colors.borderColor)',
+  },
+});
 
-const InfoItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-`;
+const InfoItem = styled('div', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+});
 
-const Separator = styled.div`
-  width: 1px;
-  height: 16px;
-  background-color: ${(props) => props.theme.colors.borderColor};
-  margin: 0 4px;
-`;
+const Separator = styled('div', {
+  base: {
+    width: '1px',
+    height: '16px',
+    backgroundColor: 'token(colors.borderColor)',
+    margin: '0 4px',
+  },
+});
 
-const Label = styled.span`
-  font-size: 12px;
-  color: ${(props) => props.theme.colors.muted};
-`;
+const Label = styled('span', {
+  base: {
+    fontSize: '12px',
+    color: 'token(colors.muted)',
+  },
+});
 
-const Value = styled.span`
-  font-size: 12px;
-  color: ${(props) => props.theme.colors.foreground};
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-`;
+const Value = styled('span', {
+  base: {
+    fontSize: '12px',
+    color: 'token(colors.foreground)',
+    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+  },
+});
 
-const CopyableValue = styled.span`
-  font-size: 12px;
-  color: ${(props) => props.theme.colors.foreground};
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  user-select: all;
+const CopyableValue = styled('span', {
+  base: {
+    fontSize: '12px',
+    color: 'token(colors.foreground)',
+    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    cursor: 'pointer',
+    userSelect: 'all',
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    padding: 2px 4px;
-    margin: -2px -4px;
-  }
-`;
+    '&:hover': {
+      background: 'rgba(255, 255, 255, 0.1)',
+      borderRadius: '4px',
+      padding: '2px 4px',
+      margin: '-2px -4px',
+    },
+  },
+});
 
-const EditableValue = styled.span`
-  font-size: 12px;
-  color: ${(props) => props.theme.colors.foreground};
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  user-select: none;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
+const EditableValue = styled('span', {
+  base: {
+    fontSize: '12px',
+    color: 'token(colors.foreground)',
+    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    cursor: 'pointer',
+    userSelect: 'none',
+    padding: '2px 4px',
+    borderRadius: '4px',
+    transition: 'background-color 0.2s ease',
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
-`;
+    '&:hover': {
+      background: 'rgba(255, 255, 255, 0.1)',
+    },
+  },
+});
 
-const EditInput = styled.input`
-  font-size: 12px;
-  color: ${(props) => props.theme.colors.foreground};
-  font-weight: 500;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid ${(props) => props.theme.colors.borderColor};
-  border-radius: 4px;
-  padding: 2px 6px;
-  outline: none;
-  width: 120px;
+const EditInput = styled('input', {
+  base: {
+    fontSize: '12px',
+    color: 'token(colors.foreground)',
+    fontWeight: '500',
+    background: 'rgba(255, 255, 255, 0.1)',
+    border: '1px solid token(colors.borderColor)',
+    borderRadius: '4px',
+    padding: '2px 6px',
+    outline: 'none',
+    width: '120px',
 
-  &:focus {
-    border-color: rgba(255, 165, 0, 0.5);
-    box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.1);
-  }
-`;
+    '&:focus': {
+      borderColor: 'rgba(255, 165, 0, 0.5)',
+      boxShadow: '0 0 0 2px rgba(255, 165, 0, 0.1)',
+    },
+  },
+});
 
-const StatusDot = styled.div<{ color: string }>`
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: ${props => props.color};
-  margin-right: 6px;
-  flex-shrink: 0;
-`;
+const StatusDot = styled('div', {
+  base: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    marginRight: '6px',
+    flexShrink: '0',
+  },
+  variants: {
+    color: {
+      green: { backgroundColor: '#4CAF50' },
+      gray: { backgroundColor: '#9E9E9E' },
+      orange: { backgroundColor: '#FF9800' },
+    },
+  },
+});
 
 export const EdgeInfo: React.FC = () => {
   const { user, apiUrl } = useAuthStore();
@@ -162,13 +186,13 @@ export const EdgeInfo: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
       case 'ONLINE':
-        return '#4CAF50';
+        return 'green';
       case 'OFFLINE':
-        return '#9E9E9E';
+        return 'gray';
       case 'CONNECTING':
-        return '#FF9800';
+        return 'orange';
       default:
-        return '#9E9E9E';
+        return 'gray';
     }
   };
 
