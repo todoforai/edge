@@ -25,12 +25,12 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     repository: {
       url: 'https://github.com/todoforai/edge',
       source: 'builtin',
-      id: 'todoforai-builtin'
+      id: 'todoforai-builtin',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
+      is_latest: true,
     },
     tools: [
       {
@@ -40,10 +40,10 @@ export const MCP_REGISTRY: MCPRegistry[] = [
           type: 'object',
           properties: {
             path: { type: 'string', description: 'File path' },
-            content: { type: 'string', description: 'File content' }
+            content: { type: 'string', description: 'File content' },
           },
-          required: ['path', 'content']
-        }
+          required: ['path', 'content'],
+        },
       },
       {
         name: 'modify_file',
@@ -52,10 +52,10 @@ export const MCP_REGISTRY: MCPRegistry[] = [
           type: 'object',
           properties: {
             path: { type: 'string', description: 'File path' },
-            content: { type: 'string', description: 'New content' }
+            content: { type: 'string', description: 'New content' },
           },
-          required: ['path', 'content']
-        }
+          required: ['path', 'content'],
+        },
       },
       {
         name: 'execute_shell',
@@ -63,12 +63,12 @@ export const MCP_REGISTRY: MCPRegistry[] = [
         inputSchema: {
           type: 'object',
           properties: {
-            command: { type: 'string', description: 'Shell command to execute' }
+            command: { type: 'string', description: 'Shell command to execute' },
           },
-          required: ['command']
-        }
-      }
-    ]
+          required: ['command'],
+        },
+      },
+    ],
   },
   {
     registryId: 'gmail',
@@ -77,8 +77,8 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@todoforai/server-gmail-autoauth-mcp'],
     icon: '/logos/gmail.png',
-    env: { 
-      'GMAIL_CREDENTIALS_PATH': getDefaultGmailCredPath()
+    env: {
+      GMAIL_CREDENTIALS_PATH: getDefaultGmailCredPath(),
     },
     setup: {
       instructions: [
@@ -92,21 +92,21 @@ export const MCP_REGISTRY: MCPRegistry[] = [
         '',
         'Notes:',
         '- Uses GMAIL_OAUTH_URL or defaults to https://api.todofor.ai/gmail-oauth.json',
-        '- Stores tokens at ~/.gmail-mcp/credentials.json'
-      ].join('\n')
+        '- Stores tokens at ~/.gmail-mcp/credentials.json',
+      ].join('\n'),
     },
     category: ['Communication'],
     aliases: ['GMAIL'],
     repository: {
       url: 'https://github.com/todoforai/Gmail-MCP-Server',
       source: 'npm',
-      id: '@todoforai/server-gmail-autoauth-mcp'
+      id: '@todoforai/server-gmail-autoauth-mcp',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-15',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'playwright',
@@ -117,17 +117,17 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     icon: '/logos/playwright.png',
     env: {},
     category: ['Web Automation'],
-    aliases: ['PLAYWRIGHT'],
+    aliases: ['BROWSER'],
     repository: {
       url: 'https://github.com/microsoft/playwright',
       source: 'npm',
-      id: '@playwright/mcp'
+      id: '@playwright/mcp',
     },
     version_detail: {
       version: 'latest',
       release_date: '2025-08-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'puppeteer',
@@ -142,13 +142,13 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     repository: {
       url: 'https://github.com/Sixzero/puppeteer-mcp-server',
       source: 'github',
-      id: 'Sixzero/puppeteer-mcp-server'
+      id: 'Sixzero/puppeteer-mcp-server',
     },
     version_detail: {
       version: '2.1.0',
       release_date: '2024-02-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'spotify-applescript',
@@ -162,13 +162,13 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     repository: {
       url: 'https://github.com/spotify-applescript/mcp-server',
       source: 'npm',
-      id: '@spotify-applescript/mcp-server'
+      id: '@spotify-applescript/mcp-server',
     },
     version_detail: {
       version: '0.8.2',
       release_date: '2024-02-05',
-      is_latest: false
-    }
+      is_latest: false,
+    },
   },
   {
     registryId: 'stripe',
@@ -177,19 +177,19 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['@stripe/mcp-server'],
     icon: '/logos/stripe.png', // Local downloaded logo
-    env: { 'STRIPE_API_KEY': '' },
+    env: { STRIPE_API_KEY: '' },
     category: ['Finance'],
     aliases: ['STRIPE'],
     repository: {
       url: 'https://github.com/stripe/mcp-server',
       source: 'npm',
-      id: '@stripe/mcp-server'
+      id: '@stripe/mcp-server',
     },
     version_detail: {
       version: '1.5.0',
       release_date: '2024-02-12',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'brave-applescript',
@@ -203,13 +203,13 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     repository: {
       url: 'https://github.com/brave-applescript/mcp-server',
       source: 'npm',
-      id: '@brave-applescript/mcp-server'
+      id: '@brave-applescript/mcp-server',
     },
     version_detail: {
       version: '0.7.3',
       release_date: '2024-01-18',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'weather-mcp',
@@ -224,7 +224,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
       '--key',
       'f5d19cb3-9510-4038-84d1-bbae0c5a8265',
       '--profile',
-      'insufficient-anteater-eWo8lr'
+      'insufficient-anteater-eWo8lr',
     ],
     icon: '/logos/weather.png',
     env: {},
@@ -233,13 +233,13 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     repository: {
       url: 'https://smithery.ai/@HarunGuclu/weather_mcp',
       source: 'smithery',
-      id: '@HarunGuclu/weather_mcp'
+      id: '@HarunGuclu/weather_mcp',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-02-20',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'cloudflare',
@@ -248,19 +248,19 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-cloudflare'],
     icon: '/logos/cloudflare.png',
-    env: { 'CLOUDFLARE_API_TOKEN': '' },
+    env: { CLOUDFLARE_API_TOKEN: '' },
     category: ['Cloud Services'],
     aliases: ['CLOUDFLARE'],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/cloudflare',
       source: 'npm',
-      id: '@modelcontextprotocol/server-cloudflare'
+      id: '@modelcontextprotocol/server-cloudflare',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'atlassian',
@@ -269,22 +269,22 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-atlassian'],
     icon: '/logos/atlassian.png',
-    env: { 
-      'ATLASSIAN_API_TOKEN': '',
-      'ATLASSIAN_BASE_URL': ''
+    env: {
+      ATLASSIAN_API_TOKEN: '',
+      ATLASSIAN_BASE_URL: '',
     },
     category: ['Project Management'],
     aliases: ['ATLASSIAN', 'JIRA', 'CONFLUENCE'],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/atlassian',
       source: 'npm',
-      id: '@modelcontextprotocol/server-atlassian'
+      id: '@modelcontextprotocol/server-atlassian',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'fireflies',
@@ -293,19 +293,19 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@props-labs/mcp/fireflies'],
     icon: '/logos/fireflies.png',
-    env: { 'FIREFLIES_API_KEY': '' },
+    env: { FIREFLIES_API_KEY: '' },
     category: ['Communication'],
     aliases: ['FIREFLIES'],
     repository: {
       url: 'https://github.com/props-labs/mcp-fireflies',
       source: 'npm',
-      id: '@props-labs/mcp/fireflies'
+      id: '@props-labs/mcp/fireflies',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'google-drive',
@@ -314,19 +314,19 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-google-drive'],
     icon: '/logos/google-drive.png',
-    env: { 'GOOGLE_API_CREDENTIALS': '' },
+    env: { GOOGLE_API_CREDENTIALS: '' },
     category: ['Cloud Storage'],
     aliases: ['GOOGLE_DRIVE', 'DRIVE'],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/google-drive',
       source: 'npm',
-      id: '@modelcontextprotocol/server-google-drive'
+      id: '@modelcontextprotocol/server-google-drive',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'google-calendar',
@@ -335,19 +335,19 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-google-calendar'],
     icon: '/logos/google-calendar.png',
-    env: { 'GOOGLE_API_CREDENTIALS': '' },
+    env: { GOOGLE_API_CREDENTIALS: '' },
     category: ['Productivity'],
     aliases: ['GOOGLE_CALENDAR', 'CALENDAR'],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/google-calendar',
       source: 'npm',
-      id: '@modelcontextprotocol/server-google-calendar'
+      id: '@modelcontextprotocol/server-google-calendar',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'google-mail',
@@ -356,19 +356,19 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-google-mail'],
     icon: '/logos/gmail.png',
-    env: { 'GOOGLE_API_CREDENTIALS': '' },
+    env: { GOOGLE_API_CREDENTIALS: '' },
     category: ['Communication'],
     aliases: ['GOOGLE_MAIL'],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/google-mail',
       source: 'npm',
-      id: '@modelcontextprotocol/server-google-mail'
+      id: '@modelcontextprotocol/server-google-mail',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'canva',
@@ -383,13 +383,13 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     repository: {
       url: 'https://github.com/canva/cli',
       source: 'npm',
-      id: '@canva/cli'
+      id: '@canva/cli',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'invideo',
@@ -404,13 +404,13 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     repository: {
       url: 'https://mcp.invideo.io',
       source: 'remote',
-      id: 'invideo-remote'
+      id: 'invideo-remote',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'paypal',
@@ -419,22 +419,22 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@paypal/mcp', '--tools=all'],
     icon: '/logos/paypal.png',
-    env: { 
-      'PAYPAL_ACCESS_TOKEN': '',
-      'PAYPAL_ENVIRONMENT': 'SANDBOX'
+    env: {
+      PAYPAL_ACCESS_TOKEN: '',
+      PAYPAL_ENVIRONMENT: 'SANDBOX',
     },
     category: ['Finance'],
     aliases: ['PAYPAL'],
     repository: {
       url: 'https://github.com/paypal/mcp-server',
       source: 'npm',
-      id: '@paypal/mcp'
+      id: '@paypal/mcp',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'sentry',
@@ -444,21 +444,21 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', 'mcp-remote@latest', 'https://mcp.sentry.dev/mcp'],
     icon: '/logos/sentry.png',
     env: {
-      'SENTRY_ACCESS_TOKEN': '',
-      'SENTRY_HOST': ''
+      SENTRY_ACCESS_TOKEN: '',
+      SENTRY_HOST: '',
     },
     category: ['Development'],
     aliases: ['SENTRY'],
     repository: {
       url: 'https://mcp.sentry.dev',
       source: 'remote',
-      id: 'sentry-remote'
+      id: 'sentry-remote',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'netlify',
@@ -467,19 +467,19 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@netlify/mcp'],
     icon: '/logos/netlify.png',
-    env: { 'NETLIFY_PERSONAL_ACCESS_TOKEN': '' },
+    env: { NETLIFY_PERSONAL_ACCESS_TOKEN: '' },
     category: ['Cloud Services'],
     aliases: ['NETLIFY'],
     repository: {
       url: 'https://github.com/netlify/mcp-server',
       source: 'npm',
-      id: '@netlify/mcp'
+      id: '@netlify/mcp',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'square',
@@ -494,13 +494,13 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     repository: {
       url: 'https://mcp.squareup.com',
       source: 'remote',
-      id: 'square-remote'
+      id: 'square-remote',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'asana',
@@ -509,19 +509,19 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-asana'],
     icon: '/logos/asana.png',
-    env: { 'ASANA_API_TOKEN': '' },
+    env: { ASANA_API_TOKEN: '' },
     category: ['Project Management'],
     aliases: ['ASANA'],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/asana',
       source: 'npm',
-      id: '@modelcontextprotocol/server-asana'
+      id: '@modelcontextprotocol/server-asana',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'vercel',
@@ -536,13 +536,13 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     repository: {
       url: 'https://mcp.vercel.com',
       source: 'remote',
-      id: 'vercel-remote'
+      id: 'vercel-remote',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'google-maps',
@@ -551,19 +551,19 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-google-maps'],
     icon: '/logos/google-maps.png',
-    env: { 'GOOGLE_MAPS_API_KEY': '' },
+    env: { GOOGLE_MAPS_API_KEY: '' },
     category: ['Mapping'],
     aliases: ['GOOGLE_MAPS', 'MAPS'],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/google-maps',
       source: 'npm',
-      id: '@modelcontextprotocol/server-google-maps'
+      id: '@modelcontextprotocol/server-google-maps',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'zapier',
@@ -578,13 +578,13 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     repository: {
       url: 'https://actions.zapier.com',
       source: 'remote',
-      id: 'zapier-remote'
+      id: 'zapier-remote',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'workato',
@@ -593,19 +593,19 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@workato/mcp'],
     icon: '/logos/workato.png',
-    env: { 'WORKATO_API_KEY': '' },
+    env: { WORKATO_API_KEY: '' },
     category: ['Automation'],
     aliases: ['WORKATO'],
     repository: {
       url: 'https://github.com/workato/mcp-server',
       source: 'npm',
-      id: '@workato/mcp'
+      id: '@workato/mcp',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'bluesky',
@@ -614,19 +614,19 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@modelcontextprotocol/server-bluesky'],
     icon: '/logos/bluesky.png',
-    env: { 'BLUESKY_API_KEY': '' },
+    env: { BLUESKY_API_KEY: '' },
     category: ['Social Media'],
     aliases: ['BLUESKY'],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/bluesky',
       source: 'npm',
-      id: '@modelcontextprotocol/server-bluesky'
+      id: '@modelcontextprotocol/server-bluesky',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'github',
@@ -641,13 +641,13 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     repository: {
       url: 'https://api.githubcopilot.com/mcp/',
       source: 'remote',
-      id: 'github-remote'
+      id: 'github-remote',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'whatsapp',
@@ -657,21 +657,21 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-m', 'whatsapp_mcp'],
     icon: '/logos/whatsapp.png',
     env: {
-      'GREENAPI_ID_INSTANCE': '',
-      'GREENAPI_API_TOKEN': ''
+      GREENAPI_ID_INSTANCE: '',
+      GREENAPI_API_TOKEN: '',
     },
     category: ['Communication'],
     aliases: ['WHATSAPP'],
     repository: {
       url: 'https://github.com/whatsapp/mcp-server',
       source: 'python',
-      id: 'whatsapp_mcp'
+      id: 'whatsapp_mcp',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
+      is_latest: true,
+    },
   },
   {
     registryId: 'slack',
@@ -680,46 +680,40 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', 'slack-mcp-server'],
     icon: '/logos/slack.png',
-    env: { 'SLACK_BOT_TOKEN': '' },
+    env: { SLACK_BOT_TOKEN: '' },
     category: ['Communication'],
     aliases: ['SLACK'],
     repository: {
       url: 'https://github.com/slack/mcp-server',
       source: 'npm',
-      id: 'slack-mcp-server'
+      id: 'slack-mcp-server',
     },
     version_detail: {
       version: '1.0.0',
       release_date: '2024-01-01',
-      is_latest: true
-    }
-  }
+      is_latest: true,
+    },
+  },
 ];
 
 // Simple helper functions without global maps
 export const getMCPByCommandArgs = (command: string, args: string[] = []): MCPRegistry | undefined => {
-  const norm = (a: string[] = []) => a
-    .filter(s => s !== '-y')
-    .map(s => (s?.startsWith('github:') ? s.slice(7) : s));
-  const normalizedArgs = norm(args);
-  const key = `${command}|${normalizedArgs.join('|')}`;
-  
-  return MCP_REGISTRY.find(server => {
+  const norm = (a: string[] = []) => a.map((s) => (s?.startsWith('github:') ? s.slice(7) : s));
+  const key = `${command}|${norm(args).join('|')}`;
+  return MCP_REGISTRY.find((server) => {
     const serverKey = `${server.command}|${norm(server.args || []).join('|')}`;
-    return key.startsWith(serverKey);
+    return serverKey === key;
   });
 };
 
 export const getMCPByRegistryID = (registryId: string | undefined): MCPRegistry | undefined => {
   if (!registryId) return undefined;
-  return MCP_REGISTRY.find(server => server.registryId === registryId);
+  return MCP_REGISTRY.find((server) => server.registryId === registryId);
 };
 
 export const findMCPByAlias = (alias: string): MCPRegistry[] => {
   const q = alias.trim().toLowerCase();
   if (!q) return [];
-  
-  return MCP_REGISTRY.filter(server => 
-    server.aliases?.some((a: string) => a.toLowerCase().includes(q))
-  );
+
+  return MCP_REGISTRY.filter((server) => server.aliases?.some((a: string) => a.toLowerCase().includes(q)));
 };

@@ -1,166 +1,204 @@
 import React, { useState, useMemo } from 'react';
-import styled from '@emotion/styled';
+import { styled } from '../../../../../../styled-system/jsx';
 import { Download } from 'lucide-react';
 import { getMCPByRegistryID } from '../../../data/mcpServersRegistry';
 import type { MCPRegistry } from '../../../types/mcp.types';
 
-const Overlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const ModalCard = styled.div`
-  background: var(--background);
-  color: var(--foreground);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  width: min(900px, 90vw);
-  max-height: 80vh;
-  overflow: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-`;
-
-const ModalHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
-  font-weight: 600;
-`;
-
-const CloseButton = styled.button`
-  border: 1px solid var(--border-color);
-  background: transparent;
-  color: var(--foreground);
-  border-radius: 8px;
-  padding: 6px 10px;
-  cursor: pointer;
-
-  &:hover {
-    background: var(--background-secondary);
+const Overlay = styled('div', {
+  base: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0, 0, 0, 0.4)',
+    zIndex: 1000,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   }
-`;
+});
 
-const ModalBody = styled.div`
-  padding: 20px;
-`;
+const ModalCard = styled('div', {
+  base: {
+    background: 'var(--background)',
+    color: 'var(--foreground)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '12px',
+    width: 'min(900px, 90vw)',
+    maxHeight: '80vh',
+    overflow: 'auto',
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)'
+  }
+});
 
-const Grid = styled.div<{ minWidth?: string; gap?: string }>`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(${(props) => props.minWidth || '400px'}, 1fr));
-  gap: ${(props) => props.gap || '20px'};
-`;
+const ModalHeader = styled('div', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '16px 20px',
+    borderBottom: '1px solid var(--border-color)',
+    fontWeight: 600
+  }
+});
 
-const Controls = styled.div`
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
+const CloseButton = styled('button', {
+  base: {
+    border: '1px solid var(--border-color)',
+    background: 'transparent',
+    color: 'var(--foreground)',
+    borderRadius: '8px',
+    padding: '6px 10px',
+    cursor: 'pointer',
 
-  input,
-  select {
-    border: 1px solid var(--border-color);
-    background: var(--background-secondary);
-    color: var(--foreground);
-    border-radius: 8px;
-    padding: 8px 10px;
-
-    &:focus {
-      outline: none;
-      border-color: var(--primary);
+    '&:hover': {
+      background: 'var(--background-secondary)'
     }
   }
-`;
+});
 
-const ExtensionCard = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 20px;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  background: var(--background);
-  transition: border-color 0.2s;
-
-  &:hover {
-    border-color: var(--primary);
+const ModalBody = styled('div', {
+  base: {
+    padding: '20px'
   }
-`;
+});
 
-const ExtensionIcon = styled.div`
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 0 1px var(--border-color);
-
-  img {
-    border-radius: 8px;
+const Grid = styled('div', {
+  base: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+    gap: '20px'
+  },
+  variants: {
+    minWidth: {
+      '400px': { gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))' }
+    },
+    gap: {
+      '20px': { gap: '20px' },
+      '24px': { gap: '24px' }
+    }
   }
-`;
+});
 
-const ExtensionInfo = styled.div`
-  flex: 1;
-  min-width: 0;
-`;
+const Controls = styled('div', {
+  base: {
+    display: 'flex',
+    gap: '12px',
+    marginBottom: '24px',
+    flexWrap: 'wrap',
 
-const ExtensionHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 4px;
-`;
+    '& input, & select': {
+      border: '1px solid var(--border-color)',
+      background: 'var(--background-secondary)',
+      color: 'var(--foreground)',
+      borderRadius: '8px',
+      padding: '8px 10px',
 
-const ExtensionName = styled.h3`
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--foreground);
-  margin: 0;
-`;
-
-const ExtensionDescription = styled.p`
-  font-size: 14px;
-  color: var(--muted);
-  margin: 0;
-  line-height: 1.4;
-`;
-
-const ExtensionCategory = styled.span`
-  font-size: 12px;
-  color: var(--primary);
-  background: rgba(59, 130, 246, 0.1);
-  padding: 2px 8px;
-  border-radius: 6px;
-  flex-shrink: 0;
-`;
-
-const InstallButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  flex-shrink: 0;
-
-  &:hover {
-    opacity: 0.9;
+      '&:focus': {
+        outline: 'none',
+        borderColor: 'var(--primary)'
+      }
+    }
   }
-`;
+});
+
+const ExtensionCard = styled('div', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '20px',
+    padding: '20px',
+    border: '1px solid var(--border-color)',
+    borderRadius: '12px',
+    background: 'var(--background)',
+    transition: 'border-color 0.2s',
+
+    '&:hover': {
+      borderColor: 'var(--primary)'
+    }
+  }
+});
+
+const ExtensionIcon = styled('div', {
+  base: {
+    flexShrink: 0,
+    width: '48px',
+    height: '48px',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 0 0 1px var(--border-color)',
+
+    '& img': {
+      borderRadius: '8px'
+    }
+  }
+});
+
+const ExtensionInfo = styled('div', {
+  base: {
+    flex: 1,
+    minWidth: 0
+  }
+});
+
+const ExtensionHeader = styled('div', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    marginBottom: '4px'
+  }
+});
+
+const ExtensionName = styled('h3', {
+  base: {
+    fontSize: '16px',
+    fontWeight: 600,
+    color: 'var(--foreground)',
+    margin: 0
+  }
+});
+
+const ExtensionDescription = styled('p', {
+  base: {
+    fontSize: '14px',
+    color: 'var(--muted)',
+    margin: 0,
+    lineHeight: 1.4
+  }
+});
+
+const ExtensionCategory = styled('span', {
+  base: {
+    fontSize: '12px',
+    color: 'var(--primary)',
+    background: 'rgba(59, 130, 246, 0.1)',
+    padding: '2px 8px',
+    borderRadius: '6px',
+    flexShrink: 0
+  }
+});
+
+const InstallButton = styled('button', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 16px',
+    background: 'var(--primary)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    flexShrink: 0,
+
+    '&:hover': {
+      opacity: 0.9
+    }
+  }
+});
 
 interface ExtensionsRegistryModalProps {
   servers: MCPRegistry[];
@@ -221,7 +259,7 @@ export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = (
             </select>
           </Controls>
 
-          <Grid minWidth="400px" gap="24px">
+          <Grid gap="24px">
             {filteredServers.map((server, index) => {
               const registry = getMCPByRegistryID(server.registryId);
               const serverId = server.registryId || `server-${index}`;

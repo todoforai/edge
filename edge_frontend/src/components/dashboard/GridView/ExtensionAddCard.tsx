@@ -1,62 +1,74 @@
 import React from 'react';
-import styled from '@emotion/styled';
+import { styled } from '../../../../../../styled-system/jsx';
 import { Plus } from 'lucide-react';
 
-const Card = styled.div`
-  border: 1px dashed var(--border-color);
-  outline-offset: -3px;
-  border-radius: var(--radius-lg);
-  padding: 28px;
-  background: var(--background);
-  cursor: pointer;
-  transition: all 0.2s;
-  min-height: 120px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+const Card = styled('div', {
+  base: {
+    border: '1px dashed var(--border-color)',
+    outlineOffset: '-3px',
+    borderRadius: 'var(--radius-lg)',
+    padding: '28px',
+    background: 'var(--background)',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    minHeight: '120px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
 
-  &:hover {
-    border-color: var(--primary);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    '&:hover': {
+      borderColor: 'var(--primary)',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+    }
   }
-`;
+});
 
-const IconContainer = styled.div`
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-md);
-  background: rgba(59, 130, 246, 0.1);
-  color: var(--primary);
-`;
+const IconContainer = styled('div', {
+  base: {
+    flexShrink: 0,
+    width: '44px',
+    height: '44px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 'var(--radius-md)',
+    background: 'rgba(59, 130, 246, 0.1)',
+    color: 'var(--primary)'
+  }
+});
 
-const Content = styled.div`
-  flex: 1;
-`;
+const Content = styled('div', {
+  base: {
+    flex: 1
+  }
+});
 
-const TitleRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-`;
+const TitleRow = styled('div', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    marginBottom: '12px'
+  }
+});
 
-const Title = styled.h3`
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--foreground);
-  margin: 0;
-`;
+const Title = styled('h3', {
+  base: {
+    fontSize: '20px',
+    fontWeight: 600,
+    color: 'var(--foreground)',
+    margin: 0
+  }
+});
 
-const Description = styled.p`
-  font-size: 14px;
-  color: var(--muted);
-  margin: 0;
-  line-height: 1.5;
-`;
+const Description = styled('p', {
+  base: {
+    fontSize: '14px',
+    color: 'var(--muted)',
+    margin: 0,
+    lineHeight: 1.5
+  }
+});
 
 interface ExtensionAddCardProps {
   onClick: () => void;

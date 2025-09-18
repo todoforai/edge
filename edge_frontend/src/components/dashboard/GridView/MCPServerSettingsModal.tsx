@@ -1,198 +1,254 @@
 import React, { useState } from 'react';
-import styled from '@emotion/styled';
+import { styled } from '../../../../../../styled-system/jsx';
 import { AlertCircle, Plus, X } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types/mcp.types';
 
-const Overlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.4);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const ModalCard = styled.div`
-  background: var(--background);
-  color: var(--foreground);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  width: min(900px, 90vw);
-  max-height: 80vh;
-  overflow: auto;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-`;
-
-const ModalHeader = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
-  font-weight: 600;
-`;
-
-const CloseButton = styled.button`
-  border: 1px solid var(--border-color);
-  background: transparent;
-  color: var(--foreground);
-  border-radius: 8px;
-  padding: 6px 10px;
-  cursor: pointer;
-`;
-
-const ModalBody = styled.div`
-  padding: 20px;
-`;
-
-const SettingsContent = styled.div`
-  flex: 1;
-`;
-
-const FormGroup = styled.div`
-  margin-bottom: 20px;
-`;
-
-const FormLabel = styled.label`
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--foreground);
-  margin-bottom: 8px;
-`;
-
-const FormInput = styled.input<{ hasError?: boolean }>`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid ${props => props.hasError ? '#ef4444' : 'var(--border-color)'};
-  border-radius: 6px;
-  background: var(--background-secondary);
-  color: var(--foreground);
-  font-size: 14px;
-
-  &:focus {
-    outline: none;
-    border-color: ${props => props.hasError ? '#ef4444' : 'var(--primary)'};
-    background: var(--background-secondary);
+const Overlay = styled('div', {
+  base: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,0.4)',
+    zIndex: 1000,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   }
+});
 
-  &:disabled {
-    background: var(--background-tertiary);
-    color: var(--muted);
-    cursor: not-allowed;
+const ModalCard = styled('div', {
+  base: {
+    background: 'var(--background)',
+    color: 'var(--foreground)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '12px',
+    width: 'min(900px, 90vw)',
+    maxHeight: '80vh',
+    overflow: 'auto',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
   }
-`;
+});
 
-const ErrorMessage = styled.div`
-  color: #ef4444;
-  font-size: 12px;
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-`;
-
-const ArgumentsList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const ArgumentRow = styled.div`
-  display: flex;
-  gap: 8px;
-  align-items: center;
-`;
-
-const EnvList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const EnvRow = styled.div`
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  align-items: center;
-`;
-
-const RemoveButton = styled.button`
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  &:hover {
-    background: rgba(239, 68, 68, 0.1);
-    border-color: #ef4444;
-    color: #ef4444;
+const ModalHeader = styled('div', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '16px 20px',
+    borderBottom: '1px solid var(--border-color)',
+    fontWeight: 600
   }
-`;
+});
 
-const AddButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: transparent;
-  border: 1px dashed var(--border-color);
-  border-radius: 6px;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: rgba(59, 130, 246, 0.05);
+const CloseButton = styled('button', {
+  base: {
+    border: '1px solid var(--border-color)',
+    background: 'transparent',
+    color: 'var(--foreground)',
+    borderRadius: '8px',
+    padding: '6px 10px',
+    cursor: 'pointer'
   }
-`;
+});
 
-const ModalActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 20px 0 0 0;
-  border-top: 1px solid var(--border-color);
-  margin-top: 20px;
-`;
-
-const CancelButton = styled.button`
-  padding: 10px 20px;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  color: var(--foreground);
-  cursor: pointer;
-  font-size: 14px;
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.05);
+const ModalBody = styled('div', {
+  base: {
+    padding: '20px'
   }
-`;
+});
 
-const ConfirmButton = styled.button<{ disabled?: boolean }>`
-  padding: 10px 20px;
-  background: ${props => props.disabled ? 'var(--muted)' : 'var(--primary)'};
-  border: none;
-  border-radius: 6px;
-  color: ${props => props.disabled ? 'var(--muted)' : 'white'};
-  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
-  font-size: 14px;
-
-  &:hover {
-    opacity: ${props => props.disabled ? 1 : 0.9};
+const SettingsContent = styled('div', {
+  base: {
+    flex: 1
   }
-`;
+});
+
+const FormGroup = styled('div', {
+  base: {
+    marginBottom: '20px'
+  }
+});
+
+const FormLabel = styled('label', {
+  base: {
+    display: 'block',
+    fontSize: '14px',
+    fontWeight: 500,
+    color: 'var(--foreground)',
+    marginBottom: '8px'
+  }
+});
+
+const FormInput = styled('input', {
+  base: {
+    width: '100%',
+    padding: '10px 12px',
+    border: '1px solid var(--border-color)',
+    borderRadius: '6px',
+    background: 'var(--background-secondary)',
+    color: 'var(--foreground)',
+    fontSize: '14px',
+
+    '&:focus': {
+      outline: 'none',
+      borderColor: 'var(--primary)',
+      background: 'var(--background-secondary)'
+    },
+
+    '&:disabled': {
+      background: 'var(--background-tertiary)',
+      color: 'var(--muted)',
+      cursor: 'not-allowed'
+    }
+  },
+  variants: {
+    hasError: {
+      true: {
+        borderColor: '#ef4444',
+        '&:focus': { borderColor: '#ef4444' }
+      },
+      false: {}
+    }
+  }
+});
+
+const ErrorMessage = styled('div', {
+  base: {
+    color: '#ef4444',
+    fontSize: '12px',
+    marginTop: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
+  }
+});
+
+const ArgumentsList = styled('div', {
+  base: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  }
+});
+
+const ArgumentRow = styled('div', {
+  base: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center'
+  }
+});
+
+const EnvList = styled('div', {
+  base: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  }
+});
+
+const EnvRow = styled('div', {
+  base: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '8px',
+    alignItems: 'center'
+  }
+});
+
+const RemoveButton = styled('button', {
+  base: {
+    background: 'transparent',
+    border: '1px solid var(--border-color)',
+    borderRadius: '4px',
+    color: 'var(--muted)',
+    cursor: 'pointer',
+    padding: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+
+    '&:hover': {
+      background: 'rgba(239, 68, 68, 0.1)',
+      borderColor: '#ef4444',
+      color: '#ef4444'
+    }
+  }
+});
+
+const AddButton = styled('button', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 16px',
+    background: 'transparent',
+    border: '1px dashed var(--border-color)',
+    borderRadius: '6px',
+    color: 'var(--muted)',
+    cursor: 'pointer',
+    fontSize: '14px',
+    transition: 'all 0.2s',
+
+    '&:hover': {
+      borderColor: 'var(--primary)',
+      color: 'var(--primary)',
+      background: 'rgba(59, 130, 246, 0.05)'
+    }
+  }
+});
+
+const ModalActions = styled('div', {
+  base: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '12px',
+    padding: '20px 0 0 0',
+    borderTop: '1px solid var(--border-color)',
+    marginTop: '20px'
+  }
+});
+
+const CancelButton = styled('button', {
+  base: {
+    padding: '10px 20px',
+    background: 'transparent',
+    border: '1px solid var(--border-color)',
+    borderRadius: '6px',
+    color: 'var(--foreground)',
+    cursor: 'pointer',
+    fontSize: '14px',
+
+    '&:hover': {
+      background: 'rgba(0, 0, 0, 0.05)'
+    }
+  }
+});
+
+const ConfirmButton = styled('button', {
+  base: {
+    padding: '10px 20px',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px'
+  },
+  variants: {
+    disabled: {
+      true: {
+        background: 'var(--muted)',
+        color: 'var(--muted)',
+        cursor: 'not-allowed',
+        '&:hover': { opacity: 1 }
+      },
+      false: {
+        background: 'var(--primary)',
+        color: 'white',
+        cursor: 'pointer',
+        '&:hover': { opacity: 0.9 }
+      }
+    }
+  }
+});
 
 interface MCPServerSettingsModalProps {
   instance: MCPEdgeExecutable;

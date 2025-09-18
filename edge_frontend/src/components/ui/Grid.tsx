@@ -1,7 +1,24 @@
-import styled from '@emotion/styled';
+import { styled } from '../../../../../styled-system/jsx';
 
-export const Grid = styled.div<{ minWidth?: string; gap?: string }>`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(${props => props.minWidth || '400px'}, 1fr));
-  gap: ${props => props.gap || '20px'};
-`;
+export const Grid = styled('div', {
+  base: {
+    display: 'grid',
+    gap: '20px'
+  },
+  variants: {
+    minWidth: {
+      sm: {
+        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))'
+      },
+      md: {
+        gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))'
+      },
+      lg: {
+        gridTemplateColumns: 'repeat(auto-fill, minmax(500px, 1fr))'
+      }
+    }
+  },
+  defaultVariants: {
+    minWidth: 'md'
+  }
+});

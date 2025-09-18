@@ -1,241 +1,285 @@
 import React, { useState, useRef, useEffect } from 'react';
-import styled from '@emotion/styled';
+import { styled } from '../../../../../../styled-system/jsx';
 import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types/mcp.types';
 import { getMCPByCommandArgs } from '../../../data/mcpServersRegistry';
 
-const ServerCard = styled.div`
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 28px;
-  background: var(--background);
-  transition: all 0.2s;
+const ServerCard = styled('div', {
+  base: {
+    border: '1px solid var(--border-color)',
+    borderRadius: 'var(--radius-lg)',
+    padding: '28px',
+    background: 'var(--background)',
+    transition: 'all 0.2s',
 
-  &:hover {
-    border-color: var(--primary);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-`;
-
-const ServerHeader = styled.div`
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-  align-items: flex-start;
-`;
-
-const ServerIcon = styled.div`
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-md);
-  background: rgba(59, 130, 246, 0.1);
-  overflow: hidden;
-  
-  img {
-    border-radius: var(--radius-md);
-  }
-`;
-
-const ServerInfo = styled.div`
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: flex-start;
-`;
-
-const ServerName = styled.h3`
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--foreground);
-  margin: 0 0 4px 0;
-  word-wrap: break-word;
-  word-break: break-word;
-  hyphens: auto;
-`;
-
-const ServerId = styled.div`
-  font-size: 12px;
-  color: var(--muted);
-  font-family: monospace;
-  margin-bottom: 8px;
-`;
-
-const ServerTitleRow = styled.div`
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex: 1;
-`;
-
-const ServerNameAndCategory = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-`;
-
-const ServerCategory = styled.span`
-  font-size: 12px;
-  color: var(--muted);
-  background: rgba(59, 130, 246, 0.1);
-  padding: 2px 8px;
-  border-radius: var(--radius-md-2);
-  display: inline-block;
-  flex-shrink: 0;
-`;
-
-const ServerActions = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-`;
-
-const ActionButtonsRow = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-const ActionButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  color: var(--muted);
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 16px;
-
-  &:hover {
-    background: rgba(59, 130, 246, 0.1);
-    border-color: var(--primary);
-    color: var(--primary);
-  }
-`;
-
-const DropdownContainer = styled.div`
-  position: relative;
-`;
-
-const DropdownMenu = styled.div<{ isOpen: boolean }>`
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 4px;
-  background: var(--background);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 100;
-  min-width: 160px;
-  display: ${(props) => (props.isOpen ? 'block' : 'none')};
-`;
-
-const DropdownItem = styled.button<{ disabled?: boolean; danger?: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 12px 16px;
-  background: transparent;
-  border: none;
-  color: ${(props) => (props.danger ? '#ef4444' : 'var(--foreground)')};
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  text-align: left;
-
-  &:hover {
-    background: ${(props) => (props.danger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)')};
-  }
-
-  &:first-child {
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
-  }
-
-  &:last-child {
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
-  }
-
-  ${(props) =>
-    props.disabled &&
-    `
-    opacity: 0.5;
-    cursor: not-allowed;
-    
-    &:hover {
-      background: transparent;
+    '&:hover': {
+      borderColor: 'var(--primary)',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
     }
-  `}
-`;
-
-const ServerDescription = styled.p`
-  font-size: 14px;
-  color: var(--muted);
-  line-height: 1.5;
-  margin: 0;
-`;
-
-const ServerStatus = styled.div<{ status: string }>`
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: ${props => {
-    switch (props.status) {
-      case 'READY':
-        return '#10b981';
-      case 'CRASHED':
-        return '#ef4444';
-      case 'INSTALLING':
-        return '#3b82f6';
-      case 'STARTING':
-        return '#f59e0b';
-      default:
-        return 'var(--muted)';
-    }
-  }};
-  background: ${props => {
-    switch (props.status) {
-      case 'READY':
-        return 'rgba(16, 185, 129, 0.1)';
-      case 'CRASHED':
-        return 'rgba(239, 68, 68, 0.1)';
-      case 'INSTALLING':
-        return 'rgba(59, 130, 246, 0.1)';
-      case 'STARTING':
-        return 'rgba(245, 158, 11, 0.1)';
-      default:
-        return 'rgba(0, 0, 0, 0.05)';
-    }
-  }};
-`;
-
-const Spinner = styled.div`
-  width: 12px;
-  height: 12px;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
   }
-`;
+});
+
+const ServerHeader = styled('div', {
+  base: {
+    display: 'flex',
+    gap: '12px',
+    marginBottom: '12px',
+    alignItems: 'flex-start'
+  }
+});
+
+const ServerIcon = styled('div', {
+  base: {
+    flexShrink: 0,
+    width: '48px',
+    height: '48px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 'var(--radius-md)',
+    background: 'rgba(59, 130, 246, 0.1)',
+    overflow: 'hidden',
+
+    '& img': {
+      borderRadius: 'var(--radius-md)'
+    }
+  }
+});
+
+const ServerInfo = styled('div', {
+  base: {
+    display: 'flex',
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'flex-start'
+  }
+});
+
+const ServerName = styled('h3', {
+  base: {
+    fontSize: '20px',
+    fontWeight: 600,
+    color: 'var(--foreground)',
+    margin: '0 0 4px 0',
+    wordWrap: 'break-word',
+    wordBreak: 'break-word',
+    hyphens: 'auto'
+  }
+});
+
+const ServerId = styled('div', {
+  base: {
+    fontSize: '12px',
+    color: 'var(--muted)',
+    fontFamily: 'monospace',
+    marginBottom: '8px'
+  }
+});
+
+const ServerTitleRow = styled('div', {
+  base: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+    flex: 1
+  }
+});
+
+const ServerNameAndCategory = styled('div', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flex: 1
+  }
+});
+
+const ServerCategory = styled('span', {
+  base: {
+    fontSize: '12px',
+    color: 'var(--muted)',
+    background: 'rgba(59, 130, 246, 0.1)',
+    padding: '2px 8px',
+    borderRadius: 'var(--radius-md-2)',
+    display: 'inline-block',
+    flexShrink: 0
+  }
+});
+
+const ServerActions = styled('div', {
+  base: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: '8px'
+  }
+});
+
+const ActionButtonsRow = styled('div', {
+  base: {
+    display: 'flex',
+    gap: '8px'
+  }
+});
+
+const ActionButton = styled('button', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '44px',
+    height: '44px',
+    padding: 0,
+    background: 'transparent',
+    border: '1px solid var(--border-color)',
+    borderRadius: 'var(--radius-md)',
+    color: 'var(--muted)',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    fontSize: '16px',
+
+    '&:hover': {
+      background: 'rgba(59, 130, 246, 0.1)',
+      borderColor: 'var(--primary)',
+      color: 'var(--primary)'
+    }
+  }
+});
+
+const DropdownContainer = styled('div', {
+  base: {
+    position: 'relative'
+  }
+});
+
+const DropdownMenu = styled('div', {
+  base: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: '4px',
+    background: 'var(--background)',
+    border: '1px solid var(--border-color)',
+    borderRadius: 'var(--radius-md)',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+    zIndex: 100,
+    minWidth: '160px'
+  },
+  variants: {
+    isOpen: {
+      true: { display: 'block' },
+      false: { display: 'none' }
+    }
+  }
+});
+
+const DropdownItem = styled('button', {
+  base: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    width: '100%',
+    padding: '12px 16px',
+    background: 'transparent',
+    border: 'none',
+    fontSize: '14px',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+    textAlign: 'left',
+
+    '&:first-child': {
+      borderRadius: 'var(--radius-md) var(--radius-md) 0 0'
+    },
+
+    '&:last-child': {
+      borderRadius: '0 0 var(--radius-md) var(--radius-md)'
+    }
+  },
+  variants: {
+    disabled: {
+      true: {
+        opacity: 0.5,
+        cursor: 'not-allowed',
+
+        '&:hover': {
+          background: 'transparent'
+        }
+      }
+    },
+    danger: {
+      true: {
+        color: '#ef4444',
+
+        '&:hover': {
+          background: 'rgba(239, 68, 68, 0.1)'
+        }
+      },
+      false: {
+        color: 'var(--foreground)',
+
+        '&:hover': {
+          background: 'rgba(59, 130, 246, 0.1)'
+        }
+      }
+    }
+  }
+});
+
+const ServerDescription = styled('p', {
+  base: {
+    fontSize: '14px',
+    color: 'var(--muted)',
+    lineHeight: 1.5,
+    margin: 0
+  }
+});
+
+const ServerStatus = styled('div', {
+  base: {
+    fontSize: '12px',
+    fontWeight: 500,
+    padding: '4px 8px',
+    borderRadius: 'var(--radius-sm)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
+  },
+  variants: {
+    status: {
+      READY: {
+        color: '#10b981',
+        background: 'rgba(16, 185, 129, 0.1)'
+      },
+      CRASHED: {
+        color: '#ef4444',
+        background: 'rgba(239, 68, 68, 0.1)'
+      },
+      INSTALLING: {
+        color: '#3b82f6',
+        background: 'rgba(59, 130, 246, 0.1)'
+      },
+      STARTING: {
+        color: '#f59e0b',
+        background: 'rgba(245, 158, 11, 0.1)'
+      },
+      default: {
+        color: 'var(--muted)',
+        background: 'rgba(0, 0, 0, 0.05)'
+      }
+    }
+  }
+});
+
+const Spinner = styled('div', {
+  base: {
+    width: '12px',
+    height: '12px',
+    border: '2px solid transparent',
+    borderTop: '2px solid currentColor',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  }
+});
 
 interface MCPServerCardProps {
   instance: MCPEdgeExecutable;
@@ -309,7 +353,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
             <ServerNameAndCategory>
               <ServerName>{displayName}</ServerName>
               {showCategory && <ServerCategory>{displayCategory}</ServerCategory>}
-              <ServerStatus status={status}>
+              <ServerStatus status={status as any}>
                 {(status === 'INSTALLING' || status === 'STARTING') && <Spinner />}
                 {status}
               </ServerStatus>
