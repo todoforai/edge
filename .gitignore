@@ -1,4 +1,6 @@
 package-lock.json
+edge_node/yarn.lock
+
 
 logs/mcp*.log
 logs/mcp*.log.gz
