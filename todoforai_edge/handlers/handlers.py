@@ -174,25 +174,24 @@ async def handle_get_folders(payload, client):
     path = get_path_or_platform_default(payload.get("path", "."))
 
     try:
-        # Resolve to nearest existing directory
-        probe = Path(path).expanduser()
-        while True:
-            if probe.exists() and probe.is_dir():
-                break
-            parent = probe.parent
-            if parent == probe:  # Hit filesystem root
-                break
-            probe = parent
+        # If path ends with separator, list contents of that directory
+        # If path doesn't end with separator, list contents of parent directory
+        if path.endswith(os.sep):
+            # Remove trailing separator and use as target directory
+            target_path = Path(path.rstrip(os.sep)).expanduser()
+        else:
+            # Use parent directory
+            target_path = Path(path).expanduser().parent
 
-        if not probe.exists():
+        if not (target_path.exists() and target_path.is_dir()):
             raise FileNotFoundError(f"No existing ancestor for path: {path}")
 
-        actual_path = str(probe.resolve())
+        actual_path = str(target_path.resolve())
 
         folders = []
         files = []
 
-        for item in Path(actual_path).iterdir():
+        for item in target_path.iterdir():
             if item.is_dir():
                 folders.append(str(item))
             else:
@@ -201,7 +200,6 @@ async def handle_get_folders(payload, client):
         folders.sort()
         files.sort()
 
-        # Send with actualPath included
         await client.send_response(get_folders_response_msg(
             request_id, edge_id, folders, files, actual_path=actual_path
         ))
