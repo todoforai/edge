@@ -711,9 +711,3 @@ export const getMCPByRegistryID = (registryId: string | undefined): MCPRegistry 
   return MCP_REGISTRY.find((server) => server.registryId === registryId);
 };
 
-export const findMCPByAlias = (alias: string): MCPRegistry[] => {
-  const q = alias.trim().toLowerCase();
-  if (!q) return [];
-
-  return MCP_REGISTRY.filter((server) => server.aliases?.some((a: string) => a.toLowerCase().includes(q)));
-};
