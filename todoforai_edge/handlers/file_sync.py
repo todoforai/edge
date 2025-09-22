@@ -497,20 +497,30 @@ async def ensure_workspace_synced(edge, file_path: str) -> bool:
     """
     file_path = os.path.abspath(file_path)
     
-    # Check if the file is in one of the configured workspaces
+    # Find the most specific (innermost) workspace that contains this file
+    best_workspace = None
+    best_workspace_len = 0
+    
     for workspace_dir in edge.edge_config.config["workspacepaths"]:
         workspace_dir = os.path.abspath(workspace_dir)
         
         # Check if the file is in this workspace
         if file_path.startswith(workspace_dir + os.sep) or file_path == workspace_dir:
-            # Check if this workspace is already being synced
-            if workspace_dir in active_sync_managers:
-                return False  # Already syncing
-            
-            # Start syncing this workspace
-            logger.info(f"Lazy-initializing sync for workspace: {workspace_dir}")
-            await start_workspace_sync(edge, workspace_dir)
-            return True
+            # Choose the longest matching workspace path (most specific)
+            if len(workspace_dir) > best_workspace_len:
+                best_workspace = workspace_dir
+                best_workspace_len = len(workspace_dir)
+    
+    # If we found a workspace, ensure it's synced
+    if best_workspace:
+        # Check if this workspace is already being synced
+        if best_workspace in active_sync_managers:
+            return False  # Already syncing
+        
+        # Start syncing this workspace
+        logger.info(f"Lazy-initializing sync for workspace: {best_workspace}")
+        await start_workspace_sync(edge, best_workspace)
+        return True
     
     return False  # Not in any workspace
 
