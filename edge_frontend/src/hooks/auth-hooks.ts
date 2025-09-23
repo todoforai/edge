@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useAuthStore, restoreUserFromStorage } from '../store/authStore';
+import { useAuthStore } from '../store/authStore';
 import { getApiBase } from '../config/api-config';
 import { getAppVersion } from '../lib/tauri-api';
 import pythonService from '../services/python-service';

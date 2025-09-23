@@ -84,27 +84,6 @@ const Input = styled('input', {
   },
 });
 
-const PasswordContainer = styled('div', {
-  base: {
-    position: 'relative',
-  },
-});
-
-const ToggleButton = styled('button', {
-  base: {
-    position: 'absolute',
-    right: '10px',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    background: 'none',
-    border: 'none',
-    color: 'token(colors.muted)',
-    cursor: 'pointer',
-    fontSize: '14px',
-    textShadow: 'none',
-    padding: '0',
-  },
-});
 
 const LoginButton = styled('button', {
   base: {

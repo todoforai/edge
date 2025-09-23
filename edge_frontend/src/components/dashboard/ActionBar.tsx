@@ -246,17 +246,15 @@ const RefreshButton = styled('button', {
       opacity: '0.5',
       cursor: 'not-allowed',
     },
-
-    '@keyframes spin': {
-      from: { transform: 'rotate(0deg)' },
-      to: { transform: 'rotate(360deg)' },
-    },
   },
   variants: {
     refreshing: {
       true: {
         '& svg': {
-          animation: 'spin 1s linear infinite',
+          animationName: 'spin',
+          animationDuration: '1s',
+          animationTimingFunction: 'linear',
+          animationIterationCount: 'infinite',
         },
       },
     },

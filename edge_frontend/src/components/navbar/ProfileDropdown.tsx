@@ -1,6 +1,6 @@
 import React from 'react';
 import { styled } from '../../../styled-system/jsx';
-import { User, Mail, LogOut, Info } from 'lucide-react';
+import { User, LogOut, Info } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { getAppVersion } from '../../lib/tauri-api';
 
@@ -53,6 +53,9 @@ const DropdownContainer = styled('div', {
   base: {
     position: 'relative',
     display: 'inline-block',
+    '&:hover .dropdown-content': {
+      display: 'block',
+    },
   },
 });
 
@@ -67,25 +70,7 @@ const DropdownContent = styled('div', {
     padding: '0.5rem',
     boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
     border: '1px solid token(colors.borderColor)',
-    zIndex: '100',
-
-    [`${DropdownContainer}:hover &`]: {
-      display: 'block',
-    },
-  },
-});
-
-const EmailHeader = styled('div', {
-  base: {
-    padding: '0.75rem 1rem',
-    color: 'token(colors.foreground)',
-    fontSize: '0.9rem',
-    borderBottom: '1px solid token(colors.borderColor)',
-    marginBottom: '0.5rem',
-    opacity: '0.8',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
+    zIndex: 100,
   },
 });
 
@@ -139,11 +124,7 @@ export const ProfileDropdown: React.FC = () => {
           </ProfileImage>
         </ProfileButton>
       </UserContainer>
-      <DropdownContent>
-        <EmailHeader>
-          <Mail size={16} />
-          {user.email || 'User'}
-        </EmailHeader>
+      <DropdownContent className="dropdown-content">
         {appVersion && (
           <VersionItem>
             <Info size={16} />
