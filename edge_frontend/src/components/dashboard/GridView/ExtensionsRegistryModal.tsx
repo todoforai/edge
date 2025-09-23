@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { styled } from '@/styled-system/jsx';
+import { styled } from '@/../styled-system/jsx';
 import { Download } from 'lucide-react';
 import { getMCPByRegistryID } from '../../../data/mcpServersRegistry';
 import type { MCPRegistry } from '../../../types/mcp.types';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { styled } from '@/styled-system/jsx';
+import { styled } from '@/../styled-system/jsx';
 import { Plus } from 'lucide-react';
 
 const Card = styled('div', {
