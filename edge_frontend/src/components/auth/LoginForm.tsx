@@ -42,46 +42,6 @@ const LoginHeader = styled('h2', {
   },
 });
 
-const TabContainer = styled('div', {
-  base: {
-    display: 'flex',
-    marginBottom: '20px',
-    borderBottom: '1px solid token(colors.borderColor)',
-  },
-});
-
-const TabButton = styled('button', {
-  base: {
-    flex: '1',
-    padding: '10px 0',
-    background: 'none',
-    border: 'none',
-    borderRadius: '0',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: 'normal',
-    color: 'token(colors.muted)',
-    borderBottom: '2px solid transparent',
-    transition: 'all 0.2s',
-    textShadow: 'none',
-    margin: '0 10px',
-    position: 'relative',
-
-    '&:hover': {
-      color: 'token(colors.primary)',
-    },
-  },
-  variants: {
-    active: {
-      true: {
-        fontWeight: '600',
-        color: 'token(colors.primary)',
-        borderBottom: '2px solid token(colors.primary)',
-      },
-    },
-  },
-});
-
 const LoginFormRoot = styled('form', {
   base: {
     display: 'flex',
@@ -221,8 +181,6 @@ const VersionText = styled('div', {
     marginTop: '5px',
   },
 });
-
-type LoginMethod = 'email' | 'apiKey';
 
 export const LoginForm = () => {
   const { 
