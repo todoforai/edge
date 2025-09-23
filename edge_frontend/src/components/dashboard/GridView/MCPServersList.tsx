@@ -50,7 +50,8 @@ const MCPServersList: React.FC<MCPServersListProps> = ({
       serverId: serverId,
       command: server.command,
       args: server.args || [],
-      env: server.env || {}
+      env: server.env || {},
+      registryId: serverId
     };
     
     setShowSettingsModal(tempInstance);

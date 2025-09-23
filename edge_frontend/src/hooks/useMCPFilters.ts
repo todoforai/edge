@@ -41,6 +41,7 @@ export const useMCPFilters = (instances: MCPEdgeExecutable[]) => {
     // Add built-in TODOforAI MCP - now it will get data from registry
     const todoforaiMCP: MCPEdgeExecutable = {
       id: 'todoforai-builtin',
+      registryId: 'todoforai',
       serverId: 'todoforai',
       command: 'builtin',
       args: [],
