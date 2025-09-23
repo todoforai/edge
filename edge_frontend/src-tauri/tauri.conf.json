@@ -41,6 +41,11 @@
       "signingIdentity": null,
       "entitlements": "entitlements.plist",
       "hardenedRuntime": true
+    },
+    "linux": {
+      "deb": {
+        "desktopTemplate": "desktop/todoforai-edge.desktop"
+      }
     }
   },
   "plugins": {
@@ -49,7 +54,7 @@
         "todoforaiedge"
       ],
       "linux": {
-        "register": false
+        "register": true
       },
       "windows": {
         "register": true
