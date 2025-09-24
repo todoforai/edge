@@ -46,7 +46,7 @@
   "plugins": {
     "deep-link": {
       "schemes": [
-        "todoforaiedge",
+        "todoforaiedge"
       ],
       "linux": {
         "register": false
