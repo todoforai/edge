@@ -1,5 +1,4 @@
 [Desktop Entry]
-Type=Application
 Name=TODOforAI Edge
 Comment=Desktop Edge client for TODOforAI service enabling you to extend your AI agent's capabilities
 Exec=todoforai-edge %u
