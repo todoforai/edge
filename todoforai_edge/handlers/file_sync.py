@@ -17,6 +17,9 @@ logger = logging.getLogger("todoforai-edge-sync")
 # Hard cap for synced file payloads (can be overridden by env)
 MAX_SYNC_BYTES = int(os.environ.get("TODOFORAI_EDGE_MAX_SYNC_BYTES", str(100 * 1024)))  # ~100 KiB
 
+# Maximum number of files to sync in a workspace (can be overridden by env)
+MAX_SYNC_FILES = int(os.environ.get("TODOFORAI_EDGE_MAX_SYNC_FILES", "2000"))
+
 # Global registry to track active sync managers
 active_sync_managers = observable_registry.create("active_sync_managers", {})
 
@@ -70,13 +73,20 @@ class WorkspaceSyncManager:
         # Use the workspace handler to get filtered files and folders
         project_files, filtered_files, filtered_dirs = get_filtered_files_and_folders(self.workspace_dir)
         
+        # Check if we have too many files to sync
+        if len(project_files) > MAX_SYNC_FILES:
+            raise ValueError(
+                f"Workspace has {len(project_files)} files to sync, which exceeds the limit of {MAX_SYNC_FILES}. "
+                f"Consider adding more files to .gitignore or .aishignore, or set TODOFORAI_EDGE_MAX_SYNC_FILES environment variable to a higher value."
+            )
+        
         # Store as sets of absolute paths for O(1) lookup
         self.project_files_abs = set(project_files)
         self.filtered_files_abs = set(filtered_files)
         self.filtered_dirs_abs = set(filtered_dirs)
         
-        logger.info(f"Initialized file lists: {len(self.project_files_abs)} project files to sync")
-    
+        logger.info(f"Initialized file lists: {len(self.project_files_abs)} project files to sync (limit: {MAX_SYNC_FILES})")
+
     async def start(self):
         """Start the file synchronization manager"""
         if self.is_running:
@@ -443,6 +453,25 @@ async def start_workspace_sync(edge, workspace_dir: str) -> WorkspaceSyncManager
     if workspace_dir in active_sync_managers:
         logger.info(f"Workspace {workspace_dir} is already being synced")
         return active_sync_managers[workspace_dir]
+    
+    # Pre-check file count before creating sync manager
+    try:
+        project_files, _, _ = get_filtered_files_and_folders(workspace_dir)
+        if len(project_files) > MAX_SYNC_FILES:
+            error_msg = (
+                f"Cannot sync workspace {workspace_dir}: contains {len(project_files)} files, "
+                f"which exceeds the limit of {MAX_SYNC_FILES}. "
+                f"Consider adding more files to .gitignore or .aishignore, or set "
+                f"TODOFORAI_EDGE_MAX_SYNC_FILES environment variable to a higher value."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        logger.info(f"Pre-sync check passed: {len(project_files)} files to sync (limit: {MAX_SYNC_FILES})")
+        
+    except Exception as e:
+        logger.error(f"Failed to check file count for {workspace_dir}: {str(e)}")
+        raise
     
     # Create and start a new sync manager
     sync_manager = WorkspaceSyncManager(edge, workspace_dir)
