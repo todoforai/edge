@@ -136,7 +136,7 @@ class TODOforAIEdge:
         try:
             
             # Use the dedicated validation endpoint
-            url = f"{self.api_url}/token/v1/users/apikeys/validate"
+            url = f"{self.api_url}/noauth/v1/users/apikeys/validate"
             headers = {"x-api-key": self.api_key}
             
             timeout = aiohttp.ClientTimeout(total=10)
