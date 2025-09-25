@@ -6,6 +6,7 @@ import json
 import asyncio
 import websockets
 import ssl
+import sys
 
 # Import constants
 from .constants.constants import (
@@ -169,26 +170,28 @@ class TODOforAIEdge:
         if not prompt_if_missing:
             logger.error("No valid API key available")
             return False
-            
-        # Prompt for API key
-        print(f"{Colors.YELLOW}Please provide your API key{Colors.END}")
-        while True:
-            try:
-                self.api_key = input("API Key: ").strip()
-                if not self.api_key:
-                    print(f"{Colors.YELLOW}No API key provided. Please try again.{Colors.YELLOW}")
-                    continue
-                    
-                # Validate the new API key
-                result = await self.validate_api_key()
-                if result.get("valid", False):
-                    return True
-                else:
-                    print(f"{Colors.RED}Invalid API key. Please try again.{Colors.END}")
-                    
-            except KeyboardInterrupt:
-                print("\nOperation cancelled.")
-                return False
+        else:
+            # Prompt for API key
+            print(f"{Colors.YELLOW}Please provide your API key{Colors.END}")
+            while True:
+                try:
+                    self.api_key = input("API Key: ").strip()
+                    if not self.api_key:
+                        print(f"{Colors.YELLOW}No API key provided. Please try again.{Colors.YELLOW}")
+                        continue
+                        
+                    # Validate the new API key
+                    result = await self.validate_api_key()
+                    if result.get("valid", False):
+                        return True
+                    else:
+                        print(f"{Colors.RED}Invalid API key. Please try again.{Colors.END}")
+                        
+                except KeyboardInterrupt:
+                    print("\nOperation cancelled.")
+                    break
+            print(f"{Colors.RED}❌ Error: Unable to obtain a valid API key{Colors.END}")
+            sys.exit(1)
 
     async def _handle_edge_config_update(self, payload):
         """Handle edge config update from server"""

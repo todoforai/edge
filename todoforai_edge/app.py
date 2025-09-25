@@ -47,9 +47,7 @@ async def run_app(api_key=None):
     todo_edge = TODOforAIEdge(config)
     
     # Ensure we have a valid API key (validate existing or authenticate)
-    if not await todo_edge.ensure_api_key(prompt_if_missing=True):
-        print(f"{Colors.RED}❌ Error: Unable to obtain a valid API key{Colors.END}")
-        sys.exit(1)
+    await todo_edge.ensure_api_key(prompt_if_missing=True):
     
     print(f"{Colors.GREEN}🔗 Connecting to TODOforAI...{Colors.END}")
     await todo_edge.start()
