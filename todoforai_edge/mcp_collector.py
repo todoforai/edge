@@ -4,6 +4,7 @@ import shutil
 from typing import Dict, List, Any, Optional, Callable
 from pathlib import Path
 from fastmcp import Client
+from fastmcp.client.logging import LogMessage
 import asyncio
 from .edge_config import MCPTool
 import traceback
@@ -47,22 +48,57 @@ class MCPCollector:
             logger.info("MCP JSON config changed, reloading tools and saving to file")
             await self._reload_tools_and_save()  # Use await instead of asyncio.create_task
     
+    async def _mcp_log_handler(self, message: LogMessage) -> None:
+        """Handle structured log messages from MCP servers using FastMCP LogMessage type"""
+        try:
+            # Extract log details from the LogMessage object
+            msg = message.data.get('msg')
+            extra = message.data.get('extra')
+            level = message.level.upper()
+            logger_name = message.logger or "mcp-server"
+            
+            # Use FastMCP's logging level mapping
+            LOGGING_LEVEL_MAP = logging.getLevelNamesMapping()
+            log_level = LOGGING_LEVEL_MAP.get(level, logging.INFO)
+            
+            # Create a logger for the specific MCP server
+            mcp_logger = logging.getLogger(f"mcp.{logger_name}")
+            
+            # Log the message with appropriate level and extra data
+            mcp_logger.log(log_level, f"[MCP] {msg}", extra=extra)
+            
+            # Also send to tool call callback if available for UI display
+            if _tool_call_callback:
+                _tool_call_callback({
+                    "type": "log",
+                    "level": level.lower(),
+                    "logger": logger_name,
+                    "message": msg,
+                    "extra": extra
+                })
+                
+        except Exception as e:
+            logger.error(f"Error handling MCP log message: {e}")
+    
     async def _setup_client_and_tools(self, mcp_json: Dict[str, Any]) -> List[MCPTool]:
         """Common logic to setup client and get tools from config"""
         if not mcp_json:
             logger.info("No MCP config, clearing tools")
             return []
         
-        # Process config and create client
+        # Process config and create client with log handler as kwarg
         processed_servers = self._process_config(mcp_json)
         fastmcp_config = {"mcpServers": processed_servers}
         
-        self.unified_client = Client(fastmcp_config)
+        self.unified_client = Client(
+            fastmcp_config,
+            log_handler=self._mcp_log_handler
+        )
         
         # Get tools and return them
         tools = await self.list_tools()
         return tools
-    
+
     async def _reload_tools_and_save(self) -> None:
         """Reload tools from current mcp_json config and save to file"""
         try:
