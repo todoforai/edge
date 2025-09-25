@@ -33,6 +33,7 @@ from .handlers.handlers import (
 )
 from .handlers.file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
 from .mcp_collector import MCPCollector
+import aiohttp
 
 # Configure logging
 logger = logging.getLogger("todoforai-edge")
@@ -133,8 +134,6 @@ class TODOforAIEdge:
             return {"valid": False, "error": "No API key provided"}
             
         try:
-            import aiohttp
-            import asyncio
             
             # Use the dedicated validation endpoint
             url = f"{self.api_url}/token/v1/users/apikeys/validate"
@@ -167,25 +166,29 @@ class TODOforAIEdge:
             logger.warning(f"API key invalid: {result.get('error')}")
             self.api_key = None
         
-        # If no API key and prompting is disabled, fail
         if not prompt_if_missing:
             logger.error("No valid API key available")
             return False
             
         # Prompt for API key
         print(f"{Colors.YELLOW}Please provide your API key{Colors.END}")
-        try:
-            self.api_key = input("API Key: ").strip()
-            if not self.api_key:
-                logger.error("No API key provided")
+        while True:
+            try:
+                self.api_key = input("API Key: ").strip()
+                if not self.api_key:
+                    print(f"{Colors.YELLOW}No API key provided. Please try again.{Colors.YELLOW}")
+                    continue
+                    
+                # Validate the new API key
+                result = await self.validate_api_key()
+                if result.get("valid", False):
+                    return True
+                else:
+                    print(f"{Colors.RED}Invalid API key. Please try again.{Colors.END}")
+                    
+            except KeyboardInterrupt:
+                print("\nOperation cancelled.")
                 return False
-        except KeyboardInterrupt:
-            print("\nOperation cancelled.")
-            return False
-
-        # Validate the new API key
-        result = await self.validate_api_key()
-        return result.get("valid", False)
 
     async def _handle_edge_config_update(self, payload):
         """Handle edge config update from server"""
