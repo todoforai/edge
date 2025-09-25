@@ -127,7 +127,7 @@ def login(credentials):
         
         with sidecar.edge_lock:
             # Check if we're already connected with the same credentials
-            if sidecar.todo_edge and sidecar.todo_edge.connected:
+            if sidecar.todo_edge and sidecar.todo_edge.connected: # TODO when is this possible case? Do they log in again?
                 if config.has_same_credentials(sidecar.todo_edge):
                     log.info("Already connected with the same credentials, sending auth_success")
                     asyncio.create_task(_broadcast_auth_success())
