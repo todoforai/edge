@@ -13,21 +13,15 @@ help:
 
 run:
 	@echo "Running TodoForAI Edge client..."
-	@if [ -n "$(email)" ]; then \
-		echo "Using provided email: $(email)"; \
-		if [ -n "$(password)" ]; then \
-			python3 run_edge.py --email $(email) --password $(password) --api-url https://api.todofor.ai; \
-		else \
-			python3 run_edge.py --email $(email) --api-url https://api.todofor.ai; \
-		fi; \
-	else \
-		python3 run_edge.py --email six1@todofor.ai --password Test123 --api-url https://api.todofor.ai; \
-	fi
+# 	python3 run_edge.py --api-key 1e724cf13dda7667371af44b3e691e078c35919cf7c79cd314203b0c274ade40 --api-url https://api.todofor.ai
+	# havliktomi@gmail.com
+	python3 run_edge.py --api-key ba20960794dba7f2daf5ff3455a03db62fc3988950e34a0bf58f88 --api-url https://api.todofor.ai
 
 run-test:
 	@echo "Running TodoForAI Edge client with test credentials..."
 	# python3 run_edge.py --email test@todofor.ai --password Test123 --api-url https://api.todofor.ai
-	python3 run_edge.py --email lfg@todofor.ai --password Test123 --api-url http://localhost:4000
+	python3 run_edge.py --api-key 273c83e08bf7d6655c1e8bf648cdb6595b7d20a05a829d97a03d --api-url http://localhost:4000
+
 
 run-ws:
   # joins where the frontend asks to:
