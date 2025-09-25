@@ -36,10 +36,12 @@ async def test_gmail_mcp():
         # Load config
         print("Loading MCP config...")
         await collector.load_from_file("mcp.json")
-        # Quick debug: show expanded env for gmail2 if present
+        server_id = "gmail"
+        
+        # Quick debug: show expanded env for the specified server if present
         cfg = edge_config.config.safe_get("mcp_json", {})
-        gmail_cfg = (cfg.get("mcpServers") or {}).get("gmail2", {})
-        print("gmail2 env:", gmail_cfg.get("env", {}))
+        server_cfg = (cfg.get("mcpServers") or {}).get(server_id, {})
+        print(f"{server_id} env:", server_cfg.get("env", {}))
         
         # List tools
         tools = await collector.list_tools()
