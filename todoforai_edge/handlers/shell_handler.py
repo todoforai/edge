@@ -54,13 +54,16 @@ class ShellProcess:
                     # Test if PowerShell is available
                     subprocess.run(['powershell', '-Command', 'exit'], 
                                  capture_output=True, timeout=2)
-                    # PowerShell with UTF-8 output encoding
+                    # PowerShell with UTF-8 output encoding and no colors
                     shell_cmd = ['powershell', '-Command', 
-                               f'[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; {content}']
+                               f'[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; '
+                               f'$OutputEncoding = [System.Text.Encoding]::UTF8; '
+                               f'$env:NO_COLOR = "1"; $env:TERM = "dumb"; '
+                               f'{content}']
                 except (subprocess.TimeoutExpired, FileNotFoundError):
-                    # Fallback to cmd with UTF-8 codepage
+                    # Fallback to cmd with UTF-8 codepage and no colors
                     logger.warning("PowerShell not available, falling back to cmd.exe")
-                    content = f'chcp 65001>nul & {content}'
+                    content = f'chcp 65001>nul & set NO_COLOR=1 & set TERM=dumb & {content}'
                     shell_cmd = ['cmd', '/c', content]
                 preexec_fn = None
             else:  # Unix-like systems
@@ -188,11 +191,18 @@ class ShellProcess:
         """Thread function to read from a stream and put data into a queue."""
         try:
             while block_id in self.processes:
-                # Read a line from the stream
-                line = stream.readline()
-                if not line:  # EOF
-                    break
-                output_queue.put(line)
+                # For Windows, read character-by-character to catch prompts without newline
+                if os.name == 'nt':
+                    ch = stream.read(1)
+                    if not ch:  # EOF
+                        break
+                    output_queue.put(ch)
+                else:
+                    # Read a line from the stream (Unix)
+                    line = stream.readline()
+                    if not line:  # EOF
+                        break
+                    output_queue.put(line)
         except Exception as e:
             logger.error(f"Error in stream reader thread: {str(e)}")
         finally:
@@ -215,6 +225,9 @@ class ShellProcess:
             )
             reader_thread.start()
             
+            # Buffer for accumulating characters on Windows
+            char_buffer = ""
+            
             # Read from the queue in the async context
             while block_id in self.processes:
                 try:
@@ -222,18 +235,32 @@ class ShellProcess:
                     try:
                         data = output_queue.get(timeout=0.1)
                     except queue.Empty:
-                        # No data available, check if process is still running
+                        # No data available; flush small prompt fragments if any
+                        if char_buffer:
+                            await client.send_response(shell_block_message_result_msg(todo_id, block_id, char_buffer, request_id))
+                            if block_id in self._output_buffer:
+                                self._output_buffer[block_id] += char_buffer
+                            char_buffer = ""
                         await asyncio.sleep(0.01)
                         continue
                     
                     if data is None:  # Thread signaled completion
+                        # Flush any remaining buffer
+                        if char_buffer:
+                            await client.send_response(shell_block_message_result_msg(todo_id, block_id, char_buffer, request_id))
+                            if block_id in self._output_buffer:
+                                self._output_buffer[block_id] += char_buffer
                         break
                     
-                    # Send the data immediately
-                    await client.send_response(shell_block_message_result_msg(todo_id, block_id, data, request_id))
-                    # Buffer the output for sync calls
-                    if block_id in self._output_buffer:
-                        self._output_buffer[block_id] += data
+                    # Accumulate characters
+                    char_buffer += data
+                    
+                    # Flush on newline, common prompt patterns, or when buffer grows
+                    if data in ['\n', '\r'] or char_buffer.endswith(': ') or char_buffer.endswith('> ') or len(char_buffer) > 64:
+                        await client.send_response(shell_block_message_result_msg(todo_id, block_id, char_buffer, request_id))
+                        if block_id in self._output_buffer:
+                            self._output_buffer[block_id] += char_buffer
+                        char_buffer = ""
                     
                 except Exception as e:
                     stack_trace = traceback.format_exc()
