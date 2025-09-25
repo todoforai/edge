@@ -1,7 +1,7 @@
 {
   "name": "todoforai-edge",
   "private": true,
-  "version": "0.11.97",
+  "version": "0.11.98",
   "type": "module",
   "scripts": {
     "prepare": "panda codegen",
