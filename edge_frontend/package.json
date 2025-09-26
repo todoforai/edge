@@ -12,6 +12,7 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "install:deb": "tauri build --bundles deb && sudo dpkg -i \"src-tauri/target/release/bundle/deb/todoforai-edge_$(node -p \"require('./package.json').version\")_amd64.deb\"",
+    "install:msi": "tauri build --bundles msi && powershell -Command \"Start-Process msiexec -ArgumentList '/i', 'src-tauri/target/release/bundle/msi/todoforai-edge_$(node -p \"require('./package.json').version\")_x64_en-US.msi', '/quiet' -Verb RunAs\"",
     "tauri:dev:prod-mode": "TODOFORAI_FORCE_PYTHON=1 yarn tauri dev",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
