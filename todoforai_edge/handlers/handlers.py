@@ -178,7 +178,7 @@ async def handle_get_folders(payload, client):
         # If path doesn't end with separator, list contents of parent directory
         if path.endswith(os.sep):
             # Remove trailing separator and use as target directory
-            target_path = Path(path.rstrip(os.sep)).expanduser()
+            target_path = Path(path).expanduser()
         else:
             # Use parent directory
             target_path = Path(path).expanduser().parent
