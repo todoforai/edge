@@ -349,13 +349,11 @@ class TODOforAIEdge:
         else:
             raise Exception(f"Failed to delete project {project_id}")
 
-    async def create_todo(self, project_id: str, content: str, agent_settings_id: str = None) -> Dict[str, Any]:
+    async def create_todo(self, project_id: str, content: str, agent_settings: Dict[str, Any] = None) -> Dict[str, Any]:
         """Create a new todo in a specific project"""
         payload = {
             "content": content,
-            "agentSettings": {
-                "id": agent_settings_id or "default"
-            }
+            "agentSettings": agent_settings
         }
         
         response = await async_request(self, 'post', f"/api/v1/projects/{project_id}/todos", payload)
@@ -420,7 +418,7 @@ class TODOforAIEdge:
         todo_id: str = None, 
         attachments: List[Dict[str, Any]] = None,
         scheduled_timestamp: int = None,
-        auto_create: bool = True
+        allow_queue: bool = False,
     ) -> Dict[str, Any]:
         """Add a message to a todo, optionally creating the todo if it doesn't exist
         
@@ -428,10 +426,10 @@ class TODOforAIEdge:
             project_id: The project ID
             content: Message content
             agent_settings_id: Agent settings ID to use
-            todo_id: Optional todo ID. If None and auto_create=True, a new todo will be created
+            todo_id: Optional todo ID. If provided, will be used as custom ID for new todo
             attachments: Optional file attachments
             scheduled_timestamp: Optional scheduling timestamp
-            auto_create: If True, create todo if todo_id is None or todo doesn't exist
+            allow_queue: If True, allow adding messages to running todos (queue them)
             
         Returns:
             Dict containing the message response and todo info
@@ -450,56 +448,19 @@ class TODOforAIEdge:
             payload["todoId"] = todo_id
         if scheduled_timestamp:
             payload["scheduledTimestamp"] = scheduled_timestamp
+        if allow_queue:
+            payload["allowQueue"] = allow_queue
         
-        # If no todo_id provided and auto_create is True, create via project endpoint
-        if not todo_id and auto_create:
-            # Use the project-scoped todo creation endpoint which creates todo + message
-            response = await async_request(self, 'post', f"/api/v1/projects/{project_id}/todos", payload)
-            if response:
-                logger.info(f"Created new todo with message in project {project_id}: {content[:50]}...")
-                return response.json()
-            else:
-                raise Exception("Failed to create todo with message")
-        
-        # If todo_id is provided, try adding message to existing todo first
-        elif todo_id:
-            # First try to add message to existing todo
-            message_payload = {
-                "todoId": todo_id,
-                "projectId": project_id,
-                "content": content,
-                "role": "user",
-                "agentSettings": {
-                    "id": agent_settings_id
-                },
-                "attachments": attachments or []
-            }
-            
-            if scheduled_timestamp:
-                message_payload["scheduledTimestamp"] = scheduled_timestamp
-                
-            try:
-                response = await async_request(self, 'post', f"/api/v1/todos/{todo_id}/messages", message_payload)
-                if response:
-                    logger.info(f"Added message to existing todo {todo_id}: {content[:50]}...")
-                    return response.json()
-            except Exception as e:
-                logger.debug(f"Failed to add message to existing todo {todo_id}: {str(e)}")
-                
-                # If auto_create is True and the todo doesn't exist, try creating it with custom ID
-                if auto_create:
-                    logger.info(f"Todo {todo_id} not found, creating new todo with custom ID...")
-                    response = await async_request(self, 'post', f"/api/v1/projects/{project_id}/todos", payload)
-                    if response:
-                        logger.info(f"Created new todo with custom ID {todo_id} in project {project_id}: {content[:50]}...")
-                        return response.json()
-                    else:
-                        raise Exception("Failed to create todo with custom ID")
-                else:
-                    raise Exception(f"Failed to add message to todo {todo_id} and auto_create is disabled")
-        
+        # Always use the project-scoped todo creation endpoint
+        # This will either create a new todo or add to existing one based on todoId
+        response = await async_request(self, 'post', f"/api/v1/projects/{project_id}/todos", payload)
+        if response:
+            result = response.json()
+            action = "Created new todo" if not todo_id else f"Used todo ID {todo_id}"
+            logger.info(f"{action} with message in project {project_id}: {content[:50]}...")
+            return result
         else:
-            raise Exception("Either provide todo_id or set auto_create=True")
+            raise Exception("Failed to create/update todo with message")
 
     async def _start_workspace_syncs(self):
         """Start file synchronization for all workspace paths"""

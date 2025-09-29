@@ -55,24 +55,27 @@ asyncio.run(main())
 - `get_agent_settings(agent_settings_id)` - Get specific agent settings
 
 ### Todo/Message Management
-- `add_message(project_id, content, agent_settings_id, **options)` - Add message/create todo
+- `add_message(project_id, content, agent_settings, **options)` - Add message/create todo
 
 #### add_message() Options:
 - `todo_id` - Optional todo ID (auto-generated if not provided)
 - `attachments` - List of file attachments
 - `scheduled_timestamp` - Schedule the todo for later
-- `auto_create` - Auto-create todo if it doesn't exist (default: True)
+- `allow_queue` - Allow queueing messages to running todos (default: False)
 
 ## Examples
 
 ### Create todo with custom ID
 ```python
+# Get full agent settings object first
+agents = await edge.list_agent_settings()
+agent = agents[0]  # Use full object
+
 todo = await edge.add_message(
     project_id="proj-123",
     content="Custom todo",
-    agent_settings_id="agent-456",
-    todo_id="my-custom-id",
-    auto_create=True
+    agent_settings=agent,  # Pass full object, not just ID
+    todo_id="my-custom-id"
 )
 ```
 
@@ -84,9 +87,8 @@ future_time = int(time.time() * 1000) + 3600000  # 1 hour from now
 todo = await edge.add_message(
     project_id="proj-123",
     content="Scheduled task",
-    agent_settings_id="agent-456",
-    scheduled_timestamp=future_time,
-    auto_create=True
+    agent_settings=agent,  # Full object
+    scheduled_timestamp=future_time
 )
 ```
 
@@ -105,8 +107,7 @@ attachments = [
 todo = await edge.add_message(
     project_id="proj-123",
     content="Review this document",
-    agent_settings_id="agent-456",
-    attachments=attachments,
-    auto_create=True
+    agent_settings=agent,  # Full object
+    attachments=attachments
 )
 ```
