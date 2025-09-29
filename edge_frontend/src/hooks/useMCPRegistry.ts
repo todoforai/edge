@@ -9,10 +9,18 @@ export const useMCPRegistry = () => {
   const [registryServers] = useState<MCPRegistry[]>(MCP_REGISTRY);
   const instances = useMemo(() => getMCPInstances(config), [config, getMCPInstances]);
 
-  const availableServers = useMemo(() => 
-    registryServers.filter(registry => 
-      !instances.some(instance => instance.serverId === registry.registryId)
-    ), [registryServers, instances]);
+  const availableServers = useMemo(() => {
+    // Get all installed server IDs (including built-in ones)
+    const installedServerIds = new Set([
+      'todoforai', // Always exclude built-in TODOforAI
+      ...instances.map(instance => instance.serverId),
+      ...instances.map(instance => instance.registryId).filter(Boolean)
+    ]);
+
+    return registryServers.filter(registry => 
+      !installedServerIds.has(registry.registryId)
+    );
+  }, [registryServers, instances]);
 
   return { registryServers, availableServers, instances };
 };
