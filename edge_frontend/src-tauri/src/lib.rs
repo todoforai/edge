@@ -265,15 +265,24 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
             "python3"
         };
 
-        app.shell()
-            .command(python_executable)
+        let mut command = app.shell().command(python_executable);
+        command
             .args([
                 script_path.to_string_lossy().to_string(),
                 "--port".to_string(),
                 WEBSOCKET_PORT.to_string(),
             ])
             .env("PYTHONIOENCODING", "utf-8")
-            .env("PYTHONUTF8", "1")
+            .env("PYTHONUTF8", "1");
+
+        // Hide console window on Windows
+        #[cfg(target_os = "windows")]
+        {
+            use tauri_plugin_shell::process::CommandExt;
+            command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        command
             .spawn()
             .map_err(|e| format!("Failed to start Python script: {}", e))?
     } else {
@@ -282,13 +291,22 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
 
         // Use the shell extension to get the sidecar
         match app.shell().sidecar("todoforai-edge-sidecar") {
-            Ok(command) => {
+            Ok(mut command) => {
                 info!("Sidecar command created successfully");
 
                 command
                     .args(["--port", &WEBSOCKET_PORT.to_string()])
                     .env("PYTHONIOENCODING", "utf-8")  // ensure UTF-8 for stdout/stderr
-                    .env("PYTHONUTF8", "1")            // force UTF-8 mode
+                    .env("PYTHONUTF8", "1");            // force UTF-8 mode
+
+                // Hide console window on Windows
+                #[cfg(target_os = "windows")]
+                {
+                    use tauri_plugin_shell::process::CommandExt;
+                    command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+                }
+
+                command
                     .spawn()
                     .map_err(|e| format!("Failed to spawn sidecar: {}", e))?
             }
@@ -303,15 +321,24 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
                     "python3"
                 };
 
-                app.shell()
-                    .command(python_executable)
+                let mut command = app.shell().command(python_executable);
+                command
                     .args([
                         script_path.to_string_lossy().to_string(),
                         "--port".to_string(),
                         WEBSOCKET_PORT.to_string(),
                     ])
                     .env("PYTHONIOENCODING", "utf-8")
-                    .env("PYTHONUTF8", "1")
+                    .env("PYTHONUTF8", "1");
+
+                // Hide console window on Windows
+                #[cfg(target_os = "windows")]
+                {
+                    use tauri_plugin_shell::process::CommandExt;
+                    command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+                }
+
+                command
                     .spawn()
                     .map_err(|e| format!("Failed to start Python script fallback: {}", e))?
             }
