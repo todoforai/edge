@@ -2,23 +2,19 @@ import asyncio
 import os
 from todoforai_edge.edge import TODOforAIEdge
 from todoforai_edge.config import Config
-from todoforai_edge.utils.search_by import findBy
+from todoforai_edge.utils import findBy
 
 async def main():
     # Initialize edge with local development config
-    config = Config()
-    config.api_url = "http://localhost:4000"
-    config.api_key = os.getenv('TODOFORAI_API_KEY_LOCAL')
-    
-    if not config.api_key:
-        print("Please set TODOFORAI_API_KEY environment variable")
-        print("Example: export TODOFORAI_API_KEY=your-api-key-here")
+    api_key = os.getenv('TODOFORAI_API_KEY_LOCAL')
+    if not api_key:
+        print("Please set TODOFORAI_API_KEY_LOCAL environment variable")
         return
     
-    edge = TODOforAIEdge(config)
+    config = Config()
+    config.api_url, config.api_key = "http://localhost:4000", api_key
     
-    # Ensure API key is valid
-    await edge.ensure_api_key()
+    edge = TODOforAIEdge(config)
     
     try:
         # List available agent settings
@@ -47,8 +43,6 @@ async def main():
         if email_project:
             print(f"Found email project: {email_project['project']['name']}")
         
-        return
-    
         if not projects:
             # Create a project if none exist
             print("No projects found, creating one...")
@@ -62,11 +56,12 @@ async def main():
         print(f"\nExample 1: Creating new todo with auto-generated ID...")
         todo1 = await edge.add_message(
             project_id=project_id,
-            content="This is a new todo created from Edge with auto-generated ID",
-            agent_settings_id=agent_id,
+            content="This is a new todo created from Edge with auto-generated ID, so just say 'hi'",
+            agent_settings_id=agentSettings['id'],
             auto_create=True
         )
         print(f"Created todo: {todo1['id']}")
+        return
         
         # Example 2: Create a todo with custom ID
         print(f"\nExample 2: Creating new todo with custom ID...")
