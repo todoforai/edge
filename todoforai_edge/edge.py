@@ -7,6 +7,7 @@ import asyncio
 import websockets
 import ssl
 import sys
+import platform
 
 # Import constants
 from .constants.constants import (
@@ -135,13 +136,25 @@ class TODOforAIEdge:
             return {"valid": False, "error": "No API key provided"}
             
         try:
-            
             # Use the dedicated validation endpoint
             url = f"{self.api_url}/noauth/v1/users/apikeys/validate"
             headers = {"x-api-key": self.api_key}
             
+            # Create SSL context that doesn't verify certificates for HTTPS URLs on macOS ARM64
+            ssl_context = None
+            if url.startswith("https://") and platform.system() == "Darwin" and platform.machine() == "arm64":
+                ssl_context = ssl.create_default_context()
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+            
             timeout = aiohttp.ClientTimeout(total=10)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            connector = aiohttp.TCPConnector(ssl=ssl_context) if ssl_context else None
+            
+            session_kwargs = {"timeout": timeout}
+            if connector:
+                session_kwargs["connector"] = connector
+            
+            async with aiohttp.ClientSession(**session_kwargs) as session:
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
