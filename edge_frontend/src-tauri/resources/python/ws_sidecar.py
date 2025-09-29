@@ -233,12 +233,7 @@ async def _delayed_sidecar_shutdown():
 async def _run_edge():
     """Run the edge in async context"""
     try:
-        # Ensure we have a valid API key (validate existing or authenticate) without interactive prompts
-        ok = await sidecar.todo_edge.ensure_api_key(prompt_if_missing=False)
-        if not ok:
-            await _broadcast_auth_error("Unable to obtain a valid API key")
-            return
-
+        # Authentication happens automatically on first API call
         await _broadcast_auth_success()
         
         # Register all hooks after successful authentication
