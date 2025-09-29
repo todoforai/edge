@@ -265,7 +265,9 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
             "python3"
         };
 
-        let command = app.shell().command(python_executable)
+        let mut cmd = app
+            .shell()
+            .command(python_executable)
             .args([
                 script_path.to_string_lossy().to_string(),
                 "--port".to_string(),
@@ -276,13 +278,12 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
 
         // Hide console window on Windows
         #[cfg(target_os = "windows")]
-        let command = {
-            use tauri_plugin_shell::process::CommandExt;
-            command.creation_flags(0x08000000) // CREATE_NO_WINDOW
-        };
+        {
+            use std::os::windows::process::CommandExt;
+            cmd = cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
 
-        command
-            .spawn()
+        cmd.spawn()
             .map_err(|e| format!("Failed to start Python script: {}", e))?
     } else {
         // In production mode, use the sidecar
@@ -293,20 +294,19 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
             Ok(command) => {
                 info!("Sidecar command created successfully");
 
-                let command = command
+                let mut cmd = command
                     .args(["--port", &WEBSOCKET_PORT.to_string()])
                     .env("PYTHONIOENCODING", "utf-8")  // ensure UTF-8 for stdout/stderr
                     .env("PYTHONUTF8", "1");            // force UTF-8 mode
 
                 // Hide console window on Windows
                 #[cfg(target_os = "windows")]
-                let command = {
-                    use tauri_plugin_shell::process::CommandExt;
-                    command.creation_flags(0x08000000) // CREATE_NO_WINDOW
-                };
+                {
+                    use std::os::windows::process::CommandExt;
+                    cmd = cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+                }
 
-                command
-                    .spawn()
+                cmd.spawn()
                     .map_err(|e| format!("Failed to spawn sidecar: {}", e))?
             }
             Err(e) => {
@@ -320,7 +320,9 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
                     "python3"
                 };
 
-                let command = app.shell().command(python_executable)
+                let mut cmd = app
+                    .shell()
+                    .command(python_executable)
                     .args([
                         script_path.to_string_lossy().to_string(),
                         "--port".to_string(),
@@ -331,13 +333,12 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
 
                 // Hide console window on Windows
                 #[cfg(target_os = "windows")]
-                let command = {
-                    use tauri_plugin_shell::process::CommandExt;
-                    command.creation_flags(0x08000000) // CREATE_NO_WINDOW
-                };
+                {
+                    use std::os::windows::process::CommandExt;
+                    cmd = cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+                }
 
-                command
-                    .spawn()
+                cmd.spawn()
                     .map_err(|e| format!("Failed to start Python script fallback: {}", e))?
             }
         }
