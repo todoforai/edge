@@ -232,34 +232,6 @@ class TODOforAIEdge:
             self.add_workspace_path = None
         
         logger.info("Edge config update processed successfully")
-        
-
-    async def _start_workspace_syncs(self):
-        """Start file synchronization for all workspace paths"""
-        # First stop any existing syncs to prevent duplicates
-        await stop_all_syncs()
-        
-        for workspace_path in self.edge_config.config["workspacepaths"]:
-            try:
-                if os.path.exists(workspace_path):
-                    logger.info(f"Starting file sync for workspace: {workspace_path}")
-                    await start_workspace_sync(self, workspace_path)
-                else:
-                    logger.warning(f"Workspace path does not exist: {workspace_path}")
-            except Exception as e:
-                logger.error(f"Failed to start file sync for {workspace_path}: {str(e)}")
-
-    async def _load_mcp_if_exists(self):
-        """Load MCP config if mcp.json exists in current directory"""
-        if os.path.exists("mcp.json"):
-            try:
-                logger.info("Found mcp.json, loading MCP configuration")
-                results = await self.mcp_collector.load_from_file("mcp.json")
-                logger.info(f"MCP setup completed. Loaded {len(results)} servers with auto-reload and file sync.")
-            except Exception as e:
-                logger.error(f"Failed to load MCP configuration: {str(e)}")
-        else:
-            logger.debug("No mcp.json found in current directory")
 
     async def _handle_message(self, message):
         """Process incoming messages from the server"""
@@ -344,6 +316,218 @@ class TODOforAIEdge:
         
         else:
             logger.warning(f"Unknown message type: {msg_type}")
+
+    async def create_project(self, name: str, description: str = "", is_public: bool = False) -> Dict[str, Any]:
+        """Create a new project"""
+        payload = {
+            "name": name,
+            "description": description,
+            "isPublic": is_public
+        }
+        
+        response = await async_request(self, 'post', "/api/v1/projects", payload)
+        if response:
+            logger.info(f"Created project: {name}")
+            return response.json()
+        else:
+            raise Exception("Failed to create project")
+
+    async def list_projects(self) -> List[Dict[str, Any]]:
+        """List all user projects"""
+        response = await async_request(self, 'get', "/api/v1/projects")
+        if response:
+            return response.json()
+        else:
+            raise Exception("Failed to list projects")
+
+    async def delete_project(self, project_id: str) -> Dict[str, Any]:
+        """Delete a project by ID"""
+        response = await async_request(self, 'delete', f"/api/v1/projects/{project_id}")
+        if response:
+            logger.info(f"Deleted project: {project_id}")
+            return response.json()
+        else:
+            raise Exception(f"Failed to delete project {project_id}")
+
+    async def create_todo(self, project_id: str, content: str, agent_settings_id: str = None) -> Dict[str, Any]:
+        """Create a new todo in a specific project"""
+        payload = {
+            "content": content,
+            "agentSettings": {
+                "id": agent_settings_id or "default"
+            }
+        }
+        
+        response = await async_request(self, 'post', f"/api/v1/projects/{project_id}/todos", payload)
+        if response:
+            logger.info(f"Created todo in project {project_id}: {content[:50]}...")
+            return response.json()
+        else:
+            raise Exception("Failed to create todo")
+
+    async def list_todos(self, project_id: str = None) -> List[Dict[str, Any]]:
+        """List todos, optionally filtered by project"""
+        if project_id:
+            endpoint = f"/api/v1/projects/{project_id}/todos"
+        else:
+            endpoint = "/api/v1/todos"
+            
+        response = await async_request(self, 'get', endpoint)
+        if response:
+            return response.json()
+        else:
+            raise Exception("Failed to list todos")
+
+    async def get_todo(self, todo_id: str) -> Dict[str, Any]:
+        """Get a specific todo by ID"""
+        response = await async_request(self, 'get', f"/api/v1/todos/{todo_id}")
+        if response:
+            return response.json()
+        else:
+            raise Exception(f"Failed to get todo {todo_id}")
+
+    async def update_todo_status(self, todo_id: str, status: str) -> Dict[str, Any]:
+        """Update todo status"""
+        payload = {"status": status}
+        response = await async_request(self, 'put', f"/api/v1/todos/{todo_id}", payload)
+        if response:
+            logger.info(f"Updated todo {todo_id} status to {status}")
+            return response.json()
+        else:
+            raise Exception(f"Failed to update todo {todo_id}")
+
+    async def list_agent_settings(self) -> List[Dict[str, Any]]:
+        """List all user agent settings"""
+        response = await async_request(self, 'get', "/api/v1/agents")
+        if response:
+            return response.json()
+        else:
+            raise Exception("Failed to list agent settings")
+
+    async def get_agent_settings(self, agent_settings_id: str) -> Dict[str, Any]:
+        """Get a specific agent settings by ID"""
+        response = await async_request(self, 'get', f"/api/v1/agents/{agent_settings_id}")
+        if response:
+            return response.json()
+        else:
+            raise Exception(f"Failed to get agent settings {agent_settings_id}")
+
+    async def add_message(
+        self, 
+        project_id: str, 
+        content: str, 
+        agent_settings_id: str,
+        todo_id: str = None, 
+        attachments: List[Dict[str, Any]] = None,
+        scheduled_timestamp: int = None,
+        auto_create: bool = True
+    ) -> Dict[str, Any]:
+        """Add a message to a todo, optionally creating the todo if it doesn't exist
+        
+        Args:
+            project_id: The project ID
+            content: Message content
+            agent_settings_id: Agent settings ID to use
+            todo_id: Optional todo ID. If None and auto_create=True, a new todo will be created
+            attachments: Optional file attachments
+            scheduled_timestamp: Optional scheduling timestamp
+            auto_create: If True, create todo if todo_id is None or todo doesn't exist
+            
+        Returns:
+            Dict containing the message response and todo info
+        """
+        # Prepare the payload
+        payload = {
+            "content": content,
+            "agentSettings": {
+                "id": agent_settings_id
+            },
+            "attachments": attachments or []
+        }
+        
+        # Add optional fields
+        if todo_id:
+            payload["todoId"] = todo_id
+        if scheduled_timestamp:
+            payload["scheduledTimestamp"] = scheduled_timestamp
+        
+        # If no todo_id provided and auto_create is True, create via project endpoint
+        if not todo_id and auto_create:
+            # Use the project-scoped todo creation endpoint which creates todo + message
+            response = await async_request(self, 'post', f"/api/v1/projects/{project_id}/todos", payload)
+            if response:
+                logger.info(f"Created new todo with message in project {project_id}: {content[:50]}...")
+                return response.json()
+            else:
+                raise Exception("Failed to create todo with message")
+        
+        # If todo_id is provided, try adding message to existing todo first
+        elif todo_id:
+            # First try to add message to existing todo
+            message_payload = {
+                "todoId": todo_id,
+                "projectId": project_id,
+                "content": content,
+                "role": "user",
+                "agentSettings": {
+                    "id": agent_settings_id
+                },
+                "attachments": attachments or []
+            }
+            
+            if scheduled_timestamp:
+                message_payload["scheduledTimestamp"] = scheduled_timestamp
+                
+            try:
+                response = await async_request(self, 'post', f"/api/v1/todos/{todo_id}/messages", message_payload)
+                if response:
+                    logger.info(f"Added message to existing todo {todo_id}: {content[:50]}...")
+                    return response.json()
+            except Exception as e:
+                logger.debug(f"Failed to add message to existing todo {todo_id}: {str(e)}")
+                
+                # If auto_create is True and the todo doesn't exist, try creating it with custom ID
+                if auto_create:
+                    logger.info(f"Todo {todo_id} not found, creating new todo with custom ID...")
+                    response = await async_request(self, 'post', f"/api/v1/projects/{project_id}/todos", payload)
+                    if response:
+                        logger.info(f"Created new todo with custom ID {todo_id} in project {project_id}: {content[:50]}...")
+                        return response.json()
+                    else:
+                        raise Exception("Failed to create todo with custom ID")
+                else:
+                    raise Exception(f"Failed to add message to todo {todo_id} and auto_create is disabled")
+        
+        else:
+            raise Exception("Either provide todo_id or set auto_create=True")
+
+    async def _start_workspace_syncs(self):
+        """Start file synchronization for all workspace paths"""
+        # First stop any existing syncs to prevent duplicates
+        await stop_all_syncs()
+        
+        for workspace_path in self.edge_config.config["workspacepaths"]:
+            try:
+                if os.path.exists(workspace_path):
+                    logger.info(f"Starting file sync for workspace: {workspace_path}")
+                    await start_workspace_sync(self, workspace_path)
+                else:
+                    logger.warning(f"Workspace path does not exist: {workspace_path}")
+            except Exception as e:
+                logger.error(f"Failed to start file sync for {workspace_path}: {str(e)}")
+
+    async def _load_mcp_if_exists(self):
+        """Load MCP config if mcp.json exists in current directory"""
+        if os.path.exists("mcp.json"):
+            try:
+                logger.info("Found mcp.json, loading MCP configuration")
+                results = await self.mcp_collector.load_from_file("mcp.json")
+                logger.info(f"MCP setup completed. Loaded {len(results)} servers with auto-reload and file sync.")
+            except Exception as e:
+                logger.error(f"Failed to load MCP configuration: {str(e)}")
+        else:
+            logger.debug("No mcp.json found in current directory")
+
 
     async def send_response(self, message):
         """Send a response to the server
