@@ -265,8 +265,7 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
             "python3"
         };
 
-        let mut command = app.shell().command(python_executable);
-        command
+        let command = app.shell().command(python_executable)
             .args([
                 script_path.to_string_lossy().to_string(),
                 "--port".to_string(),
@@ -277,10 +276,10 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
 
         // Hide console window on Windows
         #[cfg(target_os = "windows")]
-        {
+        let command = {
             use tauri_plugin_shell::process::CommandExt;
-            command.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        }
+            command.creation_flags(0x08000000) // CREATE_NO_WINDOW
+        };
 
         command
             .spawn()
@@ -291,20 +290,20 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
 
         // Use the shell extension to get the sidecar
         match app.shell().sidecar("todoforai-edge-sidecar") {
-            Ok(mut command) => {
+            Ok(command) => {
                 info!("Sidecar command created successfully");
 
-                command
+                let command = command
                     .args(["--port", &WEBSOCKET_PORT.to_string()])
                     .env("PYTHONIOENCODING", "utf-8")  // ensure UTF-8 for stdout/stderr
                     .env("PYTHONUTF8", "1");            // force UTF-8 mode
 
                 // Hide console window on Windows
                 #[cfg(target_os = "windows")]
-                {
+                let command = {
                     use tauri_plugin_shell::process::CommandExt;
-                    command.creation_flags(0x08000000); // CREATE_NO_WINDOW
-                }
+                    command.creation_flags(0x08000000) // CREATE_NO_WINDOW
+                };
 
                 command
                     .spawn()
@@ -321,8 +320,7 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
                     "python3"
                 };
 
-                let mut command = app.shell().command(python_executable);
-                command
+                let command = app.shell().command(python_executable)
                     .args([
                         script_path.to_string_lossy().to_string(),
                         "--port".to_string(),
@@ -333,10 +331,10 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
 
                 // Hide console window on Windows
                 #[cfg(target_os = "windows")]
-                {
+                let command = {
                     use tauri_plugin_shell::process::CommandExt;
-                    command.creation_flags(0x08000000); // CREATE_NO_WINDOW
-                }
+                    command.creation_flags(0x08000000) // CREATE_NO_WINDOW
+                };
 
                 command
                     .spawn()
