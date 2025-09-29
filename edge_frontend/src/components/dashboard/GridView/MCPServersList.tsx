@@ -6,6 +6,7 @@ import { ExtensionAddCard } from './ExtensionAddCard';
 import { ExtensionsRegistryModal } from './ExtensionsRegistryModal';
 import { Grid } from '../../ui/Grid';
 import { useEdgeConfigStore } from '../../../store/edgeConfigStore';
+import { useMCPRegistry } from '../../../hooks/useMCPRegistry';
 import type { MCPEdgeExecutable, MCPRegistry } from '../../../types';
 
 // Helper function to build/merge InstalledMCP entry optimistically
@@ -36,6 +37,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({
 }) => {
   const { config } = useEdgeConfigStore();
   console.log('config:', config)
+  const { availableServers } = useMCPRegistry();
   
   const [showSettingsModal, setShowSettingsModal] = useState<MCPEdgeExecutable | null>(null);
   const [showLogsModal, setShowLogsModal] = useState<MCPEdgeExecutable | null>(null);
@@ -147,6 +149,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({
 
       {showExtensionsRegistryModal && (
         <ExtensionsRegistryModal
+          servers={availableServers}
           onClose={() => setShowExtensionsRegistryModal(false)}
           onInstall={handleInstallFromRegistry}
         />

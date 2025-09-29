@@ -3,7 +3,6 @@ import { styled } from '@/../styled-system/jsx';
 import { Download } from 'lucide-react';
 import { getMCPByRegistryID } from '../../../data/mcpServersRegistry';
 import type { MCPRegistry } from '../../../types/mcp.types';
-import { useMCPRegistry } from '../../../hooks/useMCPRegistry';
 
 const Overlay = styled('div', {
   base: {
@@ -202,12 +201,12 @@ const InstallButton = styled('button', {
 });
 
 interface ExtensionsRegistryModalProps {
+  servers: MCPRegistry[];
   onClose: () => void;
   onInstall?: (server: MCPRegistry) => void;
 }
 
-export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = ({ onClose, onInstall }) => {
-  const { availableServers } = useMCPRegistry();
+export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = ({ servers, onClose, onInstall }) => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -216,17 +215,17 @@ export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = (
       'All',
       ...Array.from(
         new Set(
-          availableServers.flatMap((s) => {
+          servers.flatMap((s) => {
             const registry = getMCPByRegistryID(s.registryId);
             return registry?.category || ['Other'];
           })
         )
       ),
     ],
-    [availableServers]
+    [servers]
   );
 
-  const filteredServers = availableServers.filter((server) => {
+  const filteredServers = servers.filter((server) => {
     const registry = getMCPByRegistryID(server.registryId);
     const serverCategories = registry?.category || ['Other'];
     const matchesCategory = selectedCategory === 'All' || serverCategories.includes(selectedCategory);
