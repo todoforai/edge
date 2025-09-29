@@ -82,7 +82,7 @@ export const ExtensionAddCard: React.FC<ExtensionAddCardProps> = ({ onClick }) =
           <IconContainer>
             <Plus size={24} />
           </IconContainer>
-          <Title>Add new Extension</Title>
+          <Title>Add new integration</Title>
         </TitleRow>
         <Description>
           Browse and install MCP servers from the registry to extend your AI capabilities

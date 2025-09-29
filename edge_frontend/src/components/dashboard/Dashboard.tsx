@@ -105,7 +105,7 @@ export const Dashboard: React.FC = () => {
       <DashboardContent>
         <Container>
           <Header>
-            <Title>AI Extensions</Title>
+            <Title>AI Integrations</Title>
             <Subtitle>Extend agent capabilities with integrations along the internet and your PC. Discover and install!</Subtitle>
           </Header>
 

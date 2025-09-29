@@ -244,12 +244,12 @@ export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = (
     <Overlay>
       <ModalCard>
         <ModalHeader>
-          <div>Add New Extensions</div>
+          <div>Add New Integrations</div>
           <CloseButton onClick={onClose}>Close</CloseButton>
         </ModalHeader>
         <ModalBody>
           <Controls>
-            <input placeholder="Search available extensions..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input placeholder="Search available integrations..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
               {categories.map((c) => (
                 <option key={c} value={c}>
