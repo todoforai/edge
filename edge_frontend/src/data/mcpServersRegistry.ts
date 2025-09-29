@@ -134,15 +134,15 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     name: 'Puppeteer MCP',
     description: 'Web automation and scraping using Puppeteer browser control',
     command: 'npx',
-    args: ['-y', 'github:Sixzero/puppeteer-mcp-server'],
+    args: ['-y', 'github:todoforai/puppeteer-mcp-server'],
     icon: '/logos/puppeteer.png', // Local downloaded logo
     env: {},
     category: ['Web Automation'],
     aliases: ['BROWSER'],
     repository: {
-      url: 'https://github.com/Sixzero/puppeteer-mcp-server',
+      url: 'https://github.com/todoforai/puppeteer-mcp-server',
       source: 'github',
-      id: 'Sixzero/puppeteer-mcp-server',
+      id: '@todoforai/puppeteer-mcp-server',
     },
     version_detail: {
       version: '2.1.0',
