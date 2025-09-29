@@ -265,7 +265,7 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
             "python3"
         };
 
-        let mut cmd = app
+        let cmd = app
             .shell()
             .command(python_executable)
             .args([
@@ -276,12 +276,7 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
             .env("PYTHONIOENCODING", "utf-8")
             .env("PYTHONUTF8", "1");
 
-        // Hide console window on Windows
-        #[cfg(target_os = "windows")]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd = cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        }
+        // removed Windows creation_flags (not supported by tauri_plugin_shell::process::Command)
 
         cmd.spawn()
             .map_err(|e| format!("Failed to start Python script: {}", e))?
@@ -294,17 +289,12 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
             Ok(command) => {
                 info!("Sidecar command created successfully");
 
-                let mut cmd = command
+                let cmd = command
                     .args(["--port", &WEBSOCKET_PORT.to_string()])
                     .env("PYTHONIOENCODING", "utf-8")  // ensure UTF-8 for stdout/stderr
                     .env("PYTHONUTF8", "1");            // force UTF-8 mode
 
-                // Hide console window on Windows
-                #[cfg(target_os = "windows")]
-                {
-                    use std::os::windows::process::CommandExt;
-                    cmd = cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-                }
+                // removed Windows creation_flags (not supported)
 
                 cmd.spawn()
                     .map_err(|e| format!("Failed to spawn sidecar: {}", e))?
@@ -320,7 +310,7 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
                     "python3"
                 };
 
-                let mut cmd = app
+                let cmd = app
                     .shell()
                     .command(python_executable)
                     .args([
@@ -331,12 +321,7 @@ async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
                     .env("PYTHONIOENCODING", "utf-8")
                     .env("PYTHONUTF8", "1");
 
-                // Hide console window on Windows
-                #[cfg(target_os = "windows")]
-                {
-                    use std::os::windows::process::CommandExt;
-                    cmd = cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-                }
+                // removed Windows creation_flags (not supported)
 
                 cmd.spawn()
                     .map_err(|e| format!("Failed to start Python script fallback: {}", e))?
