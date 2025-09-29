@@ -6,6 +6,7 @@ import {
   useAuthEventListenersEffect
 } from '../../hooks/auth-hooks';
 import { createLogger } from '../../utils/logger';
+import { Eye, EyeOff } from 'lucide-react';
 
 const log = createLogger('login-form');
 
@@ -38,6 +39,7 @@ const LoginHeader = styled('h2', {
     marginTop: '0',
     marginBottom: '24px',
     textAlign: 'center',
+    fontWeight: '700',
     color: 'token(colors.foreground)',
   },
 });
@@ -177,6 +179,7 @@ export const LoginForm = () => {
   const [apiKey, setApiKey] = useState(deeplinkApiKey || '');
   const [clickCount, setClickCount] = useState(0);
   const [isApiUrlEditable, setIsApiUrlEditable] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   // Use custom hooks
   const { apiUrl, setApiUrl, appVersion } = useApiVersionEffect();
@@ -225,19 +228,48 @@ export const LoginForm = () => {
   return (
     <LoginContainer>
       <LoginCard>
-        <LoginHeader>Connect your PC to TODOforAI</LoginHeader>
+        <LoginHeader>Connect your PC to TODO for AI</LoginHeader>
 
         <LoginFormRoot onSubmit={handleSubmit}>
           <FormGroup>
             <Label htmlFor="apiKey">API Key</Label>
-            <Input
-              id="apiKey"
-              type="text"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Enter your API key"
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <Input
+                id="apiKey"
+                type={showApiKey ? "text" : "password"}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="Enter your API key"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'token(colors.muted)',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: '4px',
+                  transition: 'color 0.2s, background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'token(colors.accent)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </FormGroup>
 
           {error && <ErrorMessage>{error}</ErrorMessage>}
