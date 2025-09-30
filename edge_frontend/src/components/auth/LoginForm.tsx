@@ -116,6 +116,7 @@ const ErrorMessage = styled('div', {
   base: {
     color: 'token(colors.danger)',
     fontSize: '14px',
+    margin: '-10px 0 -10px 0', // Reduces gap from 20px to 10px top/bottom
   },
 });
 
