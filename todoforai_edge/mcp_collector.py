@@ -8,6 +8,7 @@ from fastmcp.client.logging import LogMessage
 import asyncio
 from .edge_config import MCPTool
 import traceback
+from .mcp_log_handler import MCPLogHandler, set_mcp_callback
 
 logger = logging.getLogger("todoforai-mcp")
 
@@ -17,6 +18,8 @@ _tool_call_callback: Optional[Callable] = None
 def set_mcp_tool_call_callback(callback: Callable):
     global _tool_call_callback
     _tool_call_callback = callback
+    # Also set the callback for the log handler
+    set_mcp_callback(callback)
 
 def _extract_server_id(tool_name: str) -> tuple[str, str]:
     if '_' in tool_name:
@@ -31,9 +34,10 @@ class MCPCollector:
         self.unified_client = None
         self.edge_config = edge_config
         self._unsubscribe_fn = None
-        self.config_file_path = None  # Store the original config file path
-        self.server_id_to_registry_id = {}  # serverId -> registryId mapping
-
+        self.config_file_path = None
+        self.server_id_to_registry_id = {}
+        self.log_handler = MCPLogHandler()  # Use the dedicated log handler
+        
         # Start subscribing to config changes only after initial load
         self._subscribe_to_config_changes()
     
@@ -47,49 +51,6 @@ class MCPCollector:
         if "mcp_json" in changes and changes["mcp_json"]:
             logger.info("MCP JSON config changed, reloading tools and saving to file")
             await self._reload_tools_and_save()  # Use await instead of asyncio.create_task
-    
-    async def _mcp_log_handler(self, message: LogMessage) -> None:
-        """Handle structured log messages from MCP servers using FastMCP LogMessage type"""
-        try:
-            # Handle both structured data dict and simple string messages
-            if isinstance(message.data, dict):
-                msg = message.data.get('msg')
-                extra = message.data.get('extra')
-            else:
-                # If data is a string, use it directly as the message
-                msg = str(message.data)
-                extra = None
-                
-            level = message.level.upper()
-            logger_name = message.logger or "mcp-server"
-            
-            # Use FastMCP's logging level mapping
-            LOGGING_LEVEL_MAP = logging.getLevelNamesMapping()
-            log_level = LOGGING_LEVEL_MAP.get(level, logging.INFO)
-            
-            # Create a logger for the specific MCP server
-            mcp_logger = logging.getLogger(f"mcp.{logger_name}")
-            
-            # Log the message with appropriate level and extra data
-            if extra:
-                mcp_logger.log(log_level, f"[MCP] {msg}", extra=extra)
-            else:
-                mcp_logger.log(log_level, f"[MCP] {msg}")
-            
-            # Also send to tool call callback if available for UI display
-            if _tool_call_callback:
-                callback_data = {
-                    "type": "log",
-                    "level": level.lower(),
-                    "logger": logger_name,
-                    "message": msg,
-                }
-                if extra:
-                    callback_data["extra"] = extra
-                _tool_call_callback(callback_data)
-                
-        except Exception as e:
-            logger.error(f"Error handling MCP log message: {e}")
     
     async def _setup_client_and_tools(self, mcp_json: Dict[str, Any]) -> List[MCPTool]:
         """Common logic to setup client and get tools from config"""
@@ -109,7 +70,7 @@ class MCPCollector:
         
         self.unified_client = Client(
             fastmcp_config,
-            log_handler=self._mcp_log_handler
+            log_handler=self.log_handler.mcp_log_handler
         )
         
         # Get tools and return them
