@@ -1,6 +1,6 @@
 [package]
 name = "todoforai-edge"
-version = "0.11.115"
+version = "0.11.116"
 authors = ["you"]
 edition = "2021"
 license = "MIT"
