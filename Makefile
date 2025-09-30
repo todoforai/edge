@@ -133,12 +133,18 @@ copy-sidecar:
 
 # Run Tauri in development mode
 tauri-dev:
-	cd edge_frontend && npm run tauri:dev
+	@echo "Starting Tauri in development mode (Python script)..."
+	cd edge_frontend && TODOFORAI_FORCE_PYTHON=1 npm run tauri:dev
 
-# Build Tauri application with the sidecar
-tauri-build:
+# Development mode testing sidecar
+tauri-dev-sidecar: build-sidecar copy-sidecar
+	@echo "Starting Tauri in development mode (testing sidecar)..."
+	cd edge_frontend && TODOFORAI_FORCE_PRODUCTION=1 npm run tauri:dev
+
+# Production build (always uses sidecar)
+tauri-build: build-sidecar copy-sidecar
+	@echo "Building Tauri application for production..."
 	bash scripts/copy_sidecar_to_resources.sh
-	# Ensure fresh node dependencies are installed for the current platform
 	cd edge_frontend && rm -rf node_modules package-lock.json
 	cd edge_frontend && npm install --no-audit --progress=false
 	cd edge_frontend && APPIMAGE_EXTRACT_AND_RUN=1 TAURI_SKIP_UPDATE_CHECK=1 npm run tauri build
