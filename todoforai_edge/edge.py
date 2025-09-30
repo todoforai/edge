@@ -162,13 +162,24 @@ class TODOforAIEdge:
                             logger.info("API key validation successful")
                             return {"valid": True}
                         else:
-                            return {"valid": False, "error": data.get("error", "API key is invalid")}
+                            # Be more explicit about handling None error messages
+                            error_msg = data.get("error")
+                            if not error_msg:
+                                error_msg = "API key is invalid"
+                            return {"valid": False, "error": error_msg}
+                    elif response.status == 401:
+                        return {"valid": False, "error": "Invalid API key"}
+                    elif response.status == 403:
+                        return {"valid": False, "error": "API key access denied"}
                     else:
                         return {"valid": False, "error": f"Validation request failed with status {response.status}"}
                         
+        except asyncio.TimeoutError:
+            logger.error("API key validation timed out")
+            return {"valid": False, "error": "Validation request timed out"}
         except Exception as e:
             logger.error(f"API key validation failed: {str(e)}")
-            return {"valid": False, "error": str(e)}
+            return {"valid": False, "error": f"Validation failed: {str(e)}"}
 
     async def ensure_api_key(self, prompt_if_missing=True):
         """Ensure we have a valid API key"""

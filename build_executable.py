@@ -24,6 +24,8 @@ def main():
         "--exclude-module", "pandas",
         "--exclude-module", "PIL",
         "--exclude-module", "tkinter",
+        "--exclude-module", "boto3",
+        "--exclude-module", "botocore", 
         str(sidecar_path)
     ]
     
