@@ -146,7 +146,8 @@ def login(credentials):
                     log.info("Disconnecting existing edge to connect with new credentials")
                     _disconnect_existing_edge()
             
-            _start_new_edge(config)
+            # Schedule API key validation before starting edge
+            asyncio.create_task(_validate_and_start_edge(config))
         
         return {"status": "validating", "message": "Validating API key..."}
         
@@ -157,6 +158,30 @@ def login(credentials):
         asyncio.create_task(_broadcast_auth_error(error_msg))
         return {"status": "error", "message": error_msg}
 
+async def _validate_and_start_edge(config):
+    """Validate API key and start edge if valid"""
+    try:
+        # Create temporary edge for validation
+        temp_edge = TODOforAIEdge(config)
+        
+        # Validate API key
+        validation_result = await temp_edge.validate_api_key()
+        
+        if not validation_result.get("valid"):
+            error_msg = validation_result.get("error", "Invalid API key")
+            log.error(f"API key validation failed: {error_msg}")
+            await _broadcast_auth_error(error_msg)
+            return
+        
+        log.info("API key validation successful, starting edge")
+        
+        # If validation successful, start the actual edge
+        _start_new_edge(config)
+        
+    except Exception as e:
+        error_msg = f"Validation error: {str(e)}"
+        log.error(error_msg)
+        await _broadcast_auth_error(error_msg)
 
 def _start_new_edge(config):
     """Start a new edge with the given config"""
