@@ -51,10 +51,19 @@ async def _broadcast_active_workspaces():
 # Helper functions for common broadcast patterns
 async def _broadcast_auth_error(message: str):
     """Helper to broadcast auth error event"""
-    asyncio.create_task(broadcast_event({
+    # Ensure we always have a meaningful message
+    if not message or message == "None":
+        message = "Authentication failed - invalid API key"
+    
+    log.error(f"Broadcasting auth error: {message}")
+    
+    event = {
         "type": "auth_error",
         "payload": {"message": message}
-    }))
+    }
+    
+    log.error(f"Auth error event payload: {json.dumps(event, indent=2)}")
+    await broadcast_event(event)
 
 async def _broadcast_file_sync(action: str, abs_path: str, workspace_dir: str, size: int = None):
     """Helper to broadcast file sync event"""
@@ -139,7 +148,7 @@ def login(credentials):
             
             _start_new_edge(config)
         
-        return {"status": "connecting", "message": "Client is connecting..."}
+        return {"status": "validating", "message": "Validating API key..."}
         
     except Exception as e:
         error_msg = f"Login error: {str(e)}"
@@ -461,7 +470,7 @@ async def _refresh_mcp_config_async(config_path: str):
 async def broadcast_event(event):
     """Send an event to all connected WebSocket edges"""
     if not sidecar.connected_edges:
-        log.warning("No connected edges to broadcast to")
+        log.warning(f"No connected edges to broadcast event: {event.get('type', 'unknown')}")
         return
         
     event_envelope = {
