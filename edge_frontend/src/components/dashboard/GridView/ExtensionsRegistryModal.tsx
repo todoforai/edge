@@ -226,6 +226,8 @@ export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = (
   );
 
   const filteredServers = servers.filter((server) => {
+    if (server.registryId === 'todoforai') return false;
+    
     const registry = getMCPByRegistryID(server.registryId);
     const serverCategories = registry?.category || ['Other'];
     const matchesCategory = selectedCategory === 'All' || serverCategories.includes(selectedCategory);
