@@ -46,8 +46,8 @@ jobs:
         pip install -r requirements.txt
         # Skip Node install that make install does locally
         pip install -e .
-        # Install PyInstaller for building sidecar
-        pip install PyInstaller>=5.0
+        # Install PyInstaller for building sidecar with specific version
+        pip install PyInstaller==6.16.0
       shell: bash
 
     - name: Set up Node.js
