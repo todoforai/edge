@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Minimal test to verify MCP Gmail tool calling works.
-Just loads config, lists tools, and calls gmail2_search_emails.
+Tests both search_emails and read_email.
 """
 
 import asyncio
@@ -36,44 +36,67 @@ async def test_gmail_mcp():
         # Load config
         print("Loading MCP config...")
         await collector.load_from_file("mcp.json")
-        server_id = "gmail"
-        
-        # Quick debug: show expanded env for the specified server if present
-        cfg = edge_config.config.safe_get("mcp_json", {})
-        server_cfg = (cfg.get("mcpServers") or {}).get(server_id, {})
-        print(f"{server_id} env:", server_cfg.get("env", {}))
         
         # List tools
         tools = await collector.list_tools()
         tool_names = [t['name'] for t in tools]
-        print(f"Available tools: {tool_names}")
+        print(f"\nAvailable tools: {tool_names}")
         
-        # Find Gmail tool
-        gmail_tool = None
+        # Find Gmail search tool
+        search_tool = None
         for name in tool_names:
             if 'search' in name.lower() and ('gmail' in name.lower() or 'email' in name.lower()):
-                gmail_tool = name
+                search_tool = name
                 break
         
-        if not gmail_tool:
-            print(f"❌ No Gmail search tool found in: {tool_names}")
+        if not search_tool:
+            print(f"❌ No Gmail search tool found")
             return False
         
-        print(f"Found Gmail tool: {gmail_tool}")
+        print(f"\n{'='*80}")
+        print(f"TEST 1: Search emails with {search_tool}")
+        print(f"{'='*80}")
         
-        # Call the tool
-        print("Calling Gmail search tool...")
-        result = await collector.call_tool(gmail_tool, {
+        # Test 1: Search emails
+        result = await collector.call_tool(search_tool, {
             "query": "in:inbox",
             "maxResults": 3
         })
         
         if result.get("error"):
-            print(f"❌ Tool call failed: {result['error']}")
+            print(f"❌ Search failed: {result['error']}")
             return False
         
-        print(f"✅ Tool call successful!")
-        print(f"Result: {result.get('result', 'No content')[:200]}...")
+        print(f"✅ Search successful!")
+        print(f"Result: {result.get('result', 'No content')[:500]}...")
+        
+        # Find Gmail read tool
+        read_tool = None
+        for name in tool_names:
+            if 'read' in name.lower() and ('gmail' in name.lower() or 'email' in name.lower()):
+                read_tool = name
+                break
+        
+        if not read_tool:
+            print(f"\n❌ No Gmail read tool found")
+            return False
+        
+        print(f"\n{'='*80}")
+        print(f"TEST 2: Read email with {read_tool}")
+        print(f"{'='*80}")
+        
+        # Test 2: Read specific email
+        result = await collector.call_tool(read_tool, {
+            "messageId": "199984630dc9878a"
+        })
+        
+        if result.get("error"):
+            print(f"❌ Read failed: {result['error']}")
+            return False
+        
+        print(f"✅ Read successful!")
+        print(f"Result: {result.get('result', 'No content')[:500]}...")
+        
         return True
         
     except Exception as e:
@@ -87,4 +110,6 @@ async def test_gmail_mcp():
 
 if __name__ == "__main__":
     success = asyncio.run(test_gmail_mcp())
+    print(f"\n{'='*80}")
     print("✅ SUCCESS" if success else "❌ FAILED")
+    print(f"{'='*80}")

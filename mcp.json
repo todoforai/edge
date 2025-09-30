@@ -3,16 +3,12 @@
     "gmail": {
       "command": "npx",
       "args": [
-        "@gongrzhe/server-gmail-autoauth-mcp"
-      ]
-    },
-    "puppeteer": {
-      "command": "npx",
-      "args": [
         "-y",
-        "github:Sixzero/puppeteer-mcp-server"
+        "@todoforai/server-gmail-autoauth-mcp"
       ],
-      "env": {}
+      "env": {
+        "GMAIL_CREDENTIALS_PATH": "~/.gmail-mcp/credentials.json"
+      }
     }
   }
 }
