@@ -135,6 +135,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({
       {showSettingsModal && (
         <MCPServerSettingsModal
           instance={showSettingsModal}
+          isOpen={true}
           onClose={() => setShowSettingsModal(null)}
           onSave={handleSaveInstance}
         />
