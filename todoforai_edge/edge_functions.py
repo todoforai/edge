@@ -288,13 +288,6 @@ async def mcp_uninstall_server(serverId: str, client_instance=None):
         del current_installed[server_id]
         logger.info(f"Removed '{server_id}' from installedMCPs")
 
-    if hasattr(client_instance, 'mcp_collector') and client_instance.mcp_collector:
-        try:
-            await client_instance.mcp_collector.stop_server(server_id)
-            logger.info(f"Stopped MCP server '{server_id}'")
-        except Exception as e:
-            logger.warning(f"Failed to stop MCP server '{server_id}': {e}")
-
     client_instance.edge_config.config.update_value({
         "mcp_json": mcp_json,
         "installedMCPs": current_installed

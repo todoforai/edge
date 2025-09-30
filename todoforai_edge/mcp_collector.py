@@ -51,9 +51,15 @@ class MCPCollector:
     async def _mcp_log_handler(self, message: LogMessage) -> None:
         """Handle structured log messages from MCP servers using FastMCP LogMessage type"""
         try:
-            # Extract log details from the LogMessage object
-            msg = message.data.get('msg')
-            extra = message.data.get('extra')
+            # Handle both structured data dict and simple string messages
+            if isinstance(message.data, dict):
+                msg = message.data.get('msg')
+                extra = message.data.get('extra')
+            else:
+                # If data is a string, use it directly as the message
+                msg = str(message.data)
+                extra = None
+                
             level = message.level.upper()
             logger_name = message.logger or "mcp-server"
             
@@ -65,29 +71,40 @@ class MCPCollector:
             mcp_logger = logging.getLogger(f"mcp.{logger_name}")
             
             # Log the message with appropriate level and extra data
-            mcp_logger.log(log_level, f"[MCP] {msg}", extra=extra)
+            if extra:
+                mcp_logger.log(log_level, f"[MCP] {msg}", extra=extra)
+            else:
+                mcp_logger.log(log_level, f"[MCP] {msg}")
             
             # Also send to tool call callback if available for UI display
             if _tool_call_callback:
-                _tool_call_callback({
+                callback_data = {
                     "type": "log",
                     "level": level.lower(),
                     "logger": logger_name,
                     "message": msg,
-                    "extra": extra
-                })
+                }
+                if extra:
+                    callback_data["extra"] = extra
+                _tool_call_callback(callback_data)
                 
         except Exception as e:
             logger.error(f"Error handling MCP log message: {e}")
     
     async def _setup_client_and_tools(self, mcp_json: Dict[str, Any]) -> List[MCPTool]:
         """Common logic to setup client and get tools from config"""
-        if not mcp_json:
-            logger.info("No MCP config, clearing tools")
+        if not mcp_json or not mcp_json.get("mcpServers"):
+            logger.info("No MCP servers defined in config, clearing tools")
+            self.unified_client = None
             return []
         
         # Process config and create client with log handler as kwarg
         processed_servers = self._process_config(mcp_json)
+        if not processed_servers:
+            logger.info("No valid MCP servers after processing, clearing tools")
+            self.unified_client = None
+            return []
+            
         fastmcp_config = {"mcpServers": processed_servers}
         
         self.unified_client = Client(
@@ -114,8 +131,8 @@ class MCPCollector:
             tools = await self._setup_client_and_tools(mcp_json)
             self.setInstalledMCPs(tools)
             
-            # Save the updated config to file if we have a config file path
-            if self.config_file_path and mcp_json:
+            # Save the updated config to file even if empty (removed condition)
+            if self.config_file_path:
                 await self._save_config_to_file(mcp_json)
                 
             logger.info(f"Auto-reloaded {len(tools)} tools and saved config to file")
@@ -123,7 +140,7 @@ class MCPCollector:
         except Exception as e:
             logger.error(f"Error reloading tools and saving config: {e}")
             self.setInstalledMCPs([])
-    
+
     def _set_servers_status_optimistically(self, mcp_json: Dict[str, Any], status: str) -> None:
         """Optimistically set status for all servers in mcp_json"""
         mcp_servers = mcp_json.get("mcpServers", {})
