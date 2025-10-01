@@ -194,7 +194,7 @@ export const wsClient = {
         const timeout = setTimeout(() => {
           this.pendingRequests.delete(requestId);
           reject(new Error(`Request timed out: ${method}`));
-        }, 30000);
+        }, 10000);
 
         // Store the promise callbacks
         this.pendingRequests.set(requestId, { resolve, reject, timeout });
