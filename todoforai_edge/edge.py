@@ -425,7 +425,7 @@ class TODOforAIEdge:
         self, 
         project_id: str, 
         content: str, 
-        agent_settings_id: str,
+        agent_settings: Dict[str, Any],
         todo_id: str = None, 
         attachments: List[Dict[str, Any]] = None,
         scheduled_timestamp: int = None,
@@ -436,7 +436,7 @@ class TODOforAIEdge:
         Args:
             project_id: The project ID
             content: Message content
-            agent_settings_id: Agent settings ID to use
+            agent_settings: Full agent settings object (not just ID)
             todo_id: Optional todo ID. If provided, will be used as custom ID for new todo
             attachments: Optional file attachments
             scheduled_timestamp: Optional scheduling timestamp
@@ -448,9 +448,7 @@ class TODOforAIEdge:
         # Prepare the payload
         payload = {
             "content": content,
-            "agentSettings": {
-                "id": agent_settings_id
-            },
+            "agentSettings": agent_settings,  # Use the full object directly
             "attachments": attachments or []
         }
         
