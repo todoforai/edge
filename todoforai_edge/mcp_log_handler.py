@@ -19,6 +19,10 @@ def set_mcp_callback(callback: Callable[[dict], None]) -> None:
 class MCPLogHandler:
     """Handles MCP server logging using FastMCP's structured logging"""
     
+    def __init__(self):
+        self.logger = logging.getLogger("mcp-log-handler")
+        self.logger.info("MCPLogHandler initialized")
+    
     async def mcp_log_handler(self, message: LogMessage) -> None:
         """
         Robust handler for FastMCP logging notifications.
@@ -82,8 +86,12 @@ class MCPLogHandler:
 
             # Log
             mcp_logger = logging.getLogger(f"mcp.{logger_name}")
-            mcp_logger.log(log_level, f"[MCP] {msg}", extra=extra if isinstance(extra, dict) else None)
+            mcp_logger.log(log_level, f"[MCP-{logger_name}] {msg}", extra=extra if isinstance(extra, dict) else None)
 
+            # Also log to our debug logger
+            self.logger.debug(f"Processed MCP log: level={level_upper}, logger={logger_name}, msg={msg}")
+
+            # ... existing callback code ...
             # Optional callback for UI
             if _mcp_callback:
                 _mcp_callback({
@@ -94,6 +102,7 @@ class MCPLogHandler:
                     "extra": extra if isinstance(extra, dict) else None,
                 })
         except Exception as e:
+            self.logger.error(f"Error handling MCP log message: {e}")
             logging.getLogger("todoforai-mcp").error(f"Error handling MCP log message: {e}")
 
     async def mcp_message_handler(
@@ -102,19 +111,19 @@ class MCPLogHandler:
     ) -> None:
         """
         Handle ALL incoming MCP messages including exceptions from non-JSON stdout.
-        This catches:
-        - Exceptions (non-JSON stdout lines like console.error, debug prints, etc.)
-        - Server notifications
-        - Server requests
         """
         try:
+            self.logger.debug(f"Raw MCP message received: {type(message)} - {message}")
+            print(f"Raw MCP message received: {type(message)} - {message}")
+            
             if isinstance(message, Exception):
                 # This is a non-JSON stdout line that couldn't be parsed
                 error_msg = str(message)
                 
                 # Log it
                 mcp_logger = logging.getLogger("mcp.stdout")
-                mcp_logger.warning(f"[MCP Non-JSON] {error_msg}")
+                mcp_logger.warning(f"[MCP Non-JSON stdout] {error_msg}")
+                self.logger.warning(f"Non-JSON stdout from MCP server: {error_msg}")
                 
                 # Send to UI callback
                 if _mcp_callback:
@@ -130,7 +139,8 @@ class MCPLogHandler:
                 # Handle server notifications (including logging notifications)
                 notification_type = type(message.root).__name__
                 mcp_logger = logging.getLogger("mcp.notifications")
-                mcp_logger.debug(f"[MCP Notification] {notification_type}")
+                mcp_logger.debug(f"[MCP Notification] {notification_type}: {message}")
+                self.logger.debug(f"Server notification: {notification_type}")
                 
                 # Send to UI callback
                 if _mcp_callback:
@@ -146,7 +156,8 @@ class MCPLogHandler:
                 # Handle server requests
                 request_type = type(message.request.root).__name__
                 mcp_logger = logging.getLogger("mcp.requests")
-                mcp_logger.debug(f"[MCP Request] {request_type}")
+                mcp_logger.debug(f"[MCP Request] {request_type}: {message}")
+                self.logger.debug(f"Server request: {request_type}, ID: {message.request_id}")
                 
                 # Send to UI callback
                 if _mcp_callback:
@@ -160,4 +171,5 @@ class MCPLogHandler:
                     })
                     
         except Exception as e:
+            self.logger.error(f"Error in MCP message handler: {e}")
             logging.getLogger("todoforai-mcp").error(f"Error in MCP message handler: {e}")

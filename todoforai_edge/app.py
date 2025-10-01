@@ -6,11 +6,25 @@ from .colors import Colors
 from .config import DEFAULT_API_URL
 from pathlib import Path
 import re
+import logging
 
 from todoforai_edge.edge import TODOforAIEdge
 from todoforai_edge.arg_parser import create_argparse_apply_config
 
 
+def setup_logging(debug=False):
+    log_dir = Path.home() / ".todoforai" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    logging.basicConfig(
+        level=logging.DEBUG if debug else logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_dir / "edge.log"),
+            logging.StreamHandler()
+        ]
+    )
+    
 def set_terminal_title(title):
     """Set the terminal title cross-platform"""
     if os.name == 'nt':  # Windows
@@ -34,9 +48,10 @@ def get_cli_version():
 
 
 async def run_app(api_key=None):
-    # Set terminal title
-    
     config = create_argparse_apply_config()
+    
+    # Setup logging BEFORE anything else
+    setup_logging(debug=config.debug)
     
     config.api_key = api_key or config.api_key
         

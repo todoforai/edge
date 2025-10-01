@@ -68,13 +68,20 @@ class MCPCollector:
             
         fastmcp_config = {"mcpServers": processed_servers}
         
+        logger.info(f"Creating FastMCP client with config: {json.dumps(fastmcp_config, indent=2)}")
+        logger.info(f"Using log handler: {self.log_handler.mcp_log_handler}")
+        
         self.unified_client = Client(
             fastmcp_config,
-            log_handler=self.log_handler.mcp_log_handler
+            log_handler=self.log_handler.mcp_log_handler,
+            message_handler=self.log_handler.mcp_message_handler  # Add message handler too
         )
+        
+        logger.info("FastMCP client created, starting to list tools...")
         
         # Get tools and return them
         tools = await self.list_tools()
+        logger.info(f"Retrieved {len(tools)} tools from FastMCP client")
         return tools
 
     async def _reload_tools_and_save(self) -> None:
