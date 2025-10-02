@@ -24,6 +24,11 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "TODOforAI Team",
+    "copyright": "Copyright © 2025 TODOforAI Team. All rights reserved.",
+    "category": "DeveloperTool",
+    "shortDescription": "AI-powered developer productivity tool for file sync and shell execution",
+    "longDescription": "TODOforAI Edge is a desktop client application that seamlessly connects to the TODOforAI service. It enables file synchronization, editing, creation, and execution of shell commands to enhance developer productivity with AI assistance. Features include real-time file monitoring, secure API communication, and integration with various development tools.",
     "resources": [
       "resources/python/ws_sidecar.py"
     ],
@@ -32,10 +37,22 @@
     ],
     "icon": [
       "icons/32x32.png",
+      "icons/64x64.png", 
       "icons/128x128.png",
       "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico",
       "icons/icon.icns",
-      "icons/icon.ico"
+      "icons/Square30x30Logo.png",
+      "icons/Square44x44Logo.png",
+      "icons/Square71x71Logo.png",
+      "icons/Square89x89Logo.png",
+      "icons/Square107x107Logo.png",
+      "icons/Square142x142Logo.png",
+      "icons/Square150x150Logo.png",
+      "icons/Square284x284Logo.png",
+      "icons/Square310x310Logo.png",
+      "icons/StoreLogo.png"
     ],
     "macOS": {
       "signingIdentity": null,
@@ -44,7 +61,11 @@
     },
     "linux": {
       "deb": {
-        "desktopTemplate": "desktop/todoforai-edge.desktop"
+        "desktopTemplate": "desktop/todoforai-edge.desktop",
+        "section": "Development",
+        "priority": "optional",
+        "depends": [],
+        "changelog": "CHANGELOG.md"
       }
     }
   },

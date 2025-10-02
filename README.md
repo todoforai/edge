@@ -116,6 +116,14 @@ cd edge_frontend
 yarn tauri build
 ```
 
+## To generate app icons in different sizes use!
+```sh
+yarn tauri icon app-icon.png
+```
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes and releases.
 
 ## Let Us Know You're Using TODOforAI!
 
