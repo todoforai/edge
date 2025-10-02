@@ -14,7 +14,7 @@ async def main():
     
     # Get available agent settings
     agents = await edge.list_agent_settings()
-    agent_id = agents[0]['id']
+    agent = agents[0]  # Use full agent object
     
     # Get available projects
     projects = await edge.list_projects()
@@ -24,7 +24,7 @@ async def main():
     todo = await edge.add_message(
         project_id=project_id,
         content="Fix the login bug",
-        agent_settings_id=agent_id,
+        agent_settings=agent,  # Pass full agent object
         auto_create=True
     )
     
@@ -32,7 +32,7 @@ async def main():
     await edge.add_message(
         project_id=project_id,
         content="Additional context for the bug",
-        agent_settings_id=agent_id,
+        agent_settings=agent,  # Pass full agent object
         todo_id=todo['id'],
         auto_create=False
     )
@@ -67,14 +67,14 @@ asyncio.run(main())
 
 ### Create todo with custom ID
 ```python
-# Get full agent settings object first
+# Get full agent settings object
 agents = await edge.list_agent_settings()
-agent = agents[0]  # Use full object
+agent = agents[0]
 
 todo = await edge.add_message(
     project_id="proj-123",
     content="Custom todo",
-    agent_settings=agent,  # Pass full object, not just ID
+    agent_settings=agent,  # Pass full agent object
     todo_id="my-custom-id"
 )
 ```
@@ -87,7 +87,7 @@ future_time = int(time.time() * 1000) + 3600000  # 1 hour from now
 todo = await edge.add_message(
     project_id="proj-123",
     content="Scheduled task",
-    agent_settings=agent,  # Full object
+    agent_settings=agent,  # Pass full agent object
     scheduled_timestamp=future_time
 )
 ```
@@ -107,7 +107,7 @@ attachments = [
 todo = await edge.add_message(
     project_id="proj-123",
     content="Review this document",
-    agent_settings=agent,  # Full object
+    agent_settings=agent,  # Pass full agent object
     attachments=attachments
 )
 ```
