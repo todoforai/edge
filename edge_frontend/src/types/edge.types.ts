@@ -11,6 +11,7 @@ export interface EdgeData {
   workspacepaths: string[];
   installedMCPs: Record<string, InstalledMCP>;
   mcp_json?: Record<string, any>;
+  mcp_config_path?: string;
   ownerId: string;
   status: EdgeStatus;
   isShellEnabled: boolean;

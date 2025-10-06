@@ -7,6 +7,7 @@ import logging
 import requests
 import sys
 from typing import List, Dict, Any, Optional, Callable
+from pathlib import Path
 
 logger = logging.getLogger("todoforai-edge")
 
@@ -107,3 +108,67 @@ def normalize_api_url(api_url: str) -> str:
     elif not api_url.startswith(("http://", "https://")):
         return f"https://{api_url}"
     return api_url
+
+def get_mcp_config_paths() -> List[str]:
+    """Get list of potential MCP config paths in priority order"""
+    paths = []
+    
+    # 0. Environment override (highest priority)
+    env_path = os.environ.get("TODOFORAI_MCP_CONFIG") or os.environ.get("MCP_CONFIG_PATH")
+    if env_path:
+        paths.append(os.path.expanduser(env_path))
+
+    # 1. Current directory
+    paths.append("mcp.json")
+    
+    # 3. Global config (if running as system service, Unix-like only)
+    if platform.system() != "Windows":
+        paths.append("/etc/todoforai/mcp.json")
+
+    # 2. User config directory (OS-specific)
+    if platform.system() == "Darwin":  # macOS
+        paths.append(os.path.expanduser("~/Library/Application Support/todoforai/mcp.json"))
+    elif platform.system() == "Windows":
+        paths.append(os.path.expanduser("~/AppData/Local/todoforai/mcp.json"))
+    else:  # Linux and others
+        # Follow XDG Base Directory specification
+        xdg_config = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+        paths.append(os.path.join(xdg_config, "todoforai/mcp.json"))
+    
+    
+    return paths
+
+def find_mcp_config() -> Optional[str]:
+    """Find the first existing MCP config file from standard locations"""
+    for config_path in get_mcp_config_paths():
+        if os.path.exists(config_path):
+            logger.info(f"Found mcp.json at: {config_path}")
+            return config_path
+    
+    logger.debug("No mcp.json found in any standard location")
+    return None
+
+def ensure_mcp_config_exists() -> Optional[str]:
+    """Ensure an MCP config file exists. If none found, create one in the user config path."""
+    existing = find_mcp_config()
+    if existing:
+        return existing
+
+    paths = get_mcp_config_paths()
+
+    # Prefer the user-level path (index 2: after env override and cwd)
+    target_path = paths[-1] if len(paths) > 0 else "mcp.json"
+
+    try:
+        target_dir = os.path.dirname(target_path)
+        if target_dir and not os.path.exists(target_dir):
+            os.makedirs(target_dir, exist_ok=True)
+
+        with open(target_path, "w", encoding="utf-8") as f:
+            json.dump({"mcpServers": {}}, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"Created default MCP config at: {target_path}")
+        return target_path
+    except Exception as e:
+        logger.error(f"Failed to create default MCP config at {target_path}: {e}")
+        return None

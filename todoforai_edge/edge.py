@@ -10,10 +10,8 @@ import sys
 import platform
 
 # Import constants
-from .constants.constants import (
-    EdgeStatus, SR, FE, AE, EF, S2E
-)
-from .utils import generate_machine_fingerprint, async_request, normalize_api_url, safe_print
+from .constants.constants import SR, FE, AE, EF, S2E
+from .utils import generate_machine_fingerprint, async_request, normalize_api_url, safe_print, ensure_mcp_config_exists
 from .constants.messages import edge_status_msg
 from .constants.workspace_handler import handle_ctx_workspace_request
 from .config import get_ws_url
@@ -36,6 +34,7 @@ from .handlers.handlers import (
 from .handlers.file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
 from .mcp_collector import MCPCollector
 import aiohttp
+
 
 # Configure logging
 logger = logging.getLogger("todoforai-edge")
@@ -487,17 +486,22 @@ class TODOforAIEdge:
                 logger.error(f"Failed to start file sync for {workspace_path}: {str(e)}")
 
     async def _load_mcp_if_exists(self):
-        """Load MCP config if mcp.json exists in current directory"""
-        if os.path.exists("mcp.json"):
+        """Load MCP config from first available location"""
+        config_path = ensure_mcp_config_exists()
+        
+        if config_path:
             try:
-                logger.info("Found mcp.json, loading MCP configuration")
-                results = await self.mcp_collector.load_from_file("mcp.json")
+                logger.info(f"Loading MCP configuration from: {config_path}")
+                results = await self.mcp_collector.load_from_file(config_path)
+                
+                # Store the config path in edge config
+                self.edge_config.config.update_value({"mcp_config_path": config_path})
+                
                 logger.info(f"MCP setup completed. Loaded {len(results)} servers with auto-reload and file sync.")
             except Exception as e:
-                logger.error(f"Failed to load MCP configuration: {str(e)}")
+                logger.error(f"Failed to load MCP configuration from {config_path}: {str(e)}")
         else:
-            logger.debug("No mcp.json found in current directory")
-
+            logger.error("Could not create or find MCP config file")
 
     async def send_response(self, message):
         """Send a response to the server

@@ -56,6 +56,16 @@ const Subtitle = styled('p', {
   },
 });
 
+const ConfigPath = styled('p', {
+  base: {
+    fontSize: '13px',
+    color: 'token(colors.mutedForeground)',
+    margin: '8px 0 0 0',
+    fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+    opacity: 0.7,
+  },
+});
+
 const Controls = styled('div', {
   base: {
     display: 'flex',
@@ -107,6 +117,9 @@ export const Dashboard: React.FC = () => {
           <Header>
             <Title>AI Integrations</Title>
             <Subtitle>Extend agent capabilities with integrations along the internet and your PC. Discover and install!</Subtitle>
+            {config.mcp_config_path && (
+              <ConfigPath>Config: {config.mcp_config_path}</ConfigPath>
+            )}
           </Header>
 
           <Controls>

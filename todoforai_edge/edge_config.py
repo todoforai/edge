@@ -27,9 +27,10 @@ class EdgeConfigData(TypedDict):
     name: str
     workspacepaths: List[str]
     installedMCPs: Dict[str, Dict[str, Any]]
-    mcp_json: Dict[str, Any]  # Add raw MCP JSON config
+    mcp_json: Dict[str, Any]
+    mcp_config_path: Optional[str]  # Add this field
     ownerId: str
-    status: str  # EdgeStatus equivalent
+    status: str
     isShellEnabled: bool
     isFileSystemEnabled: bool
     createdAt: Optional[str]
@@ -46,6 +47,7 @@ class EdgeConfig:
             "workspacepaths": data.get("workspacepaths", []),
             "installedMCPs": data.get("installedMCPs", {}),
             "mcp_json": data.get("mcp_json", {}),
+            "mcp_config_path": data.get("mcp_config_path", None),  # Add this field
             "ownerId": data.get("ownerId", ""),
             "status": data.get("status", "OFFLINE"),
             "isShellEnabled": data.get("isShellEnabled", False),
@@ -53,7 +55,7 @@ class EdgeConfig:
             "createdAt": data.get("createdAt", None)
         }
         self.config = observable_registry.create("edge_config", config_data)
-    
+
     def add_workspace_path(self, path: str) -> bool:
         """Add a workspace path if it doesn't already exist"""
         current_paths = self.config["workspacepaths"]

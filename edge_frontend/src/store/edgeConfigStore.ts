@@ -36,6 +36,7 @@ const defaultConfig: EdgeData = {
   createdAt: 0,
   installedMCPs: {},
   mcp_json: {},
+  mcp_config_path: undefined,
 };
 
 export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({

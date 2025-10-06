@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Simple test to verify MCP Google Calendar tool calling works.
-Just loads config, lists tools, and calls calendar tools.
+Test to verify MCP Google Calendar tool calling works.
+Tests list-calendars and list-events tools.
 """
 
 import asyncio
@@ -9,6 +9,7 @@ import json
 import logging
 import sys
 from pathlib import Path
+from datetime import datetime, timedelta
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -40,17 +41,17 @@ async def test_calendar_mcp():
         # Quick debug: show expanded env for google-calendar if present
         cfg = edge_config.config.safe_get("mcp_json", {})
         calendar_cfg = (cfg.get("mcpServers") or {}).get("google-calendar", {})
-        print("google-calendar env:", calendar_cfg.get("env", {}))
+        print(f"google-calendar config: {calendar_cfg}")
         
         # List tools
         tools = await collector.list_tools()
         tool_names = [t['name'] for t in tools]
-        print(f"Available tools: {tool_names}")
+        print(f"\nAvailable tools: {tool_names}")
         
         # Find Calendar tools
         calendar_tools = []
         for name in tool_names:
-            if 'calendar' in name.lower() or ('google' in name.lower() and ('event' in name.lower() or 'schedule' in name.lower())):
+            if 'calendar' in name.lower() or 'google' in name.lower():
                 calendar_tools.append(name)
         
         if not calendar_tools:
@@ -59,27 +60,86 @@ async def test_calendar_mcp():
         
         print(f"Found Calendar tools: {calendar_tools}")
         
-        # Try to call a list/get events tool first (safer than creating)
-        list_tool = None
+        # TEST 1: List calendars
+        list_calendars_tool = None
         for tool in calendar_tools:
-            if 'list' in tool.lower() or 'get' in tool.lower() or 'events' in tool.lower():
-                list_tool = tool
+            if 'list' in tool.lower() and 'calendar' in tool.lower() and 'event' not in tool.lower():
+                list_calendars_tool = tool
                 break
         
-        if list_tool:
-            print(f"Calling Calendar tool: {list_tool}")
-            result = await collector.call_tool(list_tool, {
-                "maxResults": 5
+        if list_calendars_tool:
+            print(f"\n{'='*80}")
+            print(f"TEST 1: List calendars with {list_calendars_tool}")
+            print(f"{'='*80}")
+            
+            result = await collector.call_tool(list_calendars_tool, {})
+            
+            if result.get("error"):
+                print(f"❌ List calendars failed: {result['error']}")
+                return False
+            
+            print(f"✅ List calendars successful!")
+            print(f"Result: {result.get('result', 'No content')[:500]}...")
+        else:
+            print("⚠️  No list-calendars tool found")
+        
+        # TEST 2: List events
+        list_events_tool = None
+        for tool in calendar_tools:
+            if 'list' in tool.lower() and 'event' in tool.lower():
+                list_events_tool = tool
+                break
+        
+        if list_events_tool:
+            print(f"\n{'='*80}")
+            print(f"TEST 2: List events with {list_events_tool}")
+            print(f"{'='*80}")
+            
+            # Get events for the next 7 days
+            now = datetime.utcnow()
+            time_min = now.isoformat() + 'Z'
+            time_max = (now + timedelta(days=7)).isoformat() + 'Z'
+            
+            result = await collector.call_tool(list_events_tool, {
+                "timeMin": time_min,
+                "timeMax": time_max,
+                "maxResults": 10
             })
             
             if result.get("error"):
-                print(f"❌ Tool call failed: {result['error']}")
+                print(f"❌ List events failed: {result['error']}")
                 return False
             
-            print(f"✅ Tool call successful!")
-            print(f"Result: {result.get('result', 'No content')[:200]}...")
+            print(f"✅ List events successful!")
+            print(f"Result: {result.get('result', 'No content')[:500]}...")
         else:
-            print("⚠️  No list/get events tool found, just listing available tools")
+            print("⚠️  No list-events tool found")
+        
+        # TEST 3: Search events (if available)
+        search_events_tool = None
+        for tool in calendar_tools:
+            if 'search' in tool.lower() and 'event' in tool.lower():
+                search_events_tool = tool
+                break
+        
+        if search_events_tool:
+            print(f"\n{'='*80}")
+            print(f"TEST 3: Search events with {search_events_tool}")
+            print(f"{'='*80}")
+            
+            result = await collector.call_tool(search_events_tool, {
+                "query": "meeting"
+            })
+            
+            if result.get("error"):
+                print(f"❌ Search events failed: {result['error']}")
+                # Don't fail the whole test if search fails
+                print("⚠️  Continuing despite search failure...")
+            else:
+                print(f"✅ Search events successful!")
+                print(f"Result: {result.get('result', 'No content')[:500]}...")
+        else:
+            print("⚠️  No search-events tool found")
         
         return True
         
@@ -94,4 +154,6 @@ async def test_calendar_mcp():
 
 if __name__ == "__main__":
     success = asyncio.run(test_calendar_mcp())
+    print(f"\n{'='*80}")
     print("✅ SUCCESS" if success else "❌ FAILED")
+    print(f"{'='*80}")
