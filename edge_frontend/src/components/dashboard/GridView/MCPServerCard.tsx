@@ -3,6 +3,7 @@ import { styled } from '@/../styled-system/jsx';
 import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types/mcp.types';
 import { getMCPByCommandArgs } from '../../../data/mcpServersRegistry';
+import { MCPStatusBadge } from '../../ui/MCPStatusBadge';
 
 const ServerCard = styled('div', {
   base: {
@@ -234,52 +235,6 @@ const ServerDescription = styled('p', {
   }
 });
 
-const ServerStatus = styled('div', {
-  base: {
-    fontSize: '12px',
-    fontWeight: 500,
-    padding: '4px 8px',
-    borderRadius: 'var(--radius-sm)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px'
-  },
-  variants: {
-    status: {
-      READY: {
-        color: '#10b981',
-        background: 'rgba(16, 185, 129, 0.1)'
-      },
-      CRASHED: {
-        color: '#ef4444',
-        background: 'rgba(239, 68, 68, 0.1)'
-      },
-      INSTALLING: {
-        color: '#3b82f6',
-        background: 'rgba(59, 130, 246, 0.1)'
-      },
-      STARTING: {
-        color: '#f59e0b',
-        background: 'rgba(245, 158, 11, 0.1)'
-      },
-      default: {
-        color: 'var(--muted)',
-        background: 'rgba(0, 0, 0, 0.05)'
-      }
-    }
-  }
-});
-
-const Spinner = styled('div', {
-  base: {
-    width: '12px',
-    height: '12px',
-    border: '2px solid transparent',
-    borderTop: '2px solid currentColor',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite'
-  }
-});
 
 interface MCPServerCardProps {
   instance: MCPEdgeExecutable;
@@ -318,7 +273,6 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   const displayCategory = displayInfo.category?.[0] || 'Custom';
 
   // Determine status inline (no helper)
-  const status = instance.status || 'READY';
 
   const handleUninstall = () => {
     if (isBuiltIn) return;
@@ -353,10 +307,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
             <ServerNameAndCategory>
               <ServerName>{displayName}</ServerName>
               {showCategory && <ServerCategory>{displayCategory}</ServerCategory>}
-              <ServerStatus status={status as any}>
-                {(status === 'INSTALLING' || status === 'STARTING') && <Spinner />}
-                {status}
-              </ServerStatus>
+              <MCPStatusBadge status={instance.status} />
             </ServerNameAndCategory>
             <ServerId>{instance.serverId}</ServerId>
           </ServerInfo>
