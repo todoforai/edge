@@ -239,6 +239,7 @@ class MCPCollector:
             ("npx", "@workato/mcp"): "workato",
             ("npx", "@modelcontextprotocol/server-bluesky"): "bluesky",
             ("npx", "slack-mcp-server"): "slack",
+            ("npx", "mcp-mongo-server"): "mongodb",
             ("python", "whatsapp_mcp"): "whatsapp",
             ("npx", "mcp-remote"): "weather-mcp",  # For weather and other remote services
         }
