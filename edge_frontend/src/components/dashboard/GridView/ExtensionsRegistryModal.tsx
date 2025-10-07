@@ -1,22 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { styled } from '@/../styled-system/jsx';
 import { Download } from 'lucide-react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { getMCPByRegistryID } from '../../../data/mcpServersRegistry';
 import type { MCPRegistry } from '../../../types/mcp.types';
+import { ModalOverlay } from '@/shared/ModalStyles';
 
-const Overlay = styled('div', {
-  base: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0, 0, 0, 0.4)',
-    zIndex: 1000,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  }
-});
-
-const ModalCard = styled('div', {
+const DialogContent = styled(Dialog.Content, {
   base: {
     background: 'var(--background)',
     color: 'var(--foreground)',
@@ -25,7 +15,11 @@ const ModalCard = styled('div', {
     width: 'min(900px, 90vw)',
     maxHeight: '80vh',
     overflow: 'auto',
-    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)'
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
+    position: 'fixed',
+    inset: 0,
+    margin: 'auto',
+    zIndex: 1001
   }
 });
 
@@ -40,7 +34,7 @@ const ModalHeader = styled('div', {
   }
 });
 
-const CloseButton = styled('button', {
+const CloseButton = styled(Dialog.Close, {
   base: {
     border: '1px solid var(--border-color)',
     background: 'transparent',
@@ -200,6 +194,21 @@ const InstallButton = styled('button', {
   }
 });
 
+const VisuallyHidden = styled('span', {
+  base: {
+    border: 0,
+    clip: 'rect(0 0 0 0)',
+    height: '1px',
+    margin: '-1px',
+    overflow: 'hidden',
+    padding: 0,
+    position: 'absolute',
+    width: '1px',
+    whiteSpace: 'nowrap',
+    wordWrap: 'normal'
+  }
+});
+
 interface ExtensionsRegistryModalProps {
   servers: MCPRegistry[];
   onClose: () => void;
@@ -243,50 +252,60 @@ export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = (
   };
 
   return (
-    <Overlay>
-      <ModalCard>
-        <ModalHeader>
-          <div>Add New Integrations</div>
-          <CloseButton onClick={onClose}>Close</CloseButton>
-        </ModalHeader>
-        <ModalBody>
-          <Controls>
-            <input placeholder="Search available integrations..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </Controls>
+    <Dialog.Root open={true} onOpenChange={(open) => !open && onClose()}>
+      <Dialog.Portal>
+        <ModalOverlay />
+        <DialogContent>
+          <Dialog.Title>
+            <VisuallyHidden>Add New Integrations</VisuallyHidden>
+          </Dialog.Title>
+          <Dialog.Description>
+            <VisuallyHidden>Browse and install MCP integrations</VisuallyHidden>
+          </Dialog.Description>
 
-          <Grid gap="24px">
-            {filteredServers.map((server, index) => {
-              const registry = getMCPByRegistryID(server.registryId);
-              const serverId = server.registryId || `server-${index}`;
-              return (
-                <ExtensionCard key={serverId}>
-                  <ExtensionIcon>
-                    <img src={registry?.icon || '/logos/default.png'} alt={registry?.name || serverId} width={48} height={48} />
-                  </ExtensionIcon>
-                  <ExtensionInfo>
-                    <ExtensionHeader>
-                      <ExtensionName>{registry?.name || server.registryId}</ExtensionName>
-                      <ExtensionCategory>{registry?.category?.[0] || 'Other'}</ExtensionCategory>
-                    </ExtensionHeader>
-                    <ExtensionDescription>{registry?.description || 'No description available'}</ExtensionDescription>
-                  </ExtensionInfo>
-                  <InstallButton onClick={() => handleInstall(server)}>
-                    <Download size={16} />
-                    Install
-                  </InstallButton>
-                </ExtensionCard>
-              );
-            })}
-          </Grid>
-        </ModalBody>
-      </ModalCard>
-    </Overlay>
+          <ModalHeader>
+            <div>Add New Integrations</div>
+            <CloseButton>Close</CloseButton>
+          </ModalHeader>
+          <ModalBody>
+            <Controls>
+              <input placeholder="Search available integrations..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </Controls>
+
+            <Grid gap="24px">
+              {filteredServers.map((server, index) => {
+                const registry = getMCPByRegistryID(server.registryId);
+                const serverId = server.registryId || `server-${index}`;
+                return (
+                  <ExtensionCard key={serverId}>
+                    <ExtensionIcon>
+                      <img src={registry?.icon || '/logos/default.png'} alt={registry?.name || serverId} width={48} height={48} />
+                    </ExtensionIcon>
+                    <ExtensionInfo>
+                      <ExtensionHeader>
+                        <ExtensionName>{registry?.name || server.registryId}</ExtensionName>
+                        <ExtensionCategory>{registry?.category?.[0] || 'Other'}</ExtensionCategory>
+                      </ExtensionHeader>
+                      <ExtensionDescription>{registry?.description || 'No description available'}</ExtensionDescription>
+                    </ExtensionInfo>
+                    <InstallButton onClick={() => handleInstall(server)}>
+                      <Download size={16} />
+                      Install
+                    </InstallButton>
+                  </ExtensionCard>
+                );
+              })}
+            </Grid>
+          </ModalBody>
+        </DialogContent>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 };

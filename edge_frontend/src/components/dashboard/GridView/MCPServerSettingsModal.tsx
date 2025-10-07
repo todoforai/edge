@@ -3,16 +3,7 @@ import { styled } from '@/../styled-system/jsx';
 import { AlertCircle, Plus, X } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import type { MCPEdgeExecutable } from '../../../types/mcp.types';
-
-
-const DialogOverlay = styled(Dialog.Overlay, {
-  base: {
-    background: 'rgba(0, 0, 0, 0.5)',
-    position: 'fixed',
-    inset: 0,
-    zIndex: 999
-  }
-});
+import { ModalOverlay } from '@/shared/ModalStyles';
 
 const DialogContent = styled(Dialog.Content, {
   base: {
@@ -25,7 +16,7 @@ const DialogContent = styled(Dialog.Content, {
     position: 'fixed',
     inset: 0,
     margin: 'auto',
-    zIndex: 1000,
+    zIndex: 1001,
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden'
@@ -367,7 +358,7 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
   return (
     <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
-        <DialogOverlay />
+        <ModalOverlay />
         <DialogContent>
           <Dialog.Title>
             <VisuallyHidden>{title}</VisuallyHidden>
