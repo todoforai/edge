@@ -10,6 +10,9 @@ export interface PythonEvent {
 
 type EventCallback = (event: PythonEvent) => void;
 
+const WS_PORT = import.meta.env.DEV ? 9529 : 9528;
+const DEFAULT_WS_URL = `ws://localhost:${WS_PORT}`;
+
 // WebSocket client for development or alternative mode
 export const wsClient = {
   ws: null as WebSocket | null,
@@ -27,9 +30,9 @@ export const wsClient = {
   maxReconnectAttempts: 10,
   reconnectTimer: null as ReturnType<typeof setTimeout> | null,
   reconnectDelay: 1000, // Start with 1 second delay
-  lastUrl: 'ws://localhost:9528', // Store the last URL used
+  lastUrl: DEFAULT_WS_URL, // Store the last URL used
 
-  async connect(url = 'ws://localhost:9528'): Promise<boolean> {
+  async connect(url = DEFAULT_WS_URL): Promise<boolean> {
     if (this.connected) return true;
     if (this.connecting) {
       // Wait for existing connection attempt

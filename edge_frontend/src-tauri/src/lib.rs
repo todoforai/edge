@@ -201,8 +201,8 @@ fn http_probe_ws_port(port: u16) -> bool {
     }
 }
 
-// Fixed WebSocket port
-const WEBSOCKET_PORT: u16 = 9528;
+// Fixed WebSocket port - use 9529 in dev, 9528 in production
+const WEBSOCKET_PORT: u16 = if cfg!(debug_assertions) { 9529 } else { 9528 };
 
 #[tauri::command]
 async fn start_websocket_sidecar(app: AppHandle) -> Result<u16, String> {
