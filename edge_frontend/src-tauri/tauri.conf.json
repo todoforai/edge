@@ -27,8 +27,8 @@
     "publisher": "TODOforAI Team",
     "copyright": "Copyright © 2025 TODOforAI Team. All rights reserved.",
     "category": "DeveloperTool",
-    "shortDescription": "AI-powered developer productivity tool for file sync and shell execution",
-    "longDescription": "TODOforAI Edge is a desktop client application that seamlessly connects to the TODOforAI service. It enables file synchronization, editing, creation, and execution of shell commands to enhance developer productivity with AI assistance. Features include real-time file monitoring, secure API communication, and integration with various development tools.",
+    "shortDescription": "PC connector for TODOforAI",
+    "longDescription": "TODOforAI Edge is a desktop client application that allows you to connect your PC capabilities to TODO for AI. It enables your AI to edit on your behalf, browse, or even execute shell commands to enhance productivity with AI assistance. It also includes MCP servers for various tools like Google Drive, Gmail, and more.",
     "resources": [
       "resources/python/ws_sidecar.py"
     ],
