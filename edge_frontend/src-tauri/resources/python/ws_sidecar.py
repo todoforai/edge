@@ -579,7 +579,7 @@ async def handle_websocket(websocket):
         sidecar.connected_edges.discard(websocket)
         log.info(f"Client removed: {edge_id}, {len(sidecar.connected_edges)} edges remaining")
 
-async def start_server(host='127.0.0.1', port=9528):
+async def start_server(host, port):
     """Start the WebSocket server"""
     log.info(f"Starting WebSocket server on {host}:{port}")
     
@@ -618,9 +618,13 @@ async def start_server(host='127.0.0.1', port=9528):
 
 def main():
     """Main entry point"""
+    # Auto-detect dev mode for default port
+    is_dev = not getattr(sys, 'frozen', False)
+    default_port = 9529 if is_dev else 9528
+    
     parser = argparse.ArgumentParser(description='WebSocket sidecar for Tauri-Python communication')
     parser.add_argument('--host', default='127.0.0.1', help='Host to bind to')
-    parser.add_argument('--port', type=int, default=9528, help='Port to listen on')
+    parser.add_argument('--port', type=int, default=default_port, help='Port to listen on')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     
     args = parser.parse_args()
