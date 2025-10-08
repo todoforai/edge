@@ -180,7 +180,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     name: 'Puppeteer MCP',
     description: 'Web automation and scraping using Puppeteer browser control',
     command: 'npx',
-    args: ['-y', 'github:todoforai/puppeteer-mcp-server'],
+    args: ['-y', '@todoforai/puppeteer-mcp-server'],
     icon: '/logos/puppeteer.png', // Local downloaded logo
     env: {},
     category: ['Web Automation'],
