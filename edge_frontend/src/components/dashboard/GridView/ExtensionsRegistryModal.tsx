@@ -4,7 +4,7 @@ import { Download } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { getMCPByRegistryID } from '../../../data/mcpServersRegistry';
 import type { MCPRegistry } from '../../../types/mcp.types';
-import { ModalOverlay } from '@/shared/ModalStyles';
+import { ModalOverlay } from '../../ui/ModalOverlay';
 
 const DialogContent = styled(Dialog.Content, {
   base: {

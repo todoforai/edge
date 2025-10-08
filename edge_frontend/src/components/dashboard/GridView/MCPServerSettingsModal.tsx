@@ -3,7 +3,7 @@ import { styled } from '@/../styled-system/jsx';
 import { AlertCircle, Plus, X } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import type { MCPEdgeExecutable } from '../../../types/mcp.types';
-import { ModalOverlay } from '@/shared/ModalStyles';
+import { ModalOverlay } from '../../ui/ModalOverlay';
 
 const DialogContent = styled(Dialog.Content, {
   base: {
