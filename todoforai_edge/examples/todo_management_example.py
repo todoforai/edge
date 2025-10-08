@@ -7,9 +7,9 @@ from todoforai_edge.utils import findBy
 
 async def main():
     # Initialize edge with local development config
-    api_key = os.getenv('TODOFORAI_API_KEY_LOCAL')
+    api_key = os.getenv('TODOFORAI_API_KEY_DEV')
     if not api_key:
-        print("Please set TODOFORAI_API_KEY_LOCAL environment variable")
+        print("Please set TODOFORAI_API_KEY_DEV environment variable")
         return
     
     config = Config()

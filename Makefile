@@ -1,11 +1,12 @@
 # Makefile for todoforai-edge
 
-.PHONY: install build-sidecar copy-sidecar tauri-dev tauri-build clean help run run-test deploy-prod bump-version update-icons start-signer start-tunnel start-services stop-signer stop-tunnel stop-services
+.PHONY: install build-sidecar copy-sidecar tauri-dev tauri-build clean help run run-dev run-dev2 deploy-prod bump-version update-icons start-signer start-tunnel start-services stop-signer stop-tunnel stop-services
 
 help:
 	@echo "Available commands:"
-	@echo "  make run               - Run the edge client with default credentials"
-	@echo "  make run-test          - Run the edge client with test credentials"
+	@echo "  make run               - Run the edge client with production credentials"
+	@echo "  make run-dev           - Run the edge client with dev credentials"
+	@echo "  make run-dev2          - Run the edge client with dev2 credentials"
 	@echo "  make bump-version      - Bump the version number by 0.0.1"
 	@echo "  make deploy-latest     - Bump version, commit, push to main, then deploy main to latest"
 	@echo "  make deploy-tag        - Create a GitHub release tag for the current version"
@@ -13,22 +14,23 @@ help:
 
 run:
 	@echo "Running TodoForAI Edge client..."
-# 	python3 run_edge.py --api-key 1e724cf13dda7667371af44b3e691e078c35919cf7c79cd314203b0c274ade40 --api-url https://api.todofor.ai
-	# havliktomi@gmail.com
-	python3 run_edge.py --api-key ba20960794dba7f2daf5ff3455a03db62fc3988950e34a0bf58f88 --api-url https://api.todofor.ai
+	@test -n "$$TODOFORAI_API_KEY" || (echo "Error: TODOFORAI_API_KEY environment variable not set" && exit 1)
+	python3 run_edge.py --api-key $$TODOFORAI_API_KEY --api-url https://api.todofor.ai
 
-run-test:
-	@echo "Running TodoForAI Edge client with test credentials..."
-	# python3 run_edge.py --email test@todofor.ai --password Test123 --api-url https://api.todofor.ai
-	python3 run_edge.py --api-key 273c83e08bf7d6655c1e8bf648cdb6595b7d20a05a829d97a03d --api-url http://localhost:4000
+run-dev:
+	@echo "Running TodoForAI Edge client with dev credentials..."
+	@test -n "$$TODOFORAI_API_KEY_DEV" || (echo "Error: TODOFORAI_API_KEY_DEV environment variable not set" && exit 1)
+	python3 run_edge.py --api-key $$TODOFORAI_API_KEY_DEV --api-url http://localhost:4000
 
+run-dev2:
+	@echo "Running TodoForAI Edge client with dev2 credentials..."
+	@test -n "$$TODOFORAI_API_KEY_DEV2" || (echo "Error: TODOFORAI_API_KEY_DEV2 environment variable not set" && exit 1)
+	python3 run_edge.py --api-key $$TODOFORAI_API_KEY_DEV2 --api-url http://localhost:4000
 
 run-ws:
-  # joins where the frontend asks to:
 	python3 edge_frontend/src-tauri/resources/python/ws_sidecar.py
 
 run-frontend:
-  # run frontend separately:
 	cd edge_frontend && yarn dev
 
 bump-version:
