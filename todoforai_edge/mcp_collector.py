@@ -4,7 +4,7 @@ import shutil
 from typing import Dict, List, Any, Optional, Callable
 from pathlib import Path
 from fastmcp import Client
-from fastmcp.client.logging import LogMessage
+from fastmcp.client.client import CallToolResult
 import asyncio
 from .edge_config import MCPTool
 import traceback
@@ -326,25 +326,26 @@ class MCPCollector:
             # Tool exists, proceed with the call
             async with self.unified_client as client:
                 result = await client.call_tool(tool_name, arguments)
-                
+
+                result_json, result_text = None, None
                 # Handle different result types
                 if hasattr(result, 'text'):
                     result_text = result.text
-                elif hasattr(result, 'content'):
-                    result_text = str(result.content)
+                elif type(result) is CallToolResult:
+                    result_json = [r.model_dump(mode='json', exclude_none=True) for r in result.content]
                 else:
                     result_text = str(result)
-                
+
                 if _tool_call_callback:
                     _tool_call_callback({
                         "call_tool": actual_tool_name,
                         "server_id": server_id,
                         "arguments": arguments,
-                        "result": result_text,
+                        "result_json": result_json,
                         "success": True
                     })
                 
-                return {"result": result_text}
+                return {"result_json": result_json, "result": result_text}
         except Exception as e:
             if _tool_call_callback:
                 _tool_call_callback({
