@@ -486,20 +486,13 @@ class TODOforAIEdge:
                 logger.error(f"Failed to start file sync for {workspace_path}: {str(e)}")
 
     async def _load_mcp_if_exists(self):
-        """Load MCP config from first available location"""
+        """Find and set MCP config path - actual loading happens via config observer"""
         config_path = ensure_mcp_config_exists()
         
         if config_path:
-            try:
-                logger.info(f"Loading MCP configuration from: {config_path}")
-                results = await self.mcp_collector.load_from_file(config_path)
-                
-                # Store the config path in edge config
-                self.edge_config.config.update_value({"mcp_config_path": config_path})
-                
-                logger.info(f"MCP setup completed. Loaded {len(results)} servers with auto-reload and file sync.")
-            except Exception as e:
-                logger.error(f"Failed to load MCP configuration from {config_path}: {str(e)}")
+            logger.info(f"Found MCP config at: {config_path}")
+            # Just set the path - this will trigger the observer to load it
+            self.edge_config.config.update_value({"mcp_config_path": config_path})
         else:
             logger.error("Could not create or find MCP config file")
 

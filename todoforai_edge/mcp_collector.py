@@ -48,9 +48,24 @@ class MCPCollector:
     
     async def _on_config_change(self, changes: Dict[str, Any]) -> None:
         """Handle config changes, specifically mcp_json updates"""
+        # Handle mcp_config_path changes - load the file
+        if "mcp_config_path" in changes and changes["mcp_config_path"]:
+            config_path = changes["mcp_config_path"]
+            logger.info(f"MCP config path set to: {config_path}, loading...")
+            
+            try:
+                raw_config = self._parse_raw_config_file(config_path)
+                self._build_registry_mapping(raw_config)
+                self.edge_config.set_mcp_json(raw_config)
+                self.config_file_path = config_path
+                logger.info(f"Loaded MCP config from: {config_path}")
+            except Exception as e:
+                logger.error(f"Failed to load MCP config from {config_path}: {e}")
+        
+        # Handle mcp_json changes - reload tools
         if "mcp_json" in changes and changes["mcp_json"]:
             logger.info("MCP JSON config changed, reloading tools and saving to file")
-            await self._reload_tools_and_save()  # Use await instead of asyncio.create_task
+            await self._reload_tools_and_save()
     
     async def _setup_client_and_tools(self, mcp_json: Dict[str, Any]) -> List[MCPTool]:
         """Common logic to setup client and get tools from config"""
@@ -240,6 +255,7 @@ class MCPCollector:
             ("npx", "@modelcontextprotocol/server-bluesky"): "bluesky",
             ("npx", "slack-mcp-server"): "slack",
             ("npx", "mcp-mongo-server"): "mongodb",
+            ("npx", "github:lioensky/mcp-suno"): "suno",
             ("python", "whatsapp_mcp"): "whatsapp",
             ("npx", "mcp-remote"): "weather-mcp",  # For weather and other remote services
         }

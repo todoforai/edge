@@ -47,7 +47,7 @@ class EdgeConfig:
             "workspacepaths": data.get("workspacepaths", []),
             "installedMCPs": data.get("installedMCPs", {}),
             "mcp_json": data.get("mcp_json", {}),
-            "mcp_config_path": data.get("mcp_config_path", None),  # Add this field
+            "mcp_config_path": data.get("mcp_config_path", None),
             "ownerId": data.get("ownerId", ""),
             "status": data.get("status", "OFFLINE"),
             "isShellEnabled": data.get("isShellEnabled", False),
