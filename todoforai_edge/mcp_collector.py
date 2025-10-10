@@ -336,8 +336,11 @@ class MCPCollector:
                 else:
                     result_text = str(result)
 
-                if _tool_call_callback:
-                    _tool_call_callback({
+                # Use the unified callback from mcp_log_handler
+                from .mcp_log_handler import _mcp_callback
+                if _mcp_callback:
+                    _mcp_callback({
+                        "type": "tool_call",
                         "call_tool": actual_tool_name,
                         "server_id": server_id,
                         "arguments": arguments,
@@ -347,8 +350,10 @@ class MCPCollector:
                 
                 return {"result_json": result_json, "result": result_text}
         except Exception as e:
-            if _tool_call_callback:
-                _tool_call_callback({
+            from .mcp_log_handler import _mcp_callback
+            if _mcp_callback:
+                _mcp_callback({
+                    "type": "tool_call",
                     "call_tool": actual_tool_name,
                     "server_id": server_id,
                     "arguments": arguments,

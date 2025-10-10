@@ -17,11 +17,12 @@ from typing import Any, Dict, Callable, Set
 import websockets
 
 # Import TODOforAI Edge edge
-from todoforai_edge.mcp_collector import set_mcp_tool_call_callback
+from todoforai_edge.mcp_collector import MCPCollector 
 from todoforai_edge.edge import TODOforAIEdge
 from todoforai_edge.config import default_config, Config
 from todoforai_edge.handlers.file_sync import start_workspace_sync, stop_workspace_sync, active_sync_managers, WorkspaceSyncManager
 from todoforai_edge.utils import normalize_api_url
+from todoforai_edge.mcp_log_handler import set_mcp_callback  # Use unified callback
 
 async def _broadcast_auth_success():
     """Helper to broadcast auth success event"""
@@ -370,14 +371,16 @@ async def register_edge_config_hooks_internal():
     sidecar.todo_edge.edge_config.config.subscribe_async(on_config_change_hook, name="ws_sidecar_config_hook")
 
 async def register_mcp_hooks_internal():
-    """Internal function to register MCP tool call hooks"""
-    def tool_call_callback(call_data):
+    """Internal function to register MCP hooks for both logs and tool calls"""
+    def mcp_event_callback(event_data):
+        """Unified callback for all MCP events (logs, tool calls, etc.)"""
         asyncio.create_task(broadcast_event({
-            "type": "mcp_tool_call",
-            "payload": call_data,
+            "type": f"mcp_{event_data.get('type', 'event')}",
+            "payload": event_data,
         }))
     
-    set_mcp_tool_call_callback(tool_call_callback)
+    # Use the unified callback that handles both logs and tool calls
+    set_mcp_callback(mcp_event_callback)
 
 # Simplify RPC error handling
 def _create_rpc_response(success: bool, message: str) -> dict:

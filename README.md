@@ -125,6 +125,21 @@ yarn tauri icon app-icon.png
 
 See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes and releases.
 
+## Development
+
+Set up your environment variables:
+
+```bash
+export TODOFORAI_API_KEY="your-production-api-key"
+export TODOFORAI_API_KEY_DEV="your-local-dev-api-key"
+```
+
+Then run:
+```bash
+make run          # Production
+make run-test     # Local development
+```
+
 ## Let Us Know You're Using TODOforAI!
 
 We'd love to hear from you! If you're using TODOforAI in your projects or organization, please consider dropping us a quick note at marcellhavlik@todofor.ai. 
