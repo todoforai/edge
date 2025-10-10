@@ -375,11 +375,7 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
     requestId = payload.get("requestId", "")
 
     try:
-        logger.info(f"File chunk request received for path: {path}, rootPath: {root_path}, fallbackRootPaths: {fallback_root_paths}, requestId: {requestId}")
-
         full_path = resolve_file_path(path, root_path, fallback_root_paths)
-
-        # Normalize the path
         full_path = os.path.abspath(full_path)
 
         # Check if path is allowed before proceeding
@@ -391,7 +387,7 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
 
         file_path = Path(full_path)
         if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {full_path}")
+            raise FileNotFoundError(f"File not found: {full_path} (rootPath: {root_path}, fallbackRootPaths: {fallback_root_paths})")
 
         # If it's a directory, return a simple listing (one per line, '/' suffix for dirs)
         if file_path.is_dir():
@@ -430,7 +426,19 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
                 content_type = "text"
             except UnicodeDecodeError:
                 raise ValueError(f"Cannot read binary file {full_path}")
-            logger.info(f"File content size: {len(content):,} chars")
+
+        # Determine display path for logging
+        if root_path:
+            try:
+                rel_path = os.path.relpath(full_path, root_path)
+                display_path = f"@workspace/{rel_path}"
+            except ValueError:
+                # Different drives on Windows
+                display_path = full_path
+        else:
+            display_path = full_path
+        
+        logger.info(f"File chunk request received for path: {display_path} size: {len(content):,} chars")
 
         # Send the response with content type indicator
         await client.send_response(
