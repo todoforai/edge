@@ -48,7 +48,7 @@ export const tauriApi = {
     return safeInvoke<void>('save_current_window_size');
   },
 
-  getSavedWindowSize: () => safeInvoke<{ width: number; height: number }>('get_saved_window_size'),
+  getSavedWindowSize: () => safeInvoke<{ width: number; height: number; x: number; y: number }>('get_saved_window_size'),
 
   // Get command-line arguments passed to the Tauri app
   getCliArgs: () => safeInvoke<string[]>('get_cli_args'),
@@ -140,7 +140,7 @@ export const tauriApi = {
 export const browserFallbacks = {
   openDevTools: () => log.info('Cannot programmatically open dev-tools in browser'),
   saveWindowSize: () => log.info('Window-state persistence is Tauri-only'),
-  getSavedWindowSize: () => ({ width: 800, height: 600 }),
+  getSavedWindowSize: () => ({ width: 1200, height: 900, x: 100, y: 100 }),
   getCliArgs: () => {
     log.info('CLI arguments are only available in Tauri');
     return [];
@@ -227,6 +227,22 @@ export const desktopApi = {
 
   getWebSocketPort: async (): Promise<number | null> =>
     isTauri() ? await tauriApi.getWebSocketPort() : browserFallbacks.getWebSocketPort(),
+
+  async setWindowTitle(title: string): Promise<void> {
+    if (isTauri()) {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const mainWindow = getCurrentWindow();
+        await mainWindow.setTitle(title);
+      } catch (error) {
+        console.error('Failed to set window title:', error);
+        throw error;
+      }
+    } else {
+      document.title = title;
+    }
+  },
+
   getAppVersion,
 };
 
