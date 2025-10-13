@@ -258,6 +258,7 @@ class MCPCollector:
             ("npx", "github:lioensky/mcp-suno"): "suno",
             ("python", "whatsapp_mcp"): "whatsapp",
             ("npx", "mcp-remote"): "weather-mcp",  # For weather and other remote services
+            ("uvx", "elevenlabs-mcp"): "elevenlabs",
         }
         
         # Map each server

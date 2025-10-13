@@ -57,3 +57,43 @@ export interface InstalledMCP extends MCPJSON {
 }
 
 export type MCPEdgeExecutable = InstalledMCP;
+
+// Types for MCP content responses
+export interface TextContent {
+  type: 'text';
+  text: string;
+  annotations?: any;
+}
+
+export interface ImageContent {
+  type: 'image';
+  data: string; // base64
+  mimeType: string;
+  annotations?: any;
+}
+
+export interface AudioContent {
+  type: 'audio';
+  data: string; // base64
+  mimeType: string;
+  annotations?: any;
+}
+
+// NEW: support for MCP "resource" content
+export interface ResourceContent {
+  type: 'resource';
+  resource: {
+    uri: string;
+    mimeType?: string;
+    blob?: string; // base64
+  };
+  annotations?: any;
+}
+
+export interface MCPAttachment {
+  type: 'text' | 'image' | 'audio' | 'resource';
+  text?: string; // text contents are stored raw in the block
+  attachmentId?: string; // MCP attachment id
+}
+
+export type MCPContent = TextContent | ImageContent | AudioContent | ResourceContent | MCPAttachment;
