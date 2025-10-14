@@ -7,15 +7,15 @@ import { MCPStatusBadge } from '../../ui/MCPStatusBadge';
 
 const ServerCard = styled('div', {
   base: {
-    border: '1px solid var(--border-color)',
+    border: '1px solid var(--border)',
     borderRadius: 'var(--radius-lg)',
     padding: '28px',
-    background: 'var(--background)',
+    background: 'var(--card)',
     transition: 'all 0.2s',
 
     '&:hover': {
       borderColor: 'var(--primary)',
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+      boxShadow: '0 4px 12px var(--shadow-md)'
     }
   }
 });
@@ -38,7 +38,7 @@ const ServerIcon = styled('div', {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 'var(--radius-md)',
-    background: 'rgba(59, 130, 246, 0.1)',
+    background: 'var(--accent)',
     overflow: 'hidden',
 
     '& img': {
@@ -71,7 +71,7 @@ const ServerName = styled('h3', {
 const ServerId = styled('div', {
   base: {
     fontSize: '12px',
-    color: 'var(--muted)',
+    color: 'var(--muted-foreground)',
     fontFamily: 'monospace',
     marginBottom: '8px'
   }
@@ -98,8 +98,8 @@ const ServerNameAndCategory = styled('div', {
 const ServerCategory = styled('span', {
   base: {
     fontSize: '12px',
-    color: 'var(--muted)',
-    background: 'rgba(59, 130, 246, 0.1)',
+    color: 'var(--muted-foreground)',
+    background: 'var(--accent)',
     padding: '2px 8px',
     borderRadius: 'var(--radius-md-2)',
     display: 'inline-block',
@@ -132,15 +132,15 @@ const ActionButton = styled('button', {
     height: '44px',
     padding: 0,
     background: 'transparent',
-    border: '1px solid var(--border-color)',
+    border: '1px solid var(--border)',
     borderRadius: 'var(--radius-md)',
-    color: 'var(--muted)',
+    color: 'var(--muted-foreground)',
     cursor: 'pointer',
     transition: 'all 0.2s',
     fontSize: '16px',
 
     '&:hover': {
-      background: 'rgba(59, 130, 246, 0.1)',
+      background: 'var(--accent)',
       borderColor: 'var(--primary)',
       color: 'var(--primary)'
     }
@@ -159,10 +159,10 @@ const DropdownMenu = styled('div', {
     top: '100%',
     right: 0,
     marginTop: '4px',
-    background: 'var(--background)',
-    border: '1px solid var(--border-color)',
+    background: 'var(--card)',
+    border: '1px solid var(--border)',
     borderRadius: 'var(--radius-md)',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+    boxShadow: 'var(--shadow-lg)',
     zIndex: 100,
     minWidth: '160px'
   },
@@ -209,7 +209,7 @@ const DropdownItem = styled('button', {
     },
     danger: {
       true: {
-        color: '#ef4444',
+        color: 'var(--danger)',
 
         '&:hover': {
           background: 'rgba(239, 68, 68, 0.1)'
@@ -219,7 +219,7 @@ const DropdownItem = styled('button', {
         color: 'var(--foreground)',
 
         '&:hover': {
-          background: 'rgba(59, 130, 246, 0.1)'
+          background: 'var(--accent)'
         }
       }
     }
@@ -229,12 +229,11 @@ const DropdownItem = styled('button', {
 const ServerDescription = styled('p', {
   base: {
     fontSize: '14px',
-    color: 'var(--muted)',
+    color: 'var(--muted-foreground)',
     lineHeight: 1.5,
     margin: 0
   }
 });
-
 
 interface MCPServerCardProps {
   instance: MCPEdgeExecutable;

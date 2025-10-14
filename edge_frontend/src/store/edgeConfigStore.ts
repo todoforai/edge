@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '@/utils/logger';
 import pythonService from '../services/python-service';
 import type { EdgeData, MCPEdgeExecutable } from '../types';
 import { EdgeStatus } from '../types';

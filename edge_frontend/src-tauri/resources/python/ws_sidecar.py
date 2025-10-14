@@ -134,22 +134,27 @@ def login(credentials):
         config = default_config()
         config.apply_overrides(credentials)
         log.info(f"Using API URL: {config.api_url}")
-        
-        with sidecar.edge_lock:
-            # Check if we're already connected with the same credentials
-            if sidecar.todo_edge and sidecar.todo_edge.connected: # TODO when is this possible case? Do they log in again?
-                if config.has_same_credentials(sidecar.todo_edge):
-                    log.info("Already connected with the same credentials, sending auth_success")
-                    asyncio.create_task(_broadcast_auth_success())
-                    asyncio.create_task(_send_initial_state_events())
-                    return {"status": "success", "message": "Already connected with the same credentials"}
-                else:
-                    log.info("Disconnecting existing edge to connect with new credentials")
-                    _disconnect_existing_edge()
-            
+        # lock the edge lock
+        sidecar.edge_lock.acquire()
+
+        # Check if we're already connected with the same credentials
+        if sidecar.todo_edge and sidecar.todo_edge.connected: # TODO when is this possible case? Do they log in again?
+            if config.has_same_credentials(sidecar.todo_edge):
+                log.info("Already connected with the same credentials, sending auth_success")
+                asyncio.create_task(_broadcast_auth_success())
+                asyncio.create_task(_send_initial_state_events())
+                # unlock the edge lock
+                sidecar.edge_lock.release()
+                return {"status": "success", "message": "Already connected with the same credentials"}
+            else:
+                log.info("Different credentials provided while already connected - rejecting")
+                # unlock the edge lock
+                sidecar.edge_lock.release()
+                return {"status": "error", "message": "Already connected with different credentials"}
+        else:
             # Schedule API key validation before starting edge
             asyncio.create_task(_validate_and_start_edge(config))
-        
+    
         return {"status": "validating", "message": "Validating API key..."}
         
     except Exception as e:
@@ -162,11 +167,8 @@ def login(credentials):
 async def _validate_and_start_edge(config):
     """Validate API key and start edge if valid"""
     try:
-        # Create temporary edge for validation
-        temp_edge = TODOforAIEdge(config)
-        
-        # Validate API key
-        validation_result = await temp_edge.validate_api_key()
+        # Validate API key using static method - no edge instance needed
+        validation_result = await TODOforAIEdge.validate_api_key_static(config.api_url, config.api_key)
         
         if not validation_result.get("valid"):
             error_msg = validation_result.get("error", "Invalid API key")
@@ -175,15 +177,15 @@ async def _validate_and_start_edge(config):
             return
         
         log.info("API key validation successful, starting edge")
-        
-        # If validation successful, start the actual edge
         _start_new_edge(config)
         
     except Exception as e:
         error_msg = f"Validation error: {str(e)}"
         log.error(error_msg)
         await _broadcast_auth_error(error_msg)
-
+    finally:
+        sidecar.edge_lock.release()
+        
 def _start_new_edge(config):
     """Start a new edge with the given config"""
     sidecar.todo_edge = TODOforAIEdge(config)
@@ -573,8 +575,8 @@ async def handle_websocket(websocket):
     try:
         async for message in websocket:
             await handle_websocket_message(websocket, message)
-    except websockets.ConnectionClosed:
-        log.info(f"Client disconnected: {edge_id}")
+    except websockets.ConnectionClosed as e:
+        log.info(f"Client disconnected: {edge_id} Error: {e}")
     except Exception as e:
         log.error(f"WebSocket handler error: {e}")
         traceback.print_exc()

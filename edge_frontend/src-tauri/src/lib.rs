@@ -187,10 +187,18 @@ fn http_probe_ws_port(port: u16) -> bool {
         Ok(mut stream) => {
             let _ = stream.set_write_timeout(Some(Duration::from_millis(200)));
             let _ = stream.set_read_timeout(Some(Duration::from_millis(200)));
+            
+            // Send a proper WebSocket upgrade request instead of regular HTTP
             let req = format!(
-                "GET / HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nConnection: close\r\n\r\n",
+                "GET / HTTP/1.1\r\n\
+                Host: 127.0.0.1:{}\r\n\
+                Upgrade: websocket\r\n\
+                Connection: Upgrade\r\n\
+                Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
+                Sec-WebSocket-Version: 13\r\n\r\n",
                 port
             );
+            
             let _ = stream.write_all(req.as_bytes());
             let mut buf = [0u8; 1];
             let _ = stream.read(&mut buf); // optional: try to read a byte

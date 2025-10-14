@@ -16,44 +16,44 @@ const StatusBadge = styled('div', {
   variants: {
     status: {
       [MCPRunningStatus.READY]: {
-        color: '#10b981',
-        background: 'rgba(16, 185, 129, 0.1)'
+        color: 'var(--success)',
+        background: 'rgba(34, 197, 94, 0.1)'
       },
       [MCPRunningStatus.CRASHED]: {
-        color: '#ef4444',
+        color: 'var(--danger)',
         background: 'rgba(239, 68, 68, 0.1)'
       },
       [MCPRunningStatus.INSTALLING]: {
-        color: '#3b82f6',
+        color: 'var(--primary)',
         background: 'rgba(59, 130, 246, 0.1)'
       },
       [MCPRunningStatus.STARTING]: {
-        color: '#f59e0b',
+        color: 'var(--warning)',
         background: 'rgba(245, 158, 11, 0.1)'
       },
       [MCPRunningStatus.STOPPED]: {
-        color: '#6b7280',
-        background: 'rgba(107, 114, 128, 0.1)'
+        color: 'var(--muted-foreground)',
+        background: 'var(--muted)'
       },
       [MCPRunningStatus.ERROR]: {
-        color: '#ef4444',
+        color: 'var(--danger)',
         background: 'rgba(239, 68, 68, 0.1)'
       },
       [MCPRunningStatus.UNINSTALLED]: {
-        color: '#6b7280',
-        background: 'rgba(107, 114, 128, 0.1)'
+        color: 'var(--muted-foreground)',
+        background: 'var(--muted)'
       },
       [MCPRunningStatus.INSTALLED]: {
-        color: '#6b7280',
-        background: 'rgba(107, 114, 128, 0.1)'
+        color: 'var(--muted-foreground)',
+        background: 'var(--muted)'
       },
       [MCPRunningStatus.RUNNING]: {
-        color: '#10b981',
-        background: 'rgba(16, 185, 129, 0.1)'
+        color: 'var(--success)',
+        background: 'rgba(34, 197, 94, 0.1)'
       },
       default: {
-        color: 'var(--muted)',
-        background: 'rgba(0, 0, 0, 0.05)'
+        color: 'var(--muted-foreground)',
+        background: 'var(--muted)'
       }
     }
   }
