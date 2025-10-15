@@ -1,6 +1,6 @@
 # Makefile for todoforai-edge
 
-.PHONY: install build-sidecar copy-sidecar tauri-dev tauri-build clean help run run-dev run-dev2 deploy-prod bump-version update-icons start-signer start-tunnel start-services stop-signer stop-tunnel stop-services install-venv
+.PHONY: install build-sidecar copy-sidecar tauri-dev tauri-build clean help run run-dev run-dev2 deploy-prod bump-version update-icons start-signer start-tunnel start-services stop-signer stop-tunnel stop-services
 
 help:
 	@echo "Available commands:"
@@ -120,20 +120,13 @@ update-icons:
 	@echo "Updating icons with 'Edge' text..."
 	@bash edge_frontend/src-tauri/scripts/update_icons.sh
 
-# Install dependencies
+# Install dependencies (env-managed: system or activated venv)
 install:
 	pip install -r requirements.txt
 	pip install -e .
 	cd edge_frontend && npm install
 
-# Install with virtual environment (alternative)
-install-venv:
-	python3 -m venv venv
-	./venv/bin/pip install -r requirements.txt
-	./venv/bin/pip install -e .
-	cd edge_frontend && npm install
-
-# Build the WebSocket sidecar executable
+# Build the WebSocket sidecar executable (uses active Python)
 build-sidecar:
 	python3 build_executable.py
 
