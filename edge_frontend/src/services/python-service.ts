@@ -10,7 +10,7 @@ export interface PythonEvent {
 
 type EventCallback = (event: PythonEvent) => void;
 
-const WS_PORT = import.meta.env.DEV ? 9529 : 9528;
+const WS_PORT = process.env.NODE_ENV === 'development' ? 9529 : 9528;
 const DEFAULT_WS_URL = `ws://localhost:${WS_PORT}`;
 
 // WebSocket client for development or alternative mode

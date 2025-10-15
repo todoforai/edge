@@ -271,8 +271,6 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   const displayIcon = displayInfo.icon || '/logos/default.png';
   const displayCategory = displayInfo.category?.[0] || 'Custom';
 
-  // Determine status inline (no helper)
-
   const handleUninstall = () => {
     if (isBuiltIn) return;
     onUninstall(instance.serverId);
