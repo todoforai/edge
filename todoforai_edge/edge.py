@@ -129,15 +129,16 @@ class TODOforAIEdge:
                 except Exception as e:
                     logger.error(f"Error updating edge config on server: {str(e)}")
         
-    async def validate_api_key(self):
-        """Validate the current API key by making a test request"""
-        if not self.api_key:
+    @staticmethod
+    async def validate_api_key_static(api_url: str, api_key: str):
+        """Static method to validate API key without creating edge instance"""
+        if not api_key:
             return {"valid": False, "error": "No API key provided"}
             
         try:
             # Use the dedicated validation endpoint
-            url = f"{self.api_url}/noauth/v1/users/apikeys/validate"
-            headers = {"x-api-key": self.api_key}
+            url = f"{api_url}/noauth/v1/users/apikeys/validate"
+            headers = {"x-api-key": api_key}
             
             # Create SSL context that doesn't verify certificates for HTTPS URLs on macOS ARM64
             ssl_context = None
@@ -179,6 +180,10 @@ class TODOforAIEdge:
         except Exception as e:
             logger.error(f"API key validation failed: {str(e)}")
             return {"valid": False, "error": f"Validation failed: {str(e)}"}
+
+    async def validate_api_key(self):
+        """Instance method that uses the static method"""
+        return await self.validate_api_key_static(self.api_url, self.api_key)
 
     async def ensure_api_key(self, prompt_if_missing=True):
         """Ensure we have a valid API key"""

@@ -256,6 +256,8 @@ class MCPCollector:
             ("npx", "slack-mcp-server"): "slack",
             ("npx", "mcp-mongo-server"): "mongodb",
             ("npx", "github:lioensky/mcp-suno"): "suno",
+            ("npx", "github:lkm1developer/apollo-io-mcp-server"): "apollo-io",
+            ("npx", "github:runwayml/runway-api-mcp-server"): "runway",
             ("python", "whatsapp_mcp"): "whatsapp",
             ("npx", "mcp-remote"): "weather-mcp",  # For weather and other remote services
             ("uvx", "elevenlabs-mcp"): "elevenlabs",

@@ -90,6 +90,7 @@ export interface ResourceContent {
   annotations?: any;
 }
 
+// Basically this is for uploaded attachments (for later)
 export interface MCPAttachment {
   type: 'text' | 'image' | 'audio' | 'resource';
   text?: string; // text contents are stored raw in the block
