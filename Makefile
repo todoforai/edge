@@ -1,6 +1,6 @@
 # Makefile for todoforai-edge
 
-.PHONY: install build-sidecar copy-sidecar tauri-dev tauri-build clean help run run-dev run-dev2 deploy-prod bump-version update-icons start-signer start-tunnel start-services stop-signer stop-tunnel stop-services
+.PHONY: install build-sidecar copy-sidecar tauri-dev tauri-build clean help run run-dev run-dev2 deploy-prod bump-version update-icons start-signer start-tunnel start-services stop-signer stop-tunnel stop-services install-venv
 
 help:
 	@echo "Available commands:"
@@ -40,7 +40,8 @@ bump-version:
 	MINOR=$$(echo $$VERSION | cut -d. -f2) && \
 	PATCH=$$(echo $$VERSION | cut -d. -f3) && \
 	NEW_PATCH=$$((PATCH + 1)) && \
-	NEW_VERSION="$$MAJOR.$$MINOR.$$NEW_PATCH" && \
+	NEW_MINOR=$$((MINOR)) && \
+	NEW_VERSION="$$MAJOR.$$NEW_MINOR.$$NEW_PATCH" && \
 	echo "Bumping version from $$VERSION to $$NEW_VERSION" && \
 	sed -i "s/version = \"$$VERSION\"/version = \"$$NEW_VERSION\"/" pyproject.toml && \
 	sed -i "s/\"version\": \"$$MAJOR.$$MINOR.[0-9]*\"/\"version\": \"$$NEW_VERSION\"/" edge_frontend/package.json && \
@@ -123,6 +124,13 @@ update-icons:
 install:
 	pip install -r requirements.txt
 	pip install -e .
+	cd edge_frontend && npm install
+
+# Install with virtual environment (alternative)
+install-venv:
+	python3 -m venv venv
+	./venv/bin/pip install -r requirements.txt
+	./venv/bin/pip install -e .
 	cd edge_frontend && npm install
 
 # Build the WebSocket sidecar executable
