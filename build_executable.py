@@ -10,9 +10,23 @@ def main():
     script_dir = Path(__file__).parent
     sidecar_path = script_dir / "edge_frontend/src-tauri/resources/python/ws_sidecar.py"
     
+    # sys.executable is already the correct Python (venv or system)
+    python_exe = sys.executable
+    print(f"Using Python: {python_exe}")
+    
+    # Install PyInstaller if not already available
+    try:
+        subprocess.run([python_exe, "-m", "PyInstaller", "--version"], 
+                      check=True, capture_output=True)
+        print("PyInstaller is already available")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("Installing PyInstaller...")
+        subprocess.run([python_exe, "-m", "pip", "install", "PyInstaller>=5.0"], 
+                      check=True)
+    
     # Minimal PyInstaller command - only collect metadata, not everything
     cmd = [
-        sys.executable, "-m", "PyInstaller",
+        python_exe, "-m", "PyInstaller",
         "--onefile",
         "--name", "todoforai-edge-sidecar",
         "--hidden-import", "todoforai_edge",
