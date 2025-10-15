@@ -3,6 +3,27 @@
 
 set -e
 
+# New: args
+TARGET_ROOTPATH="./edge_frontend"
+POSTFILENAME=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --target_rootpath)
+            TARGET_ROOTPATH="$2"
+            shift 2
+            ;;
+        --postfilename)
+            POSTFILENAME="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown arg: $1"
+            exit 1
+            ;;
+    esac
+done
+
 # Determine the OS and architecture
 if [[ "$OSTYPE" == "darwin"* ]]; then
     OS="macos"
@@ -13,12 +34,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
         TARGET_TRIPLE="x86_64-apple-darwin"
     fi
     SOURCE_EXECUTABLE="todoforai-edge-sidecar"
-    TARGET_EXECUTABLE="todoforai-edge-sidecar-$TARGET_TRIPLE"
+    TARGET_EXECUTABLE="todoforai-edge-sidecar${POSTFILENAME}-${TARGET_TRIPLE}"
 elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
     OS="windows"
     TARGET_TRIPLE="x86_64-pc-windows-msvc"
     SOURCE_EXECUTABLE="todoforai-edge-sidecar.exe"
-    TARGET_EXECUTABLE="todoforai-edge-sidecar-$TARGET_TRIPLE.exe"
+    TARGET_EXECUTABLE="todoforai-edge-sidecar${POSTFILENAME}-${TARGET_TRIPLE}.exe"
 else
     OS="linux"
     ARCH=$(uname -m)
@@ -30,19 +51,20 @@ else
         TARGET_TRIPLE="$ARCH-unknown-linux-gnu"
     fi
     SOURCE_EXECUTABLE="todoforai-edge-sidecar"
-    TARGET_EXECUTABLE="todoforai-edge-sidecar-$TARGET_TRIPLE"
+    TARGET_EXECUTABLE="todoforai-edge-sidecar${POSTFILENAME}-${TARGET_TRIPLE}"
 fi
 
 echo "Operating system: $OS"
 echo "Architecture: $ARCH"
 echo "Target triple: $TARGET_TRIPLE"
 echo "Source executable: $SOURCE_EXECUTABLE"
+echo "Target basename: todoforai-edge-sidecar${POSTFILENAME}"
 echo "Target executable: $TARGET_EXECUTABLE"
 
 # Source directory
 SOURCE_DIR="./dist"
 # Destination directory - for external binaries
-DEST_DIR="./edge_frontend/src-tauri/binaries"
+DEST_DIR="${TARGET_ROOTPATH}/src-tauri/binaries"
 
 # Check if the executable exists
 if [ ! -f "${SOURCE_DIR}/${SOURCE_EXECUTABLE}" ]; then
