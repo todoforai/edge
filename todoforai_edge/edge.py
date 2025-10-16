@@ -34,7 +34,7 @@ from .handlers.handlers import (
 from .handlers.file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
 from .mcp_collector import MCPCollector
 import aiohttp
-
+from .types import ProjectListItem, AgentSettings, Todo
 
 # Configure logging
 logger = logging.getLogger("todoforai-edge")
@@ -347,7 +347,7 @@ class TODOforAIEdge:
         else:
             raise Exception("Failed to create project")
 
-    async def list_projects(self) -> List[Dict[str, Any]]:
+    async def list_projects(self) -> List[ProjectListItem]:
         """List all user projects"""
         response = await async_request(self, 'get', "/api/v1/projects")
         if response:
@@ -364,7 +364,7 @@ class TODOforAIEdge:
         else:
             raise Exception(f"Failed to delete project {project_id}")
 
-    async def create_todo(self, project_id: str, content: str, agent_settings: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def create_todo(self, project_id: str, content: str, agent_settings: Dict[str, Any] = None) -> Todo:
         """Create a new todo in a specific project"""
         payload = {
             "content": content,
@@ -378,7 +378,7 @@ class TODOforAIEdge:
         else:
             raise Exception("Failed to create todo")
 
-    async def list_todos(self, project_id: str = None) -> List[Dict[str, Any]]:
+    async def list_todos(self, project_id: str = None) -> List[Todo]:
         """List todos, optionally filtered by project"""
         if project_id:
             endpoint = f"/api/v1/projects/{project_id}/todos"
@@ -391,7 +391,7 @@ class TODOforAIEdge:
         else:
             raise Exception("Failed to list todos")
 
-    async def get_todo(self, todo_id: str) -> Dict[str, Any]:
+    async def get_todo(self, todo_id: str) -> Todo:
         """Get a specific todo by ID"""
         response = await async_request(self, 'get', f"/api/v1/todos/{todo_id}")
         if response:
@@ -399,7 +399,7 @@ class TODOforAIEdge:
         else:
             raise Exception(f"Failed to get todo {todo_id}")
 
-    async def update_todo_status(self, todo_id: str, status: str) -> Dict[str, Any]:
+    async def update_todo_status(self, todo_id: str, status: str) -> Todo:
         """Update todo status"""
         payload = {"status": status}
         response = await async_request(self, 'put', f"/api/v1/todos/{todo_id}", payload)
@@ -409,7 +409,7 @@ class TODOforAIEdge:
         else:
             raise Exception(f"Failed to update todo {todo_id}")
 
-    async def list_agent_settings(self) -> List[Dict[str, Any]]:
+    async def list_agent_settings(self) -> List[AgentSettings]:
         """List all user agent settings"""
         response = await async_request(self, 'get', "/api/v1/agents")
         if response:
@@ -417,7 +417,7 @@ class TODOforAIEdge:
         else:
             raise Exception("Failed to list agent settings")
 
-    async def get_agent_settings(self, agent_settings_id: str) -> Dict[str, Any]:
+    async def get_agent_settings(self, agent_settings_id: str) -> AgentSettings:
         """Get a specific agent settings by ID"""
         response = await async_request(self, 'get', f"/api/v1/agents/{agent_settings_id}")
         if response:
@@ -434,7 +434,7 @@ class TODOforAIEdge:
         attachments: List[Dict[str, Any]] = None,
         scheduled_timestamp: int = None,
         allow_queue: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> Todo:
         """Add a message to a todo, optionally creating the todo if it doesn't exist
         
         Args:

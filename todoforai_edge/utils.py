@@ -6,12 +6,14 @@ import subprocess
 import logging
 import requests
 import sys
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable, TypeVar
 from pathlib import Path
 
 logger = logging.getLogger("todoforai-edge")
 
-def findBy(items: List[Dict[str, Any]], condition: Callable[[Dict[str, Any]], bool]) -> Optional[Dict[str, Any]]:
+T = TypeVar('T')
+
+def findBy(items: List[T], condition: Callable[[T], bool]) -> Optional[T]:
     """
     Find first item matching the condition function.
     
