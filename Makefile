@@ -2,6 +2,8 @@
 
 .PHONY: install build-sidecar copy-sidecar tauri-dev tauri-build clean help run run-dev run-dev2 deploy-prod bump-version update-icons start-signer start-tunnel start-services stop-signer stop-tunnel stop-services
 
+PYTHON ?= python3
+
 help:
 	@echo "Available commands:"
 	@echo "  make run               - Run the edge client with production credentials"
@@ -122,13 +124,13 @@ update-icons:
 
 # Install dependencies (env-managed: system or activated venv)
 install:
-	pip install -r requirements.txt
-	pip install -e .
+	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install -e .
 	cd edge_frontend && npm install
 
 # Build the WebSocket sidecar executable (uses active Python)
 build-sidecar:
-	python3 build_executable.py
+	$(PYTHON) build_executable.py
 
 # Copy the sidecar executable to the Tauri resources directory
 copy-sidecar:
@@ -179,7 +181,7 @@ dev-test-production: build-sidecar copy-sidecar
 .PHONY: build-sidecar-dev
 build-sidecar-dev:
 	@echo "Building sidecar for development testing..."
-	python3 build_executable.py
+	$(PYTHON) build_executable.py
 
 .PHONY: copy-sidecar-dev
 build-and-copy-sidecar: build-sidecar-dev
