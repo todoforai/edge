@@ -1,3 +1,5 @@
+import { AttachmentData } from "../../external_shared/REST_types";
+
 export enum MCPRunningStatus {
   RUNNING = 'RUNNING',
   STOPPED = 'STOPPED',
@@ -98,3 +100,107 @@ export interface MCPAttachment {
 }
 
 export type MCPContent = TextContent | ImageContent | AudioContent | ResourceContent | MCPAttachment;
+
+
+
+
+/**
+ * Convert MCP TextContent to AttachmentData
+ */
+export function textContentToAttachmentData(
+  textContent: TextContent, 
+): AttachmentData {
+  return {
+    id: `mcp_${Date.now()}`,
+    originalName: `${textContent.type}_${Date.now()}.txt`,
+    mimeType: textContent.type + '/mcp', // text/mcp
+    content: textContent.text,
+    fileSize: textContent.text.length,
+    createdAt: Date.now(),
+    status: 'NONE',
+  };
+}
+
+function base64ToBlob(base64: string, mimeType: string): Blob {
+  const byteCharacters = atob(base64);
+  const byteNumbers = Array.from(byteCharacters, char => char.charCodeAt(0));
+  return new Blob([new Uint8Array(byteNumbers)], { type: mimeType });
+}
+
+/**
+ * Convert MCP ImageContent to AttachmentData
+ */
+export function imageContentToAttachmentData(
+  imageContent: ImageContent,
+): AttachmentData {
+  const blob = base64ToBlob(imageContent.data, imageContent.mimeType);
+  
+  return {
+    id: `mcp_${Date.now()}`,
+    originalName: `${imageContent.type}_${Date.now()}.png`,
+    mimeType: imageContent.mimeType,
+    blob,
+    fileSize: blob.size,
+    createdAt: Date.now(),
+    status: 'NONE',
+  };
+}
+
+/**
+ * Convert MCP AudioContent to AttachmentData
+ */
+export function audioContentToAttachmentData(
+  audioContent: AudioContent,
+): AttachmentData {
+  const blob = base64ToBlob(audioContent.data, audioContent.mimeType);
+  
+  return {
+    id: `mcp_${Date.now()}`,
+    originalName: `${audioContent.type}_${Date.now()}.wav`,
+    mimeType: audioContent.mimeType,
+    blob,
+    fileSize: blob.size,
+    createdAt: Date.now(),
+    status: 'NONE',
+  };
+}
+
+/**
+ * Convert MCP ResourceContent to AttachmentData
+ */
+export function resourceContentToAttachmentData(
+  resourceContent: ResourceContent,
+): AttachmentData {
+  const resourceData = JSON.stringify(resourceContent.resource);
+  const blob = new Blob([resourceData], { type: 'mcp+application/json' });
+    
+  return {
+    id: `mcp_${Date.now()}`,
+    originalName: resourceContent.resource.uri.split('/').pop() || 'resource',
+    mimeType: 'mcp+application/json',
+    blob: blob,
+    fileSize: blob.size,
+    createdAt: Date.now(),
+    status: 'NONE',
+  };
+}
+
+/**
+ * Convert any MCPContent to AttachmentData
+ */
+export function mcpContentToAttachmentData(
+  mcpContent: MCPContent,
+): AttachmentData | null {
+  switch (mcpContent.type) {
+    case 'text':
+      return textContentToAttachmentData(mcpContent as TextContent);
+    case 'image':
+      return imageContentToAttachmentData(mcpContent as ImageContent);
+    case 'audio':
+      return audioContentToAttachmentData(mcpContent as AudioContent);
+    case 'resource':
+      return resourceContentToAttachmentData(mcpContent as ResourceContent);
+    default:
+      return null;
+  }
+}

@@ -79,6 +79,14 @@ const FormLabel = styled('label', {
   }
 });
 
+const HelpText = styled('label', {
+  base: {
+    fontSize: '12px',
+    color: 'var(--muted)',
+    marginTop: '4px'
+  }
+});
+
 const FormInput = styled('input', {
   base: {
     width: '100%',
@@ -390,9 +398,9 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
                   </ErrorMessage>
                 )}
                 {isNewInstallation && !hasServerIdError && (
-                  <FormLabel style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px' }}>
+                  <HelpText>
                     Customize the server ID to install multiple instances
-                  </FormLabel>
+                  </HelpText>
                 )}
               </FormGroup>
 
