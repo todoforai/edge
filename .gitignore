@@ -19,5 +19,6 @@ build/
 ./build/
 ./dist/
 dist/
+venv/
 
 edge_frontend/src-tauri/Cargo.lock
