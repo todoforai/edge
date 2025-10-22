@@ -766,7 +766,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     name: 'Suno Music Generator',
     description: 'AI-powered music generation using Suno API - create songs with custom lyrics, styles, and titles',
     command: 'npx',
-    args: ['-y', 'github:lioensky/mcp-suno'],
+    args: ['-y', 'github:todoforai/MCP-Suno'],
     icon: '/logos/suno.png',
     env: { 
       SunoKey: '' 
@@ -796,9 +796,9 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     category: ['Media', 'AI'],
     aliases: ['SUNO', 'MUSIC'],
     repository: {
-      url: 'https://github.com/lioensky/mcp-suno',
+      url: 'https://github.com/todoforai/MCP-Suno',
       source: 'github',
-      id: 'lioensky/mcp-suno',
+      id: 'todoforai/MCP-Suno',
     },
     version_detail: {
       version: '1.0.0',

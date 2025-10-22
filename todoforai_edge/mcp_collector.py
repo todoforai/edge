@@ -107,7 +107,7 @@ class MCPCollector:
             # Rebuild mapping on reload
             self._build_registry_mapping(mcp_json)
 
-            # Optimistically set status to STARTING for all servers before loading
+            # Optimistically set status for all servers before loading
             self._set_servers_status_optimistically(mcp_json, "STARTING")
 
             # Setup client and get tools
@@ -216,7 +216,7 @@ class MCPCollector:
                 
         except Exception as e:
             logger.error(f"Error loading MCP servers: {e}")
-            self.edge_config.set_mcp_json({})
+            # self.edge_config.set_mcp_json({})
             return {}
     
     def _build_registry_mapping(self, mcp_json: Dict[str, Any]) -> None:
@@ -255,7 +255,7 @@ class MCPCollector:
             ("npx", "@modelcontextprotocol/server-bluesky"): "bluesky",
             ("npx", "slack-mcp-server"): "slack",
             ("npx", "mcp-mongo-server"): "mongodb",
-            ("npx", "github:lioensky/mcp-suno"): "suno",
+            ("npx", "github:todoforai/MCP-Suno"): "suno",
             ("npx", "github:lkm1developer/apollo-io-mcp-server"): "apollo-io",
             ("npx", "github:runwayml/runway-api-mcp-server"): "runway",
             ("python", "whatsapp_mcp"): "whatsapp",
