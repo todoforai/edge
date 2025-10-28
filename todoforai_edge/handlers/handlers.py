@@ -485,8 +485,8 @@ async def _execute_function(function_name: str, args: dict, client) -> any:
     
     func = FUNCTION_REGISTRY[function_name]
     
-    # For MCP functions, always pass the client instance
-    if function_name.startswith('mcp_'):
+    # For functions that need client instance, always pass it
+    if function_name.startswith('mcp_') or function_name == 'execute_shell_command':
         args['client_instance'] = client
     
     # Execute function based on its signature
