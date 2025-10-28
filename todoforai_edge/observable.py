@@ -163,7 +163,7 @@ class ObservableDictionary(Observable[Dict]):
     def __init__(self, initial_value: Dict = None, name: str = "unnamed"):
         super().__init__(initial_value or {}, name)
 
-    def update_value(self, new_value: Dict[str, Any], source: str = None) -> None:
+    def update_value(self, new_value: Dict[str, Any], source: str = None, notify: bool = True) -> None:
         """Update specific fields and notify observers with only the changes"""
         if not new_value:
             return
@@ -183,8 +183,9 @@ class ObservableDictionary(Observable[Dict]):
         new_dict.update(actual_changes)
         self._value = new_dict
 
-        # Notify observers with only the changes
-        self._notify(actual_changes, source)
+        # Notify observers with only the changes (if notify=True)
+        if notify:
+            self._notify(actual_changes, source)
 
     def __getitem__(self, key): return self._value[key]
     def __setitem__(self, key, value):

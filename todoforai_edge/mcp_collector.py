@@ -63,7 +63,7 @@ class MCPCollector:
                 logger.error(f"Failed to load MCP config from {config_path}: {e}")
         
         # Handle mcp_json changes - reload tools
-        if "mcp_json" in changes and changes["mcp_json"]:
+        elif "mcp_json" in changes and changes["mcp_json"] and len(changes["mcp_json"])>0: # and not empty
             logger.info("MCP JSON config changed, reloading tools and saving to file")
             await self._reload_tools_and_save()
     
@@ -73,6 +73,20 @@ class MCPCollector:
             logger.info("No MCP servers defined in config, clearing tools")
             self.unified_client = None
             return []
+        
+        # Get actual stack trace of where this was called from
+        import traceback
+        import inspect
+        
+        # Get the call stack
+        stack = inspect.stack()
+        caller_info = []
+        for frame_info in stack[0:6]:  # Skip current frame, get next 3
+            caller_info.append(f"{frame_info.filename}:{frame_info.lineno} in {frame_info.function}")
+        
+        print("_setup_client_and_tools called from:")
+        for info in caller_info:
+            print(f"  {info}")
         
         # Process config and create client with log handler as kwarg
         processed_servers = self._process_config(mcp_json)
@@ -97,6 +111,9 @@ class MCPCollector:
         # Get tools and return them
         tools = await self.list_tools()
         logger.info(f"Retrieved {len(tools)} tools from FastMCP client")
+
+        self.setInstalledMCPs(tools)
+
         return tools
 
     async def _reload_tools_and_save(self) -> None:
@@ -112,7 +129,6 @@ class MCPCollector:
 
             # Setup client and get tools
             tools = await self._setup_client_and_tools(mcp_json)
-            self.setInstalledMCPs(tools)
             
             # Save the updated config to file even if empty (removed condition)
             if self.config_file_path:
@@ -200,15 +216,15 @@ class MCPCollector:
             # Build serverId -> registryId mapping
             self._build_registry_mapping(raw_config)
             
-            self.edge_config.set_mcp_json(raw_config)
+            # Update mcp_json directly without triggering observers
+            self.edge_config.config.update_value({"mcp_json": raw_config}, notify=False)
 
             # Optimistically set status based on whether servers are new or existing
             self._set_servers_status_optimistically(raw_config, "STARTING")  # This will determine INSTALLING vs STARTING internally
 
-            # Setup client and get tools
+            # Setup client and get tools (single init point)
             tools = await self._setup_client_and_tools(raw_config)
-            self.setInstalledMCPs(tools)
-        
+
             processed_servers = self._process_config(raw_config)
             logger.info(f"Initial MCP load complete: {len(tools)} tools from {len(processed_servers)} servers")
             
@@ -216,7 +232,8 @@ class MCPCollector:
                 
         except Exception as e:
             logger.error(f"Error loading MCP servers: {e}")
-            # self.edge_config.set_mcp_json({})
+            import traceback
+            traceback.print_exc()
             return {}
     
     def _build_registry_mapping(self, mcp_json: Dict[str, Any]) -> None:
