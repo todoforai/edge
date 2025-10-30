@@ -78,17 +78,15 @@ export interface AudioContent {
   type: 'audio';
   data: string; // base64
   mimeType: string;
+  uri?: string; // Add this
   annotations?: any;
 }
 
-// NEW: support for MCP "resource" content
 export interface ResourceContent {
   type: 'resource';
-  resource: {
-    uri: string;
-    mimeType?: string;
-    blob?: string; // base64
-  };
+  resource: 
+    | { uri: string; mimeType?: string; text: string }
+    | { uri: string; mimeType?: string; blob: string };
   annotations?: any;
 }
 
@@ -109,12 +107,24 @@ export type MCPContent = TextContent | ImageContent | AudioContent | ResourceCon
  */
 export function textContentToAttachmentData(
   textContent: TextContent, 
+  toolName?: string,
+  timestamp?: string,
+  index?: number
 ): AttachmentData {
+  // Text content has no URI, use fallback naming
+  let originalName: string;
+  if (toolName && timestamp && index !== undefined) {
+    originalName = `${toolName}_${timestamp}_${index}.txt`;
+  } else {
+    originalName = `text_${Date.now()}.txt`;
+  }
+  
   return {
     id: `mcp_${Date.now()}`,
-    originalName: `${textContent.type}_${Date.now()}.txt`,
-    mimeType: textContent.type + '/mcp', // text/mcp
+    originalName,
+    mimeType: 'text/mcp',
     content: textContent.text,
+    blob: undefined,
     fileSize: textContent.text.length,
     createdAt: Date.now(),
     status: 'NONE',
@@ -132,13 +142,26 @@ function base64ToBlob(base64: string, mimeType: string): Blob {
  */
 export function imageContentToAttachmentData(
   imageContent: ImageContent,
+  toolName?: string,
+  timestamp?: string,
+  index?: number
 ): AttachmentData {
   const blob = base64ToBlob(imageContent.data, imageContent.mimeType);
+  const extension = imageContent.mimeType.split('/')[1] || 'png';
+  
+  // Generate filename with toolName and timestamp if provided
+  let originalName: string;
+  if (toolName && timestamp && index !== undefined) {
+    originalName = `${toolName}_${timestamp}_${index}.${extension}`;
+  } else {
+    originalName = `image_${Date.now()}.${extension}`;
+  }
   
   return {
     id: `mcp_${Date.now()}`,
-    originalName: `${imageContent.type}_${Date.now()}.png`,
-    mimeType: imageContent.mimeType,
+    originalName,
+    mimeType: 'image/mcp',
+    content: undefined,
     blob,
     fileSize: blob.size,
     createdAt: Date.now(),
@@ -151,13 +174,29 @@ export function imageContentToAttachmentData(
  */
 export function audioContentToAttachmentData(
   audioContent: AudioContent,
+  toolName?: string,
+  timestamp?: string,
+  index?: number
 ): AttachmentData {
   const blob = base64ToBlob(audioContent.data, audioContent.mimeType);
+  const extension = audioContent.mimeType.split('/')[1] || 'wav';
+  
+  // Prioritize URI-based naming first
+  let originalName: string;
+  if (audioContent.uri) {
+    const uriName = audioContent.uri.split('/').pop() || '';
+    originalName = uriName && uriName.includes('.') ? uriName : `audio.${extension}`;
+  } else if (toolName && timestamp && index !== undefined) {
+    originalName = `${toolName}_${timestamp}_${index}.${extension}`;
+  } else {
+    originalName = `audio_${Date.now()}.${extension}`;
+  }
   
   return {
     id: `mcp_${Date.now()}`,
-    originalName: `${audioContent.type}_${Date.now()}.wav`,
-    mimeType: audioContent.mimeType,
+    originalName,
+    mimeType: 'audio/mcp',
+    content: undefined,
     blob,
     fileSize: blob.size,
     createdAt: Date.now(),
@@ -170,18 +209,73 @@ export function audioContentToAttachmentData(
  */
 export function resourceContentToAttachmentData(
   resourceContent: ResourceContent,
+  toolName?: string,
+  timestamp?: string,
+  index?: number
 ): AttachmentData {
-  const resourceData = JSON.stringify(resourceContent.resource);
-  const blob = new Blob([resourceData], { type: 'mcp+application/json' });
+  const resource = resourceContent.resource;
+  const uriName = resource.uri?.split('/').pop() || '';
+  const mime = resource.mimeType || 'application/octet-stream';
+  
+  // Prioritize URI-based naming FIRST
+  let originalName: string;
+  if (uriName && uriName.includes('.')) {
+    // Use URI filename if it has extension
+    originalName = uriName;
+  } else if (uriName) {
+    // URI exists but no extension, infer from mime type
+    const ext = mime.includes('/') ? mime.split('/')[1] : 'bin';
+    originalName = `${uriName}.${ext}`;
+  } else if (toolName && timestamp && index !== undefined) {
+    // Fallback to toolName/timestamp/index if no URI
+    const ext = mime.includes('/') ? mime.split('/')[1] : 'bin';
+    originalName = `${toolName}_${timestamp}_${index}.${ext}`;
+  } else {
+    // Last resort fallback
+    const ext = mime.includes('/') ? mime.split('/')[1] : 'bin';
+    originalName = `resource_${Date.now()}.${ext}`;
+  }
+  
+  // Handle text resource
+  if ('text' in resource && resource.text !== undefined) {
+    return {
+      id: `mcp_${Date.now()}`,
+      originalName,
+      mimeType: `resource/mcp+${mime}`, // Preserve original MIME type with MCP prefix
+      content: resource.text,
+      uri: resource.uri, // Preserve URI
+      blob: undefined,
+      fileSize: resource.text.length,
+      createdAt: Date.now(),
+      status: 'NONE',
+    };
+  } else if ('blob' in resource && resource.blob !== undefined) {
+    const blob = base64ToBlob(resource.blob, mime);
     
-  return {
-    id: `mcp_${Date.now()}`,
-    originalName: resourceContent.resource.uri.split('/').pop() || 'resource',
-    mimeType: 'mcp+application/json',
-    blob: blob,
-    fileSize: blob.size,
-    createdAt: Date.now(),
-    status: 'NONE',
+    return {
+      id: `mcp_${Date.now()}`,
+      originalName,
+      mimeType: `resource/mcp+${mime}`, // Preserve original MIME type with MCP prefix
+      content: undefined,
+      uri: resource.uri, // Preserve URI
+      blob,
+      fileSize: blob.size,
+      createdAt: Date.now(),
+      status: 'NONE',
+    };
+  } else {
+    // Fallback for URI-only resources
+    return {
+      id: `mcp_${Date.now()}`,
+      originalName: originalName.endsWith('.txt') ? originalName : `${originalName}.txt`,
+      mimeType: `resource/mcp+${mime}`, // Preserve original MIME type with MCP prefix
+      content: undefined,
+      uri: resource.uri, // Preserve URI
+      blob: undefined,
+      fileSize: 0,
+      createdAt: Date.now(),
+      status: 'NONE',
+    };
   };
 }
 
@@ -190,16 +284,19 @@ export function resourceContentToAttachmentData(
  */
 export function mcpContentToAttachmentData(
   mcpContent: MCPContent,
+  toolName?: string,
+  timestamp?: string,
+  index?: number
 ): AttachmentData | null {
   switch (mcpContent.type) {
     case 'text':
-      return textContentToAttachmentData(mcpContent as TextContent);
+      return textContentToAttachmentData(mcpContent as TextContent, toolName, timestamp, index);
     case 'image':
-      return imageContentToAttachmentData(mcpContent as ImageContent);
+      return imageContentToAttachmentData(mcpContent as ImageContent, toolName, timestamp, index);
     case 'audio':
-      return audioContentToAttachmentData(mcpContent as AudioContent);
+      return audioContentToAttachmentData(mcpContent as AudioContent, toolName, timestamp, index);
     case 'resource':
-      return resourceContentToAttachmentData(mcpContent as ResourceContent);
+      return resourceContentToAttachmentData(mcpContent as ResourceContent, toolName, timestamp, index);
     default:
       return null;
   }
