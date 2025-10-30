@@ -1,4 +1,18 @@
-import { AttachmentData } from "../../external_shared/REST_types";
+export interface AttachmentFrame {
+  id: string;
+  originalName: string;
+  uri?: string;
+  mimeType?: string; // MIME type
+  createdAt?: number;
+  isPublic?: boolean;
+  fileSize: number;
+  status?: 'NEW' | 'UPDATED' | 'DELETED' | 'NONE'; // why is the file an attachment
+}
+
+export interface AttachmentData extends AttachmentFrame {
+  blob?: Blob;
+  content?: string; // Text content of the file - optional since it might not be loaded yet
+}
 
 export enum MCPRunningStatus {
   RUNNING = 'RUNNING',
