@@ -74,20 +74,6 @@ class MCPCollector:
             self.unified_client = None
             return []
         
-        # Get actual stack trace of where this was called from
-        import traceback
-        import inspect
-        
-        # Get the call stack
-        stack = inspect.stack()
-        caller_info = []
-        for frame_info in stack[0:6]:  # Skip current frame, get next 3
-            caller_info.append(f"{frame_info.filename}:{frame_info.lineno} in {frame_info.function}")
-        
-        print("_setup_client_and_tools called from:")
-        for info in caller_info:
-            print(f"  {info}")
-        
         # Process config and create client with log handler as kwarg
         processed_servers = self._process_config(mcp_json)
         if not processed_servers:

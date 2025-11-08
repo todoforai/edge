@@ -387,7 +387,15 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
 
         file_path = Path(full_path)
         if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {full_path} (rootPath: {root_path}, fallbackRootPaths: {fallback_root_paths})")
+            # Return file not found in error field instead of throwing exception
+            roots = [root_path] if root_path else []
+            if fallback_root_paths:
+                roots.extend(fallback_root_paths)
+            error_msg = f"File not found: {path} (roots: {roots})"
+            await client.send_response(
+                file_chunk_result_msg(response_type, **payload, error=error_msg)
+            )
+            return
 
         # If it's a directory, return a simple listing (one per line, '/' suffix for dirs)
         if file_path.is_dir():
