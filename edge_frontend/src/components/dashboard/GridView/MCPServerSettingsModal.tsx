@@ -1,278 +1,50 @@
 import React, { useState } from 'react';
-import { styled } from '@/../styled-system/jsx';
 import { AlertCircle, Plus, X } from 'lucide-react';
-import * as Dialog from '@radix-ui/react-dialog';
+import { cva } from "class-variance-authority";
 import type { MCPEdgeExecutable } from '../../../types/mcp.types';
-import { ModalOverlay } from '../../ui/ModalOverlay';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
-const DialogContent = styled(Dialog.Content, {
-  base: {
-    background: 'var(--card-background)',
-    border: '1px solid var(--border-color)',
-    borderRadius: 'var(--radius-lg)',
-    padding: 0,
-    width: 'min(900px, 90vw)',
-    maxHeight: '80vh',
-    position: 'fixed',
-    inset: 0,
-    margin: 'auto',
-    zIndex: 1001,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden'
-  }
-});
+const settingsContent = cva([
+  "flex flex-col gap-6"
+]);
 
-const ModalHeader = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '16px 20px',
-    borderBottom: '1px solid var(--border-color)',
-    fontWeight: 600,
-  }
-});
+const formGroup = cva([
+  "flex flex-col gap-2"
+]);
 
-const CloseButton = styled(Dialog.Close, {
-  base: {
-    border: '1px solid var(--border-color)',
-    background: 'var(--background-secondary)',
-    color: 'var(--foreground)',
-    borderRadius: '8px',
-    padding: '6px 10px',
-    cursor: 'pointer',
-    '&:hover': {
-      backgroundColor: 'var(--card-hover)',
-      borderColor: 'var(--primary)'
-    }
-  }
-});
+const helpText = cva([
+  "text-xs text-muted-foreground"
+]);
 
-const ModalBody = styled('div', {
-  base: {
-    padding: '20px',
-    flex: 1,
-    overflow: 'auto'
-  }
-});
+const errorMessage = cva([
+  "text-destructive text-xs flex items-center gap-1"
+]);
 
-const SettingsContent = styled('div', {
-  base: {
-    flex: 1
-  }
-});
+const argumentsList = cva([
+  "flex flex-col gap-2"
+]);
 
-const FormGroup = styled('div', {
-  base: {
-    marginBottom: '20px'
-  }
-});
+const argumentRow = cva([
+  "flex gap-2 items-center"
+]);
 
-const FormLabel = styled('label', {
-  base: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: 500,
-    color: 'var(--foreground)',
-    marginBottom: '8px'
-  }
-});
+const envList = cva([
+  "flex flex-col gap-2"
+]);
 
-const HelpText = styled('label', {
-  base: {
-    fontSize: '12px',
-    color: 'var(--muted)',
-    marginTop: '4px'
-  }
-});
-
-const FormInput = styled('input', {
-  base: {
-    width: '100%',
-    padding: '10px 12px',
-    border: '1px solid var(--border-color)',
-    borderRadius: '6px',
-    background: 'var(--background-secondary)',
-    color: 'var(--foreground)',
-    fontSize: '14px',
-
-    '&:focus': {
-      outline: 'none',
-      borderColor: 'var(--primary)',
-      background: 'var(--background-secondary)'
-    },
-
-    '&:disabled': {
-      background: 'var(--background-tertiary)',
-      color: 'var(--muted)',
-      cursor: 'not-allowed'
-    }
-  },
-  variants: {
-    hasError: {
-      true: {
-        borderColor: '#ef4444',
-        '&:focus': { borderColor: '#ef4444' }
-      },
-      false: {}
-    }
-  }
-});
-
-const ErrorMessage = styled('div', {
-  base: {
-    color: '#ef4444',
-    fontSize: '12px',
-    marginTop: '4px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px'
-  }
-});
-
-const ArgumentsList = styled('div', {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  }
-});
-
-const ArgumentRow = styled('div', {
-  base: {
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'center'
-  }
-});
-
-const EnvList = styled('div', {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  }
-});
-
-const EnvRow = styled('div', {
-  base: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '8px',
-    alignItems: 'center'
-  }
-});
-
-const RemoveButton = styled('button', {
-  base: {
-    background: 'transparent',
-    border: '1px solid var(--border-color)',
-    borderRadius: '4px',
-    color: 'var(--muted)',
-    cursor: 'pointer',
-    padding: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-
-    '&:hover': {
-      background: 'rgba(239, 68, 68, 0.1)',
-      borderColor: '#ef4444',
-      color: '#ef4444'
-    }
-  }
-});
-
-const AddButton = styled('button', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 16px',
-    background: 'transparent',
-    border: '1px dashed var(--border-color)',
-    borderRadius: '6px',
-    color: 'var(--muted)',
-    cursor: 'pointer',
-    fontSize: '14px',
-    transition: 'all 0.2s',
-
-    '&:hover': {
-      borderColor: 'var(--primary)',
-      color: 'var(--primary)',
-      background: 'rgba(59, 130, 246, 0.05)'
-    }
-  }
-});
-
-const ModalActions = styled('div', {
-  base: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px',
-    padding: '20px 0 0 0',
-    borderTop: '1px solid var(--border-color)',
-    marginTop: '20px'
-  }
-});
-
-const CancelButton = styled('button', {
-  base: {
-    padding: '10px 20px',
-    background: 'transparent',
-    border: '1px solid var(--border-color)',
-    borderRadius: '6px',
-    color: 'var(--foreground)',
-    cursor: 'pointer',
-    fontSize: '14px',
-
-    '&:hover': {
-      background: 'rgba(0, 0, 0, 0.05)'
-    }
-  }
-});
-
-const ConfirmButton = styled('button', {
-  base: {
-    padding: '10px 20px',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px'
-  },
-  variants: {
-    disabled: {
-      true: {
-        background: 'var(--muted)',
-        color: 'var(--muted)',
-        cursor: 'not-allowed',
-        '&:hover': { opacity: 1 }
-      },
-      false: {
-        background: 'var(--primary)',
-        color: 'white',
-        cursor: 'pointer',
-        '&:hover': { opacity: 0.9 }
-      }
-    }
-  }
-});
-
-const VisuallyHidden = styled('span', {
-  base: {
-    border: 0,
-    clip: 'rect(0 0 0 0)',
-    height: '1px',
-    margin: '-1px',
-    overflow: 'hidden',
-    padding: 0,
-    position: 'absolute',
-    width: '1px',
-    whiteSpace: 'nowrap',
-    wordWrap: 'normal'
-  }
-});
+const envRow = cva([
+  "flex gap-2 items-center"
+]);
 
 interface MCPServerSettingsModalProps {
   instance: MCPEdgeExecutable;
@@ -364,120 +136,112 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
   const title = `${isNewInstallation ? 'Install' : 'Settings'} - ${instance.serverId}`;
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Portal>
-        <ModalOverlay />
-        <DialogContent>
-          <Dialog.Title>
-            <VisuallyHidden>{title}</VisuallyHidden>
-          </Dialog.Title>
-          <Dialog.Description>
-            <VisuallyHidden>Configure MCP server settings</VisuallyHidden>
-          </Dialog.Description>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            Configure MCP server settings
+          </DialogDescription>
+        </DialogHeader>
 
-          <ModalHeader>
-            <div>{title}</div>
-            <CloseButton>Close</CloseButton>
-          </ModalHeader>
+        <div className={settingsContent()}>
+          <div className={formGroup()}>
+            <Label htmlFor="serverId">Server ID</Label>
+            <Input
+              id="serverId"
+              type="text"
+              value={editingInstance.serverId}
+              onChange={(e) => setEditingInstance({ ...editingInstance, serverId: e.target.value })}
+              placeholder="Server identifier"
+              className={hasServerIdError ? "border-destructive focus-visible:ring-destructive" : ""}
+            />
+            {hasServerIdError && (
+              <div className={errorMessage()}>
+                <AlertCircle size={14} />
+                Underscore (_) characters are not allowed in Server ID
+              </div>
+            )}
+            {isNewInstallation && !hasServerIdError && (
+              <div className={helpText()}>
+                Customize the server ID to install multiple instances
+              </div>
+            )}
+          </div>
 
-          <ModalBody>
-            <SettingsContent>
-              <FormGroup>
-                <FormLabel>Server ID</FormLabel>
-                <FormInput
-                  type="text"
-                  value={editingInstance.serverId}
-                  onChange={(e) => setEditingInstance({ ...editingInstance, serverId: e.target.value })}
-                  placeholder="Server identifier"
-                  hasError={hasServerIdError}
-                />
-                {hasServerIdError && (
-                  <ErrorMessage>
-                    <AlertCircle size={14} />
-                    Underscore (_) characters are not allowed in Server ID
-                  </ErrorMessage>
-                )}
-                {isNewInstallation && !hasServerIdError && (
-                  <HelpText>
-                    Customize the server ID to install multiple instances
-                  </HelpText>
-                )}
-              </FormGroup>
+          <div className={formGroup()}>
+            <Label htmlFor="command">Command</Label>
+            <Input
+              id="command"
+              type="text"
+              value={editingInstance.command || ''}
+              onChange={(e) => setEditingInstance({ ...editingInstance, command: e.target.value })}
+              placeholder="e.g., node, python, npx"
+            />
+          </div>
 
-              <FormGroup>
-                <FormLabel>Command</FormLabel>
-                <FormInput
-                  type="text"
-                  value={editingInstance.command || ''}
-                  onChange={(e) => setEditingInstance({ ...editingInstance, command: e.target.value })}
-                  placeholder="e.g., node, python, npx"
-                />
-              </FormGroup>
+          <div className={formGroup()}>
+            <Label>Arguments</Label>
+            <div className={argumentsList()}>
+              {(editingInstance.args || []).map((arg, index) => (
+                <div key={index} className={argumentRow()}>
+                  <Input
+                    type="text"
+                    value={arg}
+                    onChange={(e) => handleArgsChange(index, e.target.value)}
+                    placeholder={`Argument ${index + 1}`}
+                  />
+                  <Button variant="outline" size="icon" onClick={() => removeArgument(index)}>
+                    <X size={16} />
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" className="border-dashed" onClick={addArgument}>
+                <Plus size={16} />
+                Add Argument
+              </Button>
+            </div>
+          </div>
 
-              <FormGroup>
-                <FormLabel>Arguments</FormLabel>
-                <ArgumentsList>
-                  {(editingInstance.args || []).map((arg, index) => (
-                    <ArgumentRow key={index}>
-                      <FormInput
-                        type="text"
-                        value={arg}
-                        onChange={(e) => handleArgsChange(index, e.target.value)}
-                        placeholder={`Argument ${index + 1}`}
-                      />
-                      <RemoveButton onClick={() => removeArgument(index)}>
-                        <X size={16} />
-                      </RemoveButton>
-                    </ArgumentRow>
-                  ))}
-                  <AddButton onClick={addArgument}>
-                    <Plus size={16} />
-                    Add Argument
-                  </AddButton>
-                </ArgumentsList>
-              </FormGroup>
+          <div className={formGroup()}>
+            <Label>Environment Variables</Label>
+            <div className={envList()}>
+              {Object.entries(editingInstance.env || {}).map(([key, value]) => (
+                <div key={key} className={envRow()}>
+                  <Input
+                    type="text"
+                    value={key}
+                    onChange={(e) => handleEnvKeyChange(key, e.target.value)}
+                    placeholder="Variable name"
+                  />
+                  <Input
+                    type="text"
+                    value={String(value)}
+                    onChange={(e) => handleEnvChange(key, e.target.value)}
+                    placeholder="Variable value"
+                  />
+                  <Button variant="outline" size="icon" onClick={() => removeEnvVariable(key)}>
+                    <X size={16} />
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" className="border-dashed" onClick={addEnvVariable}>
+                <Plus size={16} />
+                Add Environment Variable
+              </Button>
+            </div>
+          </div>
+        </div>
 
-              <FormGroup>
-                <FormLabel>Environment Variables</FormLabel>
-                <EnvList>
-                  {Object.entries(editingInstance.env || {}).map(([key, value]) => (
-                    <EnvRow key={key}>
-                      <FormInput
-                        type="text"
-                        value={key}
-                        onChange={(e) => handleEnvKeyChange(key, e.target.value)}
-                        placeholder="Variable name"
-                      />
-                      <FormInput
-                        type="text"
-                        value={String(value)}
-                        onChange={(e) => handleEnvChange(key, e.target.value)}
-                        placeholder="Variable value"
-                      />
-                      <RemoveButton onClick={() => removeEnvVariable(key)}>
-                        <X size={16} />
-                      </RemoveButton>
-                    </EnvRow>
-                  ))}
-                  <AddButton onClick={addEnvVariable}>
-                    <Plus size={16} />
-                    Add Environment Variable
-                  </AddButton>
-                </EnvList>
-              </FormGroup>
-            </SettingsContent>
-
-            <ModalActions>
-              <CancelButton onClick={onClose}>
-                Cancel
-              </CancelButton>
-              <ConfirmButton onClick={handleSave} disabled={hasServerIdError}>
-                {isNewInstallation ? 'Install Server' : 'Save Changes'}
-              </ConfirmButton>
-            </ModalActions>
-          </ModalBody>
-        </DialogContent>
-      </Dialog.Portal>
-    </Dialog.Root>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={hasServerIdError}>
+            {isNewInstallation ? 'Install Server' : 'Save Changes'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

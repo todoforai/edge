@@ -1,24 +1,28 @@
-import { styled } from '@/../styled-system/jsx';
+import { cn } from "@/lib/utils";
 
-export const Grid = styled('div', {
-  base: {
-    display: 'grid',
-    gap: '20px'
-  },
-  variants: {
-    minWidth: {
-      sm: {
-        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))'
-      },
-      md: {
-        gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))'
-      },
-      lg: {
-        gridTemplateColumns: 'repeat(auto-fill, minmax(500px, 1fr))'
-      }
-    }
-  },
-  defaultVariants: {
-    minWidth: 'md'
-  }
-});
+interface GridProps extends React.HTMLAttributes<HTMLDivElement> {
+  minWidth?: 'sm' | 'md' | 'lg'
+}
+
+export const Grid: React.FC<GridProps> = ({ 
+  className, 
+  minWidth = 'md',
+  ...props 
+}) => {
+  const minWidthClasses = {
+    sm: 'grid-cols-[repeat(auto-fill,minmax(300px,1fr))]',
+    md: 'grid-cols-[repeat(auto-fill,minmax(400px,1fr))]',
+    lg: 'grid-cols-[repeat(auto-fill,minmax(500px,1fr))]'
+  };
+
+  return (
+    <div 
+      className={cn(
+        "grid gap-5",
+        minWidthClasses[minWidth],
+        className
+      )}
+      {...props}
+    />
+  );
+};

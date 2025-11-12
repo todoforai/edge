@@ -1,130 +1,58 @@
 import React from 'react';
-import { styled } from '../../../styled-system/jsx';
 import { useAuthStore } from '../../store/authStore';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
 import { renameEdge } from '../../services/edge-service';
+import { cva } from "class-variance-authority";
 
-const InfoContainer = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '6px 10px',
-    backgroundColor: 'token(colors.cardBackground)',
-    borderRadius: 'token(radii.md2)',
-    border: '1px solid token(colors.borderColor)',
-  },
+const infoContainer = cva([
+  "flex items-center gap-2 px-2.5 py-1.5 bg-card rounded-2xl border border-border"
+]);
+
+const infoItem = cva([
+  "flex items-center gap-1.5"
+]);
+
+const separator = cva([
+  "w-px h-4 bg-border mx-1"
+]);
+
+const label = cva([
+  "text-xs text-muted-foreground font-medium"
+]);
+
+const value = cva([
+  "text-xs text-foreground font-semibold flex items-center gap-1"
+]);
+
+const copyableValue = cva([
+  "text-xs font-semibold flex items-center gap-1 cursor-pointer select-all"
+], {
+  variants: {
+    copied: {
+      true: "text-green-400",
+      false: "text-foreground"
+    }
+  }
 });
 
-const InfoItem = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-  },
-});
+const editableValue = cva([
+  "text-xs text-foreground font-semibold flex items-center gap-1 cursor-pointer select-none px-1 py-0.5 rounded transition-colors hover:bg-accent"
+]);
 
-const Separator = styled('div', {
-  base: {
-    width: '1px',
-    height: '16px',
-    backgroundColor: 'token(colors.borderColor)',
-    margin: '0 4px',
-  },
-});
+const editInput = cva([
+  "text-xs text-foreground font-semibold bg-accent border border-border rounded px-1.5 py-0.5 outline-none w-30 focus:border-primary focus:shadow-[0_0_0_2px_rgba(255,165,0,0.1)]"
+]);
 
-const Label = styled('span', {
-  base: {
-    fontSize: '12px',
-    color: 'token(colors.muted)',
-  },
-});
-
-const Value = styled('span', {
-  base: {
-    fontSize: '12px',
-    color: 'token(colors.foreground)',
-    fontWeight: '500',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-  },
-});
-
-const CopyableValue = styled('span', {
-  base: {
-    fontSize: '12px',
-    color: 'token(colors.foreground)',
-    fontWeight: '500',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    cursor: 'pointer',
-    userSelect: 'all',
-
-    '&:hover': {
-      background: 'rgba(255, 255, 255, 0.1)',
-      borderRadius: '4px',
-      padding: '2px 4px',
-      margin: '-2px -4px',
-    },
-  },
-});
-
-const EditableValue = styled('span', {
-  base: {
-    fontSize: '12px',
-    color: 'token(colors.foreground)',
-    fontWeight: '500',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    cursor: 'pointer',
-    userSelect: 'none',
-    padding: '2px 4px',
-    borderRadius: '4px',
-    transition: 'background-color 0.2s ease',
-
-    '&:hover': {
-      background: 'rgba(255, 255, 255, 0.1)',
-    },
-  },
-});
-
-const EditInput = styled('input', {
-  base: {
-    fontSize: '12px',
-    color: 'token(colors.foreground)',
-    fontWeight: '500',
-    background: 'rgba(255, 255, 255, 0.1)',
-    border: '1px solid token(colors.borderColor)',
-    borderRadius: '4px',
-    padding: '2px 6px',
-    outline: 'none',
-    width: '120px',
-
-    '&:focus': {
-      borderColor: 'rgba(255, 165, 0, 0.5)',
-      boxShadow: '0 0 0 2px rgba(255, 165, 0, 0.1)',
-    },
-  },
-});
-
-const StatusDot = styled('div', {
-  base: {
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    marginRight: '6px',
-    flexShrink: '0',
-  },
+const statusDot = cva([
+  "w-2 h-2 rounded-full mr-1.5 flex-shrink-0"
+], {
   variants: {
     color: {
-      green: { backgroundColor: '#4CAF50' },
-      gray: { backgroundColor: '#9E9E9E' },
-      orange: { backgroundColor: '#FF9800' },
-    },
-  },
+      green: "bg-green-500",
+      gray: "bg-gray-500", 
+      orange: "bg-orange-500"
+    }
+  }
 });
 
 export const EdgeInfo: React.FC = () => {
@@ -183,7 +111,7 @@ export const EdgeInfo: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): 'green' | 'gray' | 'orange' => {
     switch (status.toUpperCase()) {
       case 'ONLINE':
         return 'green';
@@ -197,18 +125,19 @@ export const EdgeInfo: React.FC = () => {
   };
 
   return (
-    <InfoContainer>
-      <InfoItem>
-        <Label>API:</Label>
-        <Value>{displayUrl}</Value>
-      </InfoItem>
-      <Separator />
-      <InfoItem>
-        <Label>Edge:</Label>
-        <StatusDot color={getStatusColor(edgeStatus)} title={`Status: ${edgeStatus}`} />
-        <Value>
+    <div className={infoContainer()}>
+      <div className={infoItem()}>
+        <span className={label()}>API:</span>
+        <span className={value()}>{displayUrl}</span>
+      </div>
+      <div className={separator()} />
+      <div className={infoItem()}>
+        <span className={label()}>Edge:</span>
+        <div className={statusDot({ color: getStatusColor(edgeStatus) })} title={`Status: ${edgeStatus}`} />
+        <span className={value()}>
           {isEditing ? (
-            <EditInput
+            <input
+              className={editInput()}
               value={editingName}
               onChange={(e) => setEditingName(e.target.value)}
               onBlur={handleNameSubmit}
@@ -217,23 +146,23 @@ export const EdgeInfo: React.FC = () => {
               maxLength={50}
             />
           ) : (
-            <EditableValue onClick={handleEdgeNameClick} title="Click to rename">
+            <span className={editableValue()} onClick={handleEdgeNameClick} title="Click to rename">
               {edgeName}
-            </EditableValue>
+            </span>
           )}
-        </Value>
-      </InfoItem>
-      <Separator />
-      <InfoItem>
-        <Label>ID:</Label>
-        <CopyableValue 
+        </span>
+      </div>
+      <div className={separator()} />
+      <div className={infoItem()}>
+        <span className={label()}>ID:</span>
+        <span 
+          className={copyableValue({ copied })}
           onDoubleClick={handleEdgeIdDoubleClick} 
           title={copied ? "Copied!" : "Double-click to copy"}
-          style={{ color: copied ? '#4CAF50' : undefined }}
         >
           {copied ? "Copied!" : (config.id.length > 8 ? `${config.id.substring(0, 8)}...` : config.id)}
-        </CopyableValue>
-      </InfoItem>
-    </InfoContainer>
+        </span>
+      </div>
+    </div>
   );
 };

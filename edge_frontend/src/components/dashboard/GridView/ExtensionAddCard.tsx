@@ -1,74 +1,31 @@
 import React from 'react';
-import { styled } from '@/../styled-system/jsx';
 import { Plus } from 'lucide-react';
+import { cva } from "class-variance-authority";
 
-const Card = styled('div', {
-  base: {
-    border: '1px dashed var(--border-color)',
-    outlineOffset: '-3px',
-    borderRadius: 'var(--radius-lg)',
-    padding: '28px',
-    background: 'var(--background)',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    minHeight: '120px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
+const card = cva([
+  "border border-dashed border-border rounded-lg p-7 bg-card cursor-pointer transition-all duration-200 min-h-[120px] flex items-center gap-3",
+  "hover:border-primary hover:shadow-md"
+]);
 
-    '&:hover': {
-      borderColor: 'var(--primary)',
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-    }
-  }
-});
+const iconContainer = cva([
+  "flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-md bg-primary/10 text-primary"
+]);
 
-const IconContainer = styled('div', {
-  base: {
-    flexShrink: 0,
-    width: '44px',
-    height: '44px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 'var(--radius-md)',
-    background: 'rgba(59, 130, 246, 0.1)',
-    color: 'var(--primary)'
-  }
-});
+const content = cva([
+  "flex-1"
+]);
 
-const Content = styled('div', {
-  base: {
-    flex: 1
-  }
-});
+const titleRow = cva([
+  "flex items-center gap-3 mb-3"
+]);
 
-const TitleRow = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    marginBottom: '12px'
-  }
-});
+const title = cva([
+  "text-xl font-semibold text-foreground m-0"
+]);
 
-const Title = styled('h3', {
-  base: {
-    fontSize: '20px',
-    fontWeight: 600,
-    color: 'var(--foreground)',
-    margin: 0
-  }
-});
-
-const Description = styled('p', {
-  base: {
-    fontSize: '14px',
-    color: 'var(--muted)',
-    margin: 0,
-    lineHeight: 1.5
-  }
-});
+const description = cva([
+  "text-sm text-muted-foreground m-0 leading-relaxed"
+]);
 
 interface ExtensionAddCardProps {
   onClick: () => void;
@@ -76,18 +33,18 @@ interface ExtensionAddCardProps {
 
 export const ExtensionAddCard: React.FC<ExtensionAddCardProps> = ({ onClick }) => {
   return (
-    <Card onClick={onClick}>
-      <Content>
-        <TitleRow>
-          <IconContainer>
+    <div className={card()} onClick={onClick}>
+      <div className={content()}>
+        <div className={titleRow()}>
+          <div className={iconContainer()}>
             <Plus size={24} />
-          </IconContainer>
-          <Title>Add new integration</Title>
-        </TitleRow>
-        <Description>
+          </div>
+          <h3 className={title()}>Add new integration</h3>
+        </div>
+        <p className={description()}>
           Browse and install MCP servers from the registry to extend your AI capabilities
-        </Description>
-      </Content>
-    </Card>
+        </p>
+      </div>
+    </div>
   );
 };

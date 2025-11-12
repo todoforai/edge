@@ -1,51 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { styled } from '../../../../styled-system/jsx';
 import { AlertTriangle } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types';
 import { useEdgeConfigStore } from '../../../store/edgeConfigStore';
+import { cva } from "class-variance-authority";
 
-const JsonError = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '12px 16px',
-    background: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.3)',
-    borderRadius: '8px',
-    color: '#ef4444',
-    fontSize: '14px',
-    marginBottom: '20px',
-  },
-});
+const jsonErrorClass = cva([
+  "flex items-center gap-2 p-3 px-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 text-sm mb-5"
+]);
 
-const JsonContainer = styled('div', {
-  base: {
-    border: '1px solid token(colors.borderColor)',
-    borderRadius: 'token(radii.md2)',
-    overflow: 'hidden',
-  },
-});
+const jsonContainerClass = cva([
+  "border border-border rounded-md overflow-hidden"
+]);
 
-const JsonTextArea = styled('textarea', {
-  base: {
-    width: '100%',
-    minHeight: '600px',
-    padding: '20px',
-    border: 'none',
-    background: 'token(colors.background)',
-    color: 'token(colors.foreground)',
-    fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-    fontSize: '14px',
-    lineHeight: '1.5',
-    resize: 'vertical',
-    outline: 'none',
-
-    '&:focus': {
-      background: 'rgba(59, 130, 246, 0.02)',
-    },
-  },
-});
+const jsonTextAreaClass = cva([
+  "w-full min-h-[600px] p-5 border-none bg-background text-foreground font-mono text-sm leading-relaxed resize-y outline-none focus:bg-primary/5"
+]);
 
 interface MCPServerJSONViewProps {
   instances: MCPEdgeExecutable[];
@@ -111,21 +80,22 @@ export const MCPServerJSONView: React.FC<MCPServerJSONViewProps> = ({
   return (
     <>
       {jsonError && (
-        <JsonError>
+        <div className={jsonErrorClass()}>
           <AlertTriangle size={16} />
           {jsonError}
-        </JsonError>
+        </div>
       )}
 
-      <JsonContainer>
-        <JsonTextArea
+      <div className={jsonContainerClass()}>
+        <textarea
           ref={textareaRef}
+          className={jsonTextAreaClass()}
           value={jsonContent}
           onChange={(e) => handleJsonChange(e.target.value)}
           placeholder="Enter JSON data..."
           spellCheck={false}
         />
-      </JsonContainer>
+      </div>
     </>
   );
 };

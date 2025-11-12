@@ -1,235 +1,119 @@
 import React from 'react';
-import { styled } from '../../../../styled-system/jsx';
 import { Trash2, Download, CheckCircle, XCircle } from 'lucide-react';
 import type { MCPEdgeExecutable } from '../../../types';
 import { useMCPLogStore } from '../../../store/mcpLogStore';
-import { Modal } from '../../ui/Modal';
+import { cva } from "class-variance-authority";
+import { Button } from '../../ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../../ui/dialog';
 
-// New styled components from patch
-const LogTypeTag = styled('span', {
-  base: {
-    display: 'inline-block',
-    padding: '2px 6px',
-    borderRadius: '3px',
-    fontSize: '10px',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    marginRight: '8px',
-  },
+const logTypeTag = cva([
+  "inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase mr-2"
+], {
   variants: {
     type: {
-      tool_call: {
-        background: '#4fc3f7',
-        color: '#000',
-      },
-      log: {
-        background: '#81c784',
-        color: '#000',
-      },
-      stdout_error: {
-        background: '#ff9800',
-        color: '#000',
-      },
-      notification: {
-        background: '#9c27b0',
-        color: '#fff',
-      },
-      request: {
-        background: '#607d8b',
-        color: '#fff',
-      },
-    },
-  },
+      tool_call: "bg-sky-400 text-black",
+      log: "bg-green-400 text-black",
+      stdout_error: "bg-orange-500 text-black",
+      notification: "bg-purple-600 text-white",
+      request: "bg-slate-600 text-white"
+    }
+  }
 });
 
-const LogLevel = styled('span', {
-  base: {
-    fontSize: '10px',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    marginRight: '8px',
-  },
+const logLevel = cva([
+  "text-[10px] font-semibold uppercase mr-2"
+], {
   variants: {
     level: {
-      debug: { color: '#888' },
-      info: { color: '#4fc3f7' },
-      warning: { color: '#ff9800' },
-      error: { color: '#ff6b6b' },
-      critical: { color: '#d32f2f' },
-    },
-  },
+      debug: "text-gray-500",
+      info: "text-sky-400",
+      warning: "text-orange-500",
+      error: "text-red-400",
+      critical: "text-red-700"
+    }
+  }
 });
 
-// Existing styled components
-const LogsActions = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    marginBottom: '16px',
-  },
-});
+const logsActions = cva([
+  "flex items-center gap-2 mb-4"
+]);
 
-const ActionButton = styled('button', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '32px',
-    height: '32px',
-    padding: '0',
-    background: 'transparent',
-    border: '1px solid token(colors.borderColor)',
-    borderRadius: '6px',
-    color: 'token(colors.mutedForeground)',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
+const logsContainer = cva([
+  "flex-1 overflow-hidden flex flex-col"
+]);
 
-    '&:hover': {
-      background: 'rgba(59, 130, 246, 0.1)',
-      borderColor: 'token(colors.primary)',
-      color: 'token(colors.primary)',
-    },
-  },
-});
+const logsTerminal = cva([
+  "flex-1 overflow-y-auto bg-gray-900 text-white font-mono text-[13px] leading-relaxed p-4 rounded-md max-h-[60vh]"
+]);
 
-const LogsContainer = styled('div', {
-  base: {
-    flex: '1',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-});
+const emptyState = cva([
+  "text-gray-500 text-center p-10 italic"
+]);
 
-const LogsTerminal = styled('div', {
-  base: {
-    flex: '1',
-    overflowY: 'auto',
-    background: '#1a1a1a',
-    color: '#ffffff',
-    fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-    fontSize: '13px',
-    lineHeight: '1.4',
-    padding: '16px',
-    borderRadius: '6px',
-    maxHeight: '60vh',
-  },
-});
-
-const EmptyState = styled('div', {
-  base: {
-    color: '#888',
-    textAlign: 'center',
-    padding: '40px',
-    fontStyle: 'italic',
-  },
-});
-
-const LogEntryComponent = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '12px',
-    marginBottom: '12px',
-    padding: '8px',
-    borderRadius: '4px',
-    background: 'rgba(255, 255, 255, 0.02)',
-
-    '&:hover': {
-      background: 'rgba(255, 255, 255, 0.05)',
-    },
-  },
+const logEntry = cva([
+  "flex items-start gap-3 mb-3 p-2 rounded bg-white/5 hover:bg-white/10"
+], {
   variants: {
     isError: {
-      true: {
-        borderLeft: '3px solid #ff6b6b',
-      },
-      false: {
-        borderLeft: '3px solid #4fc3f7',
-      },
-    },
-  },
+      true: "border-l-4 border-red-400",
+      false: "border-l-4 border-sky-400"
+    }
+  }
 });
 
-const LogTimestamp = styled('span', {
-  base: {
-    color: '#888',
-    flexShrink: '0',
-    fontSize: '12px',
-    width: '80px',
-  },
-});
+const logTimestamp = cva([
+  "text-gray-500 flex-shrink-0 text-xs w-20"
+]);
 
-const LogStatus = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    fontWeight: '600',
-    flexShrink: '0',
-    fontSize: '12px',
-    width: '80px',
-  },
+const logStatus = cva([
+  "flex items-center gap-1 font-semibold flex-shrink-0 text-xs w-20"
+], {
   variants: {
     isError: {
-      true: {
-        color: '#ff6b6b',
-      },
-      false: {
-        color: '#4fc3f7',
-      },
-    },
-  },
+      true: "text-red-400",
+      false: "text-sky-400"
+    }
+  }
 });
 
-const LogContent = styled('div', {
-  base: {
-    flex: '1',
-  },
-});
+const logContent = cva([
+  "flex-1"
+]);
 
-const ToolName = styled('div', {
-  base: {
-    color: '#ffffff',
-    fontWeight: '600',
-    marginBottom: '4px',
-  },
-});
+const toolName = cva([
+  "text-white font-semibold mb-1"
+]);
 
-const ToolArgs = styled('div', {
-  base: {
-    color: '#888',
-    fontSize: '12px',
-    marginBottom: '4px',
-    wordBreak: 'break-all',
-  },
-});
+const toolArgs = cva([
+  "text-gray-500 text-xs mb-1 break-all"
+]);
 
-const ToolResult = styled('div', {
-  base: {
-    fontSize: '12px',
-    wordBreak: 'break-all',
-  },
+const toolResult = cva([
+  "text-xs break-all"
+], {
   variants: {
     isError: {
-      true: {
-        color: '#ff6b6b',
-      },
-      false: {
-        color: '#81c784',
-      },
-    },
-  },
+      true: "text-red-400",
+      false: "text-green-400"
+    }
+  }
 });
 
 interface MCPServerLogsModalProps {
   instance: MCPEdgeExecutable;
+  isOpen: boolean;
   onClose: () => void;
 }
 
 export const MCPServerLogsModal: React.FC<MCPServerLogsModalProps> = ({
   instance,
+  isOpen,
   onClose
 }) => {
   const { getLogsForServer, clearLogs } = useMCPLogStore();
@@ -294,76 +178,85 @@ ${log.extra ? `Extra: ${JSON.stringify(log.extra, null, 2)}` : ''}
   const renderLogEntry = (log: any) => {
     if (log.type === 'tool_call') {
       return (
-        <LogEntryComponent key={log.id} isError={!log.success}>
-          <LogTimestamp>{log.timestamp.toLocaleTimeString()}</LogTimestamp>
-          <LogStatus isError={!log.success}>
+        <div key={log.id} className={logEntry({ isError: !log.success })}>
+          <span className={logTimestamp()}>{log.timestamp.toLocaleTimeString()}</span>
+          <div className={logStatus({ isError: !log.success })}>
             {log.success ? <CheckCircle size={14} /> : <XCircle size={14} />}
             {log.success ? 'SUCCESS' : 'ERROR'}
-          </LogStatus>
-          <LogContent>
-            <ToolName>
-              <LogTypeTag type="tool_call">TOOL</LogTypeTag>
+          </div>
+          <div className={logContent()}>
+            <div className={toolName()}>
+              <span className={logTypeTag({ type: "tool_call" })}>TOOL</span>
               {log.toolName}
-            </ToolName>
-            <ToolArgs>
+            </div>
+            <div className={toolArgs()}>
               Args: {JSON.stringify(log.arguments)}
-            </ToolArgs>
-            <ToolResult isError={!log.success}>
+            </div>
+            <div className={toolResult({ isError: !log.success })}>
               {log.success ? `Result: ${log.result}` : `Error: ${log.error}`}
-            </ToolResult>
-          </LogContent>
-        </LogEntryComponent>
+            </div>
+          </div>
+        </div>
       );
     } else {
       return (
-        <LogEntryComponent key={log.id} isError={log.level === 'error' || log.level === 'critical'}>
-          <LogTimestamp>{log.timestamp.toLocaleTimeString()}</LogTimestamp>
-          <LogStatus isError={log.level === 'error' || log.level === 'critical'}>
-            <LogTypeTag type={log.type}>{log.type}</LogTypeTag>
-            {log.level && <LogLevel level={log.level}>{log.level}</LogLevel>}
-          </LogStatus>
-          <LogContent>
-            <ToolName>{log.logger}</ToolName>
-            <ToolResult isError={log.level === 'error' || log.level === 'critical'}>
+        <div key={log.id} className={logEntry({ isError: log.level === 'error' || log.level === 'critical' })}>
+          <span className={logTimestamp()}>{log.timestamp.toLocaleTimeString()}</span>
+          <div className={logStatus({ isError: log.level === 'error' || log.level === 'critical' })}>
+            <span className={logTypeTag({ type: log.type })}>{log.type}</span>
+            {log.level && <span className={logLevel({ level: log.level })}>{log.level}</span>}
+          </div>
+          <div className={logContent()}>
+            <div className={toolName()}>{log.logger}</div>
+            <div className={toolResult({ isError: log.level === 'error' || log.level === 'critical' })}>
               {log.message}
-            </ToolResult>
+            </div>
             {log.extra && (
-              <ToolArgs>
+              <div className={toolArgs()}>
                 Extra: {JSON.stringify(log.extra)}
-              </ToolArgs>
+              </div>
             )}
-          </LogContent>
-        </LogEntryComponent>
+          </div>
+        </div>
       );
     }
   };
 
   return (
-    <Modal title={`All Logs - ${instance.serverId || instance.id} (${sortedLogs.length} entries)`} onClose={onClose}>
-      <LogsActions>
-        <ActionButton title="Clear Logs" onClick={clearServerLogs}>
-          <Trash2 size={16} />
-        </ActionButton>
-        <ActionButton title="Download Logs" onClick={downloadLogs}>
-          <Download size={16} />
-        </ActionButton>
-      </LogsActions>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>All Logs - {instance.serverId || instance.id} ({sortedLogs.length} entries)</DialogTitle>
+          <DialogDescription>
+            View and manage server logs
+          </DialogDescription>
+        </DialogHeader>
 
-      <LogsContainer>
-        <LogsTerminal>
-          {sortedLogs.length === 0 ? (
-            <EmptyState>
-              No logs yet for this server
-              <br />
-              <small style={{ color: '#666', fontSize: '11px' }}>
-                Looking for logs with server IDs: {possibleServerIds.join(', ')}
-              </small>
-            </EmptyState>
-          ) : (
-            sortedLogs.map(renderLogEntry)
-          )}
-        </LogsTerminal>
-      </LogsContainer>
-    </Modal>
+        <div className={logsActions()}>
+          <Button variant="outline" size="icon" title="Clear Logs" onClick={clearServerLogs}>
+            <Trash2 size={16} />
+          </Button>
+          <Button variant="outline" size="icon" title="Download Logs" onClick={downloadLogs}>
+            <Download size={16} />
+          </Button>
+        </div>
+
+        <div className={logsContainer()}>
+          <div className={logsTerminal()}>
+            {sortedLogs.length === 0 ? (
+              <div className={emptyState()}>
+                No logs yet for this server
+                <br />
+                <small style={{ color: '#666', fontSize: '11px' }}>
+                  Looking for logs with server IDs: {possibleServerIds.join(', ')}
+                </small>
+              </div>
+            ) : (
+              sortedLogs.map(renderLogEntry)
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };

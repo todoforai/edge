@@ -1,74 +1,31 @@
 import React from 'react';
-import { styled } from '@/../styled-system/jsx';
+import { cva } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
 import { MCPRunningStatus } from '../../types/mcp.types';
 
-const StatusBadge = styled('div', {
-  base: {
-    fontSize: '12px',
-    fontWeight: 500,
-    padding: '4px 8px',
-    borderRadius: 'var(--radius-sm)',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '4px',
-    whiteSpace: 'nowrap'
-  },
-  variants: {
-    status: {
-      [MCPRunningStatus.READY]: {
-        color: 'var(--success)',
-        background: 'rgba(34, 197, 94, 0.1)'
-      },
-      [MCPRunningStatus.CRASHED]: {
-        color: 'var(--danger)',
-        background: 'rgba(239, 68, 68, 0.1)'
-      },
-      [MCPRunningStatus.INSTALLING]: {
-        color: 'var(--primary)',
-        background: 'rgba(59, 130, 246, 0.1)'
-      },
-      [MCPRunningStatus.STARTING]: {
-        color: 'var(--warning)',
-        background: 'rgba(245, 158, 11, 0.1)'
-      },
-      [MCPRunningStatus.STOPPED]: {
-        color: 'var(--muted-foreground)',
-        background: 'var(--muted)'
-      },
-      [MCPRunningStatus.ERROR]: {
-        color: 'var(--danger)',
-        background: 'rgba(239, 68, 68, 0.1)'
-      },
-      [MCPRunningStatus.UNINSTALLED]: {
-        color: 'var(--muted-foreground)',
-        background: 'var(--muted)'
-      },
-      [MCPRunningStatus.INSTALLED]: {
-        color: 'var(--muted-foreground)',
-        background: 'var(--muted)'
-      },
-      [MCPRunningStatus.RUNNING]: {
-        color: 'var(--success)',
-        background: 'rgba(34, 197, 94, 0.1)'
-      },
-      default: {
-        color: 'var(--muted-foreground)',
-        background: 'var(--muted)'
+const statusBadgeVariants = cva(
+  "text-xs font-medium px-2 py-1 rounded-sm inline-flex items-center gap-1 whitespace-nowrap",
+  {
+    variants: {
+      status: {
+        [MCPRunningStatus.READY]: "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20",
+        [MCPRunningStatus.CRASHED]: "text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20",
+        [MCPRunningStatus.INSTALLING]: "text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20",
+        [MCPRunningStatus.STARTING]: "text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20",
+        [MCPRunningStatus.STOPPED]: "text-muted-foreground bg-muted",
+        [MCPRunningStatus.ERROR]: "text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20",
+        [MCPRunningStatus.UNINSTALLED]: "text-muted-foreground bg-muted",
+        [MCPRunningStatus.INSTALLED]: "text-muted-foreground bg-muted",
+        [MCPRunningStatus.RUNNING]: "text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20",
+        default: "text-muted-foreground bg-muted"
       }
     }
   }
-});
+);
 
-const Spinner = styled('div', {
-  base: {
-    width: '12px',
-    height: '12px',
-    border: '2px solid transparent',
-    borderTop: '2px solid currentColor',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite'
-  }
-});
+const spinnerVariants = cva(
+  "w-3 h-3 border-2 border-transparent border-t-current rounded-full animate-spin"
+);
 
 interface MCPStatusBadgeProps {
   status?: string;
@@ -83,9 +40,9 @@ export const MCPStatusBadge: React.FC<MCPStatusBadgeProps> = ({ status = 'READY'
     : 'default';
 
   return (
-    <StatusBadge status={badgeStatus as MCPRunningStatus | 'default'}>
-      {showSpinner && <Spinner />}
+    <div className={cn(statusBadgeVariants({ status: badgeStatus as MCPRunningStatus | 'default' }))}>
+      {showSpinner && <div className={cn(spinnerVariants())} />}
       {normalizedStatus}
-    </StatusBadge>
+    </div>
   );
 };

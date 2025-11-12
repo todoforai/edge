@@ -1,26 +1,16 @@
 import React from 'react';
-import { styled } from '../../../styled-system/jsx';
+import { cva } from "class-variance-authority";
 import { useAuthStore } from '../../store/authStore';
 import { ProfileDropdown } from './ProfileDropdown';
 import { EdgeInfo } from './EdgeInfo';
 
-const HeaderContainer = styled('div', {
-  base: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '1rem 1rem',
-    /* background: token(colors.cardBackground); */
-  },
-});
+const headerContainer = cva([
+  "flex justify-between items-center p-4"
+]);
 
-const LeftSection = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-  },
-});
+const leftSection = cva([
+  "flex items-center gap-4"
+]);
 
 export const Profile: React.FC = () => {
   const { user } = useAuthStore();
@@ -28,12 +18,12 @@ export const Profile: React.FC = () => {
   if (!user) return null;
 
   return (
-    <HeaderContainer>
-      <LeftSection>
+    <div className={headerContainer()}>
+      <div className={leftSection()}>
         <ProfileDropdown />
         <EdgeInfo />
-      </LeftSection>
-    </HeaderContainer>
+      </div>
+    </div>
   );
 };
 

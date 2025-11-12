@@ -1,105 +1,36 @@
 import React from 'react';
-import { styled } from '../../../styled-system/jsx';
 import { User, LogOut, Info } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { getAppVersion } from '../../lib/tauri-api';
+import { cva } from "class-variance-authority";
 
-const ProfileButton = styled('button', {
-  base: {
-    background: 'token(colors.cardBackground)',
-    border: '1px solid token(colors.borderColor)',
-    padding: '0',
-    width: '2.5rem',
-    height: '2.5rem',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'token(colors.foreground)',
-    borderRadius: '50%',
-    transition: 'all 0.3s ease',
-    overflow: 'hidden',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+const profileButton = cva([
+  "bg-card border border-border p-0 w-10 h-10 cursor-pointer flex items-center justify-center text-foreground rounded-full transition-all overflow-hidden shadow-md hover:bg-white/15 hover:translate-y-[-2px] hover:shadow-orange-100/10"
+]);
 
-    '&:hover': {
-      background: 'rgba(255, 255, 255, 0.15)',
-      transform: 'translateY(-2px)',
-      boxShadow: '0px 0px 10px rgba(255, 165, 0, 0.1)',
-    },
-  },
-});
+const profileImage = cva([
+  "w-full h-full flex items-center justify-center relative bg-transparent"
+]);
 
-const ProfileImage = styled('div', {
-  base: {
-    width: '100%',
-    height: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    background: 'transparent',
-  },
-});
+const userContainer = cva([
+  "flex items-center gap-3"
+]);
 
-const UserContainer = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-  },
-});
+const dropdownContainer = cva([
+  "relative inline-block hover:[&_.dropdown-content]:block"
+]);
 
-const DropdownContainer = styled('div', {
-  base: {
-    position: 'relative',
-    display: 'inline-block',
-    '&:hover .dropdown-content': {
-      display: 'block',
-    },
-  },
-});
+const dropdownContent = cva([
+  "hidden absolute left-0 min-w-[220px] bg-card rounded-lg p-2 shadow-lg border border-border z-[100] dropdown-content"
+]);
 
-const DropdownContent = styled('div', {
-  base: {
-    display: 'none',
-    position: 'absolute',
-    left: '0',
-    minWidth: '220px',
-    background: 'token(colors.cardBackground)',
-    borderRadius: 'token(radii.lg)',
-    padding: '0.5rem',
-    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
-    border: '1px solid token(colors.borderColor)',
-    zIndex: 100,
-  },
-});
+const dropdownItem = cva([
+  "p-2 px-4 cursor-pointer flex items-center gap-2 text-foreground rounded-md hover:bg-white/10"
+]);
 
-const DropdownItem = styled('div', {
-  base: {
-    padding: '0.5rem 1rem',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    color: 'token(colors.foreground)',
-    borderRadius: 'token(radii.md)',
-
-    '&:hover': {
-      background: 'rgba(255, 255, 255, 0.1)',
-    },
-  },
-});
-
-const VersionItem = styled('div', {
-  base: {
-    padding: '0.5rem 1rem',
-    color: 'token(colors.muted)',
-    fontSize: '0.8rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-  },
-});
+const versionItem = cva([
+  "p-2 px-4 text-muted-foreground text-sm flex items-center gap-2"
+]);
 
 export const ProfileDropdown: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -116,26 +47,26 @@ export const ProfileDropdown: React.FC = () => {
   if (!user) return null;
 
   return (
-    <DropdownContainer>
-      <UserContainer>
-        <ProfileButton>
-          <ProfileImage>
+    <div className={dropdownContainer()}>
+      <div className={userContainer()}>
+        <button className={profileButton()}>
+          <div className={profileImage()}>
             <User size={24} />
-          </ProfileImage>
-        </ProfileButton>
-      </UserContainer>
-      <DropdownContent className="dropdown-content">
+          </div>
+        </button>
+      </div>
+      <div className={dropdownContent()}>
         {appVersion && (
-          <VersionItem>
+          <div className={versionItem()}>
             <Info size={16} />
             <span>Version {appVersion}</span>
-          </VersionItem>
+          </div>
         )}
-        <DropdownItem onClick={handleLogout}>
+        <div className={dropdownItem()} onClick={handleLogout}>
           <LogOut size={16} />
           <span>Logout</span>
-        </DropdownItem>
-      </DropdownContent>
-    </DropdownContainer>
+        </div>
+      </div>
+    </div>
   );
 };

@@ -1,317 +1,10 @@
 import React from 'react';
-import { styled } from '../../../styled-system/jsx';
 import { Search, Filter, Eye, Braces, X, RefreshCw } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
-
-// Styled Components
-const Container = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    maxWidth: '600px',
-  },
-});
-
-const SearchContainer = styled('div', {
-  base: {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    transition: 'all 0.3s ease',
-
-    '& svg': {
-      position: 'absolute',
-      left: '12px',
-      width: '20px',
-      height: '20px',
-      color: 'token(colors.mutedForeground)',
-      zIndex: '1',
-    },
-  },
-  variants: {
-    expanded: {
-      true: {
-        flex: '1',
-      },
-      false: {
-        flex: '0 0 auto',
-      },
-    },
-  },
-});
-
-const SearchButton = styled('button', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '40px',
-    height: '40px',
-    padding: '0',
-    border: '1px solid token(colors.borderColor)',
-    borderRadius: 'token(radii.md)',
-    background: 'token(colors.background)',
-    color: 'token(colors.foreground)',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-
-    '& svg': {
-      position: 'static !important',
-      width: '20px',
-      height: '20px',
-    },
-
-    '&:hover': {
-      borderColor: 'token(colors.primary)',
-      background: 'rgba(59, 130, 246, 0.1)',
-    },
-  },
-});
-
-const SearchInput = styled('input', {
-  base: {
-    width: '100%',
-    padding: '12px 40px 12px 40px',
-    border: '1px solid token(colors.borderColor)',
-    borderRadius: 'token(radii.md)',
-    background: 'token(colors.background)',
-    color: 'token(colors.foreground)',
-    fontSize: '14px',
-
-    '&:focus': {
-      outline: 'none',
-      borderColor: 'token(colors.primary)',
-    },
-  },
-});
-
-const ClearButton = styled('button', {
-  base: {
-    position: 'absolute',
-    right: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '24px',
-    height: '24px',
-    border: 'none',
-    borderRadius: 'token(radii.sm)',
-    background: 'transparent',
-    color: 'token(colors.mutedForeground)',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-
-    '&:hover': {
-      background: 'rgba(0, 0, 0, 0.1)',
-      color: 'token(colors.foreground)',
-    },
-  },
-});
-
-const FilterContainer = styled('div', {
-  base: {
-    position: 'relative',
-  },
-});
-
-const FilterButton = styled('button', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '0 12px',
-    height: '40px',
-    width: '40px',
-    border: '1px solid token(colors.borderColor)',
-    borderRadius: 'token(radii.md)',
-    background: 'token(colors.background)',
-    color: 'token(colors.foreground)',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-
-    '& svg': {
-      width: '20px',
-      height: '20px',
-      color: 'token(colors.mutedForeground)',
-    },
-
-    '&:hover': {
-      borderColor: 'token(colors.primary)',
-      background: 'rgba(59, 130, 246, 0.1)',
-    },
-  },
-  variants: {
-    active: {
-      true: {
-        borderColor: 'token(colors.primary)',
-        background: 'rgba(59, 130, 246, 0.1)',
-        color: 'token(colors.primary)',
-
-        '& svg': {
-          color: 'token(colors.primary)',
-        },
-      },
-    },
-  },
-});
-
-const FilterBadge = styled('span', {
-  base: {
-    fontSize: '12px',
-    background: 'token(colors.primary)',
-    color: 'white',
-    padding: '2px 6px',
-    borderRadius: 'token(radii.md)',
-    maxWidth: '80px',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-});
-
-const FilterDropdown = styled('div', {
-  base: {
-    position: 'absolute',
-    top: '100%',
-    left: '0',
-    right: '0',
-    marginTop: '4px',
-    background: 'token(colors.background)',
-    border: '1px solid token(colors.borderColor)',
-    borderRadius: 'token(radii.md)',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-    zIndex: '100',
-    minWidth: '150px',
-  },
-});
-
-const FilterOption = styled('div', {
-  base: {
-    padding: '12px 16px',
-    cursor: 'pointer',
-    background: 'transparent',
-    color: 'token(colors.foreground)',
-    fontSize: '14px',
-
-    '&:hover': {
-      background: 'rgba(59, 130, 246, 0.1)',
-    },
-
-    '&:first-child': {
-      borderRadius: 'token(radii.sm) token(radii.sm) 0 0',
-    },
-
-    '&:last-child': {
-      borderRadius: '0 0 token(radii.sm) token(radii.sm)',
-    },
-  },
-  variants: {
-    active: {
-      true: {
-        background: 'rgba(59, 130, 246, 0.1)',
-        color: 'token(colors.primary)',
-      },
-    },
-  },
-});
-
-const RefreshButton = styled('button', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '40px',
-    height: '40px',
-    padding: '0',
-    border: '1px solid token(colors.borderColor)',
-    borderRadius: 'token(radii.md)',
-    background: 'token(colors.background)',
-    color: 'token(colors.foreground)',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-
-    '& svg': {
-      width: '20px',
-      height: '20px',
-      transition: 'transform 0.3s ease',
-    },
-
-    '&:hover': {
-      borderColor: 'token(colors.primary)',
-      background: 'rgba(59, 130, 246, 0.1)',
-    },
-
-    '&:disabled': {
-      opacity: '0.5',
-      cursor: 'not-allowed',
-    },
-  },
-  variants: {
-    refreshing: {
-      true: {
-        '& svg': {
-          animationName: 'spin',
-          animationDuration: '1s',
-          animationTimingFunction: 'linear',
-          animationIterationCount: 'infinite',
-        },
-      },
-    },
-  },
-});
-
-const ViewPicker = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    height: '40px',
-    background: 'token(colors.background)',
-    border: '1px solid token(colors.borderColor)',
-    borderRadius: 'token(radii.md)',
-    overflow: 'hidden',
-  },
-});
-
-const ViewButton = styled('button', {
-  base: {
-    background: 'transparent',
-    border: 'none',
-    borderRadius: 'token(radii.sm)',
-    padding: '0',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'token(colors.mutedForeground)',
-    transition: 'all 0.2s ease',
-    width: '40px',
-    height: '40px',
-
-    '& svg': {
-      width: '24px',
-      height: '24px',
-    },
-
-    '&:hover': {
-      background: 'rgba(59, 130, 246, 0.1)',
-      color: 'token(colors.primary)',
-    },
-  },
-  variants: {
-    active: {
-      true: {
-        background: 'token(colors.primary)',
-        color: '#ffffff',
-
-        '&:hover': {
-          background: 'token(colors.primary)',
-          color: '#ffffff',
-        },
-      },
-    },
-  },
-});
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { ButtonGroup } from '../ui/button-group';
+import { cn } from '@/lib/utils';
 
 interface ActionBarProps {
   searchTerm: string;
@@ -349,16 +42,23 @@ export const ActionBar: React.FC<ActionBarProps> = ({
   );
 
   return (
-    <Container>
-      <SearchContainer expanded={isSearchExpanded}>
+    <div className="flex items-center gap-3 max-w-[600px]">
+      <div className={cn(
+        "relative flex items-center transition-all duration-300",
+        isSearchExpanded ? "flex-1" : "flex-none"
+      )}>
         {!isSearchExpanded ? (
-          <SearchButton onClick={() => setIsSearchExpanded(true)}>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setIsSearchExpanded(true)}
+          >
             <Search size={20} />
-          </SearchButton>
+          </Button>
         ) : (
-          <>
-            <Search size={20} />
-            <SearchInput
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
+            <Input
               type="text"
               placeholder={searchPlaceholder}
               value={searchTerm}
@@ -368,78 +68,96 @@ export const ActionBar: React.FC<ActionBarProps> = ({
                   setIsSearchExpanded(false);
                 }
               }}
+              className="pl-10 pr-10"
               autoFocus
             />
             {searchTerm && (
-              <ClearButton 
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
                 onClick={() => {
                   onSearchChange('');
                   setIsSearchExpanded(false);
                 }}
               >
-                <X size={16} />
-              </ClearButton>
+                <X size={14} />
+              </Button>
             )}
-          </>
+          </div>
         )}
-      </SearchContainer>
+      </div>
 
-      <FilterContainer ref={filterRef}>
-        <FilterButton 
+      <div className="relative" ref={filterRef}>
+        <Button
+          variant="outline"
+          size="icon"
           onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-          active={selectedCategory !== 'All'}
+          className={cn(
+            selectedCategory !== 'All' && "border-primary bg-primary/10 text-primary"
+          )}
         >
           <Filter size={20} />
-          {selectedCategory !== 'All' && <FilterBadge>{selectedCategory}</FilterBadge>}
-        </FilterButton>
+          {selectedCategory !== 'All' && (
+            <span className="absolute -top-1 -right-1 text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md max-w-20 overflow-hidden text-ellipsis whitespace-nowrap">
+              {selectedCategory}
+            </span>
+          )}
+        </Button>
         
         {showCategoryDropdown && (
-          <FilterDropdown>
+          <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-md shadow-lg z-[100] min-w-[150px]">
             {categories.map(category => (
-              <FilterOption
+              <button
                 key={category}
-                active={selectedCategory === category}
+                className={cn(
+                  "w-full py-3 px-4 cursor-pointer bg-transparent text-foreground text-sm hover:bg-primary/10 first:rounded-t-sm last:rounded-b-sm text-left",
+                  selectedCategory === category && "bg-primary/10 text-primary"
+                )}
                 onClick={() => {
                   onCategoryChange(category);
                   setShowCategoryDropdown(false);
                 }}
               >
                 {category}
-              </FilterOption>
+              </button>
             ))}
-          </FilterDropdown>
+          </div>
         )}
-      </FilterContainer>
+      </div>
 
       {onRefresh && (
-        <RefreshButton
+        <Button
+          variant="outline"
+          size="icon"
           onClick={onRefresh}
           disabled={isRefreshing}
-          refreshing={isRefreshing}
           title="Refresh MCP Configuration"
         >
-          <RefreshCw size={20} />
-        </RefreshButton>
+          <RefreshCw size={20} className={isRefreshing ? "animate-spin" : ""} />
+        </Button>
       )}
 
       {showViewPicker && viewMode && onViewModeChange && (
-        <ViewPicker>
-          <ViewButton
-            active={viewMode === 'visual'}
+        <ButtonGroup>
+          <Button
+            variant={viewMode === 'visual' ? 'default' : 'outline'}
+            size="icon"
             onClick={() => onViewModeChange('visual')}
             title="Visual View"
           >
             <Eye size={20} />
-          </ViewButton>
-          <ViewButton
-            active={viewMode === 'json'}
+          </Button>
+          <Button
+            variant={viewMode === 'json' ? 'default' : 'outline'}
+            size="icon"
             onClick={() => onViewModeChange('json')}
             title="JSON View"
           >
             <Braces size={20} />
-          </ViewButton>
-        </ViewPicker>
+          </Button>
+        </ButtonGroup>
       )}
-    </Container>
+    </div>
   );
 };

@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from 'react';
-import { styled } from '../../../styled-system/jsx';
 import { useAuthStore } from '../../store/authStore';
 import { 
   useApiVersionEffect, 
@@ -7,162 +6,73 @@ import {
 } from '../../hooks/auth-hooks';
 import { createLogger } from '../../utils/logger';
 import { Eye, EyeOff } from 'lucide-react';
+import { cva } from "class-variance-authority";
 
 const log = createLogger('login-form');
 
-const LoginContainer = styled('div', {
-  base: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100vh',
-    padding: '20px',
-    width: '100%',
-    boxSizing: 'border-box',
-  },
-});
+const loginContainer = cva([
+  "flex justify-center items-center h-screen p-5 w-full box-border"
+]);
 
-const LoginCard = styled('div', {
-  base: {
-    width: '100%',
-    maxWidth: '400px',
-    padding: '30px',
-    backgroundColor: 'token(colors.cardBackground)',
-    borderRadius: 'token(radii.lg)',
-    boxShadow: 'token(shadows.md)',
-    border: '1px solid token(colors.borderColor)',
-  },
-});
+const loginCard = cva([
+  "w-full max-w-[400px] p-8 bg-card rounded-lg shadow-md border border-border"
+]);
 
-const LoginHeader = styled('h2', {
-  base: {
-    marginTop: '0',
-    marginBottom: '24px',
-    textAlign: 'center',
-    fontWeight: '700',
-    color: 'token(colors.foreground)',
-  },
-});
+const loginHeader = cva([
+  "mt-0 mb-6 text-center font-bold text-foreground"
+]);
 
-const LoginFormRoot = styled('form', {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px',
-  },
-});
+const loginForm = cva([
+  "flex flex-col gap-5"
+]);
 
-const FormGroup = styled('div', {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    width: '100%',
-  },
-});
+const formGroup = cva([
+  "flex flex-col gap-2 w-full"
+]);
 
-const Label = styled('label', {
-  base: {
-    fontSize: '14px',
-    color: 'token(colors.muted)',
-  },
-});
+const label = cva([
+  "text-sm text-muted-foreground"
+]);
 
-const Input = styled('input', {
-  base: {
-    width: '100%',
-    padding: '10px 12px',
-    backgroundColor: 'token(colors.cardBackground)',
-    border: '1px solid token(colors.borderColor)',
-    borderRadius: 'token(radii.md)',
-    color: 'token(colors.foreground)',
-    fontSize: '16px',
-    transition: 'border-color 0.2s',
-    boxSizing: 'border-box',
+const inputContainer = cva([
+  "relative"
+]);
 
-    '&:focus': {
-      borderColor: 'token(colors.primary)',
-    },
-  },
-});
+const input = cva([
+  "w-full py-2.5 px-3 bg-card border border-border rounded-md text-foreground text-base transition-colors box-border focus:outline-none focus:border-primary"
+]);
 
+const eyeButton = cva([
+  "absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-muted-foreground p-1 flex items-center rounded transition-colors hover:bg-accent"
+]);
 
-const LoginButton = styled('button', {
-  base: {
-    width: '100%',
-    padding: '12px',
-    background: 'linear-gradient(45deg, #ffa500, #ff6347, #ff4500)',
-    color: 'white',
-    border: 'none',
-    borderRadius: 'token(radii.lg)',
-    fontSize: '16px',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    textShadow: '1px 1px 2px rgba(0, 0, 0, 0.2)',
+const loginButton = cva([
+  "w-full p-3 bg-gradient-to-r from-orange-500 via-red-500 to-orange-600 text-white border-none rounded-lg text-base cursor-pointer transition-all hover:-translate-y-px hover:shadow-md disabled:bg-muted-foreground disabled:cursor-not-allowed"
+]);
 
-    '&:hover': {
-      transform: 'translateY(-1px)',
-      boxShadow: 'token(shadows.md)',
-    },
+const errorMessage = cva([
+  "text-destructive text-sm -my-2.5"
+]);
 
-    '&:disabled': {
-      background: 'token(colors.muted)',
-      cursor: 'not-allowed',
-    },
-  },
-});
+const loginFooter = cva([
+  "mt-5 text-center"
+]);
 
-const ErrorMessage = styled('div', {
-  base: {
-    color: 'token(colors.danger)',
-    fontSize: '14px',
-    margin: '-10px 0 -10px 0', // Reduces gap from 20px to 10px top/bottom
-  },
-});
+const apiUrlContainer = cva([
+  "mt-4 text-center"
+]);
 
-const LoginFooter = styled('div', {
-  base: {
-    marginTop: '20px',
-    textAlign: 'center',
-  },
-});
+const apiUrlText = cva([
+  "text-xs text-muted-foreground cursor-pointer select-none"
+]);
 
-const ApiUrlContainer = styled('div', {
-  base: {
-    marginTop: '15px',
-    textAlign: 'center',
-  },
-});
+const apiUrlInput = cva([
+  "w-full py-1.5 px-2 text-xs bg-card border border-border rounded-md text-foreground text-center"
+]);
 
-const ApiUrlText = styled('div', {
-  base: {
-    fontSize: '12px',
-    color: 'token(colors.muted)',
-    cursor: 'pointer',
-    userSelect: 'none',
-  },
-});
-
-const ApiUrlInput = styled('input', {
-  base: {
-    width: '100%',
-    padding: '6px 8px',
-    fontSize: '12px',
-    backgroundColor: 'token(colors.cardBackground)',
-    border: '1px solid token(colors.borderColor)',
-    borderRadius: 'token(radii.md)',
-    color: 'token(colors.foreground)',
-    textAlign: 'center',
-  },
-});
-
-const VersionText = styled('div', {
-  base: {
-    fontSize: '12px',
-    color: 'token(colors.muted)',
-    marginTop: '5px',
-  },
-});
+const versionText = cva([
+  "text-xs text-muted-foreground mt-1"
+]);
 
 export const LoginForm = () => {
   const { 
@@ -227,15 +137,16 @@ export const LoginForm = () => {
   }, [clickCount]);
 
   return (
-    <LoginContainer>
-      <LoginCard>
-        <LoginHeader>Connect your PC to TODO for AI</LoginHeader>
+    <div className={loginContainer()}>
+      <div className={loginCard()}>
+        <h2 className={loginHeader()}>Connect your PC to TODO for AI</h2>
 
-        <LoginFormRoot onSubmit={handleSubmit}>
-          <FormGroup>
-            <Label htmlFor="apiKey">API Key</Label>
-            <div style={{ position: 'relative' }}>
-              <Input
+        <form className={loginForm()} onSubmit={handleSubmit}>
+          <div className={formGroup()}>
+            <label className={label()} htmlFor="apiKey">API Key</label>
+            <div className={inputContainer()}>
+              <input
+                className={input()}
                 id="apiKey"
                 type={showApiKey ? "text" : "password"}
                 value={apiKey}
@@ -245,45 +156,26 @@ export const LoginForm = () => {
               />
               <button
                 type="button"
+                className={eyeButton()}
                 onClick={() => setShowApiKey(!showApiKey)}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'token(colors.muted)',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  borderRadius: '4px',
-                  transition: 'color 0.2s, background-color 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'token(colors.accent)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
               >
                 {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-          </FormGroup>
+          </div>
 
-          {error && <ErrorMessage>{error}</ErrorMessage>}
+          {error && <div className={errorMessage()}>{error}</div>}
 
-          <LoginButton type="submit" disabled={isLoading}>
+          <button className={loginButton()} type="submit" disabled={isLoading}>
             {isLoading ? 'Connecting...' : 'Connect'}
-          </LoginButton>
-        </LoginFormRoot>
+          </button>
+        </form>
 
-        <LoginFooter>
-          <ApiUrlContainer>
+        <div className={loginFooter()}>
+          <div className={apiUrlContainer()}>
             {isApiUrlEditable ? (
-              <ApiUrlInput 
+              <input 
+                className={apiUrlInput()}
                 type="text" 
                 value={apiUrl || ''} 
                 onChange={(e) => setApiUrl(e.target.value)}
@@ -292,15 +184,15 @@ export const LoginForm = () => {
             ) : (
               // Only show API URL if it's not the default TODOforAI URL
               apiUrl && !apiUrl.includes('todofor.ai') && (
-                <ApiUrlText onClick={handleApiUrlClick}>
+                <div className={apiUrlText()} onClick={handleApiUrlClick}>
                   API: {apiUrl}
-                </ApiUrlText>
+                </div>
               )
             )}
-            {appVersion && <VersionText>Version: {appVersion}</VersionText>}
-          </ApiUrlContainer>
-        </LoginFooter>
-      </LoginCard>
-    </LoginContainer>
+            {appVersion && <div className={versionText()}>Version: {appVersion}</div>}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };

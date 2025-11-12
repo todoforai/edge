@@ -1,213 +1,68 @@
 import React, { useState, useMemo } from 'react';
-import { styled } from '@/../styled-system/jsx';
 import { Download } from 'lucide-react';
-import * as Dialog from '@radix-ui/react-dialog';
+import { cva } from "class-variance-authority";
 import { getMCPByRegistryID } from '../../../data/mcpServersRegistry';
 import type { MCPRegistry } from '../../../types/mcp.types';
-import { ModalOverlay } from '../../ui/ModalOverlay';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-const DialogContent = styled(Dialog.Content, {
-  base: {
-    background: 'var(--background)',
-    color: 'var(--foreground)',
-    border: '1px solid var(--border-color)',
-    borderRadius: '12px',
-    width: 'min(900px, 90vw)',
-    maxHeight: '80vh',
-    overflow: 'auto',
-    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
-    position: 'fixed',
-    inset: 0,
-    margin: 'auto',
-    zIndex: 1001
-  }
-});
+const modalBody = cva([
+  "flex flex-col gap-6 flex-1 min-h-0"
+]);
 
-const ModalHeader = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '16px 20px',
-    borderBottom: '1px solid var(--border-color)',
-    fontWeight: 600
-  }
-});
+const grid = cva([
+  "grid gap-4 grid-cols-1 lg:grid-cols-2"
+]);
 
-const CloseButton = styled(Dialog.Close, {
-  base: {
-    border: '1px solid var(--border-color)',
-    background: 'transparent',
-    color: 'var(--foreground)',
-    borderRadius: '8px',
-    padding: '6px 10px',
-    cursor: 'pointer',
+const controls = cva([
+  "flex gap-3 items-center"
+]);
 
-    '&:hover': {
-      background: 'var(--background-secondary)'
-    }
-  }
-});
+const extensionCard = cva([
+  "flex items-start gap-4 p-6 border border-border rounded-lg bg-card transition-colors hover:border-primary hover:shadow-sm"
+]);
 
-const ModalBody = styled('div', {
-  base: {
-    padding: '20px'
-  }
-});
+const extensionIcon = cva([
+  "flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-accent"
+]);
 
-const Grid = styled('div', {
-  base: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
-    gap: '20px'
-  },
-  variants: {
-    minWidth: {
-      '400px': { gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))' }
-    },
-    gap: {
-      '20px': { gap: '20px' },
-      '24px': { gap: '24px' }
-    }
-  }
-});
+const extensionInfo = cva([
+  "flex-1 min-w-0 flex flex-col gap-2"
+]);
 
-const Controls = styled('div', {
-  base: {
-    display: 'flex',
-    gap: '12px',
-    marginBottom: '24px',
-    flexWrap: 'wrap',
+const extensionHeader = cva([
+  "flex items-start justify-between gap-3"
+]);
 
-    '& input, & select': {
-      border: '1px solid var(--border-color)',
-      background: 'var(--background-secondary)',
-      color: 'var(--foreground)',
-      borderRadius: '8px',
-      padding: '8px 10px',
+const extensionTitleSection = cva([
+  "flex flex-col gap-1 min-w-0 flex-1"
+]);
 
-      '&:focus': {
-        outline: 'none',
-        borderColor: 'var(--primary)'
-      }
-    }
-  }
-});
+const extensionName = cva([
+  "text-lg font-semibold text-foreground m-0 leading-tight"
+]);
 
-const ExtensionCard = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '20px',
-    padding: '20px',
-    border: '1px solid var(--border-color)',
-    borderRadius: '12px',
-    background: 'var(--background)',
-    transition: 'border-color 0.2s',
+const extensionDescription = cva([
+  "text-sm text-muted-foreground m-0 leading-relaxed"
+]);
 
-    '&:hover': {
-      borderColor: 'var(--primary)'
-    }
-  }
-});
-
-const ExtensionIcon = styled('div', {
-  base: {
-    flexShrink: 0,
-    width: '48px',
-    height: '48px',
-    borderRadius: '8px',
-    overflow: 'hidden',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 0 0 1px var(--border-color)',
-
-    '& img': {
-      borderRadius: '8px'
-    }
-  }
-});
-
-const ExtensionInfo = styled('div', {
-  base: {
-    flex: 1,
-    minWidth: 0
-  }
-});
-
-const ExtensionHeader = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    marginBottom: '4px'
-  }
-});
-
-const ExtensionName = styled('h3', {
-  base: {
-    fontSize: '16px',
-    fontWeight: 600,
-    color: 'var(--foreground)',
-    margin: 0
-  }
-});
-
-const ExtensionDescription = styled('p', {
-  base: {
-    fontSize: '14px',
-    color: 'var(--muted)',
-    margin: 0,
-    lineHeight: 1.4
-  }
-});
-
-const ExtensionCategory = styled('span', {
-  base: {
-    fontSize: '12px',
-    color: 'var(--primary)',
-    background: 'rgba(59, 130, 246, 0.1)',
-    padding: '2px 8px',
-    borderRadius: '6px',
-    flexShrink: 0
-  }
-});
-
-const InstallButton = styled('button', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '8px 16px',
-    background: 'var(--primary)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    flexShrink: 0,
-
-    '&:hover': {
-      opacity: 0.9
-    }
-  }
-});
-
-const VisuallyHidden = styled('span', {
-  base: {
-    border: 0,
-    clip: 'rect(0 0 0 0)',
-    height: '1px',
-    margin: '-1px',
-    overflow: 'hidden',
-    padding: 0,
-    position: 'absolute',
-    width: '1px',
-    whiteSpace: 'nowrap',
-    wordWrap: 'normal'
-  }
-});
+const extensionCategory = cva([
+  "text-xs text-primary bg-primary/10 px-2 py-1 rounded-md inline-block w-fit"
+]);
 
 interface ExtensionsRegistryModalProps {
   servers: MCPRegistry[];
@@ -252,60 +107,69 @@ export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = (
   };
 
   return (
-    <Dialog.Root open={true} onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Portal>
-        <ModalOverlay />
-        <DialogContent>
-          <Dialog.Title>
-            <VisuallyHidden>Add New Integrations</VisuallyHidden>
-          </Dialog.Title>
-          <Dialog.Description>
-            <VisuallyHidden>Browse and install MCP integrations</VisuallyHidden>
-          </Dialog.Description>
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="w-[90vw] max-w-5xl sm:max-w-5xl h-[80vh] flex flex-col p-0">
+        <div className="p-6 pb-0">
+          <DialogHeader>
+            <DialogTitle>Add New Integrations</DialogTitle>
+            <DialogDescription>
+              Browse and install MCP integrations
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-          <ModalHeader>
-            <div>Add New Integrations</div>
-            <CloseButton>Close</CloseButton>
-          </ModalHeader>
-          <ModalBody>
-            <Controls>
-              <input placeholder="Search available integrations..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+        <div className={modalBody()} style={{ padding: '0 24px 24px 24px' }}>
+          <div className={controls()}>
+            <Input 
+              placeholder="Search available integrations..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-48 flex-shrink-0">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
                 {categories.map((c) => (
-                  <option key={c} value={c}>
+                  <SelectItem key={c} value={c}>
                     {c}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
-            </Controls>
+              </SelectContent>
+            </Select>
+          </div>
 
-            <Grid gap="24px">
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className={grid()}>
               {filteredServers.map((server, index) => {
                 const registry = getMCPByRegistryID(server.registryId);
                 const serverId = server.registryId || `server-${index}`;
                 return (
-                  <ExtensionCard key={serverId}>
-                    <ExtensionIcon>
-                      <img src={registry?.icon || '/logos/default.png'} alt={registry?.name || serverId} width={48} height={48} />
-                    </ExtensionIcon>
-                    <ExtensionInfo>
-                      <ExtensionHeader>
-                        <ExtensionName>{registry?.name || server.registryId}</ExtensionName>
-                        <ExtensionCategory>{registry?.category?.[0] || 'Other'}</ExtensionCategory>
-                      </ExtensionHeader>
-                      <ExtensionDescription>{registry?.description || 'No description available'}</ExtensionDescription>
-                    </ExtensionInfo>
-                    <InstallButton onClick={() => handleInstall(server)}>
-                      <Download size={16} />
-                      Install
-                    </InstallButton>
-                  </ExtensionCard>
+                  <div key={serverId} className={extensionCard()}>
+                    <div className={extensionIcon()}>
+                      <img src={registry?.icon || '/logos/default.png'} alt={registry?.name || serverId} width={48} height={48} className="rounded-lg" />
+                    </div>
+                    <div className={extensionInfo()}>
+                      <div className={extensionHeader()}>
+                        <div className={extensionTitleSection()}>
+                          <h3 className={extensionName()}>{registry?.name || server.registryId}</h3>
+                          <span className={extensionCategory()}>{registry?.category?.[0] || 'Other'}</span>
+                        </div>
+                        <Button size="sm" onClick={() => handleInstall(server)} className="flex-shrink-0">
+                          <Download size={14} />
+                          Install
+                        </Button>
+                      </div>
+                      <p className={extensionDescription()}>{registry?.description || 'No description available'}</p>
+                    </div>
+                  </div>
                 );
               })}
-            </Grid>
-          </ModalBody>
-        </DialogContent>
-      </Dialog.Portal>
-    </Dialog.Root>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };

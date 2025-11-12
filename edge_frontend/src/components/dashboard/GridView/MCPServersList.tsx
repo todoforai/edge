@@ -144,6 +144,7 @@ const MCPServersList: React.FC<MCPServersListProps> = ({
       {showLogsModal && (
         <MCPServerLogsModal
           instance={showLogsModal}
+          isOpen={true}
           onClose={() => setShowLogsModal(null)}
         />
       )}

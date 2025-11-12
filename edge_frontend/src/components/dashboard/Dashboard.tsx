@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { styled } from '../../../styled-system/jsx';
 import MCPServersList from './GridView/MCPServersList';
 import { MCPServerJSONView } from './JSONView/MCPServerJSONView';
 import { ActionBar } from './ActionBar';
@@ -7,73 +6,39 @@ import Profile from '../navbar/Profile';
 import { useEdgeConfigStore } from '../../store/edgeConfigStore';
 import { useMCPFilters } from '../../hooks/useMCPFilters';
 import pythonService from '../../services/python-service';
+import { cva } from "class-variance-authority";
 
-const DashboardContainer = styled('div', {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100vh',
-    width: '100%',
-  },
-});
+const dashboardContainer = cva([
+  "flex flex-col h-screen w-full"
+]);
 
-const DashboardContent = styled('div', {
-  base: {
-    flex: '1',
-    overflow: 'auto',
-  },
-});
+const dashboardContent = cva([
+  "flex-1 overflow-auto"
+]);
 
-const Container = styled('div', {
-  base: {
-    padding: '20px',
-    maxWidth: '1200px',
-    margin: '0 auto',
-  },
-});
+const container = cva([
+  "p-5 max-w-[1200px] mx-auto"
+]);
 
-const Header = styled('div', {
-  base: {
-    marginBottom: '30px',
-    textAlign: 'center',
-  },
-});
+const header = cva([
+  "mb-8 text-center"
+]);
 
-const Title = styled('h1', {
-  base: {
-    fontSize: '28px',
-    fontWeight: '600',
-    color: 'token(colors.foreground)',
-    margin: '0 0 8px 0',
-  },
-});
+const title = cva([
+  "text-3xl font-semibold text-foreground m-0 mb-2"
+]);
 
-const Subtitle = styled('p', {
-  base: {
-    fontSize: '16px',
-    color: 'token(colors.mutedForeground)',
-    margin: '0',
-  },
-});
+const subtitle = cva([
+  "text-base text-muted-foreground m-0"
+]);
 
-const ConfigPath = styled('p', {
-  base: {
-    fontSize: '13px',
-    color: 'token(colors.mutedForeground)',
-    margin: '8px 0 0 0',
-    fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
-    opacity: 0.7,
-  },
-});
+const configPath = cva([
+  "text-[13px] text-muted-foreground mt-2 mb-0 font-mono opacity-70"
+]);
 
-const Controls = styled('div', {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px',
-    marginBottom: '30px',
-  },
-});
+const controls = cva([
+  "flex flex-col gap-5 mb-8"
+]);
 
 export const Dashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<'visual' | 'json'>('visual');
@@ -110,19 +75,19 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <DashboardContainer>
+    <div className={dashboardContainer()}>
       <Profile />
-      <DashboardContent>
-        <Container>
-          <Header>
-            <Title>AI Integrations</Title>
-            <Subtitle>Extend agent capabilities with integrations along the internet and your PC. Discover and install!</Subtitle>
+      <div className={dashboardContent()}>
+        <div className={container()}>
+          <div className={header()}>
+            <h1 className={title()}>AI Integrations</h1>
+            <p className={subtitle()}>Extend agent capabilities with integrations along the internet and your PC. Discover and install!</p>
             {config.mcp_config_path && (
-              <ConfigPath>Config: {config.mcp_config_path}</ConfigPath>
+              <p className={configPath()}>Config: {config.mcp_config_path}</p>
             )}
-          </Header>
+          </div>
 
-          <Controls>
+          <div className={controls()}>
             <ActionBar
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
@@ -136,7 +101,7 @@ export const Dashboard: React.FC = () => {
               onRefresh={handleRefresh}
               isRefreshing={isRefreshing}
             />
-          </Controls>
+          </div>
 
           {viewMode === 'json' ? (
             <MCPServerJSONView 
@@ -149,9 +114,9 @@ export const Dashboard: React.FC = () => {
               selectedCategory={selectedCategory}
             />
           )}
-        </Container>
-      </DashboardContent>
-    </DashboardContainer>
+        </div>
+      </div>
+    </div>
   );
 };
 

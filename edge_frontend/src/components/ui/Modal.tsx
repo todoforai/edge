@@ -1,80 +1,30 @@
 import React from 'react';
-import { styled } from '../../../styled-system/jsx';
 import { X } from 'lucide-react';
+import { cva } from "class-variance-authority";
 
-const Overlay = styled('div', {
-  base: {
-    position: 'fixed',
-    top: '0',
-    left: '0',
-    right: '0',
-    bottom: '0',
-    background: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: '1000',
-  },
-});
+const overlay = cva([
+  "fixed top-0 left-0 right-0 bottom-0 bg-black/50 flex items-center justify-center z-[1000]"
+]);
 
-const Container = styled('div', {
-  base: {
-    background: 'token(colors.background)',
-    borderRadius: 'token(radii.lg)',
-    border: '1px solid token(colors.borderColor)',
-    width: '90%',
-    maxWidth: '1200px',
-    maxHeight: '80vh',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-});
+const container = cva([
+  "bg-background rounded-lg border border-border w-[90%] max-w-[1200px] max-h-[80vh] overflow-hidden flex flex-col"
+]);
 
-const Header = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '28px',
-    borderBottom: '1px solid token(colors.borderColor)',
-  },
-});
+const header = cva([
+  "flex items-center justify-between p-7 border-b border-border"
+]);
 
-const Title = styled('h2', {
-  base: {
-    fontSize: '20px',
-    fontWeight: '600',
-    color: 'token(colors.foreground)',
-    margin: '0',
-  },
-});
+const titleClass = cva([
+  "text-xl font-semibold text-foreground m-0"
+]);
 
-const CloseButton = styled('button', {
-  base: {
-    background: 'transparent',
-    border: 'none',
-    color: 'token(colors.mutedForeground)',
-    cursor: 'pointer',
-    padding: '8px',
-    borderRadius: 'token(radii.sm)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+const closeButton = cva([
+  "bg-transparent border-none text-muted-foreground cursor-pointer p-2 rounded-sm flex items-center justify-center transition-colors hover:bg-black/10"
+]);
 
-    '&:hover': {
-      background: 'rgba(0, 0, 0, 0.1)',
-    },
-  },
-});
-
-const Content = styled('div', {
-  base: {
-    flex: '1',
-    overflowY: 'auto',
-    padding: '24px',
-  },
-});
+const content = cva([
+  "flex-1 overflow-y-auto p-6"
+]);
 
 interface ModalProps {
   title: string;
@@ -93,16 +43,16 @@ export const Modal: React.FC<ModalProps> = ({ title, onClose, children }) => {
   }, [onClose]);
 
   return (
-    <Overlay onClick={onClose}>
-      <Container onClick={(e) => e.stopPropagation()}>
-        <Header>
-          <Title>{title}</Title>
-          <CloseButton onClick={onClose}>
+    <div className={overlay()} onClick={onClose}>
+      <div className={container()} onClick={(e) => e.stopPropagation()}>
+        <div className={header()}>
+          <h2 className={titleClass()}>{title}</h2>
+          <button className={closeButton()} onClick={onClose}>
             <X size={20} />
-          </CloseButton>
-        </Header>
-        <Content>{children}</Content>
-      </Container>
-    </Overlay>
+          </button>
+        </div>
+        <div className={content()}>{children}</div>
+      </div>
+    </div>
   );
 };

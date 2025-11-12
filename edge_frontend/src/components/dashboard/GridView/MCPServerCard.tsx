@@ -1,239 +1,88 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { styled } from '@/../styled-system/jsx';
 import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
+import { cva } from "class-variance-authority";
 import type { MCPEdgeExecutable } from '../../../types/mcp.types';
 import { getMCPByCommandArgs } from '../../../data/mcpServersRegistry';
 import { MCPStatusBadge } from '../../ui/MCPStatusBadge';
+import { Button } from '../../ui/button';
 
-const ServerCard = styled('div', {
-  base: {
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-lg)',
-    padding: '28px',
-    background: 'var(--card)',
-    transition: 'all 0.2s',
+const serverCard = cva([
+  "border border-border rounded-xl p-6 bg-card transition-all hover:border-primary hover:shadow-md"
+]);
 
-    '&:hover': {
-      borderColor: 'var(--primary)',
-      boxShadow: '0 4px 12px var(--shadow-md)'
-    }
-  }
-});
+const serverHeader = cva([
+  "flex items-start justify-between gap-4 mb-4"
+]);
 
-const ServerHeader = styled('div', {
-  base: {
-    display: 'flex',
-    gap: '12px',
-    marginBottom: '12px',
-    alignItems: 'flex-start'
-  }
-});
+const serverMainInfo = cva([
+  "flex gap-3 flex-1 min-w-0"
+]);
 
-const ServerIcon = styled('div', {
-  base: {
-    flexShrink: 0,
-    width: '48px',
-    height: '48px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 'var(--radius-md)',
-    background: 'var(--accent)',
-    overflow: 'hidden',
+const serverIcon = cva([
+  "flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-md bg-accent overflow-hidden"
+]);
 
-    '& img': {
-      borderRadius: 'var(--radius-md)'
-    }
-  }
-});
+const serverIconImage = cva([
+  "rounded-md"
+]);
 
-const ServerInfo = styled('div', {
-  base: {
-    display: 'flex',
-    flex: 1,
-    flexDirection: 'column',
-    alignItems: 'flex-start'
-  }
-});
+const serverInfo = cva([
+  "flex flex-col min-w-0 flex-1"
+]);
 
-const ServerName = styled('h3', {
-  base: {
-    fontSize: '20px',
-    fontWeight: 600,
-    color: 'var(--foreground)',
-    margin: '0 0 4px 0',
-    wordWrap: 'break-word',
-    wordBreak: 'break-word',
-    hyphens: 'auto'
-  }
-});
+const serverTitleRow = cva([
+  "flex items-center gap-2 mb-1 flex-wrap"
+]);
 
-const ServerId = styled('div', {
-  base: {
-    fontSize: '12px',
-    color: 'var(--muted-foreground)',
-    fontFamily: 'monospace',
-    marginBottom: '8px'
-  }
-});
+const serverName = cva([
+  "text-base font-semibold text-foreground m-0 break-words hyphens-auto"
+]);
 
-const ServerTitleRow = styled('div', {
-  base: {
-    display: 'flex',
-    gap: '12px',
-    alignItems: 'center',
-    flex: 1
-  }
-});
+const serverCategory = cva([
+  "text-xs text-muted-foreground bg-accent px-2 py-0.5 rounded-md inline-block flex-shrink-0"
+]);
 
-const ServerNameAndCategory = styled('div', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    flex: 1
-  }
-});
+const serverId = cva([
+  "text-xs text-muted-foreground font-mono mb-2"
+]);
 
-const ServerCategory = styled('span', {
-  base: {
-    fontSize: '12px',
-    color: 'var(--muted-foreground)',
-    background: 'var(--accent)',
-    padding: '2px 8px',
-    borderRadius: 'var(--radius-md-2)',
-    display: 'inline-block',
-    flexShrink: 0
-  }
-});
+const serverActions = cva([
+  "flex items-start gap-1 flex-shrink-0"
+]);
 
-const ServerActions = styled('div', {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: '8px'
-  }
-});
+const dropdownContainer = cva([
+  "relative"
+]);
 
-const ActionButtonsRow = styled('div', {
-  base: {
-    display: 'flex',
-    gap: '8px'
-  }
-});
-
-const ActionButton = styled('button', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '44px',
-    height: '44px',
-    padding: 0,
-    background: 'transparent',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-md)',
-    color: 'var(--muted-foreground)',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    fontSize: '16px',
-
-    '&:hover': {
-      background: 'var(--accent)',
-      borderColor: 'var(--primary)',
-      color: 'var(--primary)'
-    }
-  }
-});
-
-const DropdownContainer = styled('div', {
-  base: {
-    position: 'relative'
-  }
-});
-
-const DropdownMenu = styled('div', {
-  base: {
-    position: 'absolute',
-    top: '100%',
-    right: 0,
-    marginTop: '4px',
-    background: 'var(--card)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-md)',
-    boxShadow: 'var(--shadow-lg)',
-    zIndex: 100,
-    minWidth: '160px'
-  },
+const dropdownMenu = cva([
+  "absolute top-full right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-[100] min-w-[160px]"
+], {
   variants: {
     isOpen: {
-      true: { display: 'block' },
-      false: { display: 'none' }
+      true: "block",
+      false: "hidden"
     }
   }
 });
 
-const DropdownItem = styled('button', {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    width: '100%',
-    padding: '12px 16px',
-    background: 'transparent',
-    border: 'none',
-    fontSize: '14px',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
-    textAlign: 'left',
-
-    '&:first-child': {
-      borderRadius: 'var(--radius-md) var(--radius-md) 0 0'
-    },
-
-    '&:last-child': {
-      borderRadius: '0 0 var(--radius-md) var(--radius-md)'
-    }
-  },
+const dropdownItem = cva([
+  "flex items-center gap-2 w-full p-3 bg-transparent border-none text-sm cursor-pointer transition-colors text-left first:rounded-t-md last:rounded-b-md"
+], {
   variants: {
     disabled: {
-      true: {
-        opacity: 0.5,
-        cursor: 'not-allowed',
-
-        '&:hover': {
-          background: 'transparent'
-        }
-      }
+      true: "opacity-50 cursor-not-allowed hover:bg-transparent",
+      false: ""
     },
     danger: {
-      true: {
-        color: 'var(--danger)',
-
-        '&:hover': {
-          background: 'rgba(239, 68, 68, 0.1)'
-        }
-      },
-      false: {
-        color: 'var(--foreground)',
-
-        '&:hover': {
-          background: 'var(--accent)'
-        }
-      }
+      true: "text-destructive hover:bg-destructive/10",
+      false: "text-foreground hover:bg-accent"
     }
   }
 });
 
-const ServerDescription = styled('p', {
-  base: {
-    fontSize: '14px',
-    color: 'var(--muted-foreground)',
-    lineHeight: 1.5,
-    margin: 0
-  }
-});
+const serverDescription = cva([
+  "text-sm text-muted-foreground leading-relaxed m-0"
+]);
 
 interface MCPServerCardProps {
   instance: MCPEdgeExecutable;
@@ -290,63 +139,64 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   }, []);
 
   return (
-    <ServerCard>
-      <ServerHeader>
-        <ServerIcon>
-          <img 
-            src={displayIcon} 
-            alt={displayName}
-            width={48} height={48}
-          />
-        </ServerIcon>
-        <ServerTitleRow>
-          <ServerInfo>
-            <ServerNameAndCategory>
-              <ServerName>{displayName}</ServerName>
-              {showCategory && <ServerCategory>{displayCategory}</ServerCategory>}
+    <div className={serverCard()}>
+      <div className={serverHeader()}>
+        <div className={serverMainInfo()}>
+          <div className={serverIcon()}>
+            <img 
+              src={displayIcon} 
+              alt={displayName}
+              width={48} height={48}
+              className={serverIconImage()}
+            />
+          </div>
+          <div className={serverInfo()}>
+            <div className={serverTitleRow()}>
+              <h3 className={serverName()}>{displayName}</h3>
+              {showCategory && <span className={serverCategory()}>{displayCategory}</span>}
               <MCPStatusBadge status={instance.status} />
-            </ServerNameAndCategory>
-            <ServerId>{instance.serverId}</ServerId>
-          </ServerInfo>
-          <ServerActions>
-            <ActionButtonsRow>
-              <ActionButton onClick={() => onViewLogs(instance)} title="View Logs">
-                <Terminal size={20} />
-              </ActionButton>
-              <ActionButton onClick={() => onOpenSettings(instance)} title="Settings">
-                <Settings size={20} />
-              </ActionButton>
-              <DropdownContainer ref={dropdownRef}>
-                <ActionButton 
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)} 
-                  title="More options"
-                >
-                  <MoreVertical size={20} />
-                </ActionButton>
-                <DropdownMenu isOpen={isDropdownOpen}>
-                  <DropdownItem onClick={() => onOpenSettings(instance)}>
-                    <Settings size={18} />
-                    Configure
-                  </DropdownItem>
-                  <DropdownItem onClick={() => onViewLogs(instance)}>
-                    <Terminal size={18} />
-                    View Logs
-                  </DropdownItem>
-                  <DropdownItem 
-                    onClick={handleUninstall}
-                    disabled={isBuiltIn}
-                    danger={!isBuiltIn}
-                  >
-                    {isBuiltIn ? <ShieldCheck size={18} /> : <Trash2 size={18} />}
-                    {isBuiltIn ? 'Built-in' : 'Remove'}
-                  </DropdownItem>
-                </DropdownMenu>
-              </DropdownContainer>
-            </ActionButtonsRow>
-          </ServerActions>
-        </ServerTitleRow>
-      </ServerHeader>
-      <ServerDescription>{displayDescription}</ServerDescription>
-    </ServerCard>
+            </div>
+            <div className={serverId()}>{instance.serverId}</div>
+          </div>
+        </div>
+        <div className={serverActions()}>
+          <Button variant="outline" size="icon" onClick={() => onViewLogs(instance)} title="View Logs">
+            <Terminal size={18} />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => onOpenSettings(instance)} title="Settings">
+            <Settings size={18} />
+          </Button>
+          <div className={dropdownContainer()} ref={dropdownRef}>
+            <Button 
+              variant="outline"
+              size="icon"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)} 
+              title="More options"
+            >
+              <MoreVertical size={18} />
+            </Button>
+            <div className={dropdownMenu({ isOpen: isDropdownOpen })}>
+              <button className={dropdownItem()} onClick={() => onOpenSettings(instance)}>
+                <Settings size={18} />
+                Configure
+              </button>
+              <button className={dropdownItem()} onClick={() => onViewLogs(instance)}>
+                <Terminal size={18} />
+                View Logs
+              </button>
+              <button 
+                className={dropdownItem({ disabled: isBuiltIn, danger: !isBuiltIn })}
+                onClick={handleUninstall}
+                disabled={isBuiltIn}
+              >
+                {isBuiltIn ? <ShieldCheck size={18} /> : <Trash2 size={18} />}
+                {isBuiltIn ? 'Built-in' : 'Remove'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p className={serverDescription()}>{displayDescription}</p>
+    </div>
   );
 };
