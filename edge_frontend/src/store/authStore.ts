@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { getApiBase } from '../config/api-config';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '@/utils/logger';
 import pythonService from '../services/python-service';
 
 const log = createLogger('auth-store');
@@ -115,11 +114,6 @@ export const useAuthStore = create<AuthState>()((set, get) => {
       try {
         // Initialize Python service if not already initialized
         await pythonService.initialize();
-
-        // Get API URL from config if not provided
-        if (!credentials.apiUrl) {
-          credentials.apiUrl = await getApiBase();
-        }
 
         // Call login method on Python service
         const response = await pythonService.login(credentials);

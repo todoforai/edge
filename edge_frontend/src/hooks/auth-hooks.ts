@@ -27,7 +27,6 @@ export const useApiVersionEffect = () => {
   return { apiUrl, setApiUrl, appVersion };
 };
 
-
 // Hook to set up auth event listeners
 export const useAuthEventListenersEffect = () => {
   const { setUser, setError, apiUrl } = useAuthStore();

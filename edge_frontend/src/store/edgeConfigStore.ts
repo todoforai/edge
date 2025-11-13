@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useEffect } from 'react';
 import { createLogger } from '@/utils/logger';
 import pythonService from '../services/python-service';
 import type { EdgeData, MCPEdgeExecutable } from '../types';
@@ -66,6 +67,9 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
 
     set({ unsubscribe });
     log.info('Edge config store initialized');
+
+    // Return the cleanup function
+    return unsubscribe;
   },
 
   cleanup: () => {
@@ -134,5 +138,10 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
   },
 }));
 
-// Initialize the store when this module is imported
-useEdgeConfigStore.getState().initialize();
+// One-time initialization hook for edge config store (sets up event listener)
+export const useEdgeConfigInitEffect = () => {
+  const initialize = useEdgeConfigStore(state => state.initialize);
+  useEffect(() => {
+    return initialize();
+  }, []);
+};

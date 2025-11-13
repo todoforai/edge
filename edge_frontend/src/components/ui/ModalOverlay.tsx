@@ -1,19 +1,20 @@
-import * as Dialog from '@radix-ui/react-dialog'
-import { cn } from "@/lib/utils"
+import { cva } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
+import * as Dialog from '@radix-ui/react-dialog';
 
-interface ModalOverlayProps extends React.ComponentProps<typeof Dialog.Overlay> {}
+const modalOverlayVariants = cva(
+  "fixed inset-0 bg-black/50 z-[1000] backdrop-blur-sm animate-in fade-in-0"
+);
 
-export const ModalOverlay: React.FC<ModalOverlayProps> = ({ 
-  className, 
-  ...props 
-}) => {
-  return (
-    <Dialog.Overlay 
-      className={cn(
-        "fixed inset-0 z-[1000] bg-black/50 backdrop-blur-sm animate-in fade-in-0",
-        className
-      )}
-      {...props}
-    />
-  )
+interface ModalOverlayProps {
+  className?: string;
+  children?: React.ReactNode;
 }
+
+export const ModalOverlay: React.FC<ModalOverlayProps> = ({ className, children, ...props }) => {
+  return (
+    <Dialog.Overlay className={cn(modalOverlayVariants(), className)} {...props}>
+      {children}
+    </Dialog.Overlay>
+  );
+};

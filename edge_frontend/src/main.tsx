@@ -1,10 +1,10 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
-import './styles/globals.css'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.tsx';
+import './styles/globals.css';
 import { createLogger } from './utils/logger';
 import { desktopApi } from './lib/tauri-api';
-import { useAuthStore } from './store/authStore';
+import { useAuthStore } from './store/authStore.ts';
 
 const logger = createLogger('deep-link');
 
@@ -13,15 +13,15 @@ const processDeepLinks = async () => {
   try {
     const args = await desktopApi.getCliArgs();
     logger.info('Args:', args);
-    const deepLinkArgs = args?.filter(arg => arg.startsWith('todoforaiedge://')) || [];
-    
+    const deepLinkArgs = args?.filter((arg) => arg.startsWith('todoforaiedge://')) || [];
+
     for (const url of deepLinkArgs) {
       try {
         const u = new URL(url);
         const segments = u.pathname.split('/').filter(Boolean);
         const isHostAuth = u.host === 'auth' && segments[0] === 'apikey';
         const isPathAuth = segments[0] === 'auth' && segments[1] === 'apikey';
-        
+
         if (isHostAuth || isPathAuth) {
           const key = isHostAuth ? segments[1] : segments[2];
           if (key) {
@@ -47,6 +47,6 @@ processDeepLinks().then(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <App />
-    </React.StrictMode>,
-  )
-})
+    </React.StrictMode>
+  );
+});

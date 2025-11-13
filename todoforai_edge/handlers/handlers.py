@@ -378,8 +378,8 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
         full_path = resolve_file_path(path, root_path, fallback_root_paths)
         full_path = os.path.abspath(full_path)
 
-        # Check if path is allowed before proceeding
-        if not is_path_allowed(full_path, client.edge_config.config["workspacepaths"]):
+        # Check if path is allowed
+        if not is_path_allowed(full_path, client.edge_config.config):
             raise PermissionError(f"No permission to access the given file {full_path}")
 
         # Ensure the workspace containing this file is being synced

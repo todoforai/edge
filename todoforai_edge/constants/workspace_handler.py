@@ -306,7 +306,7 @@ async def handle_ctx_workspace_request(payload, edge):
         logger.info(f"Workspace context request received for path: {path}")
 
         # Check if path is allowed
-        if not is_path_allowed(path, edge.edge_config.config["workspacepaths"]):
+        if not is_path_allowed(path, edge.edge_config.config):
             raise PermissionError(f"Access to path '{path}' is not allowed")
             
         # Get filtered files - use global constants directly
@@ -409,8 +409,15 @@ def get_filtered_files_and_folders(path):
     return project_files_list, filtered_files, filtered_dirs
 
 
-def is_path_allowed(path, workspace_paths):
-    """Check if the given path is within allowed workspace paths"""
+def is_path_allowed(path, edge_config):
+    """Check if the given path is within allowed workspace paths or is the MCP config file"""
+    # Always allow access to MCP config file
+    mcp_config_path = edge_config.get("mcp_config_path")
+    if mcp_config_path and os.path.abspath(mcp_config_path) == os.path.abspath(path):
+        return True
+    
+    # Check workspace paths
+    workspace_paths = edge_config.get("workspacepaths", [])
     if not workspace_paths:
         return False  # If no workspace paths defined, deny all
 
