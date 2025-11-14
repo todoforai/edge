@@ -5,8 +5,18 @@ export enum EdgeStatus {
   OFFLINE = 'OFFLINE',
 }
 
+export enum DeviceType {
+  PC = 'PC',
+  ANDROID = 'ANDROID',
+  IOS = 'IOS',
+  WEB_EXTENSION = 'WEB_EXTENSION',
+  EXTENSION = 'EXTENSION',
+}
+
 export interface EdgeData {
   id: string;
+  deviceType: DeviceType;
+  metadata: Record<string, any>;
   name: string;
   workspacepaths: string[];
   installedMCPs: Record<string, InstalledMCP>;
