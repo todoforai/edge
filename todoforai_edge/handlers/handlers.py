@@ -278,7 +278,7 @@ async def handle_block_save(payload, client):
         logger.info(f'Saving file: {filepath}')
         
         # Check if path is allowed before proceeding
-        if not is_path_allowed(filepath, client.edge_config.config["workspacepaths"]):
+        if not is_path_allowed(filepath, client.edge_config.config):
             raise PermissionError("No permission to save file to the given path")
 
         # Special handling for DOCX files
