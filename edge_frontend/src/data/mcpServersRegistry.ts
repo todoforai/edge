@@ -3,7 +3,7 @@ import type { MCPRegistry } from '../types';
 // Helper function to get default Gmail credentials path
 const getDefaultGmailCredPath = () => {
   // For browser fallback, use the existing logic
-  const p = (navigator as any)?.userAgentData?.platform || navigator.platform || '';
+  const p = navigator.userAgentData?.platform || navigator.userAgent || '';
   const isWin = /win/i.test(p);
   const home = isWin ? '%USERPROFILE%' : '~';
   const sep = isWin ? '\\' : '/';
