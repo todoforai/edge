@@ -4,7 +4,7 @@ import { cva } from "class-variance-authority";
 import type { MCPEdgeExecutable } from '../../../types/mcp.types';
 import { getMCPByCommandArgs } from '../../../data/mcpServersRegistry';
 import { MCPStatusBadge } from '../../ui/MCPStatusBadge';
-import { Button } from '../../ui/button';
+import { Button } from '@/components/ui/button';
 
 const serverCard = cva([
   "border border-border rounded-xl p-6 bg-card transition-all hover:border-primary hover:shadow-md"
