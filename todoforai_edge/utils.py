@@ -32,47 +32,68 @@ def safe_print(s):
         sys.stdout.write((s.encode('ascii', 'ignore').decode('ascii')) + "\n")
 
 def generate_machine_fingerprint():
-    """Generate a unique fingerprint for this edge based on machine characteristics"""
+    """Generate a unique fingerprint for this edge based on machine characteristics.
+    Prioritizes stable hardware identifiers. If available, uses only hardware UUID/machine-id
+    for maximum stability. Falls back to secondary identifiers if primary unavailable."""
     identifiers = {}
+    has_primary_id = False
     
-    # Basic system info (OS, architecture, hostname)
-    identifiers["platform"] = platform.system()
-    identifiers["machine"] = platform.machine()
-    identifiers["node"] = platform.node()
-    
-    # Add CPU info
-    identifiers["processor"] = platform.processor()
-    
-    # Add more stable identifiers based on OS
-    if platform.system() == "Linux":
-        # Try to get machine-id (stable across reboots)
+    # Primary: Get stable hardware identifier (most important)
+    system = platform.system()
+    if system == "Linux":
+        # machine-id is stable across reboots and system changes
         try:
             if os.path.exists("/etc/machine-id"):
                 with open("/etc/machine-id", "r") as f:
-                    identifiers["machine_id"] = f.read().strip()
+                    machine_id = f.read().strip()
+                    if machine_id:
+                        identifiers["machine_id"] = machine_id
+                        has_primary_id = True
         except Exception:
             pass
-    elif platform.system() == "Darwin":  # macOS
+    elif system == "Darwin":  # macOS
         try:
-            result = subprocess.run(["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"], 
-                                capture_output=True, text=True, check=False)
-            for line in result.stdout.splitlines():
-                if "IOPlatformUUID" in line:
-                    identifiers["hardware_uuid"] = line.split('=')[1].strip().strip('"')
-                    break
+            # Use IOPlatformUUID - stable hardware identifier
+            result = subprocess.run(
+                ["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"],
+                capture_output=True, text=True, check=False, timeout=5
+            )
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    if "IOPlatformUUID" in line:
+                        # Extract UUID value more robustly
+                        parts = line.split("=", 1)
+                        if len(parts) == 2:
+                            uuid_value = parts[1].strip().strip('"').strip("'")
+                            if uuid_value:
+                                identifiers["hardware_uuid"] = uuid_value
+                                has_primary_id = True
+                                break
         except Exception:
             pass
-    elif platform.system() == "Windows":
+    elif system == "Windows":
         try:
-            result = subprocess.run(["wmic", "csproduct", "get", "UUID"], 
-                                capture_output=True, text=True, check=False)
-            if result.stdout:
-                identifiers["hardware_uuid"] = result.stdout.splitlines()[1].strip()
+            result = subprocess.run(
+                ["wmic", "csproduct", "get", "UUID"],
+                capture_output=True, text=True, check=False, timeout=5
+            )
+            if result.returncode == 0 and result.stdout:
+                lines = [l.strip() for l in result.stdout.splitlines() if l.strip() and l.strip() != "UUID"]
+                if lines and lines[0]:
+                    identifiers["hardware_uuid"] = lines[0]
+                    has_primary_id = True
         except Exception:
             pass
     
+    # Secondary: Only add if primary identifier unavailable (fallback)
+    # These help distinguish machines if hardware UUID unavailable
+    if not has_primary_id:
+        identifiers["platform"] = system
+        identifiers["machine"] = platform.machine()
+        identifiers["node"] = platform.node()  # Hostname - only used as fallback
+    
     # Encode as base64 for transmission
-    return base64.b64encode(json.dumps(identifiers).encode()).decode()
+    return base64.b64encode(json.dumps(identifiers, sort_keys=True).encode()).decode()
 
 async def async_request(edge, method, endpoint, data=None):
     """Make an async request to the API"""
