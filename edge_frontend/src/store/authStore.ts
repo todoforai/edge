@@ -7,18 +7,17 @@ let isAuthenticating = false;
 
 // Session constants
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+const STORAGE_KEY = `currentUser`;
 
 export interface User {
   apiKey?: string;
   name?: string;
   isAuthenticated: boolean;
   lastLoginTime?: number;
-  apiUrl?: string;
 }
 
 export interface LoginCredentials {
   apiKey: string;
-  apiUrl?: string;
   debug?: boolean;
 }
 
@@ -31,7 +30,6 @@ interface AuthState {
   user: User | null;
   error: string | null;
   isLoading: boolean;
-  apiUrl: string | null;
   shouldAutoLogin: boolean;
   deeplinkApiKey: string | null;
 
@@ -42,7 +40,6 @@ interface AuthState {
   initializeWithCachedAuth: (user: User) => Promise<void>;
   isAuthenticated: () => boolean;
   isSessionValid: () => boolean;
-  setApiUrl: (apiUrl: string) => void;
   setUser: (user: User) => void;
   setError: (error: string | null) => void;
   getCurrentUser: () => User;
@@ -52,15 +49,9 @@ interface AuthState {
 }
 
 // Utility function to restore user from storage
-export const restoreUserFromStorage = async (apiUrl: string | null): Promise<User | null> => {
-  if (!apiUrl) {
-    log.info('No API URL provided, cannot restore user');
-    return null;
-  }
-
+export const restoreUserFromStorage = async (): Promise<User | null> => {
   try {
-    const storageKey = `currentUser_${apiUrl}`;
-    const storedUser = localStorage.getItem(storageKey);
+    const storedUser = localStorage.getItem(STORAGE_KEY);
 
     if (storedUser) {
       const userData = JSON.parse(storedUser);
@@ -71,23 +62,23 @@ export const restoreUserFromStorage = async (apiUrl: string | null): Promise<Use
         const sessionAge = Date.now() - (userData.lastLoginTime || 0);
 
         if (sessionAge < SESSION_MAX_AGE) {
-          log.info(`User session restored from storage for API URL: ${apiUrl}`);
+          log.info(`User session restored from storage`);
           return {
             ...userData,
           };
         } else {
           // Session expired
-          localStorage.removeItem(storageKey);
-          log.info(`Stored session expired for API URL: ${apiUrl}, removed from storage`);
+          localStorage.removeItem(STORAGE_KEY);
+          log.info(`Stored session expired, removed from storage`);
         }
       } else {
         // Missing required auth data
-        localStorage.removeItem(storageKey);
-        log.info(`Invalid stored user data for API URL: ${apiUrl}, removed from storage`);
+        localStorage.removeItem(STORAGE_KEY);
+        log.info(`Invalid stored user data, removed from storage`);
       }
     }
   } catch (error) {
-    log.error(`Failed to restore user from storage for API URL: ${apiUrl}:`, error);
+    log.error(`Failed to restore user from storage:`, error);
   }
 
   return null;
@@ -98,7 +89,6 @@ export const useAuthStore = create<AuthState>()((set, get) => {
     user: null,
     error: null,
     isLoading: false,
-    apiUrl: null,
     shouldAutoLogin: false,
     deeplinkApiKey: null, // Initialize deeplink API key
 
@@ -115,11 +105,9 @@ export const useAuthStore = create<AuthState>()((set, get) => {
         // Initialize Python service if not already initialized
         await pythonService.initialize();
 
-        // Call login method on Python service
+        // Call login method on Python service (apiUrl is now hardcoded on Python side)
         const response = await pythonService.login(credentials);
         log.info(`Login request sent: ${response.status} - ${response.message}`);
-
-        set({ apiUrl: credentials.apiUrl });
 
         // The actual user update will happen via the auth_success event
       } catch (error) {
@@ -134,11 +122,8 @@ export const useAuthStore = create<AuthState>()((set, get) => {
     },
 
     logout: () => {
-      const { apiUrl } = get();
-      if (apiUrl) {
-        localStorage.removeItem(`currentUser_${apiUrl}`);
-        log.info(`User data removed from storage for API URL: ${apiUrl}`);
-      }
+      localStorage.removeItem(STORAGE_KEY);
+      log.info(`User data removed from storage`);
 
       set({ user: { isAuthenticated: false } });
       log.info('User logged out');
@@ -154,10 +139,9 @@ export const useAuthStore = create<AuthState>()((set, get) => {
             // Initialize Python service and login with cached API key
             await pythonService.initialize();
 
-            // Login with the cached API key
+            // Login with the cached API key (apiUrl is now hardcoded on Python side)
             await pythonService.login({
               apiKey: user.apiKey,
-              apiUrl: get().apiUrl,
             });
             set({ user });
 
@@ -195,10 +179,6 @@ export const useAuthStore = create<AuthState>()((set, get) => {
 
       const sessionAge = Date.now() - user.lastLoginTime;
       return sessionAge < SESSION_MAX_AGE;
-    },
-
-    setApiUrl: (apiUrl: string) => {
-      set({ apiUrl });
     },
 
     setUser: (user: User) => {

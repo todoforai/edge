@@ -1,5 +1,6 @@
 import { isTauri, desktopApi } from '@/lib/tauri-api';
 import { createLogger } from '@/utils/logger';
+import type { LoginCredentials, LoginResponse } from '../store/authStore';
 
 const log = createLogger('python-service');
 
@@ -23,7 +24,7 @@ export const wsClient = {
     {
       resolve: (value: any) => void;
       reject: (reason: any) => void;
-      timeout: any;
+      timeout: ReturnType<typeof setTimeout>;
     }
   >(),
   reconnectAttempts: 0,
@@ -173,7 +174,7 @@ export const wsClient = {
     }, delay);
   },
 
-  async callPython<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
+  async callPython(method: string, params: Record<string, any> = {}): Promise<any> {
     if (!this.connected) {
       const connected = await this.connect();
       if (!connected) {
@@ -181,7 +182,7 @@ export const wsClient = {
       }
     }
 
-    return new Promise<T>((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       try {
         const requestId = Date.now().toString() + Math.random().toString(36).substring(2, 9);
 
@@ -232,13 +233,13 @@ export const wsClient = {
 class PythonService {
   private initialized = false;
   private eventListeners: Map<string, Set<EventCallback>> = new Map();
-  private credentials: any = null;
+  private credentials: LoginCredentials | null = null;
   private nonverbose_types = new Set(['file_sync']);
 
   constructor() {}
 
   // This method is called by wsClient when it receives an event
-  handlePythonEvent(event: any): void {
+  handlePythonEvent(event: PythonEvent): void {
     try {
       // Log non-verbose events
       if (!this.nonverbose_types.has(event.type)) {
@@ -319,24 +320,24 @@ class PythonService {
     }
   }
 
-  async callPython<T = any>(method: string, params: any = {}): Promise<T> {
+  async callPython(method: string, params: Record<string, any> = {}): Promise<any> {
     if (!this.initialized) {
       throw new Error('Python service not initialized');
     }
 
     try {
-      return await wsClient.callPython<T>(method, params);
+      return await wsClient.callPython(method, params);
     } catch (error) {
       log.error(`Error calling Python function ${method}:`, error);
       throw error;
     }
   }
 
-  async ping(message: string): Promise<any> {
-    return this.callPython('ping', message);
+  async ping(message: string): Promise<unknown> {
+    return this.callPython('ping', { message });
   }
 
-  async login(credentials: any): Promise<any> {
+  async login(credentials: LoginCredentials): Promise<LoginResponse> {
     // Store credentials for potential reconnection
     this.credentials = credentials;
     return this.callPython('login', credentials);
