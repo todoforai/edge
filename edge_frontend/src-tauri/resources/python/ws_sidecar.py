@@ -132,6 +132,10 @@ def login(credentials):
     """Login with API key"""
     try:
         config = default_config()
+        # Hardcode API URL based on environment (matches frontend API_CONFIG.BASE_URL_HTTP)
+        # Default to production, use localhost only if explicitly in development
+        config.api_url = 'http://localhost:4000' if os.getenv('NODE_ENV') == 'development' else 'https://api.todofor.ai'
+        
         config.apply_overrides(credentials)
         log.info(f"Using API URL: {config.api_url}")
         # lock the edge lock

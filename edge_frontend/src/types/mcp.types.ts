@@ -1,3 +1,5 @@
+import { assertExhaustive } from "@/external_shared/attachmentUtils";
+
 export interface AttachmentFrame {
   id: string;
   originalName: string;
@@ -10,8 +12,7 @@ export interface AttachmentFrame {
 }
 
 export interface AttachmentData extends AttachmentFrame {
-  blob?: Blob;
-  content?: string; // Text content of the file - optional since it might not be loaded yet
+  blob?: Blob; // Always use blob for content - use blob.text() for text content
 }
 
 export enum MCPRunningStatus {
@@ -137,8 +138,7 @@ export function textContentToAttachmentData(
     id: `mcp_${Date.now()}`,
     originalName,
     mimeType: 'text/mcp',
-    content: textContent.text,
-    blob: undefined,
+    blob: new Blob([textContent.text], { type: 'text/mcp' }),
     fileSize: textContent.text.length,
     createdAt: Date.now(),
     status: 'NONE',
@@ -174,8 +174,7 @@ export function imageContentToAttachmentData(
   return {
     id: `mcp_${Date.now()}`,
     originalName,
-    mimeType: 'image/mcp',
-    content: undefined,
+    mimeType: imageContent.mimeType, // 'image/mcp',
     blob,
     fileSize: blob.size,
     createdAt: Date.now(),
@@ -210,7 +209,6 @@ export function audioContentToAttachmentData(
     id: `mcp_${Date.now()}`,
     originalName,
     mimeType: 'audio/mcp',
-    content: undefined,
     blob,
     fileSize: blob.size,
     createdAt: Date.now(),
@@ -256,9 +254,8 @@ export function resourceContentToAttachmentData(
       id: `mcp_${Date.now()}`,
       originalName,
       mimeType: `resource/mcp+${mime}`, // Preserve original MIME type with MCP prefix
-      content: resource.text,
       uri: resource.uri, // Preserve URI
-      blob: undefined,
+      blob: new Blob([resource.text], { type: mime }),
       fileSize: resource.text.length,
       createdAt: Date.now(),
       status: 'NONE',
@@ -270,7 +267,6 @@ export function resourceContentToAttachmentData(
       id: `mcp_${Date.now()}`,
       originalName,
       mimeType: `resource/mcp+${mime}`, // Preserve original MIME type with MCP prefix
-      content: undefined,
       uri: resource.uri, // Preserve URI
       blob,
       fileSize: blob.size,
@@ -283,7 +279,6 @@ export function resourceContentToAttachmentData(
       id: `mcp_${Date.now()}`,
       originalName: originalName.endsWith('.txt') ? originalName : `${originalName}.txt`,
       mimeType: `resource/mcp+${mime}`, // Preserve original MIME type with MCP prefix
-      content: undefined,
       uri: resource.uri, // Preserve URI
       blob: undefined,
       fileSize: 0,
@@ -301,7 +296,7 @@ export function mcpContentToAttachmentData(
   toolName?: string,
   timestamp?: string,
   index?: number
-): AttachmentData | null {
+): AttachmentData {
   switch (mcpContent.type) {
     case 'text':
       return textContentToAttachmentData(mcpContent as TextContent, toolName, timestamp, index);
@@ -312,6 +307,6 @@ export function mcpContentToAttachmentData(
     case 'resource':
       return resourceContentToAttachmentData(mcpContent as ResourceContent, toolName, timestamp, index);
     default:
-      return null;
+      assertExhaustive(mcpContent);
   }
 }

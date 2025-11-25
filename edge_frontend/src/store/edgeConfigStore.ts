@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { createLogger } from '@/utils/logger';
 import pythonService from '../services/python-service';
 import type { EdgeData, MCPEdgeExecutable } from '../types';
-import { EdgeStatus } from '../types';
+import { EdgeStatus, DeviceType } from '../types';
 
 const log = createLogger('edgeConfigStore');
 
@@ -29,6 +29,8 @@ interface EdgeConfigState {
 const defaultConfig: EdgeData = {
   id: '',
   name: 'Unknown Edge',
+  deviceType: DeviceType.PC,
+  metadata: {},
   workspacepaths: [],
   ownerId: '',
   status: EdgeStatus.OFFLINE,
