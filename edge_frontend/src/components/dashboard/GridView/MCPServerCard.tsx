@@ -6,54 +6,6 @@ import { getMCPByCommandArgs } from '../../../data/mcpServersRegistry';
 import { MCPStatusBadge } from '../../ui/MCPStatusBadge';
 import { Button } from '@/components/ui/button';
 
-const serverCard = cva([
-  "border border-border rounded-xl p-6 bg-card transition-all hover:border-primary hover:shadow-md"
-]);
-
-const serverHeader = cva([
-  "flex items-start justify-between gap-4 mb-4"
-]);
-
-const serverMainInfo = cva([
-  "flex gap-3 flex-1 min-w-0"
-]);
-
-const serverIcon = cva([
-  "flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-md bg-accent overflow-hidden"
-]);
-
-const serverIconImage = cva([
-  "rounded-md"
-]);
-
-const serverInfo = cva([
-  "flex flex-col min-w-0 flex-1"
-]);
-
-const serverTitleRow = cva([
-  "flex items-center gap-2 mb-1 flex-wrap"
-]);
-
-const serverName = cva([
-  "text-base font-semibold text-foreground m-0 break-words hyphens-auto"
-]);
-
-const serverCategory = cva([
-  "text-xs text-muted-foreground bg-accent px-2 py-0.5 rounded-md inline-block flex-shrink-0"
-]);
-
-const serverId = cva([
-  "text-xs text-muted-foreground font-mono mb-2"
-]);
-
-const serverActions = cva([
-  "flex items-start gap-1 flex-shrink-0"
-]);
-
-const dropdownContainer = cva([
-  "relative"
-]);
-
 const dropdownMenu = cva([
   "absolute top-full right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-[100] min-w-[160px]"
 ], {
@@ -79,10 +31,6 @@ const dropdownItem = cva([
     }
   }
 });
-
-const serverDescription = cva([
-  "text-sm text-muted-foreground leading-relaxed m-0"
-]);
 
 interface MCPServerCardProps {
   instance: MCPEdgeExecutable;
@@ -139,34 +87,34 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   }, []);
 
   return (
-    <div className={serverCard()}>
-      <div className={serverHeader()}>
-        <div className={serverMainInfo()}>
-          <div className={serverIcon()}>
+    <div className="border border-border rounded-xl p-6 bg-card transition-all hover:border-primary hover:shadow-md">
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex gap-3 flex-1 min-w-0">
+          <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-md bg-accent overflow-hidden">
             <img 
               src={displayIcon} 
               alt={displayName}
               width={48} height={48}
-              className={serverIconImage()}
+              className="rounded-md"
             />
           </div>
-          <div className={serverInfo()}>
-            <div className={serverTitleRow()}>
-              <h3 className={serverName()}>{displayName}</h3>
-              {showCategory && <span className={serverCategory()}>{displayCategory}</span>}
+          <div className="flex flex-col min-w-0 flex-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h3 className="text-base font-semibold text-foreground m-0 break-words hyphens-auto">{displayName}</h3>
+              {showCategory && <span className="text-xs text-muted-foreground bg-accent px-2 py-0.5 rounded-md inline-block flex-shrink-0">{displayCategory}</span>}
               <MCPStatusBadge status={instance.status} />
             </div>
-            <div className={serverId()}>{instance.serverId}</div>
+            <div className="text-xs text-muted-foreground font-mono mb-2">{instance.serverId}</div>
           </div>
         </div>
-        <div className={serverActions()}>
+        <div className="flex items-start gap-1 flex-shrink-0">
           <Button variant="outline" size="icon" onClick={() => onViewLogs(instance)} title="View Logs">
             <Terminal size={18} />
           </Button>
           <Button variant="outline" size="icon" onClick={() => onOpenSettings(instance)} title="Settings">
             <Settings size={18} />
           </Button>
-          <div className={dropdownContainer()} ref={dropdownRef}>
+          <div className="relative" ref={dropdownRef}>
             <Button 
               variant="outline"
               size="icon"
@@ -196,7 +144,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
           </div>
         </div>
       </div>
-      <p className={serverDescription()}>{displayDescription}</p>
+      <p className="text-sm text-muted-foreground leading-relaxed m-0">{displayDescription}</p>
     </div>
   );
 };
