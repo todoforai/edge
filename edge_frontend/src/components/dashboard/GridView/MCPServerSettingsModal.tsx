@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { AlertCircle, Plus, X } from 'lucide-react';
-import { cva } from "class-variance-authority";
 import type { MCPEdgeExecutable } from '../../../types/mcp.types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,37 +13,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-const settingsContent = cva([
-  "flex flex-col gap-6"
-]);
-
-const formGroup = cva([
-  "flex flex-col gap-2"
-]);
-
-const helpText = cva([
-  "text-xs text-muted-foreground"
-]);
-
-const errorMessage = cva([
-  "text-destructive text-xs flex items-center gap-1"
-]);
-
-const argumentsList = cva([
-  "flex flex-col gap-2"
-]);
-
-const argumentRow = cva([
-  "flex gap-2 items-center"
-]);
-
-const envList = cva([
-  "flex flex-col gap-2"
-]);
-
-const envRow = cva([
-  "flex gap-2 items-center"
-]);
+const settingsContent = "flex flex-col gap-6";
+const formGroup = "flex flex-col gap-2";
+const helpText = "text-xs text-muted-foreground";
+const errorMessage = "text-destructive text-xs flex items-center gap-1";
+const argumentsList = "flex flex-col gap-2";
+const argumentRow = "flex gap-2 items-center";
+const envList = "flex flex-col gap-2";
+const envRow = "flex gap-2 items-center";
 
 interface MCPServerSettingsModalProps {
   instance: MCPEdgeExecutable;
@@ -145,8 +121,8 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className={settingsContent()}>
-          <div className={formGroup()}>
+        <div className={settingsContent}>
+          <div className={formGroup}>
             <Label htmlFor="serverId">Server ID</Label>
             <Input
               id="serverId"
@@ -157,19 +133,19 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
               className={hasServerIdError ? "border-destructive focus-visible:ring-destructive" : ""}
             />
             {hasServerIdError && (
-              <div className={errorMessage()}>
+              <div className={errorMessage}>
                 <AlertCircle size={14} />
                 Underscore (_) characters are not allowed in Server ID
               </div>
             )}
             {isNewInstallation && !hasServerIdError && (
-              <div className={helpText()}>
+              <div className={helpText}>
                 Customize the server ID to install multiple instances
               </div>
             )}
           </div>
 
-          <div className={formGroup()}>
+          <div className={formGroup}>
             <Label htmlFor="command">Command</Label>
             <Input
               id="command"
@@ -180,11 +156,11 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
             />
           </div>
 
-          <div className={formGroup()}>
+          <div className={formGroup}>
             <Label>Arguments</Label>
-            <div className={argumentsList()}>
+            <div className={argumentsList}>
               {(editingInstance.args || []).map((arg, index) => (
-                <div key={index} className={argumentRow()}>
+                <div key={index} className={argumentRow}>
                   <Input
                     type="text"
                     value={arg}
@@ -203,11 +179,11 @@ export const MCPServerSettingsModal: React.FC<MCPServerSettingsModalProps> = ({
             </div>
           </div>
 
-          <div className={formGroup()}>
+          <div className={formGroup}>
             <Label>Environment Variables</Label>
-            <div className={envList()}>
+            <div className={envList}>
               {Object.entries(editingInstance.env || {}).map(([key, value]) => (
-                <div key={key} className={envRow()}>
+                <div key={key} className={envRow}>
                   <Input
                     type="text"
                     value={key}

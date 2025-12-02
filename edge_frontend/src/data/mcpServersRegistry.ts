@@ -13,7 +13,7 @@ const getDefaultGmailCredPath = () => {
 export const MCP_REGISTRY: MCPRegistry[] = [
   // Built-in TODOforAI MCP
   {
-    registryId: 'todoforai',
+    registryId: 'todoai',
     name: 'TODOforAI',
     description: 'Built-in file and shell operations',
     command: 'builtin',
@@ -25,7 +25,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     repository: {
       url: 'https://github.com/todoforai/edge',
       source: 'builtin',
-      id: 'todoforai-builtin',
+      id: 'todoai-builtin',
     },
     version_detail: {
       version: '1.0.0',

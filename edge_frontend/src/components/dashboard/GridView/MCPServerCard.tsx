@@ -50,7 +50,7 @@ export const MCPServerCard: React.FC<MCPServerCardProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const isBuiltIn = instance.serverId === 'todoforai';
+  const isBuiltIn = instance.serverId === 'todoai';
   const registryServer = getMCPByCommandArgs(instance.command, instance.args);
   
   // Create fallback info if not found in registry
