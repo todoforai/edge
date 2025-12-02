@@ -1,5 +1,51 @@
 import type { MCPRegistry } from '../types';
 
+// Category constants - used for both UI grouping AND requirement matching
+export const MCP_CATEGORY = {
+  // Core
+  BUILT_IN: 'Built-in',
+  FILESYSTEM: 'Filesystem',
+
+  // Web & Browser
+  BROWSER: 'Browser',
+
+  // Communication
+  EMAIL: 'Email',
+  MESSAGING: 'Messaging',
+  CALENDAR: 'Calendar',
+
+  // Audio/Voice
+  TTS: 'Text-to-Speech',
+  TRANSCRIPTION: 'Transcription',
+  MUSIC: 'Music',
+
+  // Video
+  VIDEO: 'Video',
+
+  // Location
+  MAPS: 'Maps',
+  WEATHER: 'Weather',
+
+  // Technical
+  DATABASE: 'Database',
+  STORAGE: 'Storage',
+  HOSTING: 'Hosting',
+  DEVELOPMENT: 'Development',
+  ERROR_TRACKING: 'Error Tracking',
+
+  // Business
+  PAYMENTS: 'Payments',
+  PROJECT_MANAGEMENT: 'Project Management',
+  AUTOMATION: 'Automation',
+  DESIGN: 'Design',
+  SOCIAL: 'Social',
+
+  // AI
+  AI: 'AI',
+} as const;
+
+export type MCPCategoryType = (typeof MCP_CATEGORY)[keyof typeof MCP_CATEGORY];
+
 // Helper function to get default Gmail credentials path
 const getDefaultGmailCredPath = () => {
   // For browser fallback, use the existing logic
@@ -20,8 +66,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: [],
     icon: '/T-rocket-middle.png',
     env: {},
-    category: ['Built-in'],
-    aliases: ['TODOFORAI'],
+    category: [MCP_CATEGORY.BUILT_IN, MCP_CATEGORY.FILESYSTEM],
     repository: {
       url: 'https://github.com/todoforai/edge',
       source: 'builtin',
@@ -95,8 +140,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
         '- Stores tokens at ~/.gmail-mcp/credentials.json',
       ].join('\n'),
     },
-    category: ['Communication'],
-    aliases: ['GMAIL'],
+    category: [MCP_CATEGORY.EMAIL],
     repository: {
       url: 'https://github.com/todoforai/Gmail-MCP-Server',
       source: 'npm',
@@ -141,8 +185,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
         'Read-only mode uses secondary read preference for optimal performance.',
       ].join('\n'),
     },
-    category: ['Database'],
-    aliases: ['DATABASE'],
+    category: [MCP_CATEGORY.DATABASE],
     repository: {
       url: 'https://github.com/kiliczsh/mcp-mongo-server',
       source: 'npm',
@@ -162,8 +205,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['@playwright/mcp@latest'],
     icon: '/logos/playwright.png',
     env: {},
-    category: ['Web Automation'],
-    aliases: ['BROWSER'],
+    category: [MCP_CATEGORY.BROWSER],
     repository: {
       url: 'https://github.com/microsoft/playwright',
       source: 'npm',
@@ -183,8 +225,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', '@todoforai/puppeteer-mcp-server'],
     icon: '/logos/puppeteer.png', // Local downloaded logo
     env: {},
-    category: ['Web Automation'],
-    aliases: ['BROWSER'],
+    category: [MCP_CATEGORY.BROWSER],
     repository: {
       url: 'https://github.com/todoforai/puppeteer-mcp-server',
       source: 'github',
@@ -203,8 +244,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['@spotify-applescript/mcp-server'],
     icon: '/logos/spotify.png', // Local downloaded logo
-    category: ['Media'],
-    aliases: ['SPOTIFY'],
+    category: [MCP_CATEGORY.MUSIC],
     repository: {
       url: 'https://github.com/spotify-applescript/mcp-server',
       source: 'npm',
@@ -224,8 +264,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['@stripe/mcp-server'],
     icon: '/logos/stripe.png', // Local downloaded logo
     env: { STRIPE_API_KEY: '' },
-    category: ['Finance'],
-    aliases: ['STRIPE'],
+    category: [MCP_CATEGORY.PAYMENTS],
     repository: {
       url: 'https://github.com/stripe/mcp-server',
       source: 'npm',
@@ -244,8 +283,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['@brave-applescript/mcp-server'],
     icon: '/logos/brave.png', // Local downloaded logo
-    category: ['Web Automation'],
-    aliases: ['BROWSER'],
+    category: [MCP_CATEGORY.BROWSER],
     repository: {
       url: 'https://github.com/brave-applescript/mcp-server',
       source: 'npm',
@@ -274,8 +312,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     ],
     icon: '/logos/weather.png',
     env: {},
-    category: ['Weather'],
-    aliases: ['WEATHER'],
+    category: [MCP_CATEGORY.WEATHER],
     repository: {
       url: 'https://smithery.ai/@HarunGuclu/weather_mcp',
       source: 'smithery',
@@ -295,8 +332,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', '@modelcontextprotocol/server-cloudflare'],
     icon: '/logos/cloudflare.png',
     env: { CLOUDFLARE_API_TOKEN: '' },
-    category: ['Cloud Services'],
-    aliases: ['CLOUDFLARE'],
+    category: [MCP_CATEGORY.HOSTING],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/cloudflare',
       source: 'npm',
@@ -319,8 +355,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
       ATLASSIAN_API_TOKEN: '',
       ATLASSIAN_BASE_URL: '',
     },
-    category: ['Project Management'],
-    aliases: ['ATLASSIAN', 'JIRA', 'CONFLUENCE'],
+    category: [MCP_CATEGORY.PROJECT_MANAGEMENT],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/atlassian',
       source: 'npm',
@@ -340,8 +375,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', '@props-labs/mcp/fireflies'],
     icon: '/logos/fireflies.png',
     env: { FIREFLIES_API_KEY: '' },
-    category: ['Communication'],
-    aliases: ['FIREFLIES'],
+    category: [MCP_CATEGORY.TRANSCRIPTION],
     repository: {
       url: 'https://github.com/props-labs/mcp-fireflies',
       source: 'npm',
@@ -361,8 +395,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', '@modelcontextprotocol/server-google-drive'],
     icon: '/logos/google-drive.png',
     env: { GOOGLE_API_CREDENTIALS: '' },
-    category: ['Cloud Storage'],
-    aliases: ['GOOGLE_DRIVE', 'DRIVE'],
+    category: [MCP_CATEGORY.STORAGE],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/google-drive',
       source: 'npm',
@@ -381,9 +414,9 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', '@cocal/google-calendar-mcp'],
     icon: '/logos/google-calendar.png',
-    env: { 
+    env: {
       GOOGLE_OAUTH_CREDENTIALS: '',
-      GOOGLE_CALENDAR_MCP_TOKEN_PATH: ''
+      GOOGLE_CALENDAR_MCP_TOKEN_PATH: '',
     },
     setup: {
       instructions: [
@@ -403,8 +436,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
         'To avoid re-auth, publish app to production mode (unverified).',
       ].join('\n'),
     },
-    category: ['Productivity'],
-    aliases: ['GOOGLE_CALENDAR', 'CALENDAR'],
+    category: [MCP_CATEGORY.CALENDAR],
     repository: {
       url: 'https://github.com/nspady/google-calendar-mcp',
       source: 'npm',
@@ -424,8 +456,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', '@modelcontextprotocol/server-google-mail'],
     icon: '/logos/gmail.png',
     env: { GOOGLE_API_CREDENTIALS: '' },
-    category: ['Communication'],
-    aliases: ['GOOGLE_MAIL'],
+    category: [MCP_CATEGORY.EMAIL],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/google-mail',
       source: 'npm',
@@ -445,8 +476,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', '@canva/cli', 'mcp'],
     icon: '/logos/canva.png',
     env: {},
-    category: ['Design'],
-    aliases: ['CANVA'],
+    category: [MCP_CATEGORY.DESIGN],
     repository: {
       url: 'https://github.com/canva/cli',
       source: 'npm',
@@ -466,8 +496,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['mcp-remote', 'https://mcp.invideo.io/sse'],
     icon: '/logos/invideo.png',
     env: {},
-    category: ['Media'],
-    aliases: ['INVIDEO'],
+    category: [MCP_CATEGORY.VIDEO],
     repository: {
       url: 'https://mcp.invideo.io',
       source: 'remote',
@@ -490,8 +519,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
       PAYPAL_ACCESS_TOKEN: '',
       PAYPAL_ENVIRONMENT: 'SANDBOX',
     },
-    category: ['Finance'],
-    aliases: ['PAYPAL'],
+    category: [MCP_CATEGORY.PAYMENTS],
     repository: {
       url: 'https://github.com/paypal/mcp-server',
       source: 'npm',
@@ -514,8 +542,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
       SENTRY_ACCESS_TOKEN: '',
       SENTRY_HOST: '',
     },
-    category: ['Development'],
-    aliases: ['SENTRY'],
+    category: [MCP_CATEGORY.ERROR_TRACKING],
     repository: {
       url: 'https://mcp.sentry.dev',
       source: 'remote',
@@ -535,8 +562,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', '@netlify/mcp'],
     icon: '/logos/netlify.png',
     env: { NETLIFY_PERSONAL_ACCESS_TOKEN: '' },
-    category: ['Cloud Services'],
-    aliases: ['NETLIFY'],
+    category: [MCP_CATEGORY.HOSTING],
     repository: {
       url: 'https://github.com/netlify/mcp-server',
       source: 'npm',
@@ -556,8 +582,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['mcp-remote', 'https://mcp.squareup.com/sse'],
     icon: '/logos/square.png',
     env: {},
-    category: ['Finance'],
-    aliases: ['SQUARE'],
+    category: [MCP_CATEGORY.PAYMENTS],
     repository: {
       url: 'https://mcp.squareup.com',
       source: 'remote',
@@ -577,8 +602,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', '@modelcontextprotocol/server-asana'],
     icon: '/logos/asana.png',
     env: { ASANA_API_TOKEN: '' },
-    category: ['Project Management'],
-    aliases: ['ASANA'],
+    category: [MCP_CATEGORY.PROJECT_MANAGEMENT],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/asana',
       source: 'npm',
@@ -598,8 +622,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['mcp-remote', 'https://mcp.vercel.com'],
     icon: '/logos/vercel.png',
     env: {},
-    category: ['Cloud Services'],
-    aliases: ['VERCEL'],
+    category: [MCP_CATEGORY.HOSTING],
     repository: {
       url: 'https://mcp.vercel.com',
       source: 'remote',
@@ -619,8 +642,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', '@modelcontextprotocol/server-google-maps'],
     icon: '/logos/google-maps.png',
     env: { GOOGLE_MAPS_API_KEY: '' },
-    category: ['Mapping'],
-    aliases: ['GOOGLE_MAPS', 'MAPS'],
+    category: [MCP_CATEGORY.MAPS],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/google-maps',
       source: 'npm',
@@ -640,8 +662,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['mcp-remote', 'https://actions.zapier.com/mcp/YOUR_MCP_KEY/sse'],
     icon: '/logos/zapier.png',
     env: {},
-    category: ['Automation'],
-    aliases: ['ZAPIER'],
+    category: [MCP_CATEGORY.AUTOMATION],
     repository: {
       url: 'https://actions.zapier.com',
       source: 'remote',
@@ -661,8 +682,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', '@workato/mcp'],
     icon: '/logos/workato.png',
     env: { WORKATO_API_KEY: '' },
-    category: ['Automation'],
-    aliases: ['WORKATO'],
+    category: [MCP_CATEGORY.AUTOMATION],
     repository: {
       url: 'https://github.com/workato/mcp-server',
       source: 'npm',
@@ -682,8 +702,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', '@modelcontextprotocol/server-bluesky'],
     icon: '/logos/bluesky.png',
     env: { BLUESKY_API_KEY: '' },
-    category: ['Social Media'],
-    aliases: ['BLUESKY'],
+    category: [MCP_CATEGORY.SOCIAL, MCP_CATEGORY.MESSAGING],
     repository: {
       url: 'https://github.com/modelcontextprotocol/servers/tree/main/src/bluesky',
       source: 'npm',
@@ -703,8 +722,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['mcp-remote', 'https://api.githubcopilot.com/mcp/'],
     icon: '/logos/github.png',
     env: {},
-    category: ['Development'],
-    aliases: ['GITHUB'],
+    category: [MCP_CATEGORY.DEVELOPMENT],
     repository: {
       url: 'https://api.githubcopilot.com/mcp/',
       source: 'remote',
@@ -727,8 +745,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
       GREENAPI_ID_INSTANCE: '',
       GREENAPI_API_TOKEN: '',
     },
-    category: ['Communication'],
-    aliases: ['WHATSAPP'],
+    category: [MCP_CATEGORY.MESSAGING],
     repository: {
       url: 'https://github.com/whatsapp/mcp-server',
       source: 'python',
@@ -748,8 +765,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     args: ['-y', 'slack-mcp-server'],
     icon: '/logos/slack.png',
     env: { SLACK_BOT_TOKEN: '' },
-    category: ['Communication'],
-    aliases: ['SLACK'],
+    category: [MCP_CATEGORY.MESSAGING],
     repository: {
       url: 'https://github.com/slack/mcp-server',
       source: 'npm',
@@ -768,8 +784,8 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     command: 'npx',
     args: ['-y', 'github:todoforai/MCP-Suno'],
     icon: '/logos/suno.png',
-    env: { 
-      SunoKey: '' 
+    env: {
+      SunoKey: '',
     },
     setup: {
       instructions: [
@@ -793,8 +809,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
         'Note: Generation may take a few minutes as it polls for results.',
       ].join('\n'),
     },
-    category: ['Media', 'AI'],
-    aliases: ['SUNO', 'MUSIC'],
+    category: [MCP_CATEGORY.MUSIC, MCP_CATEGORY.AI],
     repository: {
       url: 'https://github.com/todoforai/MCP-Suno',
       source: 'github',
@@ -849,8 +864,7 @@ export const MCP_REGISTRY: MCPRegistry[] = [
         '⚠️ Note: Most tools require API credits and may incur costs',
       ].join('\n'),
     },
-    category: ['AI', 'Media'],
-    aliases: ['ELEVENLABS', 'TTS', 'VOICE'],
+    category: [MCP_CATEGORY.TTS, MCP_CATEGORY.TRANSCRIPTION, MCP_CATEGORY.AI],
     repository: {
       url: 'https://github.com/elevenlabs/elevenlabs-mcp',
       source: 'pypi',
@@ -879,9 +893,18 @@ export const getMCPByRegistryID = (registryId: string | undefined): MCPRegistry 
   return MCP_REGISTRY.find((server) => server.registryId === registryId);
 };
 
-export const findMCPByAlias = (alias: string): MCPRegistry[] => {
-  const q = alias.trim().toLowerCase();
+export const findMCPByCategory = (category: MCPCategoryType): MCPRegistry[] => {
+  return MCP_REGISTRY.filter((server) => server.category?.includes(category));
+};
+
+export const findMCPByName = (query: string): MCPRegistry[] => {
+  const q = query.trim().toLowerCase();
   if (!q) return [];
 
-  return MCP_REGISTRY.filter((server) => server.aliases?.some((a: string) => a.toLowerCase().includes(q)));
+  return MCP_REGISTRY.filter(
+    (server) =>
+      server.name?.toLowerCase().includes(q) ||
+      server.registryId.toLowerCase().includes(q) ||
+      server.category?.some((c) => c.toLowerCase().includes(q))
+  );
 };
