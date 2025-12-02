@@ -12,7 +12,11 @@ export interface AttachmentFrame {
 }
 
 export interface AttachmentData extends AttachmentFrame {
-  blob?: Blob; // Always use blob for content - use blob.text() for text content
+  blob: Blob; // Always use blob for content - use blob.text() for text content
+}
+
+export interface AttachmentDataRaw extends AttachmentFrame {
+  content: string; 
 }
 
 export enum MCPRunningStatus {
@@ -280,7 +284,7 @@ export function resourceContentToAttachmentData(
       originalName: originalName.endsWith('.txt') ? originalName : `${originalName}.txt`,
       mimeType: `resource/mcp+${mime}`, // Preserve original MIME type with MCP prefix
       uri: resource.uri, // Preserve URI
-      blob: undefined,
+      blob: new Blob([], { type: mime }),
       fileSize: 0,
       createdAt: Date.now(),
       status: 'NONE',
