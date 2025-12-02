@@ -113,10 +113,10 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
     const mcpServers = mcp_json.mcpServers || {};
     
     const base = Object.entries(installedMCPs).map(([serverId, instance]) => {
-      if (serverId === 'todoforai') {
+      if (serverId === 'todoai') {
         return {
           ...instance,
-          id: instance.id || 'todoforai-builtin',
+          id: instance.id || 'todoai-builtin',
           serverId,
           command: 'builtin',
           args: [],
@@ -142,8 +142,8 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
 
 // One-time initialization hook for edge config store (sets up event listener)
 export const useEdgeConfigInitEffect = () => {
-  const initialize = useEdgeConfigStore(state => state.initialize);
   useEffect(() => {
-    return initialize();
+    return useEdgeConfigStore.getState().initialize();
   }, []);
+  return null;
 };
