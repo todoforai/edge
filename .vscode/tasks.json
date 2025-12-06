@@ -5,6 +5,12 @@
       "label": "TODO for AI edge",
       "type": "shell",
       "command": "make run-dev",
+      "options": {
+        "shell": {
+          "executable": "${env:SHELL}",
+          "args": ["-ic"]
+        }
+      },
       "presentation": {
         "reveal": "always",
         "focus": false
