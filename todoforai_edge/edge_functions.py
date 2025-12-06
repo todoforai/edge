@@ -4,6 +4,7 @@ import logging
 import platform
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+import requests
 
 from .handlers.shell_handler import ShellProcess
 
@@ -179,6 +180,117 @@ async def execute_shell_command(command: str, timeout: int = 120, root_path: str
             "success": False,
             "error": str(error)
         }
+
+@register_function("download_attachment")
+async def download_attachment(attachmentId: str, filePath: str, rootPath: str = "", client_instance=None):
+    """Download an attachment from the backend API to the local filesystem."""
+    if not client_instance:
+        raise ValueError("Client instance required for download_attachment")
+
+    api_url = getattr(client_instance, "api_url", "").rstrip("/")
+    api_key = getattr(client_instance, "api_key", "")
+    if not api_url or not api_key:
+        raise ValueError("Missing API credentials for attachment download")
+
+    base_path = Path(get_path_or_platform_default(rootPath or ""))
+    target_path = Path(filePath).expanduser()
+    if not target_path.is_absolute():
+        target_path = base_path / target_path
+    target_path = target_path.resolve()
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    url = f"{api_url}/api/v1/files/{attachmentId}"
+    headers = {"x-api-key": api_key}
+
+    try:
+        response = requests.get(url, headers=headers, timeout=60)
+        if response.status_code >= 400:
+            return {
+                "success": False,
+                "error": f"Backend responded with {response.status_code}: {response.text}"
+            }
+
+        with open(target_path, "wb") as file:
+            file.write(response.content)
+
+        return {
+            "success": True,
+            "path": str(target_path),
+            "bytes": len(response.content)
+        }
+    except Exception as error:
+        logger.error(f"Error downloading attachment {attachmentId}: {error}")
+        return {
+            "success": False,
+            "error": str(error)
+        }
+
+@register_function("register_attachment")
+async def register_attachment(
+    filePath: str,
+    userId: str = "test-user",
+    isPublic: bool = False,
+    agentSettingsId: str = "",
+    todoId: str = "",
+    rootPath: str = "",
+    client_instance=None,
+):
+    """Upload a local file to the backend attachment endpoint."""
+    if not client_instance:
+        raise ValueError("Client instance required for register_attachment")
+
+    api_url = getattr(client_instance, "api_url", "").rstrip("/")
+    api_key = getattr(client_instance, "api_key", "")
+    if not api_url or not api_key:
+        raise ValueError("Missing API credentials for attachment upload")
+
+    base_path = Path(get_path_or_platform_default(rootPath or ""))
+    target_path = Path(filePath).expanduser()
+    if not target_path.is_absolute():
+        target_path = base_path / target_path
+    target_path = target_path.resolve()
+
+    if not target_path.exists() or not target_path.is_file():
+        return {"success": False, "error": f"File not found: {target_path}"}
+
+    upload_endpoint = f"{api_url}/api/v1/files/register"
+    headers = {"x-api-key": api_key}
+
+    data = {}
+    if userId:
+        data["userId"] = userId
+    if agentSettingsId:
+        data["agentSettingsId"] = agentSettingsId
+    if todoId:
+        data["todoId"] = todoId
+    data["isPublic"] = "true" if isPublic else "false"
+
+    files = {"file": (target_path.name, target_path.read_bytes())}
+
+    try:
+        response = requests.post(upload_endpoint, headers=headers, data=data, files=files, timeout=60)
+    except Exception as error:
+        logger.error(f"Error uploading attachment {target_path}: {error}")
+        return {"success": False, "error": str(error)}
+
+    if response.status_code >= 400:
+        return {
+            "success": False,
+            "error": f"Backend responded with {response.status_code}: {response.text}"
+        }
+
+    try:
+        payload = response.json()
+    except Exception:
+        payload = {}
+
+    attachment_id = payload.get("attachmentId")
+
+    return {
+        "success": True,
+        "attachmentId": attachment_id,
+        "response": payload
+    }
 
 @register_function("mcp_call_tool")
 async def mcp_call_tool(tool_name: str, arguments: Dict[str, Any] = None, client_instance=None):
