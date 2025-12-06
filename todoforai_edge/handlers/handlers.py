@@ -493,13 +493,11 @@ async def _execute_function(function_name: str, args: dict, client) -> any:
     
     func = FUNCTION_REGISTRY[function_name]
     
-    # For functions that need client instance, always pass it
-    if function_name.startswith('mcp_') or function_name == 'execute_shell_command':
-        args['client_instance'] = client
-    
     # Execute function based on its signature
     import inspect
     sig = inspect.signature(func)
+    if "client_instance" in sig.parameters and "client_instance" not in args:
+        args["client_instance"] = client
     
     if len(sig.parameters) > 0:
         result = await func(**args) if asyncio.iscoroutinefunction(func) else func(**args)
