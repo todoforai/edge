@@ -316,6 +316,11 @@ async def read_file_base64(
     if not os.path.exists(full_path):
         return {"success": False, "error": f"File not found: {full_path}"}
 
+    max_bytes = 50_000_000  # 50MB
+    size = os.path.getsize(full_path)
+    if size > max_bytes:
+        return {"success": False, "error": f"File too large: {size:,} bytes (max {max_bytes:,})"}
+
     try:
         with open(full_path, "rb") as f:
             data = f.read()
