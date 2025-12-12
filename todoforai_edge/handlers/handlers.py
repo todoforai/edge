@@ -28,95 +28,13 @@ from ..edge_functions import (
     get_platform_default_directory,
     get_path_or_platform_default,
 )
+from .path_utils import (
+    get_parent_directory_if_needed,
+    resolve_file_path,
+    find_file_in_workspaces,
+)
 
 logger = logging.getLogger("todoforai-edge")
-
-def get_parent_directory_if_needed(path: str, root_path: Optional[str], fallback_root_paths: List[str]) -> Optional[str]:
-    """
-    Get the parent directory of any workspace path if it should be added to search paths.
-    
-    This handles cases where a relative path starts with any workspace folder name,
-    indicating the user wants to reference files relative to the parent of that workspace.
-    
-    Example:
-        root_path = "/home/user/projects/myproject"
-        fallback_root_paths = ["/home/user/other/myproject"]
-        path = "myproject/src/main.py"
-        
-        Since path starts with "myproject" (the last folder of any workspace path),
-        returns the parent directory of the first matching workspace.
-        
-    Returns:
-        str: Parent directory path if it should be added, None otherwise
-    """
-    if os.path.isabs(path):
-        return None
-    
-    # Collect all workspace paths to check
-    all_workspace_paths = []
-    if root_path:
-        all_workspace_paths.append(root_path)
-    if fallback_root_paths:
-        all_workspace_paths.extend(fallback_root_paths)
-    
-    # Check each workspace path
-    for workspace_path in all_workspace_paths:
-        if not workspace_path:
-            continue
-            
-        # Extract the last folder name from workspace_path
-        workspace_folder_name = os.path.basename(workspace_path.rstrip(os.sep))
-        
-        # Check if path starts with the workspace folder name
-        if path.startswith(workspace_folder_name + os.sep) or path == workspace_folder_name:
-            workspace_parent = os.path.dirname(workspace_path)
-            if workspace_parent:
-                return workspace_parent
-    
-    return None
-
-def resolve_file_path(path: str, root_path: Optional[str] = None, fallback_root_paths: List[str] = None) -> str:
-    """Resolve file path using root path and fallback paths"""
-    path = os.path.expanduser(path)
-
-    if fallback_root_paths:
-        all_paths = [root_path] + fallback_root_paths if root_path else fallback_root_paths
-        
-        # Add parent directory of any workspace as last resort for relative paths
-        parent_dir = get_parent_directory_if_needed(path, root_path, fallback_root_paths)
-        if parent_dir and parent_dir not in all_paths:
-            all_paths.append(parent_dir)
-        
-        found_path = find_file_in_workspaces(path, all_paths, root_path)
-        if found_path:
-            return found_path
-
-    # Fallback to root_path if available and path is relative
-    if root_path and not os.path.isabs(path):
-        return os.path.join(root_path, path)
-
-    return path
-
-def find_file_in_workspaces(path: str, workspace_paths: List[str], primary_path: Optional[str] = None) -> Optional[str]:
-    """Find a file in workspace paths, with optional primary path priority"""
-    # Check primary path first if provided
-    if primary_path:
-        candidate_path = os.path.join(primary_path, path) if not os.path.isabs(path) else path
-        candidate_path = os.path.expanduser(candidate_path)
-        candidate_path = os.path.abspath(candidate_path)
-        if Path(candidate_path).exists():
-            return candidate_path
-
-    # Search in other workspace paths
-    for workspace_path in workspace_paths:
-        candidate_path = os.path.join(workspace_path, path)
-        candidate_path = os.path.expanduser(candidate_path)
-        candidate_path = os.path.abspath(candidate_path)
-
-        if Path(candidate_path).exists():
-            return candidate_path
-
-    return None
 
 # Handler functions for external use
 async def handle_block_execute(payload, client):
@@ -522,9 +440,14 @@ async def handle_function_call_request(payload, client):
         result = await _execute_function(function_name, args, client)
         response = response_handler.success_response(result)
     except Exception as error:
-        stack_trace = traceback.format_exc()
-        logger.error(f"Error processing {req_type} function call: {str(error)}\nStacktrace:\n{stack_trace}")
-        response = response_handler.error_response(f"{str(error)}\n\nStacktrace:\n{stack_trace}")
+        # Avoid returning stacktraces to callers for common/expected errors like missing files.
+        if isinstance(error, FileNotFoundError):
+            logger.warning(f"File not found during {req_type} function call '{function_name}': {error}")
+            response = response_handler.error_response(str(error))
+        else:
+            stack_trace = traceback.format_exc()
+            logger.error(f"Error processing {req_type} function call: {str(error)}\nStacktrace:\n{stack_trace}")
+            response = response_handler.error_response(f"{str(error)}\n\nStacktrace:\n{stack_trace}")
     
     await client.send_response(response)
 

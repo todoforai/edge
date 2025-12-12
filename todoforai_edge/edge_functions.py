@@ -2,11 +2,13 @@ import os
 import asyncio
 import logging
 import platform
+import base64
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import requests
-
+from .constants.workspace_handler import is_path_allowed
 from .handlers.shell_handler import ShellProcess
+from .handlers.path_utils import resolve_file_path
 
 logger = logging.getLogger("todoforai-edge")
 
@@ -291,6 +293,37 @@ async def register_attachment(
         "attachmentId": attachment_id,
         "response": payload
     }
+
+@register_function("read_file_base64")
+async def read_file_base64(
+    path: str,
+    rootPath: str = "",
+    fallbackRootPaths: Optional[List[str]] = None,
+    client_instance=None,
+    **_: Any,
+):
+    """Read a file as binary and return base64 content."""
+    fallbackRootPaths = fallbackRootPaths or []
+    full_path = resolve_file_path(path, rootPath, fallbackRootPaths)
+
+    try:
+        if client_instance and hasattr(client_instance, "edge_config"):
+            if not is_path_allowed(full_path, client_instance.edge_config.config):
+                return {"success": False, "error": f"No permission to access the given file {full_path}"}
+    except Exception as error:
+        logger.warning(f"Path permission check failed for {full_path}: {error}")
+
+    if not os.path.exists(full_path):
+        return {"success": False, "error": f"File not found: {full_path}"}
+
+    try:
+        with open(full_path, "rb") as f:
+            data = f.read()
+        encoded = base64.b64encode(data).decode("ascii")
+        return {"success": True, "path": full_path, "base64": encoded, "bytes": len(data)}
+    except Exception as error:
+        logger.error(f"Error reading binary file {full_path}: {error}")
+        return {"success": False, "error": str(error)}
 
 @register_function("mcp_call_tool")
 async def mcp_call_tool(tool_name: str, arguments: Dict[str, Any] = None, client_instance=None):
