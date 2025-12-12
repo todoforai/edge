@@ -1,51 +1,6 @@
 import type { MCPRegistry } from '../types';
+import { MCP_CATEGORY, type MCPCategoryType } from '@/todo-registry/constants';
 
-// Category constants - used for both UI grouping AND requirement matching
-export const MCP_CATEGORY = {
-  // Core
-  BUILT_IN: 'Built-in',
-  FILESYSTEM: 'Filesystem',
-
-  // Web & Browser
-  BROWSER: 'Browser',
-
-  // Communication
-  EMAIL: 'Email',
-  MESSAGING: 'Messaging',
-  CALENDAR: 'Calendar',
-
-  // Audio/Voice
-  TTS: 'Text-to-Speech',
-  TRANSCRIPTION: 'Transcription',
-  MUSIC: 'Music',
-
-  // Video
-  VIDEO: 'Video',
-
-  // Location
-  MAPS: 'Maps',
-  WEATHER: 'Weather',
-
-  // Technical
-  DATABASE: 'Database',
-  STORAGE: 'Storage',
-  HOSTING: 'Hosting',
-  DEVELOPMENT: 'Development',
-  ERROR_TRACKING: 'Error Tracking',
-
-  // Business
-  PAYMENTS: 'Payments',
-  PROJECT_MANAGEMENT: 'Project Management',
-  AUTOMATION: 'Automation',
-  DESIGN: 'Design',
-  SOCIAL: 'Social',
-  SALES: 'Sales',
-
-  // AI
-  AI: 'AI',
-} as const;
-
-export type MCPCategoryType = (typeof MCP_CATEGORY)[keyof typeof MCP_CATEGORY];
 
 // Helper function to get default Gmail credentials path
 const getDefaultGmailCredPath = () => {
@@ -215,6 +170,26 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     version_detail: {
       version: 'latest',
       release_date: '2025-08-01',
+      is_latest: true,
+    },
+  },
+  {
+    registryId: 'browser-mcp',
+    name: 'TODO for AI Browser MCP',
+    description: 'Local browser automation exposed by the TODO for AI web extension.',
+    command: 'local',
+    args: [],
+    icon: 'mdi:puzzle',
+    env: {},
+    category: [MCP_CATEGORY.BROWSER],
+    repository: {
+      url: 'https://github.com/todoforai/browser-extension',
+      source: 'github',
+      id: 'todo-browser-mcp',
+    },
+    version_detail: {
+      version: 'local',
+      release_date: '2025-01-01',
       is_latest: true,
     },
   },
@@ -925,7 +900,8 @@ export const getMCPByRegistryID = (registryId: string | undefined): MCPRegistry 
 };
 
 export const findMCPByCategory = (category: MCPCategoryType): MCPRegistry[] => {
-  return MCP_REGISTRY.filter((server) => server.category?.includes(category));
+  const categoryLower = category.toLowerCase();
+  return MCP_REGISTRY.filter((server) => server.category?.some((c) => c.toLowerCase() === categoryLower));
 };
 
 export const findMCPByName = (query: string): MCPRegistry[] => {

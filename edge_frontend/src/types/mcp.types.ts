@@ -1,4 +1,6 @@
-import { assertExhaustive } from "@/external_shared/attachmentUtils";
+import { assertExhaustive } from '../../external_shared/attachmentUtils';
+
+export type AttachmentStatus = 'NEW' | 'UPDATED' | 'DELETED' | 'NONE';
 
 export interface AttachmentFrame {
   id: string;
@@ -8,7 +10,7 @@ export interface AttachmentFrame {
   createdAt?: number;
   isPublic?: boolean;
   fileSize: number;
-  status?: 'NEW' | 'UPDATED' | 'DELETED' | 'NONE'; // why is the file an attachment
+  status?: AttachmentStatus;
 }
 
 export interface AttachmentData extends AttachmentFrame {
@@ -54,7 +56,6 @@ export interface MCPRegistry extends MCPJSON {
   description?: string;
   tools?: MCPToolSkeleton[];
   category?: string[];
-  aliases?: string[];
   repository?: {
     url: string;
     source: string;
@@ -103,9 +104,7 @@ export interface AudioContent {
 
 export interface ResourceContent {
   type: 'resource';
-  resource: 
-    | { uri: string; mimeType?: string; text: string }
-    | { uri: string; mimeType?: string; blob: string };
+  resource: { uri: string; mimeType?: string; text: string } | { uri: string; mimeType?: string; blob: string };
   annotations?: any;
 }
 
@@ -118,14 +117,11 @@ export interface MCPAttachment {
 
 export type MCPContent = TextContent | ImageContent | AudioContent | ResourceContent | MCPAttachment;
 
-
-
-
 /**
  * Convert MCP TextContent to AttachmentData
  */
 export function textContentToAttachmentData(
-  textContent: TextContent, 
+  textContent: TextContent,
   toolName?: string,
   timestamp?: string,
   index?: number
@@ -151,7 +147,7 @@ export function textContentToAttachmentData(
 
 function base64ToBlob(base64: string, mimeType: string): Blob {
   const byteCharacters = atob(base64);
-  const byteNumbers = Array.from(byteCharacters, char => char.charCodeAt(0));
+  const byteNumbers = Array.from(byteCharacters, (char) => char.charCodeAt(0));
   return new Blob([new Uint8Array(byteNumbers)], { type: mimeType });
 }
 
@@ -166,7 +162,7 @@ export function imageContentToAttachmentData(
 ): AttachmentData {
   const blob = base64ToBlob(imageContent.data, imageContent.mimeType);
   const extension = imageContent.mimeType.split('/')[1] || 'png';
-  
+
   // Generate filename with toolName and timestamp if provided
   let originalName: string;
   if (toolName && timestamp && index !== undefined) {
@@ -174,7 +170,7 @@ export function imageContentToAttachmentData(
   } else {
     originalName = `image_${Date.now()}.${extension}`;
   }
-  
+
   return {
     id: `mcp_${Date.now()}`,
     originalName,
@@ -197,7 +193,7 @@ export function audioContentToAttachmentData(
 ): AttachmentData {
   const blob = base64ToBlob(audioContent.data, audioContent.mimeType);
   const extension = audioContent.mimeType.split('/')[1] || 'wav';
-  
+
   // Prioritize URI-based naming first
   let originalName: string;
   if (audioContent.uri) {
@@ -208,7 +204,7 @@ export function audioContentToAttachmentData(
   } else {
     originalName = `audio_${Date.now()}.${extension}`;
   }
-  
+
   return {
     id: `mcp_${Date.now()}`,
     originalName,
@@ -232,7 +228,7 @@ export function resourceContentToAttachmentData(
   const resource = resourceContent.resource;
   const uriName = resource.uri?.split('/').pop() || '';
   const mime = resource.mimeType || 'application/octet-stream';
-  
+
   // Prioritize URI-based naming FIRST
   let originalName: string;
   if (uriName && uriName.includes('.')) {
@@ -251,7 +247,7 @@ export function resourceContentToAttachmentData(
     const ext = mime.includes('/') ? mime.split('/')[1] : 'bin';
     originalName = `resource_${Date.now()}.${ext}`;
   }
-  
+
   // Handle text resource
   if ('text' in resource && resource.text !== undefined) {
     return {
@@ -266,7 +262,7 @@ export function resourceContentToAttachmentData(
     };
   } else if ('blob' in resource && resource.blob !== undefined) {
     const blob = base64ToBlob(resource.blob, mime);
-    
+
     return {
       id: `mcp_${Date.now()}`,
       originalName,
@@ -289,18 +285,13 @@ export function resourceContentToAttachmentData(
       createdAt: Date.now(),
       status: 'NONE',
     };
-  };
+  }
 }
 
 /**
  * Convert any MCPContent to AttachmentData
  */
-export function mcpContentToAttachmentData(
-  mcpContent: MCPContent,
-  toolName?: string,
-  timestamp?: string,
-  index?: number
-): AttachmentData {
+export function mcpContentToAttachmentData(mcpContent: MCPContent, toolName?: string, timestamp?: string, index?: number): AttachmentData {
   switch (mcpContent.type) {
     case 'text':
       return textContentToAttachmentData(mcpContent as TextContent, toolName, timestamp, index);
