@@ -39,6 +39,7 @@ export const MCP_CATEGORY = {
   AUTOMATION: 'Automation',
   DESIGN: 'Design',
   SOCIAL: 'Social',
+  SALES: 'Sales',
 
   // AI
   AI: 'AI',
@@ -802,9 +803,9 @@ export const MCP_REGISTRY: MCPRegistry[] = [
         '- Instrumental mode support',
         '',
         'Usage Examples:',
-        '- Custom: \"Generate a folk song with lyrics about nature\"',
-        '- Inspiration: \"Create a lofi chill beat for coding\"',
-        '- Continue: \"Extend the previous song from 60 seconds\"',
+        '- Custom: "Generate a folk song with lyrics about nature"',
+        '- Inspiration: "Create a lofi chill beat for coding"',
+        '- Continue: "Extend the previous song from 60 seconds"',
         '',
         'Note: Generation may take a few minutes as it polls for results.',
       ].join('\n'),
@@ -873,6 +874,36 @@ export const MCP_REGISTRY: MCPRegistry[] = [
     version_detail: {
       version: '0.9.0',
       release_date: '2025-01-25',
+      is_latest: true,
+    },
+  },
+  {
+    registryId: 'apollo-io',
+    name: 'Apollo.io MCP',
+    description: 'Apollo.io sales data tools (enrich, search, job postings)',
+    command: 'npx',
+    args: ['-y', 'github:lkm1developer/apollo-io-mcp-server'],
+    icon: 'mdi:chart-line',
+    env: {
+      APOLLO_IO_API_KEY: '',
+    },
+    setup: {
+      instructions: [
+        'Apollo.io MCP Configuration:',
+        '',
+        'Required:',
+        '- Set APOLLO_IO_API_KEY from Apollo.io Settings > API',
+      ].join('\n'),
+    },
+    category: [MCP_CATEGORY.SALES],
+    repository: {
+      url: 'https://github.com/lkm1developer/apollo-io-mcp-server',
+      source: 'github',
+      id: 'lkm1developer/apollo-io-mcp-server',
+    },
+    version_detail: {
+      version: '0.1.0',
+      release_date: '2025-12-09',
       is_latest: true,
     },
   },
