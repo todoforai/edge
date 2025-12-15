@@ -349,12 +349,12 @@ class MCPCollector:
             async with self.unified_client as client:
                 result = await client.call_tool(tool_name, arguments)
 
-                result_json, result_text = None, None
+                content, result_text = None, None
                 # Handle different result types
                 if hasattr(result, 'text'):
                     result_text = result.text
                 elif type(result) is CallToolResult:
-                    result_json = [r.model_dump(mode='json', exclude_none=True) for r in result.content]
+                    content = [r.model_dump(mode='json', exclude_none=True) for r in result.content] # TODO why we even need this dump?
                 else:
                     result_text = str(result)
 
@@ -366,11 +366,11 @@ class MCPCollector:
                         "call_tool": actual_tool_name,
                         "server_id": server_id,
                         "arguments": arguments,
-                        "result_json": result_json,
+                        "content": content,
                         "success": True
                     })
                 
-                return {"result_json": result_json, "result": result_text}
+                return {"content": content}
         except Exception as e:
             from .mcp_log_handler import _mcp_callback
             if _mcp_callback:
