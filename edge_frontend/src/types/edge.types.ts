@@ -24,7 +24,5 @@ export interface EdgeData {
   mcp_config_path?: string;
   ownerId: string;
   status: EdgeStatus;
-  isShellEnabled: boolean;
-  isFileSystemEnabled: boolean;
   createdAt: number;
 }

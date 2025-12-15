@@ -34,8 +34,6 @@ const defaultConfig: EdgeData = {
   workspacepaths: [],
   ownerId: '',
   status: EdgeStatus.OFFLINE,
-  isShellEnabled: false,
-  isFileSystemEnabled: false,
   createdAt: 0,
   installedMCPs: {},
   mcp_json: {},

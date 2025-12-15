@@ -117,6 +117,11 @@ export interface MCPAttachment {
 
 export type MCPContent = TextContent | ImageContent | AudioContent | ResourceContent | MCPAttachment;
 
+export interface CallToolResult {
+  content: MCPContent[];
+  isError?: boolean;
+}
+
 /**
  * Convert MCP TextContent to AttachmentData
  */
@@ -305,3 +310,4 @@ export function mcpContentToAttachmentData(mcpContent: MCPContent, toolName?: st
       assertExhaustive(mcpContent);
   }
 }
+
