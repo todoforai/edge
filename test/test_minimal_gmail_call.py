@@ -68,7 +68,7 @@ async def test_gmail_mcp():
             return False
         
         print(f"✅ Search successful!")
-        print(f"Result: {result.get('result_json', 'No content')[:500]}...")
+        print(f"Result: {result.get('content', 'No content')[:500]}...")
         
         # Find Gmail read tool
         read_tool = None
@@ -95,7 +95,7 @@ async def test_gmail_mcp():
             return False
         
         print(f"✅ Read successful!")
-        print(f"Result: {result.get('result_json', 'No content')[:500]}...")
+        print(f"Result: {result.get('content', 'No content')[:500]}...")
         
         return True
         
