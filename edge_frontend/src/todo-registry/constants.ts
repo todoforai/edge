@@ -1,3 +1,10 @@
+// TODO categories for classification
+export const TODO_CATEGORIES = [
+  'Sales', 'Marketing', 'Business', 'Development', 'Coding', 'DevOps',
+  'Web Automation', 'Productivity', 'Communication', 'Automation', 'Design',
+] as const;
+
+export type TodoCategoryType = (typeof TODO_CATEGORIES)[number];
 
 // Category constants - used for both UI grouping AND requirement matching
 export const MCP_CATEGORY = {
