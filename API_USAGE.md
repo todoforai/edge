@@ -111,3 +111,21 @@ todo = await edge.add_message(
     attachments=attachments
 )
 ```
+
+## Edge Functions
+
+The edge exposes callable functions that can be invoked via function calls. These are available in the `FUNCTION_REGISTRY`.
+
+### Download Chat
+Download a todo with all its messages:
+
+```python
+from todoforai_edge.edge_functions import download_chat
+
+result = await download_chat(todoId="todo-123", client_instance=edge)
+if result["success"]:
+    todo = result["todo"]
+    print(f"Todo: {todo['title']}")
+    for msg in todo.get("messages", []):
+        print(f"  - {msg['content'][:50]}...")
+```
