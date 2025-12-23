@@ -237,6 +237,7 @@ class MCPCollector:
         registry_mappings = {
             ("npx", "@gongrzhe/server-gmail-autoauth-mcp"): "gmail",
             ("npx", "@todoforai/server-gmail-autoauth-mcp"): "gmail",
+            ("npx", "@todoforai/puppeteer-mcp-server"): "puppeteer",
             ("npx", "github:sixzero/puppeteer-mcp-server"): "puppeteer", 
             ("npx", "github:todoforai/puppeteer-mcp-server"): "puppeteer", 
             ("npx", "@playwright/mcp@latest"): "playwright",
