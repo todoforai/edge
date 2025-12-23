@@ -17,14 +17,61 @@ from ..constants.messages import (
 
 logger = logging.getLogger("todoforai-edge")
 
+# Constants for output buffer limits
+STREAM_FIRST_CHARS = 10000
+STREAM_LAST_CHARS = 10000
+
 # Make processes dictionary a global variable so it's shared across all instances
 _processes: Dict[str, subprocess.Popen] = {}
 _stdin_writers = {}  # Make stdin writers global too so all instances can access
 
+class OutputBuffer:
+    """Buffer that keeps first N and last M chars of output, controls what to stream."""
+    def __init__(self, first_limit: int = STREAM_FIRST_CHARS, last_limit: int = STREAM_LAST_CHARS):
+        self.first_limit = first_limit
+        self.last_limit = last_limit
+        self.first_part = ""
+        self.last_part = ""
+        self.total_len = 0
+        self.truncated = False
+        self._truncation_msg_sent = False
+    
+    def append(self, text: str) -> str:
+        """Append text and return what should be streamed to client."""
+        self.total_len += len(text)
+        to_stream = ""
+        
+        # Still filling first part - stream everything
+        if len(self.first_part) < self.first_limit:
+            remaining = self.first_limit - len(self.first_part)
+            to_stream = text[:remaining]
+            self.first_part += to_stream
+            text = text[remaining:]
+        
+        # Past first limit - buffer for last part, don't stream middle
+        if text:
+            if not self.truncated:
+                self.truncated = True
+            self.last_part = (self.last_part + text)[-self.last_limit:]
+        
+        return to_stream
+    
+    def get_truncation_notice(self) -> str:
+        """Get truncation notice if needed (call once when process ends)."""
+        if self.truncated and not self._truncation_msg_sent:
+            self._truncation_msg_sent = True
+            return f"\n\n... [truncated {self.total_len - self.first_limit - len(self.last_part)} chars] ...\n\n{self.last_part}"
+        return ""
+    
+    def get_output(self) -> str:
+        if not self.truncated:
+            return self.first_part
+        return f"{self.first_part}\n\n... [truncated: showing first {len(self.first_part)} and last {len(self.last_part)} chars of {self.total_len} total] ...\n\n{self.last_part}"
+
 class ShellProcess:
     def __init__(self):
         self.processes = _processes
-        self._output_buffer = {}  # Add output buffer for sync calls
+        self._output_buffer: Dict[str, OutputBuffer] = {}  # Add output buffer for sync calls
         self._stdin_writers = _stdin_writers  # Use the shared global writers
         
     async def execute_block(self, block_id: str, content: str, client, todo_id: str, request_id: str, timeout: float, root_path: str = ""):
@@ -32,7 +79,7 @@ class ShellProcess:
         logger.info(f"Executing shell block {block_id} with content: {content[:50]}...")
         
         # Initialize output buffer for this block
-        self._output_buffer[block_id] = ""
+        self._output_buffer[block_id] = OutputBuffer()
   
         try:
             # Determine working directory
@@ -171,9 +218,10 @@ class ShellProcess:
                         if not data:
                             break
                         text = data.decode('utf-8', errors='replace')
-                        await client.send_response(shell_block_message_result_msg(todo_id, block_id, text, request_id))
                         if block_id in self._output_buffer:
-                            self._output_buffer[block_id] += text
+                            to_stream = self._output_buffer[block_id].append(text)
+                            if to_stream:
+                                await client.send_response(shell_block_message_result_msg(todo_id, block_id, to_stream, request_id))
                     except OSError as e:
                         if e.errno == 5:  # EIO - process closed PTY
                             logger.debug(f"PTY closed for block {block_id}")
@@ -236,20 +284,20 @@ class ShellProcess:
                         data = output_queue.get(timeout=0.1)
                     except queue.Empty:
                         # No data available; flush small prompt fragments if any
-                        if char_buffer:
-                            await client.send_response(shell_block_message_result_msg(todo_id, block_id, char_buffer, request_id))
-                            if block_id in self._output_buffer:
-                                self._output_buffer[block_id] += char_buffer
+                        if char_buffer and block_id in self._output_buffer:
+                            to_stream = self._output_buffer[block_id].append(char_buffer)
+                            if to_stream:
+                                await client.send_response(shell_block_message_result_msg(todo_id, block_id, to_stream, request_id))
                             char_buffer = ""
                         await asyncio.sleep(0.01)
                         continue
                     
                     if data is None:  # Thread signaled completion
                         # Flush any remaining buffer
-                        if char_buffer:
-                            await client.send_response(shell_block_message_result_msg(todo_id, block_id, char_buffer, request_id))
-                            if block_id in self._output_buffer:
-                                self._output_buffer[block_id] += char_buffer
+                        if char_buffer and block_id in self._output_buffer:
+                            to_stream = self._output_buffer[block_id].append(char_buffer)
+                            if to_stream:
+                                await client.send_response(shell_block_message_result_msg(todo_id, block_id, to_stream, request_id))
                         break
                     
                     # Accumulate characters
@@ -257,9 +305,10 @@ class ShellProcess:
                     
                     # Flush on newline, common prompt patterns, or when buffer grows
                     if data in ['\n', '\r'] or char_buffer.endswith(': ') or char_buffer.endswith('> ') or len(char_buffer) > 64:
-                        await client.send_response(shell_block_message_result_msg(todo_id, block_id, char_buffer, request_id))
                         if block_id in self._output_buffer:
-                            self._output_buffer[block_id] += char_buffer
+                            to_stream = self._output_buffer[block_id].append(char_buffer)
+                            if to_stream:
+                                await client.send_response(shell_block_message_result_msg(todo_id, block_id, to_stream, request_id))
                         char_buffer = ""
                     
                 except Exception as e:
@@ -278,11 +327,11 @@ class ShellProcess:
                         if not data:  # EOF
                             break
                         
-                        # Send the data immediately
-                        await client.send_response(shell_block_message_result_msg(todo_id, block_id, data, request_id))
-                        # Buffer the output for sync calls
+                        # Buffer and stream only what's needed
                         if block_id in self._output_buffer:
-                            self._output_buffer[block_id] += data
+                            to_stream = self._output_buffer[block_id].append(data)
+                            if to_stream:
+                                await client.send_response(shell_block_message_result_msg(todo_id, block_id, to_stream, request_id))
                     else:
                         # Small sleep to prevent CPU spinning
                         await asyncio.sleep(0.01)
@@ -373,11 +422,19 @@ class ShellProcess:
             return_code = await asyncio.get_event_loop().run_in_executor(None, process.wait)
             logger.info(f"Process completed with return code {return_code}")
             
-            # If no output was sent, send success message
-            if not self._output_buffer.get(block_id):
+            # Handle output buffer - send truncation notice or no-output message
+            buf = self._output_buffer.get(block_id)
+            if not buf or buf.total_len == 0:
                 await client.send_response(shell_block_message_result_msg(
                     todo_id, block_id, "Finished with no output", request_id
                 ))
+            else:
+                # Send truncation notice with last part if output was truncated
+                truncation_msg = buf.get_truncation_notice()
+                if truncation_msg:
+                    await client.send_response(shell_block_message_result_msg(
+                        todo_id, block_id, truncation_msg, request_id
+                    ))
             
             # Send completion message
             await client.send_response(shell_block_done_result_msg(

@@ -167,7 +167,7 @@ async def execute_shell_command(command: str, timeout: int = 120, root_path: str
         while block_id in shell.processes:
             await asyncio.sleep(0.1)
         if hasattr(shell, '_output_buffer') and block_id in shell._output_buffer:
-            full_output = shell._output_buffer[block_id]
+            full_output = shell._output_buffer[block_id].get_output()
             del shell._output_buffer[block_id]
         return {
             "command": command,
@@ -226,6 +226,29 @@ async def download_attachment(attachmentId: str, filePath: str, rootPath: str = 
             "success": False,
             "error": str(error)
         }
+
+@register_function("download_chat")
+async def download_chat(todoId: str, client_instance=None):
+    """Download a todo with all its messages from the backend."""
+    if not client_instance:
+        raise ValueError("Client instance required")
+
+    api_url = getattr(client_instance, "api_url", "").rstrip("/")
+    api_key = getattr(client_instance, "api_key", "")
+    if not api_url or not api_key:
+        raise ValueError("Missing API credentials")
+
+    url = f"{api_url}/api/v1/todos/{todoId}"
+    headers = {"x-api-key": api_key}
+
+    try:
+        response = requests.get(url, headers=headers, timeout=60)
+        if response.status_code >= 400:
+            return {"success": False, "error": f"Backend responded with {response.status_code}: {response.text}"}
+        return {"success": True, "todo": response.json()}
+    except Exception as error:
+        logger.error(f"Error downloading chat {todoId}: {error}")
+        return {"success": False, "error": str(error)}
 
 @register_function("register_attachment")
 async def register_attachment(
