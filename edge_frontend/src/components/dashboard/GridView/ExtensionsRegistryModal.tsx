@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Download } from 'lucide-react';
 import { getMCPByRegistryID } from '../../../data/mcpServersRegistry';
-import type { MCPRegistry } from '../../../types/mcp.types';
+import type { MCPRegistry } from '../../../edge/types/mcp.types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {

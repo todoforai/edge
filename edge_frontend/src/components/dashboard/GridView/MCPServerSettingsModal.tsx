@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AlertCircle, Plus, X } from 'lucide-react';
-import type { MCPEdgeExecutable } from '../../../types/mcp.types';
+import type { MCPEdgeExecutable } from '../../../edge/types/mcp.types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

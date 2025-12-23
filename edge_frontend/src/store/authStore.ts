@@ -14,10 +14,12 @@ export interface User {
   name?: string;
   isAuthenticated: boolean;
   lastLoginTime?: number;
+  apiUrl?: string;
 }
 
 export interface LoginCredentials {
   apiKey: string;
+  apiUrl?: string;
   debug?: boolean;
 }
 
@@ -32,6 +34,7 @@ interface AuthState {
   isLoading: boolean;
   shouldAutoLogin: boolean;
   deeplinkApiKey: string | null;
+  apiUrl: string | null;
 
   // Actions
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -46,6 +49,7 @@ interface AuthState {
   setShouldAutoLogin: (shouldAutoLogin: boolean) => void;
   setDeeplinkApiKey: (apiKey: string) => void;
   clearDeeplinkApiKey: () => void;
+  setApiUrl: (apiUrl: string) => void;
 }
 
 // Utility function to restore user from storage
@@ -91,6 +95,7 @@ export const useAuthStore = create<AuthState>()((set, get) => {
     isLoading: false,
     shouldAutoLogin: false,
     deeplinkApiKey: null, // Initialize deeplink API key
+    apiUrl: null,
 
     login: async (credentials) => {
       if (isAuthenticating) {
@@ -204,6 +209,10 @@ export const useAuthStore = create<AuthState>()((set, get) => {
     getCurrentUser: () => {
       const { user } = get();
       return user || { isAuthenticated: false };
+    },
+
+    setApiUrl: (apiUrl: string) => {
+      set({ apiUrl });
     },
   };
 });

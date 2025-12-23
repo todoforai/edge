@@ -11,8 +11,8 @@ export type {
   TodoPackage,
 } from './todo_registry_schema';
 
-import type { todoTemplateSchema, todoStatsSchema, TodoPackage } from './todo_registry_schema';
-import type { z } from 'zod';
+import { todoStatsSchema, todoSchema, type TodoPackage } from './todo_registry_schema';
+import { z } from 'zod';
 
 // =============================================================================
 // TODO Template types
@@ -21,6 +21,13 @@ import type { z } from 'zod';
 /** Stats for display */
 export type TodoStats = z.infer<typeof todoStatsSchema>;
 
+/** Schema for raw JSON entries (stats added at runtime) */
+export const todoTemplateSchema = todoSchema.extend({
+  id: z.string(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+  stats: todoStatsSchema.optional(),
+});
 /** TODO template from registry - raw has optional stats, with stats required after addStats */
 export type TodoTemplate = z.infer<typeof todoTemplateSchema>;
 

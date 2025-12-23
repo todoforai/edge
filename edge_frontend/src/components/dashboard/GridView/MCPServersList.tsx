@@ -7,7 +7,7 @@ import { ExtensionsRegistryModal } from './ExtensionsRegistryModal';
 import { Grid } from '../../ui/Grid';
 import { useEdgeConfigStore } from '../../../store/edgeConfigStore';
 import { useMCPRegistry } from '../../../hooks/useMCPRegistry';
-import type { MCPEdgeExecutable, MCPRegistry } from '../../../types';
+import type { MCPEdgeExecutable, MCPRegistry } from '../../../edge/types';
 
 // Helper function to build/merge InstalledMCP entry optimistically
 const buildInstalledEntry = (serverId: string, mcpJson: any, prevInstalled: any, isNewInstallation: boolean = false) => {

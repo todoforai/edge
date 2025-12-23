@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { getMCPByCommandArgs } from '../data/mcpServersRegistry';
-import type { MCPEdgeExecutable } from '../types';
+import type { MCPEdgeExecutable } from '../edge/types';
 
 // Helper function to create fallback display info for unknown MCPs
 const createFallbackMCPInfo = (instance: MCPEdgeExecutable) => ({

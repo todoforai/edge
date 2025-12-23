@@ -1,4 +1,4 @@
-import type { MCPRegistry } from '../types';
+import type { MCPRegistry } from '../edge/types';
 import { MCP_CATEGORY, type MCPCategoryType } from '@/todo-registry/constants';
 
 

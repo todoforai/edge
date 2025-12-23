@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { useEffect } from 'react';
 import { createLogger } from '@/utils/logger';
 import pythonService from '../services/python-service';
-import type { EdgeData, MCPEdgeExecutable } from '../types';
-import { EdgeStatus, DeviceType } from '../types';
+import type { EdgeData, MCPEdgeExecutable } from '../edge/types';
+import { EdgeStatus, DeviceType } from '../edge/types';
 
 const log = createLogger('edgeConfigStore');
 

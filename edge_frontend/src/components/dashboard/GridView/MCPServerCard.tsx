@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
 import { cva } from "class-variance-authority";
-import type { MCPEdgeExecutable } from '../../../types/mcp.types';
+import type { MCPEdgeExecutable } from '../../../edge/types/mcp.types';
 import { getMCPByCommandArgs } from '../../../data/mcpServersRegistry';
 import { MCPStatusBadge } from '../../ui/MCPStatusBadge';
 import { Button } from '@/components/ui/button';

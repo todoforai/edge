@@ -15,6 +15,9 @@ export const MCP_CATEGORY = {
   // Web & Browser
   BROWSER: 'Browser',
 
+  // Context
+  BUSINESS_CONTEXT: 'Business Context',
+
   // Communication
   EMAIL: 'Email',
   MESSAGING: 'Messaging',

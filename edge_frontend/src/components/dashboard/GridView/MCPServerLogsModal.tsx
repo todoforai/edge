@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trash2, Download, CheckCircle, XCircle } from 'lucide-react';
-import type { MCPEdgeExecutable } from '../../../types';
+import type { MCPEdgeExecutable } from '../../../edge/types';
 import { useMCPLogStore } from '../../../store/mcpLogStore';
 import { cva } from "class-variance-authority";
 import { Button } from '../../ui/button';
