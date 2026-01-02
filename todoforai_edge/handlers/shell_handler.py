@@ -26,7 +26,14 @@ _processes: Dict[str, subprocess.Popen] = {}
 _stdin_writers = {}  # Make stdin writers global too so all instances can access
 
 class OutputBuffer:
-    """Buffer that keeps first N and last M chars of output, controls what to stream."""
+    """
+    Output buffer with truncation for long shell outputs.
+    
+    1. TRUNCATION: first 10k + last 10k chars kept, middle dropped
+    2. STREAMING: only first 10k streamed real-time, last 10k sent at end
+    3. INTERACTIVE: on user input (send_input) buffer resets, new 10k streams
+    4. RESULT: all segments joined in get_output() for final result
+    """
     def __init__(self, first_limit: int = STREAM_FIRST_CHARS, last_limit: int = STREAM_LAST_CHARS):
         self.first_limit = first_limit
         self.last_limit = last_limit
@@ -35,6 +42,7 @@ class OutputBuffer:
         self.total_len = 0
         self.truncated = False
         self._truncation_msg_sent = False
+        self._saved_segments = []  # Accumulated output from previous interaction segments
     
     def append(self, text: str) -> str:
         """Append text and return what should be streamed to client."""
@@ -63,10 +71,32 @@ class OutputBuffer:
             return f"\n\n... [truncated {self.total_len - self.first_limit - len(self.last_part)} chars] ...\n\n{self.last_part}"
         return ""
     
+    def reset_for_interaction(self):
+        """Reset truncation state after user input - allows next 10k to stream.
+        
+        Saves current segment for final output, resets for new streaming.
+        """
+        # Save current segment if there's content
+        if self.first_part or self.last_part:
+            segment = self.first_part
+            if self.truncated:
+                segment += f"\n... [truncated {self.total_len - len(self.first_part) - len(self.last_part)} chars] ...\n{self.last_part}"
+            self._saved_segments.append(segment)
+        # Reset for new input
+        self.first_part = ""
+        self.last_part = ""
+        self.total_len = 0
+        self.truncated = False
+        self._truncation_msg_sent = False
+    
     def get_output(self) -> str:
-        if not self.truncated:
-            return self.first_part
-        return f"{self.first_part}\n\n... [truncated: showing first {len(self.first_part)} and last {len(self.last_part)} chars of {self.total_len} total] ...\n\n{self.last_part}"
+        # Current segment
+        current = self.first_part
+        if self.truncated:
+            current += f"\n\n... [truncated: showing first {len(self.first_part)} and last {len(self.last_part)} chars of {self.total_len} total] ...\n\n{self.last_part}"
+        # Combine all segments
+        all_segments = self._saved_segments + [current] if current else self._saved_segments
+        return "\n".join(all_segments)
 
 class ShellProcess:
     def __init__(self):
@@ -348,6 +378,10 @@ class ShellProcess:
         
         if block_id in self.processes:
             try:
+                # Reset truncation so response to user input is streamed
+                if block_id in self._output_buffer:
+                    self._output_buffer[block_id].reset_for_interaction()
+                
                 writer = self._stdin_writers.get(block_id)
                 if writer and not writer.closed:
                     if not input_text.endswith('\n'):
