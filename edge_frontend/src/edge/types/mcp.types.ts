@@ -36,7 +36,7 @@ export enum MCPRunningStatus {
 export interface MCPToolSkeleton {
   name: string;
   description: string;
-  inputSchema: any;
+  inputSchema?: any;
 }
 
 export interface MCPEnv {
