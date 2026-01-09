@@ -137,7 +137,7 @@ class TODOforAIEdge:
             
         try:
             # Use the dedicated validation endpoint
-            url = f"{api_url}/noauth/v1/users/apikeys/validate"
+            url = f"{api_url}/api/v1/apikey/validate"
             headers = {"x-api-key": api_key}
             
             # Create SSL context that doesn't verify certificates for HTTPS URLs on macOS ARM64

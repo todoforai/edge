@@ -22,7 +22,7 @@ export async function validateApiKey(apiKey, apiUrl) {
     }
     
     try {
-        const validateUrl = `${apiUrl}/token/v1/users/apikeys/validate`;
+        const validateUrl = `${apiUrl}/api/v1/apikey/validate`;
         
         const response = await fetch(validateUrl, {
             method: 'GET',
