@@ -13,7 +13,7 @@ def get_env_var(name):
     return os.environ.get(f"TODOFORAI_{name}") or os.environ.get(f"TODO4AI_{name}", "")
 
 def get_ws_url(api_url=DEFAULT_API_URL):
-    """Convert HTTP URL to WebSocket URL"""
+    """Convert HTTP URL to Edge WebSocket URL"""
     url = api_url
     if url.startswith("https://"):
         return url.replace("https://", "wss://") + "/ws/v1/edge"
@@ -22,7 +22,6 @@ def get_ws_url(api_url=DEFAULT_API_URL):
     elif url.startswith("localhost"):
         return "ws://" + url + "/ws/v1/edge"
     else:
-        # Default to secure WebSocket for unknown formats
         return f"wss://{url}/ws/v1/edge"
     
 class Config:
