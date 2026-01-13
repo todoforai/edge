@@ -477,16 +477,20 @@ class TODOforAIEdge:
         self,
         todo_id: str,
         timeout: float = 300,
-        callback: Callable[[str, Dict[str, Any]], None] = None
+        callback: Callable[[str, Dict[str, Any]], None] = None,
+        project_id: str = None
     ) -> Dict[str, Any]:
-        """Wait for todo completion, streaming updates via callback."""
-        async with FrontendWebSocket(self.api_url, self.api_key) as ws:
-            return await ws.wait_for_completion(todo_id, callback, timeout)
+        """Wait for todo completion, streaming updates via callback.
 
-    async def interrupt_todo(self, project_id: str, todo_id: str) -> bool:
-        """Send interrupt signal to stop a running todo."""
+        If project_id is provided and task is cancelled, sends interrupt signal.
+        """
         async with FrontendWebSocket(self.api_url, self.api_key) as ws:
-            return await ws.send_interrupt(project_id, todo_id)
+            try:
+                return await ws.wait_for_completion(todo_id, callback, timeout)
+            except asyncio.CancelledError:
+                if project_id:
+                    await ws.send_interrupt(project_id, todo_id)
+                raise
 
     async def _start_workspace_syncs(self):
         """Start file synchronization for all workspace paths"""
