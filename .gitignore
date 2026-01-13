@@ -26,3 +26,8 @@ venv/
 
 edge_frontend/src-tauri/Cargo.lock
 uv.lock
+
+# Local MCP configs (may contain API keys)
+mcp*.json
+!mcp.json
+tasks.db
