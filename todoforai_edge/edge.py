@@ -33,6 +33,7 @@ from .handlers.handlers import (
 )
 from .handlers.file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
 from .mcp_collector import MCPCollector
+from .frontend_ws import FrontendWebSocket, TodoStreamError
 import aiohttp
 from .types import ProjectListItem, AgentSettings, Todo
 
@@ -88,8 +89,8 @@ class TODOforAIEdge:
         self.edge_id = ""
         self.connected = False
         self.heartbeat_task = None
-        self.fingerprint = None  # Will be generated when needed
-        self.mcp_collector = MCPCollector(self.edge_config)  # Initialize MCP collector
+        self.fingerprint = None
+        self.mcp_collector = MCPCollector(self.edge_config)
         
         # Set logging level based on config
         if self.debug:
@@ -160,12 +161,9 @@ class TODOforAIEdge:
                         data = await response.json()
                         if data.get("valid"):
                             logger.info("API key validation successful")
-                            return {"valid": True}
+                            return {"valid": True, "userId": data.get("userId")}
                         else:
-                            # Be more explicit about handling None error messages
-                            error_msg = data.get("error")
-                            if not error_msg:
-                                error_msg = "API key is invalid"
+                            error_msg = data.get("error") or "API key is invalid"
                             return {"valid": False, "error": error_msg}
                     elif response.status == 401:
                         return {"valid": False, "error": "Invalid API key"}
@@ -186,11 +184,11 @@ class TODOforAIEdge:
         return await self.validate_api_key_static(self.api_url, self.api_key)
 
     async def ensure_api_key(self, prompt_if_missing=True):
-        """Ensure we have a valid API key"""
-        # If we already have an API key, validate it
         if self.api_key:
             result = await self.validate_api_key()
             if result.get("valid"):
+                if result.get("userId"):
+                    self.user_id = result["userId"]
                 return True
             logger.warning(f"API key invalid: {result.get('error')}")
             self.api_key = None
@@ -474,6 +472,16 @@ class TODOforAIEdge:
             return result
         else:
             raise Exception("Failed to create/update todo with message")
+
+    async def wait_for_todo_completion(
+        self,
+        todo_id: str,
+        timeout: float = 300,
+        callback: Callable[[str, Dict[str, Any]], None] = None
+    ) -> Dict[str, Any]:
+        """Wait for todo completion, streaming updates via callback."""
+        async with FrontendWebSocket(self.api_url, self.api_key) as ws:
+            return await ws.wait_for_completion(todo_id, callback, timeout)
 
     async def _start_workspace_syncs(self):
         """Start file synchronization for all workspace paths"""
