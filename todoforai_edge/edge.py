@@ -483,6 +483,11 @@ class TODOforAIEdge:
         async with FrontendWebSocket(self.api_url, self.api_key) as ws:
             return await ws.wait_for_completion(todo_id, callback, timeout)
 
+    async def interrupt_todo(self, project_id: str, todo_id: str) -> bool:
+        """Send interrupt signal to stop a running todo."""
+        async with FrontendWebSocket(self.api_url, self.api_key) as ws:
+            return await ws.send_interrupt(project_id, todo_id)
+
     async def _start_workspace_syncs(self):
         """Start file synchronization for all workspace paths"""
         # First stop any existing syncs to prevent duplicates
