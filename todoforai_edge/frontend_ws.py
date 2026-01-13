@@ -189,7 +189,7 @@ class FrontendWebSocket:
                 }
                 self._completion_events[todo_id].set()
 
-    async def send_interrupt(self, project_id: str, todo_id: str, user_message_id: str = None):
+    async def send_interrupt(self, project_id: str, todo_id: str):
         """Send interrupt signal to stop todo execution."""
         if not self.connected or not self.ws:
             logger.warning("Cannot send interrupt - not connected")
@@ -202,12 +202,10 @@ class FrontendWebSocket:
                 "todoId": todo_id,
             }
         }
-        if user_message_id:
-            msg["payload"]["userMessageId"] = user_message_id
 
         try:
             await self.ws.send(json.dumps(msg))
-            logger.info(f"Sent interrupt signal for todo {todo_id}")
+            logger.info(f"Sent interrupt for todo {todo_id}")
             return True
         except Exception as e:
             logger.error(f"Failed to send interrupt: {e}")

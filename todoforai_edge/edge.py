@@ -482,7 +482,7 @@ class TODOforAIEdge:
     ) -> Dict[str, Any]:
         """Wait for todo completion, streaming updates via callback.
 
-        If project_id is provided and task is cancelled, sends interrupt signal.
+        If project_id is provided and task is cancelled, sends stop signal.
         """
         async with FrontendWebSocket(self.api_url, self.api_key) as ws:
             try:
