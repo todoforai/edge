@@ -285,56 +285,48 @@ async def handle_ctx_julia_request(payload, client):
         logger.error(f"Error processing Julia request: {str(error)}\nStacktrace:\n{stack_trace}")
         await client.send_response(ctx_julia_result_msg(todo_id, request_id, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}"))
 
-async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK_RESULT):
-    """Handle file chunk request - reads a file and returns its content"""
-    path = payload.get("path", "")
-    root_path = payload.get("rootPath", "")
-    fallback_root_paths = payload.get("fallbackRootPaths", [])
-    requestId = payload.get("requestId", "")
+async def read_file_content(path: str, root_path: str, fallback_root_paths: list, client) -> dict:
+    """Core file reading logic - returns dict with content or error.
 
+    Returns:
+        dict with keys:
+        - success: bool
+        - content: str (if success)
+        - full_path: str (if success)
+        - content_type: str (if success) - "text", "docx-xml", "xlsx-xml"
+        - is_directory: bool (if success and path is directory)
+        - error: str (if not success)
+    """
     try:
         full_path = resolve_file_path(path, root_path, fallback_root_paths)
         full_path = os.path.abspath(full_path)
 
         # Check if path is allowed
         if not is_path_allowed(full_path, client.edge_config.config):
-            raise PermissionError(f"No permission to access the given file {full_path}")
+            return {"success": False, "error": f"No permission to access the given file {full_path}"}
 
         # Ensure the workspace containing this file is being synced
         await ensure_workspace_synced(client, full_path)
 
         file_path = Path(full_path)
         if not file_path.exists():
-            # Return file not found in error field instead of throwing exception
             roots = [root_path] if root_path else []
             if fallback_root_paths:
                 roots.extend(fallback_root_paths)
-            error_msg = f"File not found: {path} (roots: {roots})"
-            await client.send_response(
-                file_chunk_result_msg(response_type, **payload, error=error_msg)
-            )
-            return
+            return {"success": False, "error": f"File not found: {path} (roots: {roots})"}
 
-        # If it's a directory, return a simple listing (one per line, '/' suffix for dirs)
+        # If it's a directory, return a simple listing
         if file_path.is_dir():
             names = sorted(os.listdir(full_path))
             content = "\n".join([n + "/" if os.path.isdir(os.path.join(full_path, n)) else n for n in names])
-            await client.send_response(
-                file_chunk_result_msg(response_type, **payload, full_path=full_path, content=content)
-            )
-            return
+            return {"success": True, "content": content, "full_path": full_path, "content_type": "text", "is_directory": True}
 
         # Check file size before reading
         file_size = file_path.stat().st_size
         max_size = 100000  # 100KB limit for WebSocket messages
-        
+
         if file_size > max_size:
-            error_msg = f"File too large to read: {full_path} File size: {file_size:,} bytes ({file_size/1024:.1f} KB) Maximum allowed: {max_size:,} bytes ({max_size/1024:.1f} KB)"
-            logger.warning(error_msg)
-            await client.send_response(
-                file_chunk_result_msg(response_type, **payload, error=error_msg)
-            )
-            return
+            return {"success": False, "error": f"File too large to read: {full_path} File size: {file_size:,} bytes ({file_size/1024:.1f} KB) Maximum allowed: {max_size:,} bytes ({max_size/1024:.1f} KB)"}
 
         # Decide content source and set content type
         if file_path.suffix.lower() == '.docx':
@@ -351,7 +343,7 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
                     content = f.read()
                 content_type = "text"
             except UnicodeDecodeError:
-                raise ValueError(f"Cannot read binary file {full_path}")
+                return {"success": False, "error": f"Cannot read binary file {full_path}"}
 
         # Determine display path for logging
         if root_path:
@@ -359,42 +351,53 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
                 rel_path = os.path.relpath(full_path, root_path)
                 display_path = f"@workspace/{rel_path}"
             except ValueError:
-                # Different drives on Windows
                 display_path = full_path
         else:
             display_path = full_path
-        
-        logger.info(f"File chunk request received for path: {display_path} size: {len(content):,} chars")
 
-        # Send the response with content type indicator
-        await client.send_response(
-            file_chunk_result_msg(response_type, **payload, full_path=full_path, content=content, content_type=content_type)
-        )
+        logger.info(f"File read for path: {display_path} size: {len(content):,} chars")
+
+        return {"success": True, "content": content, "full_path": full_path, "content_type": content_type}
 
     except Exception as error:
         stack_trace = traceback.format_exc()
-        logger.error(f"Error processing file chunk request: {str(error)}, path: {path}, rootPath: {root_path}\nStacktrace:\n{stack_trace}")
-        # Send error response using the message formatter
+        logger.error(f"Error reading file: {str(error)}, path: {path}, rootPath: {root_path}\nStacktrace:\n{stack_trace}")
+        return {"success": False, "error": f"{str(error)}\n\nStacktrace:\n{stack_trace}"}
+
+
+async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK_RESULT):
+    """Handle file chunk request - reads a file and returns its content"""
+    path = payload.get("path", "")
+    root_path = payload.get("rootPath", "")
+    fallback_root_paths = payload.get("fallbackRootPaths", [])
+
+    result = await read_file_content(path, root_path, fallback_root_paths, client)
+
+    if result["success"]:
         await client.send_response(
-            file_chunk_result_msg(response_type, **payload, error=f"{str(error)}\n\nStacktrace:\n{stack_trace}")
+            file_chunk_result_msg(response_type, **payload, full_path=result["full_path"], content=result["content"], content_type=result.get("content_type"))
+        )
+    else:
+        await client.send_response(
+            file_chunk_result_msg(response_type, **payload, error=result["error"])
         )
 
 class FunctionCallResponse:
     """Encapsulates function call response logic"""
-    
+
     def __init__(self, request_id: str, edge_id: str, agent_id: str = None):
         self.request_id = request_id
         self.edge_id = edge_id
         self.agent_id = agent_id
         self.is_agent_request = agent_id is not None
-    
+
     def success_response(self, result):
         """Create success response based on request type"""
         if self.is_agent_request:
             return function_call_result_msg(self.request_id, self.edge_id, True, result=result, agent_id=self.agent_id)
         else:
             return function_call_result_front_msg(self.request_id, self.edge_id, True, result=result)
-    
+
     def error_response(self, error_message: str):
         """Create error response based on request type"""
         if self.is_agent_request:

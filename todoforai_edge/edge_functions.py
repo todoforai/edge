@@ -317,6 +317,20 @@ async def register_attachment(
         "response": payload
     }
 
+@register_function("read_file")
+async def read_file(
+    path: str,
+    rootPath: str = "",
+    fallbackRootPaths: Optional[List[str]] = None,
+    client_instance=None,
+    **_: Any,
+):
+    """Read a file and return plain text content."""
+    from .handlers.handlers import read_file_content  # lazy import to avoid circular dependency
+    fallbackRootPaths = fallbackRootPaths or []
+    return await read_file_content(path, rootPath, fallbackRootPaths, client_instance)
+
+
 @register_function("read_file_base64")
 async def read_file_base64(
     path: str,
