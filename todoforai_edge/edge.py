@@ -122,7 +122,7 @@ class TODOforAIEdge:
             
             if syncable_changed_data:
                 try:
-                    response = await async_request(self, 'patch', f"/api/v1/edges/{self.edge_id}", syncable_changed_data)
+                    response = await async_request(self, 'patch', f"/api/v1/edges/{self.edge_id}", {"updates": syncable_changed_data})
                     if response:
                         logger.info(f"Updated edge config on server: {list(syncable_changed_data.keys())}")
                     else:
@@ -478,15 +478,23 @@ class TODOforAIEdge:
         todo_id: str,
         timeout: float = 300,
         callback: Callable[[str, Dict[str, Any]], None] = None,
-        project_id: str = None
+        project_id: str = None,
+        approval_handler: Callable[[FrontendWebSocket, Dict[str, Any]], Any] = None
     ) -> Dict[str, Any]:
         """Wait for todo completion, streaming updates via callback.
 
-        If project_id is provided and task is cancelled, sends stop signal.
+        Args:
+            todo_id: The todo to wait for
+            timeout: Max wait time in seconds
+            callback: Called for each message (msg_type, payload)
+            project_id: If provided and task is cancelled, sends stop signal
+            approval_handler: Async function called when block needs approval.
+                              Receives (ws, block_info) - can call ws.send_block_execute()
+                              or ws.send_block_deny() to respond.
         """
         async with FrontendWebSocket(self.api_url, self.api_key) as ws:
             try:
-                return await ws.wait_for_completion(todo_id, callback, timeout)
+                return await ws.wait_for_completion(todo_id, callback, timeout, approval_handler)
             except asyncio.CancelledError:
                 if project_id:
                     await ws.send_interrupt(project_id, todo_id)
