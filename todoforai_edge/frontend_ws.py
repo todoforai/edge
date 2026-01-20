@@ -48,6 +48,8 @@ class FrontendWebSocket:
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
         self.connected = False
         self._callbacks: Dict[str, Callable] = {}
+        self._approval_handlers: Dict[str, Callable] = {}
+        self._blocks: Dict[str, Dict[str, Any]] = {}  # block_id -> block info
         self._completion_events: Dict[str, asyncio.Event] = {}
         self._completion_results: Dict[str, Dict[str, Any]] = {}
         self._receive_task: Optional[asyncio.Task] = None
@@ -170,6 +172,35 @@ class FrontendWebSocket:
         if msg_type == self.MSG_CONNECTED:
             return
 
+        # Track block starts to have content available for approvals
+        if msg_type.startswith("block:start_"):
+            block_id = payload.get("blockId")
+            if block_id:
+                self._blocks[block_id] = {
+                    "type": msg_type,
+                    "payload": payload,
+                    "todoId": todo_id,
+                    "messageId": payload.get("messageId"),
+                }
+
+        # Handle BLOCK_UPDATE with AWAITING_APPROVAL status
+        if msg_type == "BLOCK_UPDATE":
+            updates = payload.get("updates", {})
+            if updates.get("status") == "AWAITING_APPROVAL":
+                block_id = payload.get("blockId")
+                if todo_id and todo_id in self._approval_handlers:
+                    # Get stored block info for content
+                    block_info = self._blocks.get(block_id, {})
+                    block_info["blockId"] = block_id
+                    block_info["todoId"] = todo_id
+                    block_info["messageId"] = payload.get("messageId") or block_info.get("messageId")
+                    handler = self._approval_handlers[todo_id]
+                    try:
+                        # Handler is async and receives (ws, block_info)
+                        await handler(self, block_info)
+                    except Exception as e:
+                        logger.error(f"Approval handler error: {e}")
+
         if todo_id and todo_id in self._callbacks:
             callback = self._callbacks[todo_id]
             try:
@@ -211,12 +242,91 @@ class FrontendWebSocket:
             logger.error(f"Failed to send interrupt: {e}")
             return False
 
+    async def send_block_execute(
+        self,
+        todo_id: str,
+        message_id: str,
+        block_id: str,
+        edge_id: str,
+        content: str,
+        root_path: str
+    ) -> bool:
+        """Send block:execute to approve and execute a pending block."""
+        if not self.connected or not self.ws:
+            logger.warning("Cannot send block:execute - not connected")
+            return False
+
+        msg = {
+            "type": "block:execute",
+            "payload": {
+                "todoId": todo_id,
+                "messageId": message_id,
+                "blockId": block_id,
+                "edgeId": edge_id,
+                "content": content,
+                "rootPath": root_path
+            }
+        }
+
+        try:
+            await self.ws.send(json.dumps(msg))
+            logger.info(f"Sent block:execute for block {block_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send block:execute: {e}")
+            return False
+
+    async def send_block_deny(
+        self,
+        todo_id: str,
+        message_id: str,
+        block_id: str
+    ) -> bool:
+        """Send BLOCK_UPDATE with DENIED status to deny a pending block."""
+        if not self.connected or not self.ws:
+            logger.warning("Cannot send block deny - not connected")
+            return False
+
+        msg = {
+            "type": "BLOCK_UPDATE",
+            "payload": {
+                "todoId": todo_id,
+                "messageId": message_id,
+                "blockId": block_id,
+                "updates": {"status": "DENIED"}
+            }
+        }
+
+        try:
+            await self.ws.send(json.dumps(msg))
+            logger.info(f"Sent block deny for block {block_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send block deny: {e}")
+            return False
+
     async def wait_for_completion(
         self,
         todo_id: str,
         callback: Callable[[str, Dict[str, Any]], None] = None,
-        timeout: float = 300
+        timeout: float = 300,
+        approval_handler: Callable[["FrontendWebSocket", Dict[str, Any]], Any] = None
     ) -> Dict[str, Any]:
+        """Wait for todo completion with optional approval handling.
+
+        Args:
+            todo_id: The todo to wait for
+            callback: Called for each message (msg_type, payload)
+            timeout: Max wait time in seconds
+            approval_handler: Async function called when block needs approval.
+                              Receives (ws, block_info) where block_info has:
+                              - blockId, todoId, messageId
+                              - type: block:start_* type
+                              - payload: original block start payload with content
+        """
+        if approval_handler:
+            self._approval_handlers[todo_id] = approval_handler
+
         if not await self._subscribe(todo_id, callback):
             raise TodoStreamError(f"Failed to subscribe to todo {todo_id}")
 
@@ -229,3 +339,4 @@ class FrontendWebSocket:
         finally:
             self._completion_events.pop(todo_id, None)
             self._completion_results.pop(todo_id, None)
+            self._approval_handlers.pop(todo_id, None)
