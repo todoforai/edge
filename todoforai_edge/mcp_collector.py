@@ -134,20 +134,22 @@ class MCPCollector:
             
         current_installed = dict(self.edge_config.config.safe_get("installedMCPs", {}))
         
-        for server_id in mcp_servers.keys():
+        for server_id, cfg in mcp_servers.items():
             prev_entry = current_installed.get(server_id, {})
             # Determine if this is a new installation or restart
             is_new_installation = not prev_entry or not prev_entry.get("tools")
             actual_status = "INSTALLING" if is_new_installation else "STARTING"
-            
+
             current_installed[server_id] = {
                 **prev_entry,
                 "serverId": server_id,
                 "id": prev_entry.get("id", server_id),
                 "registryId": self.server_id_to_registry_id.get(server_id, server_id),
+                "command": cfg.get('command', ''),
+                "args": cfg.get('args', []),
                 "status": actual_status,
                 "tools": prev_entry.get("tools", []),
-                "env": prev_entry.get("env", {}),
+                "env": cfg.get('env', {}),
             }
         
         # Update config with optimistic status
@@ -406,10 +408,14 @@ class MCPCollector:
                 {"name": t["name"], "description": t["description"], "inputSchema": t["inputSchema"]}
                 for t in server_tools
             ]
+            cfg = mcp_servers.get(server_id, {})
             servers[server_id] = {
+                'serverId': server_id,
                 'tools': clean_tools,
                 'registryId': self.server_id_to_registry_id.get(server_id, server_id),
-                'env': {},
+                'command': cfg.get('command', ''),
+                'args': cfg.get('args', []),
+                'env': cfg.get('env', {}),
                 'status': 'READY',
             }
 
@@ -417,8 +423,11 @@ class MCPCollector:
         for server_id, cfg in mcp_servers.items():
             if server_id not in servers:
                 servers[server_id] = {
+                    'serverId': server_id,
                     'tools': [],
                     'registryId': self.server_id_to_registry_id.get(server_id, server_id),
+                    'command': cfg.get('command', ''),
+                    'args': cfg.get('args', []),
                     'env': cfg.get('env', {}),
                     'status': 'CRASHED',
                 }
