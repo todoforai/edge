@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useEdgeConfigStore } from '../store/edgeConfigStore';
 import { MCP_REGISTRY } from '../data/mcpServersRegistry';
-import type { MCPRegistry } from '../edge/types';
+import type { MCPRegistry } from '@todoforai/shared-fbe';
 
 export const useMCPRegistry = () => {
   const config = useEdgeConfigStore(state => state.config);
