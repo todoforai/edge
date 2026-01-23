@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
 import { cva } from "class-variance-authority";
-import type { MCPEdgeExecutable } from '../../../edge/types/mcp.types';
-import { getMCPByCommandArgs } from '../../../data/mcpServersRegistry';
+import type { MCPEdgeExecutable } from '@todoforai/shared-fbe';
+import { getMCPByCommandArgs, Button } from '@todoforai/shared-fe';
 import { MCPStatusBadge } from '../../ui/MCPStatusBadge';
-import { Button } from '@/components/ui/button';
 
 const dropdownMenu = cva([
   "absolute top-full right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-[100] min-w-[160px]"
