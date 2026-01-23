@@ -4,6 +4,7 @@
   "version": "0.12.2",
   "type": "module",
   "scripts": {
+    "update": "(cd ../../packages && git pull) && bun install",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

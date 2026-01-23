@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { MCPServerCard } from './MCPServerCard';
-import { MCPServerSettingsModal } from './MCPServerSettingsModal';
+import { MCPServerSettingsModal, ExtensionsRegistryModal } from '@todoforai/shared-fe';
 import { MCPServerLogsModal } from './MCPServerLogsModal';
 import { ExtensionAddCard } from './ExtensionAddCard';
-import { ExtensionsRegistryModal } from './ExtensionsRegistryModal';
 import { Grid } from '../../ui/Grid';
 import { useEdgeConfigStore } from '../../../store/edgeConfigStore';
 import { useMCPRegistry } from '../../../hooks/useMCPRegistry';
-import type { MCPEdgeExecutable, MCPRegistry } from '../../../edge/types';
+import type { MCPEdgeExecutable, MCPRegistry } from '@todoforai/shared-fbe';
 
 // Helper function to build/merge InstalledMCP entry optimistically
 const buildInstalledEntry = (serverId: string, mcpJson: any, prevInstalled: any, isNewInstallation: boolean = false) => {
