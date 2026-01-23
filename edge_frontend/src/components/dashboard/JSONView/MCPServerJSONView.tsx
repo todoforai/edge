@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import type { MCPEdgeExecutable } from '../../../edge/types';
+import type { MCPEdgeExecutable } from '@todoforai/shared-fbe';
 import { useEdgeConfigStore } from '../../../store/edgeConfigStore';
 import { cva } from "class-variance-authority";
 
