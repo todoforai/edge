@@ -7,7 +7,13 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@shared/fe": ["./src/shared/fe/index.ts"],
+      "@shared/fe/*": ["./src/shared/fe/*"],
+      "@shared/fbe": ["./src/shared/fbe/index.ts"],
+      "@shared/fbe/*": ["./src/shared/fbe/*"],
+      "@shared/fer": ["./src/shared/fer/index.ts"],
+      "@shared/fer/*": ["./src/shared/fer/*"]
     }
   }
 }

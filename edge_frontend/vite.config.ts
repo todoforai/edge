@@ -48,7 +48,10 @@ export default defineConfig(async () => ({
   // Add path aliases
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
+      '@': path.resolve(__dirname, './src'),
+      '@shared/fe': path.resolve(__dirname, './src/shared/fe'),
+      '@shared/fbe': path.resolve(__dirname, './src/shared/fbe'),
+      '@shared/fer': path.resolve(__dirname, './src/shared/fer')
     }
   }
 }));
