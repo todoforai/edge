@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, Filter, Eye, Braces, X, RefreshCw } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
-import { Button, Input } from '@todoforai/shared-fe';
+import { Button, Input } from '@shared/fe';
 import { ButtonGroup } from '../ui/button-group';
 import { cn } from '@/lib/utils';
 

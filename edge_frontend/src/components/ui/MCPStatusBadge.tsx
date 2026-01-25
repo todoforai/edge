@@ -1,7 +1,7 @@
 import React from 'react';
 import { cva } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
-import { MCPRunningStatus } from '@todoforai/shared-fbe';
+import { MCPRunningStatus } from '@shared/fbe';
 
 const statusBadgeVariants = cva(
   "text-xs font-medium px-2 py-1 rounded-sm inline-flex items-center gap-1 whitespace-nowrap",

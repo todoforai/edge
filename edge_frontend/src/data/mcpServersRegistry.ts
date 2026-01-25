@@ -1,5 +1,5 @@
-import type { MCPRegistry } from '@todoforai/shared-fbe';
-import { MCP_CATEGORY, type MCPCategoryType } from '@todoforai/shared-fer';
+import type { MCPRegistry } from '@shared/fbe';
+import { MCP_CATEGORY, type MCPCategoryType } from '@shared/fer';
 
 
 // Helper function to get default Gmail credentials path

@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { useEffect } from 'react';
 import { createLogger } from '@/utils/logger';
 import pythonService from '../services/python-service';
-import type { EdgeData, MCPEdgeExecutable } from '@todoforai/shared-fbe';
-import { EdgeStatus, DeviceType } from '@todoforai/shared-fbe';
+import type { EdgeData, MCPEdgeExecutable } from '@shared/fbe';
+import { EdgeStatus, DeviceType } from '@shared/fbe';
 
 const log = createLogger('edgeConfigStore');
 

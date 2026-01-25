@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Terminal, Settings, MoreVertical, ShieldCheck, Trash2 } from 'lucide-react';
 import { cva } from "class-variance-authority";
-import type { MCPEdgeExecutable } from '@todoforai/shared-fbe';
-import { getMCPByCommandArgs, Button } from '@todoforai/shared-fe';
+import type { MCPEdgeExecutable } from '@shared/fbe';
+import { getMCPByCommandArgs, Button } from '@shared/fe';
 import { MCPStatusBadge } from '../../ui/MCPStatusBadge';
 
 const dropdownMenu = cva([
