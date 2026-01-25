@@ -4,7 +4,9 @@
   "version": "0.12.2",
   "type": "module",
   "scripts": {
-    "update": "(cd ../../packages && git pull) && bun install",
+    "init": "bash scripts/sync-shared.sh && bun install",
+    "sync": "bash scripts/sync-shared.sh",
+    "update": "(cd ../../packages && git pull) && bash scripts/sync-shared.sh && bun install",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
