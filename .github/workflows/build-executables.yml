@@ -29,6 +29,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Clone shared packages
+      run: |
+        git clone --depth 1 https://github.com/todoforai/packages.git packages
+        mkdir -p edge_frontend/src/shared
+        cp -r packages/shared-fe/src edge_frontend/src/shared/fe
+        cp -r packages/shared-fbe/src edge_frontend/src/shared/fbe
+        cp -r packages/shared-fer/src edge_frontend/src/shared/fer
+        rm -rf packages
+      shell: bash
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
