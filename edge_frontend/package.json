@@ -7,7 +7,7 @@
     "init": "bash scripts/sync-shared.sh && bun install",
     "sync": "bash scripts/sync-shared.sh",
     "update": "(cd ../../packages && git pull) && bash scripts/sync-shared.sh && bun install",
-    "dev": "vite",
+    "dev": "bash scripts/sync-shared.sh && vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
