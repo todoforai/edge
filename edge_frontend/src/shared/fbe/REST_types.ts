@@ -310,11 +310,11 @@ export interface Message {
 }
 
 // AgentSettings types
-export interface AgentPermissions {
-  allow: string[];  // e.g., ["todoai_edge:BASH", "my_server:my_tool"]
-  ask: string[];    // Tools that require confirmation
-  deny: string[];   // Blocked tools
+export interface ToolPermissions {
+  allow: string[];  // Tool names that are allowed to auto-run
 }
+/** @deprecated Use ToolPermissions instead */
+export type AgentPermissions = ToolPermissions;
 
 /** AI AgentSettings configuration including model, system prompt, and MCP tools. */
 export interface AgentSettings {
@@ -333,8 +333,8 @@ export interface AgentSettings {
   mcpConfigs: MCPSettings;
   /** Edge device MCP configurations by edgeId */
   edgesMcpConfigs: MCPEdgesSettings;
-  /** Agent permissions (allow/ask/deny rules) */
-  permissions?: AgentPermissions;
+  /** Tool permission allowlist */
+  permissions?: ToolPermissions;
   /** Template this agent was created from */
   templateId?: string;
   createdAt: number;
@@ -731,7 +731,7 @@ export interface AgentFieldsInput {
   smartSystemPrompt?: boolean;
   mcpConfigs?: MCPSettings;
   edgesMcpConfigs?: MCPEdgesSettings;
-  permissions?: AgentPermissions;
+  permissions?: ToolPermissions;
   templateId?: string;
   updatedAt?: number;
 }
