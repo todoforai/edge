@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { Download } from 'lucide-react';
-import { getMCPByRegistryID } from '../../../data/mcpServersRegistry';
 import type { MCPRegistry } from '@shared/fbe';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
@@ -46,10 +45,7 @@ export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = (
       'All',
       ...Array.from(
         new Set(
-          servers.flatMap((s) => {
-            const registry = getMCPByRegistryID(s.registryId);
-            return registry?.category || ['Other'];
-          })
+          servers.flatMap((s) => s.category || ['Other'])
         )
       ),
     ],
@@ -59,12 +55,11 @@ export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = (
   const filteredServers = servers.filter((server) => {
     if (server.registryId === 'todoai') return false;
 
-    const registry = getMCPByRegistryID(server.registryId);
-    const serverCategories = registry?.category || ['Other'];
+    const serverCategories = server.category || ['Other'];
     const matchesCategory = selectedCategory === 'All' || serverCategories.includes(selectedCategory);
     const matchesSearch =
-      (registry?.name || server.registryId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (registry?.description || '').toLowerCase().includes(searchTerm.toLowerCase());
+      (server.name || server.registryId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (server.description || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -110,25 +105,24 @@ export const ExtensionsRegistryModal: React.FC<ExtensionsRegistryModalProps> = (
           <div className="flex-1 overflow-y-auto min-h-0">
             <div className={grid}>
               {filteredServers.map((server, index) => {
-                const registry = getMCPByRegistryID(server.registryId);
                 const serverId = server.registryId || `server-${index}`;
                 return (
                   <div key={serverId} className={extensionCard}>
                     <div className={extensionIcon}>
-                      <img src={registry?.icon || '/logos/default.png'} alt={registry?.name || serverId} width={48} height={48} className="rounded-lg" />
+                      <img src={server.icon || '/logos/default.png'} alt={server.name || serverId} width={48} height={48} className="rounded-lg" />
                     </div>
                     <div className={extensionInfo}>
                       <div className={extensionHeader}>
                         <div className={extensionTitleSection}>
-                          <h3 className={extensionName}>{registry?.name || server.registryId}</h3>
-                          <span className={extensionCategory}>{registry?.category?.[0] || 'Other'}</span>
+                          <h3 className={extensionName}>{server.name || server.registryId}</h3>
+                          <span className={extensionCategory}>{server.category?.[0] || 'Other'}</span>
                         </div>
                         <Button size="sm" onClick={() => handleInstall(server)} className="flex-shrink-0">
                           <Download size={14} />
                           Install
                         </Button>
                       </div>
-                      <p className={extensionDescription}>{registry?.description || 'No description available'}</p>
+                      <p className={extensionDescription}>{server.description || 'No description available'}</p>
                     </div>
                   </div>
                 );

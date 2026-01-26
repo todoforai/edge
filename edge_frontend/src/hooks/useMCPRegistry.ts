@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useEdgeConfigStore } from '../store/edgeConfigStore';
-import { MCP_REGISTRY } from '../data/mcpServersRegistry';
+import { MCP_REGISTRY } from '@shared/fe';
 import type { MCPRegistry } from '@shared/fbe';
 
 export const useMCPRegistry = () => {

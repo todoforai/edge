@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { getMCPByCommandArgs } from '../data/mcpServersRegistry';
+import { getMCPByCommandArgs } from '@shared/fe';
 import type { MCPEdgeExecutable } from '@shared/fbe';
 
 // Helper function to create fallback display info for unknown MCPs
