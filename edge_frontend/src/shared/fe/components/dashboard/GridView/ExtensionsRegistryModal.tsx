@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useMemo } from 'react';
 import { Download } from 'lucide-react';
 import type { MCPRegistry } from '@shared/fbe';

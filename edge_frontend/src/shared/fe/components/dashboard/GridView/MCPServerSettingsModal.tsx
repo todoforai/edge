@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from 'react';
 import { AlertCircle, Plus, X } from 'lucide-react';
 import type { MCPEdgeExecutable } from '@shared/fbe';
