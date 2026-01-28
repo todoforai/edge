@@ -311,7 +311,12 @@ export interface Message {
 
 // AgentSettings types
 export interface ToolPermissions {
-  allow: string[];  // Tool names that are allowed to auto-run
+  /** Tools that auto-execute without approval */
+  allow: string[];
+  /** Tools that require user approval (default behavior if not in any list) */
+  ask?: string[];
+  /** Tools that are blocked from execution */
+  deny?: string[];
 }
 /** @deprecated Use ToolPermissions instead */
 export type AgentPermissions = ToolPermissions;
@@ -363,6 +368,64 @@ export interface Task {
 
 export interface UserBalance {
   balance: number;
+}
+
+// ============================================
+// Subscription Types
+// ============================================
+
+import type { SubscriptionTier, SubscriptionStatus, BillingInterval, SubscriptionPlan } from './billing';
+
+/** Current subscription status for a user */
+export interface SubscriptionInfo {
+  subscriptionId: string | null;
+  tier: SubscriptionTier;
+  status: SubscriptionStatus | null;
+  currentPeriodEnd: number | null;
+  usageThisMonth: number;
+  usageLimit: number | null;
+  billingCycleStart: number | null;
+}
+
+/** Input for creating a subscription */
+export interface CreateSubscriptionInput {
+  tier: Exclude<SubscriptionTier, 'none'>;
+  interval: BillingInterval;
+}
+
+/** Input for updating a subscription */
+export interface UpdateSubscriptionInput {
+  newTier: Exclude<SubscriptionTier, 'none'>;
+  interval?: BillingInterval;
+}
+
+/** Input for canceling a subscription */
+export interface CancelSubscriptionInput {
+  cancelAtPeriodEnd: boolean;
+}
+
+/** Result of a subscription operation */
+export interface SubscriptionResult {
+  success: boolean;
+  subscriptionId?: string;
+  clientSecret?: string;  // For Stripe Elements payment
+  checkoutUrl?: string;   // For Stripe Checkout redirect
+  message?: string;
+}
+
+/** Usage status showing current usage vs limit */
+export interface UsageStatus {
+  usageThisMonth: number;
+  usageLimit: number | null;
+  percentUsed: number | null;  // 0-100, null if unlimited
+  isNearLimit: boolean;  // true if >= 80%
+  isAtLimit: boolean;    // true if >= 100%
+  tier: SubscriptionTier;
+}
+
+/** Available subscription plans response */
+export interface SubscriptionPlansResponse {
+  plans: SubscriptionPlan[];
 }
 
 /** Extended project settings with LLM config and preferences. */

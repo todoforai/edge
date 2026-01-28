@@ -1,3 +1,4 @@
+
 export enum ServerResponse {
   CONNECTED_FRONTEND = 'connected_frontend',
   CONNECTED_AGENT    = 'connected_agent',

@@ -4,7 +4,7 @@ export * from './attachmentTypes';
 // Core enums and constants
 export * from './enums';
 export * from './constants';
-export * from './fix';
+export * from './billing';
 
 // Attachment utilities
 export * from './attachmentUtils';

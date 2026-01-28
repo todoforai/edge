@@ -11,6 +11,7 @@ export enum DeviceType {
   IOS = 'IOS',
   WEB_EXTENSION = 'WEB_EXTENSION',
   EXTENSION = 'EXTENSION',
+  CLI = 'cli',
 }
 
 /** A connected edge device (local computer, phone, extension). */
