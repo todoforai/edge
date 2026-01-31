@@ -67,12 +67,11 @@ class FrontendWebSocket:
     def _create_ssl_context(self) -> Optional[ssl.SSLContext]:
         if not self._get_ws_url().startswith("wss://"):
             return None
+        context = ssl.create_default_context()
         if platform.system() == "Darwin" and platform.machine() == "arm64":
-            context = ssl.create_default_context()
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
-            return context
-        return None
+        return context
 
     async def __aenter__(self):
         await self._connect()
