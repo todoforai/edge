@@ -318,8 +318,6 @@ export interface ToolPermissions {
   /** Tools that are blocked from execution */
   deny?: string[];
 }
-/** @deprecated Use ToolPermissions instead */
-export type AgentPermissions = ToolPermissions;
 
 /** AI AgentSettings configuration including model, system prompt, and MCP tools. */
 export interface AgentSettings {
