@@ -1,10 +1,7 @@
-// Shared frontend/edge components and utilities
+// Shared frontend/edge MCP utilities
 
 // MCP Registry data
 export * from './data/mcpServersRegistry';
 
-// Dashboard Components
+// Dashboard Components (MCP modals)
 export * from './components/dashboard';
-
-// Utilities
-export { cn } from './lib/utils';
