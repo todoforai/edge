@@ -1,8 +1,5 @@
 // Shared frontend/edge components and utilities
 
-// Re-export shared types for convenience
-export type { FilterState, MCPViewMode } from '@shared/fbe';
-
 // MCP Registry data
 export * from './data/mcpServersRegistry';
 
