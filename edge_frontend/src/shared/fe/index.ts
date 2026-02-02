@@ -3,9 +3,6 @@
 // MCP Registry data
 export * from './data/mcpServersRegistry';
 
-// UI Components
-export * from './components/ui';
-
 // Dashboard Components
 export * from './components/dashboard';
 
