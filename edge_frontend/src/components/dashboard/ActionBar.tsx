@@ -1,7 +1,8 @@
 import React from 'react';
 import { Search, Filter, Eye, Braces, X, RefreshCw } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
-import { Button, Input } from '@shared/fe';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ButtonGroup } from '../ui/button-group';
 import { cn } from '@/lib/utils';
 

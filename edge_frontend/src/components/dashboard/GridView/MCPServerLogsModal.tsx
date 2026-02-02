@@ -3,14 +3,14 @@ import { Trash2, Download, CheckCircle, XCircle } from 'lucide-react';
 import type { MCPEdgeExecutable } from '@shared/fbe';
 import { useMCPLogStore } from '../../../store/mcpLogStore';
 import { cva } from "class-variance-authority";
+import { Button } from '@/components/ui/button';
 import {
-  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@shared/fe';
+} from '@/components/ui/dialog';
 
 const logTypeTag = cva([
   "inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase mr-2"
