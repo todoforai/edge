@@ -2,22 +2,22 @@
 import React, { useState, useMemo } from 'react';
 import { Download } from 'lucide-react';
 import type { MCPRegistry } from '@shared/fbe';
-import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '../../ui/dialog';
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../ui/select';
+} from '@/components/ui/select';
 
 const modalBody = "flex flex-col gap-6 flex-1 min-h-0";
 const grid = "grid gap-4 grid-cols-1 lg:grid-cols-2";

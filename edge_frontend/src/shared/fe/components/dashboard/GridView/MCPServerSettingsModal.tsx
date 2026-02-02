@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import { AlertCircle, Plus, X } from 'lucide-react';
 import type { MCPEdgeExecutable } from '@shared/fbe';
-import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
-import { Label } from '../../ui/label';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../../ui/dialog';
+} from '@/components/ui/dialog';
 
 const settingsContent = "flex flex-col gap-6";
 const formGroup = "flex flex-col gap-2";
