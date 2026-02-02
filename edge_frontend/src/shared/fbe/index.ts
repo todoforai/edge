@@ -18,8 +18,11 @@ export * from './edgeTypes';
 // UI types
 export * from './uiTypes';
 
-// Block types
+// Block types (exports from blocks/index.ts via blocks.ts wrapper)
 export * from './blocks';
+
+// Block types (as namespace for convenient access)
+export * as NewBlocks from './blocks';
 
 // Channels
 export * from './channels';
