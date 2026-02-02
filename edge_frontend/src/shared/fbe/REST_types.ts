@@ -310,6 +310,10 @@ export interface Message {
 }
 
 // AgentSettings types
+
+/** Permission state for a tool or service */
+export type PermissionState = 'allow' | 'ask' | 'deny';
+
 export interface ToolPermissions {
   /** Tools that auto-execute without approval */
   allow: string[];
