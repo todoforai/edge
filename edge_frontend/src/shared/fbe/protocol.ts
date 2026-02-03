@@ -14,8 +14,8 @@ import {
 } from './constants';
 import { CreateFileResult, TaskStatus, TodoStatus } from './enums';
 import type { RunMeta, RunResult } from './blocks';
-import { BlockType } from './blocks';
-import type { AgentSettings } from './REST_types';
+import { BlockType, BlockStatus } from './blocks';
+import type { AgentSettings, ApprovalDecision } from './REST_types';
 import type { MCPJSON, MCPToolSkeleton, InstalledMCP, CallToolResult } from './mcpTypes';
 import type { AttachmentWire, AttachmentWireCreate, AttachmentFrame } from './attachmentTypes';
 import { EdgeStatus } from './edgeTypes';
@@ -295,6 +295,34 @@ export interface BlockDoneResultMessage {
   };
 }
 
+// MCP execution request (fire-and-forget, like shell)
+export interface BlockMcpExecuteMessage {
+  type: Front2Edge.BLOCK_MCP_EXECUTE;
+  payload: {
+    todoId: string;
+    messageId: string;
+    blockId: string;
+    edgeId: string;
+    userId: string;
+    toolName: string;
+    arguments: Record<string, unknown>;
+  };
+}
+
+// MCP execution result (sent by edge through backend)
+export interface BlockMcpResultMessage {
+  type: Edge2Front.BLOCK_MCP_RESULT;
+  payload: {
+    todoId: string;
+    messageId: string;
+    blockId: string;
+    userId: string;
+    success: boolean;
+    result?: CallToolResult;
+    error?: string;
+  };
+}
+
 export interface BlockSaveResultMessage {
   type: Edge2Front.BLOCK_SAVE_RESULT;
   payload: {
@@ -426,6 +454,18 @@ export interface FrontBlockUpdateMessage {
       content?: never;
       status?: never;
     };
+  };
+}
+
+// Frontend -> Server block approval intent (user approves or denies a block)
+export interface FrontBlockApprovalIntentMessage {
+  type: Front2Server.BLOCK_APPROVAL_INTENT;
+  payload: {
+    todoId: string;
+    messageId: string;
+    blockId: string;
+    /** User's decision: allow/deny with optional remember */
+    decision: ApprovalDecision;
   };
 }
 
@@ -983,6 +1023,42 @@ export interface ContextCompactResultMessage {
 }
 
 // ============================================================================
+// 9.7. TOOL APPROVAL OPERATIONS
+// ============================================================================
+
+/** Sent to agent when user approves a tool - contains all data needed to execute */
+export interface ToolApprovalResponseMessage {
+  type: Front2Agent.TOOL_APPROVAL_RESPONSE;
+  payload: {
+    todoId: string;
+    messageId: string;
+    blockId: string;
+    userId: string;
+    toolType: string;
+    toolParams: Record<string, any>;  // Block fields (file_path, command, content, etc.)
+    projectId: string;
+    agentSettingsData: Record<string, any>;
+  };
+}
+
+/** Sent by backend when all pending tool approvals in a message are resolved */
+export interface ToolsResolvedMessage {
+  type: Front2Agent.TOOLS_RESOLVED;
+  payload: {
+    todoId: string;
+    messageId: string;
+    /** Results from all resolved tools */
+    results: Array<{
+      blockId: string;
+      blockType: string;
+      status: 'COMPLETED' | 'DENIED' | 'ERROR';
+      result: string;
+      filePath?: string;
+    }>;
+  };
+}
+
+// ============================================================================
 // 10. TASK OPERATIONS
 // ============================================================================
 
@@ -1034,6 +1110,7 @@ export type WebSocketRequestMessage =
 
 export type WebSocketMessage =
   | FrontBlockUpdateMessage
+  | FrontBlockApprovalIntentMessage
   | AgentMCPListMessage
   | TodoMsgStartMessage
   | TodoMsgDoneMessage
@@ -1064,6 +1141,8 @@ export type WebSocketMessage =
   | BlockMessageResultMessage
   | BlockStartResultMessage
   | BlockDoneResultMessage
+  | BlockMcpExecuteMessage
+  | BlockMcpResultMessage
   | BlockSaveResultMessage
   | BlockErrorResultMessage
   | BlockMetaResultMessage
@@ -1120,4 +1199,6 @@ export type WebSocketMessage =
   | FunctionCallF2AResultMessage
   | BusinessContextUpdatedMessage
   | ContextCompactRequestMessage
-  | ContextCompactResultMessage;
+  | ContextCompactResultMessage
+  | ToolApprovalResponseMessage
+  | ToolsResolvedMessage;

@@ -96,6 +96,10 @@ export const SERVER_TO_AGENTS = {
   context: {
     compact_request: () => `${Front2Agent.CONTEXT_COMPACT_REQUEST}:ALL`,
   },
+  tool: {
+    approval_response: () => `${Front2Agent.TOOL_APPROVAL_RESPONSE}:ALL`,
+    tools_resolved: () => `${Front2Agent.TOOLS_RESOLVED}:ALL`,
+  },
   ctx: {
     julia_result: (agentId: string) => `${Edge2Agent.CTX_JULIA_RESULT}:${agentId}`,
     workspace_result: (agentId: string) => `${Edge2Agent.CTX_WORKSPACE_RESULT}:${agentId}`,
@@ -131,6 +135,7 @@ export const SERVER_TO_EDGES = {
     keyboard:(userId: string, edgeId: string) => `${Front2Edge.BLOCK_KEYBOARD}:${userId}:${edgeId}`,
     signal:  (userId: string, edgeId: string) => `${Front2Edge.BLOCK_SIGNAL}:${userId}:${edgeId}`,
     fileWatch: (edgeId: string, path: string) => `${Front2Edge.BLOCK_FILE_WATCH}:${edgeId}:${path}`,
+    mcpExecute: (edgeId: string) => `${Front2Edge.BLOCK_MCP_EXECUTE}:${edgeId}`,
   },
   ctx: {
     workspace_request: (edgeId: string) => `${Agent2Edge.CTX_WORKSPACE_REQUEST}:${edgeId}`,

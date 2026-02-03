@@ -31,8 +31,9 @@ class Front2Edge:
     BLOCK_KEYBOARD = 'block:keyboard'
     BLOCK_SIGNAL = 'block:signal'
     BLOCK_FILE_WATCH = 'block:file_watch'
+    BLOCK_MCP_EXECUTE = 'block:mcp_execute'  # MCP tool execution (fire-and-forget)
     FRONTEND_FILE_CHUNK_REQUEST = 'frontend:file_chunk_request'
-    
+
     # Function call operations
     FUNCTION_CALL_REQUEST_FRONT = 'FUNCTION_CALL_REQUEST_FRONT'
     
@@ -63,21 +64,22 @@ class Edge2Front:
 
     # Agent responses
     EDGE_STATUS = 'edge:status'
-    
+
     # Project responses
     EDGE_DIR_RESPONSE = 'edge:dir_response'
     EDGE_CD_RESPONSE = 'edge:cd_response'
     EDGE_GET_FOLDERS_RESPONSE = 'edge:get_folders_response'
-    
+
     # Block responses
     BLOCK_SAVE_RESULT = 'block:save_result'
     BLOCK_ERROR_RESULT = 'block:error_result'
     BLOCK_META_RESULT = 'block:meta_result'
     BLOCK_FILE_CHANGED = 'block:file_changed'
-    
+    BLOCK_MCP_RESULT = 'block:mcp_result'  # MCP tool execution result
+
     # Function call responses
     FUNCTION_CALL_RESULT_FRONT = 'FUNCTION_CALL_RESULT_FRONT'
-    
+
     # Shell block responses (updated to match protocol)
     BLOCK_SH_MSG_RESULT = 'block:sh_msg_result'
     BLOCK_SH_MSG_START = 'block:sh_msg_start'

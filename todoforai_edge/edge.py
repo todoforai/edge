@@ -30,6 +30,7 @@ from .handlers.handlers import (
     handle_get_folders,
     handle_function_call_request_front,
     handle_function_call_request_agent,
+    handle_block_mcp_execute,
 )
 from .handlers.file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
 from .mcp_collector import MCPCollector
@@ -326,7 +327,10 @@ class TODOforAIEdge:
         
         elif msg_type == FE.FUNCTION_CALL_REQUEST_FRONT:
             asyncio.create_task(handle_function_call_request_front(payload, self))
-        
+
+        elif msg_type == FE.BLOCK_MCP_EXECUTE:
+            asyncio.create_task(handle_block_mcp_execute(payload, self))
+
         else:
             logger.warning(f"Unknown message type: {msg_type}")
 

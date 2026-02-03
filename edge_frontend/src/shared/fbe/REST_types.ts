@@ -314,6 +314,12 @@ export interface Message {
 /** Permission state for a tool or service */
 export type PermissionState = 'allow' | 'ask' | 'deny';
 
+/** Extended permission type including remembered permissions */
+export type PermissionType = PermissionState | 'remembered_allow' | 'remembered_deny';
+
+/** User's decision when approving/denying a tool execution */
+export type ApprovalDecision = 'allow_once' | 'allow_remember' | 'deny_once' | 'deny_remember';
+
 export interface ToolPermissions {
   /** Tools that auto-execute without approval */
   allow: string[];
@@ -321,6 +327,10 @@ export interface ToolPermissions {
   ask?: string[];
   /** Tools that are blocked from execution */
   deny?: string[];
+  /** User-remembered allow patterns from approval dialog (e.g., "BASH(command: npm *)") */
+  remembered_allow?: string[];
+  /** User-remembered deny patterns from approval dialog (e.g., "BASH(command: rm *)") */
+  remembered_deny?: string[];
 }
 
 /** AI AgentSettings configuration including model, system prompt, and MCP tools. */

@@ -13,10 +13,11 @@ from .shell_handler import ShellProcess
 from .docx_handler import is_valid_xml, extract_docx_content, save_docx_content, extract_xlsx_content, save_xlsx_content
 from ..constants.messages import (
     shell_block_start_result_msg, block_error_result_msg, get_folders_response_msg,
-    dir_list_response_msg, cd_response_msg, block_save_result_msg, 
+    dir_list_response_msg, cd_response_msg, block_save_result_msg,
     shell_block_message_result_msg, task_action_update_msg,
-    ctx_julia_result_msg, file_chunk_result_msg, 
-    function_call_result_msg, function_call_result_front_msg 
+    ctx_julia_result_msg, file_chunk_result_msg,
+    function_call_result_msg, function_call_result_front_msg,
+    block_mcp_result_msg
 )
 from ..constants.constants import Edge2Agent as EA
 from ..constants.workspace_handler import is_path_allowed
@@ -461,3 +462,53 @@ async def handle_function_call_request_front(payload, client):
 async def handle_function_call_request_agent(payload, client):
     """Handle function call request from agent (wrapper)"""
     return await handle_function_call_request(payload, client)
+
+
+async def handle_block_mcp_execute(payload, client):
+    """Handle MCP tool execution request (fire-and-forget pattern).
+
+    Executes an MCP tool and sends result back to backend, which will
+    handle persistence and broadcast to frontends.
+    """
+    todo_id = payload.get("todoId")
+    message_id = payload.get("messageId")
+    block_id = payload.get("blockId")
+    user_id = payload.get("userId")
+    tool_name = payload.get("toolName")
+    arguments = payload.get("arguments", {})
+
+    logger.info(f"MCP execute request: tool={tool_name}, block={block_id}")
+
+    try:
+        # Check if MCP collector is available
+        if not hasattr(client, 'mcp_collector') or not client.mcp_collector:
+            raise ValueError("No MCP collector available on this edge")
+
+        # Call the MCP tool
+        result = await client.mcp_collector.call_tool(tool_name, arguments)
+
+        logger.info(f"MCP tool {tool_name} executed successfully for block {block_id}")
+
+        # Send success result to backend
+        await client.send_response(block_mcp_result_msg(
+            todo_id=todo_id,
+            message_id=message_id,
+            block_id=block_id,
+            user_id=user_id,
+            success=True,
+            result=result
+        ))
+
+    except Exception as error:
+        stack_trace = traceback.format_exc()
+        logger.error(f"MCP execute error for {tool_name}: {str(error)}\nStacktrace:\n{stack_trace}")
+
+        # Send error result to backend
+        await client.send_response(block_mcp_result_msg(
+            todo_id=todo_id,
+            message_id=message_id,
+            block_id=block_id,
+            user_id=user_id,
+            success=False,
+            error=str(error)
+        ))

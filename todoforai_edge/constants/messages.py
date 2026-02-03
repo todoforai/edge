@@ -221,3 +221,23 @@ def function_call_result_msg(request_id: str, edge_id: str, success: bool, resul
 def function_call_result_front_msg(request_id: str, edge_id: str, success: bool, result: Any = None, error: str = None):
     """Create a function call result message (frontend)"""
     return general_result_msg(EF.FUNCTION_CALL_RESULT_FRONT, request_id, edge_id, success, result, error)
+
+
+def block_mcp_result_msg(todo_id: str, message_id: str, block_id: str, user_id: str, success: bool, result: Any = None, error: str = None):
+    """Create a block MCP result message for fire-and-forget MCP tool execution"""
+    payload = {
+        "todoId": todo_id,
+        "messageId": message_id,
+        "blockId": block_id,
+        "userId": user_id,
+        "success": success,
+    }
+    if result is not None:
+        payload["result"] = result
+    if error is not None:
+        payload["error"] = error
+
+    return {
+        "type": EF.BLOCK_MCP_RESULT,
+        "payload": payload
+    }

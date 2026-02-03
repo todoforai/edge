@@ -120,6 +120,18 @@ export enum BlockStatus {
   ERROR = 'ERROR',
 }
 
+/** Block statuses that indicate terminal/final states */
+export const TERMINAL_BLOCK_STATUSES = [BlockStatus.COMPLETED, BlockStatus.DENIED, BlockStatus.ERROR];
+
+/** Block status helpers - simplify common status checks */
+export const isBlockRunning = (block: { status: BlockStatus }) => block.status === BlockStatus.RUNNING;
+export const isBlockPending = (block: { status: BlockStatus }) => block.status === BlockStatus.PENDING;
+export const isBlockTerminal = (block: { status: BlockStatus }) => TERMINAL_BLOCK_STATUSES.includes(block.status);
+export const isBlockAwaitingApproval = (block: { status: BlockStatus }) => block.status === BlockStatus.AWAITING_APPROVAL;
+export const isBlockDenied = (block: { status: BlockStatus }) => block.status === BlockStatus.DENIED;
+export const isBlockError = (block: { status: BlockStatus }) => block.status === BlockStatus.ERROR;
+export const isBlockCompleted = (block: { status: BlockStatus }) => block.status === BlockStatus.COMPLETED;
+
 // =============================================================================
 // TOOL TYPE SETS
 // =============================================================================
@@ -283,14 +295,35 @@ export interface RunResult {
   meta: Record<string, unknown>;
 }
 
+/**
+ * Block "ready" state handling
+ *
+ * The `ready` flag separates "streaming finished" from "status complete":
+ *   - `ready: false` = content is still streaming from agent
+ *   - `ready: true` = streaming/generation finished, content is complete
+ *   - `status` = lifecycle state (RUNNING, COMPLETED, DENIED, ERROR, etc.)
+ *
+ * Frontend components use:
+ *   - `!block.ready` for streaming indicators (shimmer, disable editing)
+ *   - `status === RUNNING` for user-triggered execution state
+ *   - `status === COMPLETED` for lifecycle completion (tool results context)
+ *
+ * BLOCK_END sets `ready: true` (not status=COMPLETED)
+ * Status changes come via BLOCK_UPDATE or execution handlers (BLOCK_SH_DONE, etc.)
+ *
+ * TODO: The agent (Julia) side needs to be updated to handle this correctly
+ */
 export interface BaseBlock {
   id: string;
   type: ToolType;
   content: string;
-  status?: BlockStatus;
+  status: BlockStatus;  // Required - default PENDING when created
+  ready: boolean;       // False while streaming, true when BLOCK_END received
   result?: string;
   results?: RunResult[];
   runMeta?: RunMeta[];
+  /** Generalized permission pattern for "remember" feature (e.g., "BASH(command: npm *)") */
+  generalized_pattern?: string;
 }
 
 // =============================================================================

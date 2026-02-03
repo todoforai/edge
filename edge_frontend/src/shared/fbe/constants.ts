@@ -29,6 +29,10 @@ export enum Front2Agent {
 
   // Function call operations
   FUNCTION_CALL_F2A_REQUEST = 'FUNCTION_CALL_F2A_REQUEST',
+
+  // Tool approval operations
+  TOOL_APPROVAL_RESPONSE = 'tool:approval_response',
+  TOOLS_RESOLVED = 'tool:tools_resolved',  // Backend -> Agent: all pending tools resolved
 }
 export enum Edge2Agent {
   CTX_JULIA_RESULT = 'ctx:julia_result',
@@ -55,6 +59,7 @@ export enum Front2Edge {
   BLOCK_KEYBOARD   = 'block:keyboard',
   BLOCK_SIGNAL     = 'block:signal',
   BLOCK_FILE_WATCH = 'block:file_watch',
+  BLOCK_MCP_EXECUTE = 'block:mcp_execute',  // MCP tool execution (fire-and-forget)
   FRONTEND_FILE_CHUNK_REQUEST = 'frontend:file_chunk_request',
 
   // Function call operations
@@ -146,6 +151,7 @@ export enum Edge2Front {
   BLOCK_ERROR_RESULT          = 'block:error_result',
   BLOCK_META_RESULT           = 'block:meta_result',
   BLOCK_FILE_CHANGED          = 'block:file_changed',
+  BLOCK_MCP_RESULT            = 'block:mcp_result',  // MCP tool execution result
   FRONTEND_FILE_CHUNK_RESULT  = 'frontend:file_chunk_result',
 
   // Function call responses
@@ -158,9 +164,10 @@ export enum Edge2FrontAgent {
   WORKSPACE_FILE_DONE        = 'workspace:file_done',
 }
 
-// New enum added from patch
+// Frontend -> Server messages (not routed to agent/edge)
 export enum Front2Server {
-  BLOCK_UPDATE = 'BLOCK_UPDATE',
+  BLOCK_UPDATE = 'BLOCK_UPDATE',  // Append results to block
+  BLOCK_APPROVAL_INTENT = 'BLOCK_APPROVAL_INTENT',  // User intent to approve/deny a block
 }
 
 export const AF = Agent2Front;
