@@ -6,20 +6,26 @@ This example shows how to use the Edge for programmatic todo management.
 
 ```python
 import asyncio
+import os
+from todoforai_edge.config import Config
 from todoforai_edge.edge import TODOforAIEdge
 
 async def main():
+    # Create config and set credentials
+    config = Config()
+    config.api_key = os.environ.get('TODOFORAI_API_KEY')  # or set directly
+    config.api_url = 'https://api.todofor.ai'  # or 'http://localhost:4000' for dev
+
     edge = TODOforAIEdge(config)
-    await edge.ensure_api_key()
-    
+
     # Get available agent settings
     agents = await edge.list_agent_settings()
     agent = agents[0]  # Use full agent object
-    
+
     # Get available projects
     projects = await edge.list_projects()
     project_id = projects[0]['project']['id']
-    
+
     # Create new todo with auto-generated ID
     todo = await edge.add_message(
         project_id=project_id,
@@ -27,7 +33,7 @@ async def main():
         agent_settings=agent,  # Pass full agent object
         auto_create=True
     )
-    
+
     # Add message to existing todo
     await edge.add_message(
         project_id=project_id,
@@ -64,6 +70,16 @@ asyncio.run(main())
 - `allow_queue` - Allow queueing messages to running todos (default: False)
 
 ## Examples
+
+### Get a todo with all messages and blocks
+```python
+todo = await edge.get_todo('todo-id-here')
+print(f"Status: {todo['status']}")
+for msg in todo.get('messages', []):
+    print(f"  Role: {msg['role']}, Blocks: {len(msg.get('blocks', []))}")
+    for block in msg.get('blocks', []):
+        print(f"    - {block['type']}: {block.get('file_path', block.get('content', '')[:50])}")
+```
 
 ### Create todo with custom ID
 ```python

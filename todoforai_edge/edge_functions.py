@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 import requests
 from .constants.workspace_handler import is_path_allowed
-from .handlers.shell_handler import ShellProcess
+from .handlers.shell_handler import ShellProcess, _get_windows_shell
 from .handlers.path_utils import resolve_file_path
 
 logger = logging.getLogger("todoforai-edge")
@@ -88,12 +88,13 @@ async def get_system_info():
 
         shell_info = "Unknown shell"
         try:
-            shell_env = os.environ.get('SHELL', '')
-            if shell_env:
-                shell_info = os.path.basename(shell_env)
+            if system_info == "Windows":
+                _, shell_type = _get_windows_shell()
+                shell_info = shell_type  # git_bash, bash, powershell, or cmd
             else:
-                if system_info == "Windows":
-                    shell_info = "cmd.exe"
+                shell_env = os.environ.get('SHELL', '')
+                if shell_env:
+                    shell_info = os.path.basename(shell_env)
         except:
             pass
 

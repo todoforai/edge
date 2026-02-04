@@ -4,7 +4,9 @@ import signal
 import os
 import select
 import logging
-from typing import Dict
+import shutil
+from functools import lru_cache
+from typing import Dict, Tuple, List
 import traceback
 import threading
 import queue
@@ -24,6 +26,40 @@ STREAM_LAST_CHARS = 10000
 # Make processes dictionary a global variable so it's shared across all instances
 _processes: Dict[str, subprocess.Popen] = {}
 _stdin_writers = {}  # Make stdin writers global too so all instances can access
+
+
+@lru_cache(maxsize=1)
+def _get_windows_shell() -> Tuple[List[str], str]:
+    """Detect best available shell on Windows. Cached - only runs once.
+
+    Returns: (shell_cmd_prefix, shell_type)
+    Priority: git_bash > bash (in PATH) > powershell > cmd
+    """
+    # Git Bash - most Unix-like
+    git_bash_paths = [
+        r"C:\Program Files\Git\bin\bash.exe",
+        r"C:\Program Files (x86)\Git\bin\bash.exe",
+    ]
+    for path in git_bash_paths:
+        if os.path.exists(path):
+            logger.info(f"Detected Git Bash: {path}")
+            return ([path, '-c'], 'git_bash')
+
+    # Also check PATH for any bash
+    bash_in_path = shutil.which('bash')
+    if bash_in_path:
+        logger.info(f"Detected bash in PATH: {bash_in_path}")
+        return ([bash_in_path, '-c'], 'bash')
+
+    # PowerShell
+    if shutil.which('powershell'):
+        logger.info("Using PowerShell")
+        return (['powershell', '-Command'], 'powershell')
+
+    # cmd.exe fallback
+    logger.info("Falling back to cmd.exe")
+    return (['cmd', '/c'], 'cmd')
+
 
 class OutputBuffer:
     """
@@ -124,24 +160,20 @@ class ShellProcess:
                 else:
                     logger.warning(f"Invalid root_path provided: {root_path}, using current directory")
                  
-            # Force UTF-8 and determine shell based on platform
+            # Determine shell based on platform
             if os.name == 'nt':
-                # Try PowerShell first (better streaming), fallback to cmd
-                try:
-                    # Test if PowerShell is available
-                    subprocess.run(['powershell', '-Command', 'exit'], 
-                                 capture_output=True, timeout=2)
-                    # PowerShell with UTF-8 output encoding and no colors
-                    shell_cmd = ['powershell', '-Command', 
-                               f'[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; '
-                               f'$OutputEncoding = [System.Text.Encoding]::UTF8; '
-                               f'$env:NO_COLOR = "1"; $env:TERM = "dumb"; '
-                               f'{content}']
-                except (subprocess.TimeoutExpired, FileNotFoundError):
-                    # Fallback to cmd with UTF-8 codepage and no colors
-                    logger.warning("PowerShell not available, falling back to cmd.exe")
-                    content = f'chcp 65001>nul & set NO_COLOR=1 & set TERM=dumb & {content}'
-                    shell_cmd = ['cmd', '/c', content]
+                shell_prefix, shell_type = _get_windows_shell()
+
+                if shell_type in ('git_bash', 'bash'):
+                    shell_cmd = shell_prefix + [f'export NO_COLOR=1 TERM=dumb; {content}']
+                elif shell_type == 'powershell':
+                    shell_cmd = shell_prefix + [
+                        f'[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; '
+                        f'$OutputEncoding = [System.Text.Encoding]::UTF8; '
+                        f'$env:NO_COLOR = "1"; $env:TERM = "dumb"; {content}'
+                    ]
+                else:  # cmd
+                    shell_cmd = shell_prefix + [f'chcp 65001>nul & set NO_COLOR=1 & set TERM=dumb & {content}']
                 preexec_fn = None
             else:  # Unix-like systems
                 shell_cmd = ['/bin/bash', '-c', content]

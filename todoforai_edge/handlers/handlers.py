@@ -386,10 +386,11 @@ async def handle_file_chunk_request(payload, client, response_type=EA.FILE_CHUNK
 class FunctionCallResponse:
     """Encapsulates function call response logic"""
 
-    def __init__(self, request_id: str, edge_id: str, agent_id: str = None):
+    def __init__(self, request_id: str, edge_id: str, agent_id: str = None, block_info: dict = None):
         self.request_id = request_id
         self.edge_id = edge_id
         self.agent_id = agent_id
+        self.block_info = block_info
         self.is_agent_request = agent_id is not None
 
     def success_response(self, result):
@@ -397,14 +398,14 @@ class FunctionCallResponse:
         if self.is_agent_request:
             return function_call_result_msg(self.request_id, self.edge_id, True, result=result, agent_id=self.agent_id)
         else:
-            return function_call_result_front_msg(self.request_id, self.edge_id, True, result=result)
+            return function_call_result_front_msg(self.request_id, self.edge_id, True, result=result, block_info=self.block_info)
 
     def error_response(self, error_message: str):
         """Create error response based on request type"""
         if self.is_agent_request:
             return function_call_result_msg(self.request_id, self.edge_id, False, error=error_message, agent_id=self.agent_id)
         else:
-            return function_call_result_front_msg(self.request_id, self.edge_id, False, error=error_message)
+            return function_call_result_front_msg(self.request_id, self.edge_id, False, error=error_message, block_info=self.block_info)
 
 async def _execute_function(function_name: str, args: dict, client) -> any:
     """Execute a registered function with proper argument handling"""
@@ -436,7 +437,16 @@ async def handle_function_call_request(payload, client):
     agent_id = payload.get("agentId")
     edge_id = payload.get("edgeId")
 
-    response_handler = FunctionCallResponse(request_id, edge_id, agent_id)
+    # Extract block info from args if present (for saving results to blocks)
+    block_info = None
+    if args.get("blockId"):
+        block_info = {
+            "todoId": args.get("todoId"),
+            "messageId": args.get("messageId"),
+            "blockId": args.get("blockId"),
+        }
+
+    response_handler = FunctionCallResponse(request_id, edge_id, agent_id, block_info)
     req_type = "agent" if agent_id else "frontend"
     
     try:
