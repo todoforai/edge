@@ -508,14 +508,24 @@ class TODOforAIEdge:
         """Start file synchronization for all workspace paths"""
         # First stop any existing syncs to prevent duplicates
         await stop_all_syncs()
-        
+
         for workspace_path in self.edge_config.config["workspacepaths"]:
             try:
+                # Auto-create directories under /tmp (safe location for temp workspaces)
+                if not os.path.exists(workspace_path):
+                    if workspace_path.startswith("/tmp/"):
+                        try:
+                            os.makedirs(workspace_path, exist_ok=True)
+                            logger.info(f"Created workspace directory: {workspace_path}")
+                        except OSError as e:
+                            logger.warning(f"Could not create workspace directory {workspace_path}: {e}")
+                    else:
+                        logger.warning(f"Workspace path does not exist: {workspace_path}")
+                        continue
+
                 if os.path.exists(workspace_path):
                     logger.info(f"Starting file sync for workspace: {workspace_path}")
                     await start_workspace_sync(self, workspace_path)
-                else:
-                    logger.warning(f"Workspace path does not exist: {workspace_path}")
             except Exception as e:
                 logger.error(f"Failed to start file sync for {workspace_path}: {str(e)}")
 
