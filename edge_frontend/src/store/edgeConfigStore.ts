@@ -7,6 +7,11 @@ import { EdgeStatus, DeviceType } from '@shared/fbe';
 
 const log = createLogger('edgeConfigStore');
 
+// TODO: Add proper UI validation with user-facing warning when adding these paths
+// Paths that should never be watched directly (too broad, contain system files)
+// Keep minimal and cross-platform - just the obvious problematic cases
+const FORBIDDEN_WORKSPACE_PATHS = new Set(['/', '/tmp', 'C:\\', 'C:/']);
+
 interface EdgeConfigState {
   config: EdgeData;
   unsubscribe?: () => void;
@@ -85,6 +90,15 @@ export const useEdgeConfigStore = create<EdgeConfigState>((set, get) => ({
 
   saveConfigToBackend: async (updates: Partial<EdgeData>) => {
     try {
+      // Filter out forbidden workspace paths
+      if (updates.workspacepaths) {
+        const filtered = updates.workspacepaths.filter(p => !FORBIDDEN_WORKSPACE_PATHS.has(p.replace(/\/+$/, '')));
+        if (filtered.length !== updates.workspacepaths.length) {
+          log.warn('Filtered out forbidden workspace paths:', updates.workspacepaths.filter(p => FORBIDDEN_WORKSPACE_PATHS.has(p.replace(/\/+$/, ''))));
+        }
+        updates = { ...updates, workspacepaths: filtered };
+      }
+
       // Update local config first
       const currentConfig = get().config;
       const updatedConfig = { ...currentConfig, ...updates };

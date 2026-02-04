@@ -15,7 +15,7 @@ from .utils import generate_machine_fingerprint, async_request, normalize_api_ur
 from .constants.messages import edge_status_msg
 from .constants.workspace_handler import handle_ctx_workspace_request
 from .config import get_ws_url
-from .edge_config import EdgeConfig
+from .edge_config import EdgeConfig, FORBIDDEN_WORKSPACE_PATHS
 from .colors import Colors
 from .handlers.handlers import (
     handle_todo_dir_list,
@@ -226,9 +226,21 @@ class TODOforAIEdge:
         if edge_id and edge_id != self.edge_id:
             logger.warning(f"Received config update for different edge: {edge_id} vs {self.edge_id} - ignoring")
             return
-            
+
         logger.info(f"Received edge config update for edge {self.edge_id}")
-        
+
+        # Filter out forbidden workspace paths (like /tmp, /, etc.)
+        if "workspacepaths" in payload:
+            original_paths = payload["workspacepaths"]
+            filtered_paths = [
+                p for p in original_paths
+                if os.path.normpath(p).rstrip("/") not in FORBIDDEN_WORKSPACE_PATHS
+            ]
+            if len(filtered_paths) != len(original_paths):
+                removed = set(original_paths) - set(filtered_paths)
+                logger.warning(f"Filtered out forbidden workspace paths: {removed}")
+            payload["workspacepaths"] = filtered_paths
+
         # Update the edge config with the payload, marking server as source
         self.edge_config.config.update_value(payload, source="edge2backend_on_config_change")
         

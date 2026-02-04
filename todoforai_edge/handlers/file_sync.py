@@ -6,13 +6,24 @@ from typing import Dict, Set, Optional, Tuple, List
 from concurrent.futures import ThreadPoolExecutor
 import aiofiles
 
-from watchfiles import awatch, Change
+from watchfiles import awatch, Change, DefaultFilter
 
 from ..constants.constants import Edge2FrontAgent as EFA
 from ..constants.workspace_handler import get_filtered_files_and_folders
 from ..observable import observable_registry
 
 logger = logging.getLogger("todoforai-edge-sync")
+
+
+class SystemdSafeFilter(DefaultFilter):
+    """Filter that excludes systemd private directories and other inaccessible system paths."""
+
+    def __call__(self, change, path: str) -> bool:
+        # Skip systemd private directories (permission denied by design)
+        if '/systemd-private-' in path:
+            return False
+        return super().__call__(change, path)
+
 
 # Hard cap for synced file payloads (can be overridden by env)
 MAX_SYNC_BYTES = int(os.environ.get("TODOFORAI_EDGE_MAX_SYNC_BYTES", str(100 * 1024)))  # ~100 KiB
@@ -120,7 +131,8 @@ class WorkspaceSyncManager:
                 recursive=True,
                 step=50,  # Check every 50ms
                 yield_on_timeout=True,  # Yield empty set on timeout
-                stop_event=asyncio.Event() if not self.is_running else None
+                stop_event=asyncio.Event() if not self.is_running else None,
+                watch_filter=SystemdSafeFilter(),  # Skip inaccessible system directories
             ):
                 if not self.is_running:
                     break

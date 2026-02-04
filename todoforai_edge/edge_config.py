@@ -1,9 +1,21 @@
 import logging
+import os
 import uuid
 from typing import List, Optional, Dict, Any, TypedDict
 from .observable import observable_registry
 
 logger = logging.getLogger("todoforai-edge")
+
+# Paths that should never be watched directly (too broad, contain system files)
+# TODO: Frontend should show user-facing warning when these paths are attempted
+# See also: edge_frontend/src/store/edgeConfigStore.ts (FORBIDDEN_WORKSPACE_PATHS)
+# Keep this minimal and cross-platform - just the obvious problematic cases
+FORBIDDEN_WORKSPACE_PATHS = {
+    "/",        # Unix root
+    "/tmp",     # Unix temp (contains systemd-private dirs on Linux)
+    "C:\\",     # Windows root
+    "C:/",      # Windows root (alt format)
+}
 
 
 class MCPTool(TypedDict):
@@ -57,13 +69,26 @@ class EdgeConfig:
         self.config = observable_registry.create("edge_config", config_data)
 
     def add_workspace_path(self, path: str) -> bool:
-        """Add a workspace path if it doesn't already exist"""
+        """Add a workspace path if it doesn't already exist.
+
+        Returns False if:
+        - Path already exists in workspaces
+        - Path is a forbidden system directory (/, /tmp, /var, etc.)
+        """
+        # Normalize the path
+        normalized_path = os.path.normpath(path).rstrip("/")
+
+        # Check if path is a forbidden system directory
+        if normalized_path in FORBIDDEN_WORKSPACE_PATHS:
+            logger.warning(f"Refusing to add forbidden workspace path: {path} - use a subdirectory instead")
+            return False
+
         current_paths = self.config["workspacepaths"]
         if path not in current_paths:
             # Create a new list with the added path
             new_paths = current_paths.copy()
             new_paths.append(path)
-            
+
             # Update only the changed field
             self.config.update_value({"workspacepaths": new_paths})
             return True
