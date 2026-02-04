@@ -218,9 +218,12 @@ def function_call_result_msg(request_id: str, edge_id: str, success: bool, resul
     """Create a function call result message (agent)"""
     return general_result_msg(EA.FUNCTION_CALL_RESULT_AGENT, request_id, edge_id, success, result, error, agent_id)
 
-def function_call_result_front_msg(request_id: str, edge_id: str, success: bool, result: Any = None, error: str = None):
+def function_call_result_front_msg(request_id: str, edge_id: str, success: bool, result: Any = None, error: str = None, block_info: dict = None):
     """Create a function call result message (frontend)"""
-    return general_result_msg(EF.FUNCTION_CALL_RESULT_FRONT, request_id, edge_id, success, result, error)
+    msg = general_result_msg(EF.FUNCTION_CALL_RESULT_FRONT, request_id, edge_id, success, result, error)
+    if block_info:
+        msg["payload"]["blockInfo"] = block_info
+    return msg
 
 
 def block_mcp_result_msg(todo_id: str, message_id: str, block_id: str, user_id: str, success: bool, result: Any = None, error: str = None):
