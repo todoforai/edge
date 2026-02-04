@@ -42,7 +42,6 @@ export const SERVER_TO_FRONTENDS = {
     start_workspace_search: (todoId: string) => `${Agent2Front.BLOCK_START_WORKSPACE_SEARCH}:${todoId}`,
     start_text:        (todoId: string) => `${Agent2Front.BLOCK_START_TEXT}:${todoId}`,
     start_error:       (todoId: string) => `${Agent2Front.BLOCK_START_ERROR}:${todoId}`,
-    start_mcp:         (todoId: string) => `${Agent2Front.BLOCK_START_MCP}:${todoId}`,
     start_browser:     (todoId: string) => `${Agent2Front.BLOCK_START_BROWSER}:${todoId}`,
 
     message:           (todoId: string) => `${Agent2Front.BLOCK_MESSAGE}:${todoId}`,
@@ -65,8 +64,6 @@ export const SERVER_TO_FRONTENDS = {
     meta_result:          (todoId: string) => `${Edge2Front.BLOCK_META_RESULT}:${todoId}`,
 
     file_changed: (edgeId: string, path: string) => `${Edge2Front.BLOCK_FILE_CHANGED}:${edgeId}:${path}`,
-
-    mcpToolResult: (todoId: string) => `${Agent2Front.MCP_TOOL_RESULT}:${todoId}`,
   },
   payment: {
     status: (userId: string) => `${Agent2Front.PAYMENT_STATUS}:${userId}`,

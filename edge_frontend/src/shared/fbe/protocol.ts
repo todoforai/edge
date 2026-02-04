@@ -197,16 +197,6 @@ export interface BlockStartUniversalMessage {
   };
 }
 
-export interface BlockStartMCPMessage {
-  type: Agent2Front.BLOCK_START_MCP;
-  payload: {
-    todoId: string;
-    messageId: string;
-    blockId: string;
-    name: string;
-  };
-}
-
 export interface BlockStartBrowserMessage {
   type: Agent2Front.BLOCK_START_BROWSER;
   payload: {
@@ -948,16 +938,6 @@ export interface AgentMCPListMessage {
   };
 }
 
-export interface MCPToolResultMessage {
-  type: Agent2Front.MCP_TOOL_RESULT;
-  payload: {
-    todoId: string;
-    messageId: string;
-    blockId: string;
-    result: string; // Changed from Any to string for safety
-  };
-}
-
 // ============================================================================
 // 9. PAYMENT OPERATIONS
 // ============================================================================
@@ -1129,7 +1109,6 @@ export type WebSocketMessage =
   | BlockStartWebsearchMessage
   | BlockStartWorkspaceSearchMessage
   | BlockStartTextMessage
-  | BlockStartMCPMessage
   | BlockStartBrowserMessage
   | BlockStartErrorMessage
   | BlockUpdateMessage
@@ -1137,7 +1116,6 @@ export type WebSocketMessage =
   | MessageUpdateMessageProcessed
   | BlockMessageMessage
   | BlockEndMessage
-  | MCPToolResultMessage
   | BlockMessageResultMessage
   | BlockStartResultMessage
   | BlockDoneResultMessage

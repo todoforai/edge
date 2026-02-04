@@ -332,6 +332,45 @@ async def read_file(
     return await read_file_content(path, rootPath, fallbackRootPaths, client_instance)
 
 
+@register_function("create_file")
+async def create_file(
+    path: str,
+    content: str,
+    rootPath: str = "",
+    fallbackRootPaths: Optional[List[str]] = None,
+    client_instance=None,
+    **_: Any,
+):
+    """Create a new file with the specified content."""
+    fallbackRootPaths = fallbackRootPaths or []
+    full_path = resolve_file_path(path, rootPath, fallbackRootPaths)
+
+    # Check permissions
+    try:
+        if client_instance and hasattr(client_instance, "edge_config"):
+            if not is_path_allowed(full_path, client_instance.edge_config.config):
+                return {"success": False, "error": f"No permission to write to {full_path}"}
+    except Exception as error:
+        logger.warning(f"Path permission check failed for {full_path}: {error}")
+
+    # Create parent directories if needed
+    dirname = os.path.dirname(full_path)
+    if dirname:
+        os.makedirs(dirname, exist_ok=True)
+
+    try:
+        with open(full_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        return {
+            "success": True,
+            "path": full_path,
+            "bytes": len(content.encode('utf-8'))
+        }
+    except Exception as error:
+        logger.error(f"Error creating file {full_path}: {error}")
+        return {"success": False, "error": str(error)}
+
+
 @register_function("read_file_base64")
 async def read_file_base64(
     path: str,

@@ -1,6 +1,6 @@
 import type { MessageBlock, RunMeta } from './blocks';
 import { ProjectStatus, TodoStatus, AgentflowStatus } from './enums';
-import type { MCPJSON, MCPToolSkeleton, AttachmentFrame, InstalledMCP } from './index';
+import type { MCPJSON, MCPToolSkeleton, AttachmentFrame, AttachmentWireCreate, InstalledMCP } from './index';
 import { TransactionType } from './enums';
 import type { DataType } from './context_schema';
 
@@ -756,7 +756,8 @@ export interface AddMessageInput {
   projectId: string;
   content: string;
   agentSettings: AgentSettings;
-  attachments?: AttachmentFrame[];
+  /** Raw attachments to register (from agent). Will be converted to AttachmentFrame[]. */
+  attachments?: AttachmentWireCreate[];
   scheduledTimestamp?: number;
   filteredEdgeTools?: Record<string, MCPToolSkeleton[]>;
   afterMessageId?: string;

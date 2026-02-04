@@ -104,13 +104,9 @@ export enum Agent2Front {
   BLOCK_START_EMAIL             = 'block:start_email',
   BLOCK_START_TEXT              = 'block:start_text',
   BLOCK_START_ERROR             = 'block:start_error',
-  BLOCK_START_MCP               = 'block:start_mcp',
   BLOCK_START_BROWSER           = 'block:start_browser',
   BLOCK_MESSAGE                 = 'block:message',
   BLOCK_END                     = 'block:end',
-
-  // MCP responses
-  MCP_TOOL_RESULT               = 'mcp:tool_result',
 
   // Workspace responses
   // CTX_WORKSPACE_RESULT_META = 'ctx:workspace_result_meta',
