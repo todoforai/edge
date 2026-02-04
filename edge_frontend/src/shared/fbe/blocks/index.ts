@@ -226,7 +226,7 @@ export function getToolCategory(toolType: ToolType): ToolCategory {
 // =============================================================================
 
 export interface FileProps {
-  file_path?: string;
+  path?: string;
   language?: string;
 }
 
@@ -690,7 +690,7 @@ export function isFileBlock(block: MessageBlock): block is MessageBlock & FilePr
 }
 
 export function hasFileProps(block: MessageBlock): block is MessageBlock & FileProps {
-  return 'file_path' in block;
+  return 'path' in block;
 }
 
 export function hasUrlProps(block: MessageBlock): block is MessageBlock & UrlProps {

@@ -99,7 +99,7 @@ export interface BlockStartCatfileMessage {
     todoId: string;
     messageId: string;
     blockId: string;
-    file_path: string;
+    path: string;
   };
 }
 
@@ -119,7 +119,7 @@ export interface BlockStartCreatefileMessage {
     todoId: string;
     messageId: string;
     blockId: string;
-    file_path: string;
+    path: string;
     language: string;
   };
 }
@@ -130,7 +130,7 @@ export interface BlockStartModifyfileMessage {
     todoId: string;
     messageId: string;
     blockId: string;
-    file_path: string;
+    path: string;
     language: string;
   };
 }
@@ -1035,7 +1035,7 @@ export interface ToolApprovalResponseMessage {
     blockId: string;
     userId: string;
     toolType: string;
-    toolParams: Record<string, any>;  // Block fields (file_path, command, content, etc.)
+    toolParams: Record<string, any>;  // Block fields (path, command, content, etc.)
     projectId: string;
     agentSettingsData: Record<string, any>;
   };
