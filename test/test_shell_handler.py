@@ -1,14 +1,14 @@
 import asyncio
 import pytest
 from todoforai_edge.handlers.shell_handler import ShellProcess
+from todoforai_edge.constants.constants import Edge2Front as EF
 
 class MockClient:
     def __init__(self):
         self.messages = []
 
     async def send_response(self, payload):
-        # store as string to avoid dependence on exact structure
-        self.messages.append(str(payload))
+        self.messages.append(payload)
 
 @pytest.mark.asyncio
 async def test_successful_run_no_output():
@@ -27,7 +27,11 @@ async def test_successful_run_no_output():
         await asyncio.sleep(0.01)
     await asyncio.sleep(0.05)  # allow final messages to flush
 
-    assert any("Finished with no output" in msg for msg in client.messages), f"Expected 'Finished with no output' message, got: {client.messages}"
+    # Should NOT send a synthetic "Finished with no output" message - just the done message
+    msg_types = [msg["type"] for msg in client.messages]
+    msg_contents = [msg.get("payload", {}).get("content", "") for msg in client.messages]
+    assert not any("Finished with no output" in c for c in msg_contents), f"Did not expect 'Finished with no output' message, got: {client.messages}"
+    assert EF.BLOCK_SH_DONE in msg_types, f"Expected {EF.BLOCK_SH_DONE} message, got types: {msg_types}"
 
 @pytest.mark.asyncio
 async def test_successful_run_with_output():
@@ -46,7 +50,9 @@ async def test_successful_run_with_output():
         await asyncio.sleep(0.01)
     await asyncio.sleep(0.05)  # allow final messages to flush
 
-    # ensure we got output
-    assert any("hello" in msg for msg in client.messages), f"Expected echoed output, got: {client.messages}"
+    # ensure we got streamed output
+    result_msgs = [msg for msg in client.messages if msg["type"] == EF.BLOCK_SH_MSG_RESULT]
+    result_contents = "".join(msg["payload"]["content"] for msg in result_msgs)
+    assert "hello" in result_contents, f"Expected echoed output, got: {result_contents}"
     # ensure we did not add the 'Finished with no output' synthetic message
-    assert not any("Finished with no output" in msg for msg in client.messages), f"Did not expect 'Finished with no output' when there is output, got: {client.messages}"
+    assert "Finished with no output" not in result_contents, f"Did not expect 'Finished with no output' when there is output, got: {result_contents}"

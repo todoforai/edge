@@ -488,14 +488,9 @@ class ShellProcess:
             return_code = await asyncio.get_event_loop().run_in_executor(None, process.wait)
             logger.info(f"Process completed with return code {return_code}")
             
-            # Handle output buffer - send truncation notice or no-output message
+            # Handle output buffer - send truncation notice if output was truncated
             buf = self._output_buffer.get(block_id)
-            if not buf or buf.total_len == 0:
-                await client.send_response(shell_block_message_result_msg(
-                    todo_id, block_id, "Finished with no output", request_id
-                ))
-            else:
-                # Send truncation notice with last part if output was truncated
+            if buf and buf.total_len > 0:
                 truncation_msg = buf.get_truncation_notice()
                 if truncation_msg:
                     await client.send_response(shell_block_message_result_msg(

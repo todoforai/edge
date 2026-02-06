@@ -539,6 +539,7 @@ export interface NewTodoMessageCreated {
     attachments: AttachmentFrame[];
     role: string;
     status: TodoStatus;
+    scheduledTimestamp?: number;
   };
 }
 

@@ -19,6 +19,7 @@ export enum ToolType {
   Read = 'read',
   Create = 'create',
   Edit = 'edit',
+  ModifyFile = 'modify_file',
   Bash = 'bash',
   Search = 'search',
   Download = 'download',
