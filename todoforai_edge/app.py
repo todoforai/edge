@@ -56,7 +56,11 @@ async def run_app(api_key=None):
     config.api_key = api_key or config.api_key
         
     set_terminal_title(f"TODO for AI Edge{f' ({config.api_url})' if config.api_url != DEFAULT_API_URL else ''}")
-    
+
+    # Ensure default workspace directory exists
+    default_workspace = Path("/tmp/todoforai")
+    default_workspace.mkdir(parents=True, exist_ok=True)
+
     # Create a edge
     print(f"{Colors.CYAN}🚀 Starting TODOforAI Edge CLI v{get_cli_version()}...{Colors.END}")
     todo_edge = TODOforAIEdge(config)
