@@ -175,7 +175,10 @@ class TODOforAIEdge:
                         
         except asyncio.TimeoutError:
             logger.error("API key validation timed out")
-            return {"valid": False, "error": "Validation request timed out"}
+            return {"valid": False, "error": "Validation request timed out", "connection_error": True}
+        except (aiohttp.ClientConnectorError, ConnectionRefusedError, OSError) as e:
+            logger.error(f"API key validation failed (connection error): {str(e)}")
+            return {"valid": False, "error": f"Validation failed: {str(e)}", "connection_error": True}
         except Exception as e:
             logger.error(f"API key validation failed: {str(e)}")
             return {"valid": False, "error": f"Validation failed: {str(e)}"}
@@ -186,13 +189,23 @@ class TODOforAIEdge:
 
     async def ensure_api_key(self, prompt_if_missing=True):
         if self.api_key:
-            result = await self.validate_api_key()
-            if result.get("valid"):
-                if result.get("userId"):
-                    self.user_id = result["userId"]
-                return True
-            logger.warning(f"API key invalid: {result.get('error')}")
-            self.api_key = None
+            retry_delay = 5
+            max_retry_delay = 60
+            while True:
+                result = await self.validate_api_key()
+                if result.get("valid"):
+                    if result.get("userId"):
+                        self.user_id = result["userId"]
+                    return True
+                if result.get("connection_error"):
+                    logger.warning(f"Cannot reach server, retrying in {retry_delay}s... ({result.get('error')})")
+                    print(f"{Colors.YELLOW}Cannot reach server at {self.api_url}, retrying in {retry_delay}s...{Colors.END}")
+                    await asyncio.sleep(retry_delay)
+                    retry_delay = min(retry_delay * 2, max_retry_delay)
+                    continue
+                logger.warning(f"API key invalid: {result.get('error')}")
+                self.api_key = None
+                break
         
         if not prompt_if_missing:
             logger.error("No valid API key available")
