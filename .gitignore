@@ -13,6 +13,8 @@ edge_frontend/yarn.lock
 *.egg-info
 node_modules/
 
+runs
+
 .env
 *.pyc
 
