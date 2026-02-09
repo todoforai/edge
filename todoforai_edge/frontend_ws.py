@@ -210,7 +210,7 @@ class FrontendWebSocket:
             except Exception as e:
                 logger.error(f"Callback error: {e}")
 
-        if msg_type in (self.MSG_TODO_DONE, self.MSG_TODO_ERROR, self.MSG_TODO_STOP):
+        if msg_type in (self.MSG_TODO_DONE, self.MSG_TODO_ERROR):
             if todo_id and todo_id in self._completion_events:
                 self._completion_results[todo_id] = {
                     "type": msg_type,
