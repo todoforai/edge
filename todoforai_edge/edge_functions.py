@@ -407,6 +407,75 @@ async def read_file_base64(
         logger.error(f"Error reading binary file {full_path}: {error}")
         return {"success": False, "error": str(error)}
 
+@register_function("search_files")
+async def search_files(
+    pattern: str,
+    path: str = ".",
+    root_path: str = "",
+    max_results: int = 100,
+    file_type: str = "",
+    case_sensitive: bool = False,
+    client_instance=None,
+    **_: Any,
+):
+    """Search file contents using ripgrep."""
+    import shutil
+
+    rg_path = shutil.which("rg")
+    if not rg_path:
+        return {"success": False, "error": "ripgrep (rg) not found. Install with: pip install ripgrep"}
+
+    # Resolve search directory
+    search_path = os.path.expanduser(path)
+    if not os.path.isabs(search_path) and root_path:
+        search_path = os.path.join(root_path, search_path)
+    search_path = os.path.abspath(search_path)
+
+    if not os.path.exists(search_path):
+        return {"success": False, "error": f"Search path does not exist: {search_path}"}
+
+    # Check permissions
+    try:
+        if client_instance and hasattr(client_instance, "edge_config"):
+            if not is_path_allowed(search_path, client_instance.edge_config.config):
+                return {"success": False, "error": f"No permission to search in {search_path}"}
+    except Exception as error:
+        logger.warning(f"Path permission check failed for {search_path}: {error}")
+
+    cmd = [rg_path, "--no-heading", "--line-number", "--color=never"]
+    cmd.append(f"--max-count={max_results}")
+    if not case_sensitive:
+        cmd.append("--ignore-case")
+    if file_type:
+        cmd.extend(["--type", file_type])
+    cmd.append(pattern)
+    cmd.append(search_path)
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+        output = stdout.decode("utf-8", errors="replace")
+
+        if proc.returncode == 0:
+            if len(output) > 100_000:
+                output = output[:100_000] + "\n... (output truncated)"
+            return {"success": True, "result": output}
+        elif proc.returncode == 1:
+            return {"success": True, "result": "No matches found."}
+        else:
+            err = stderr.decode("utf-8", errors="replace")
+            return {"success": False, "error": f"ripgrep error (exit {proc.returncode}): {err}"}
+    except asyncio.TimeoutError:
+        return {"success": False, "error": "Search timed out after 30 seconds"}
+    except Exception as error:
+        logger.error(f"Error running search_files: {error}")
+        return {"success": False, "error": str(error)}
+
+
 @register_function("mcp_call_tool")
 async def mcp_call_tool(tool_name: str, arguments: Dict[str, Any] = None, client_instance=None):
     """Call an MCP tool with given arguments"""
