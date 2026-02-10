@@ -92,19 +92,8 @@ export enum Agent2Front {
 
   // Block responses
   BLOCK_DIFF_RESULT             = 'block:diff_result',
-  BLOCK_START_CATFILE           = 'block:start_catfile',
   BLOCK_START_UNIVERSAL         = 'block:start_universal',
-  BLOCK_START_CLICK             = 'block:start_click',
-  BLOCK_START_CREATEFILE        = 'block:start_createfile',
-  BLOCK_START_MODIFYFILE        = 'block:start_modifyfile',
-  BLOCK_START_SENDKEY           = 'block:start_sendkey',
-  BLOCK_START_SHELL             = 'block:start_shell',
-  BLOCK_START_WEBSEARCH         = 'block:start_websearch',
-  BLOCK_START_WORKSPACE_SEARCH  = 'block:start_workspace_search',
-  BLOCK_START_EMAIL             = 'block:start_email',
   BLOCK_START_TEXT              = 'block:start_text',
-  BLOCK_START_ERROR             = 'block:start_error',
-  BLOCK_START_BROWSER           = 'block:start_browser',
   BLOCK_MESSAGE                 = 'block:message',
   BLOCK_END                     = 'block:end',
 
