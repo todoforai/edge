@@ -33,9 +33,12 @@ export interface AttachmentWire extends AttachmentFrame {
 
 /**
  * For creating new attachments (agent -> backend).
- * No id/uri - backend assigns these after storage.
+ * If id is provided, backend reuses it (agent knows URI upfront as todoforai://attachment/{id}).
+ * If id is omitted, backend generates one.
  */
 export interface AttachmentWireCreate {
+  /** Optional pre-generated ID. When provided, backend uses this instead of generating a new UUID. */
+  id?: string;
   originalName: string;
   mimeType: string;
   /** In bytes */
