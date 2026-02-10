@@ -350,6 +350,10 @@ export interface BlockDiffResultMessage {
     blockId: string;
     originalContent: string;
     aiGeneratedContent: string;
+    result?: string;
+    $append?: {
+      runMeta?: RunMeta[];
+    };
   };
 }
 
