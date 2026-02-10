@@ -38,7 +38,7 @@ export interface SubscriptionPlan {
 
 // Shared features included in ALL plans (displayed once above pricing cards)
 export const SHARED_FEATURES = [
-  'All AI models (Opus 4.5, GPT-5.2, Gemini & more)',
+  'All AI models (Opus 4.6, GPT-5.2, Gemini & more)',
   'MCP integrations for tools & data',
   '14-day money-back guarantee',
 ] as const;
