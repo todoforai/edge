@@ -51,9 +51,6 @@ export interface ServerSettings {
 
 export interface ToolConfiguration {
   isActive?: boolean;
-  searchRAG?: {
-    strength: 'OFF' | 'CHEAP' | 'EFFICIENT' | 'EXPENSIVE' | 'ALL';
-  };
   // env, conf, and other configurable properties can be added here
   [configKey: string]: any;
 }
