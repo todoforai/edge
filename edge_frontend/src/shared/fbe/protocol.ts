@@ -81,101 +81,8 @@ export interface TaskActionUpdateMessage {
 // ============================================================================
 
 // Block Start Messages
-export interface BlockStartClickMessage {
-  type: Agent2Front.BLOCK_START_CLICK;
-  payload: {
-    todoId: string;
-    messageId: string;
-    blockId: string;
-    button: string;
-    x: string;
-    y: string;
-  };
-}
-
-export interface BlockStartCatfileMessage {
-  type: Agent2Front.BLOCK_START_CATFILE;
-  payload: {
-    todoId: string;
-    messageId: string;
-    blockId: string;
-    path: string;
-  };
-}
-
-export interface BlockStartShellMessage {
-  type: Agent2Front.BLOCK_START_SHELL;
-  payload: {
-    todoId: string;
-    messageId: string;
-    blockId: string;
-    language: string;
-  };
-}
-
-export interface BlockStartCreatefileMessage {
-  type: Agent2Front.BLOCK_START_CREATEFILE;
-  payload: {
-    todoId: string;
-    messageId: string;
-    blockId: string;
-    path: string;
-    language: string;
-  };
-}
-
-export interface BlockStartModifyfileMessage {
-  type: Agent2Front.BLOCK_START_MODIFYFILE;
-  payload: {
-    todoId: string;
-    messageId: string;
-    blockId: string;
-    path: string;
-    language: string;
-  };
-}
-
-export interface BlockStartSendkeyMessage {
-  type: Agent2Front.BLOCK_START_SENDKEY;
-  payload: {
-    todoId: string;
-    messageId: string;
-    blockId: string;
-    text: string;
-  };
-}
-
-export interface BlockStartWebsearchMessage {
-  type: Agent2Front.BLOCK_START_WEBSEARCH;
-  payload: {
-    todoId: string;
-    messageId: string;
-    blockId: string;
-    query: string;
-  };
-}
-
-export interface BlockStartWorkspaceSearchMessage {
-  type: Agent2Front.BLOCK_START_WORKSPACE_SEARCH;
-  payload: {
-    todoId: string;
-    messageId: string;
-    blockId: string;
-    query: string;
-  };
-}
-
 export interface BlockStartTextMessage {
   type: Agent2Front.BLOCK_START_TEXT;
-  payload: {
-    todoId: string;
-    messageId: string;
-    blockId: string;
-  };
-}
-
-export interface BlockStartErrorMessage {
-  type: Agent2Front.BLOCK_START_ERROR;
   payload: {
     todoId: string;
     messageId: string;
@@ -194,16 +101,6 @@ export interface BlockStartUniversalMessage {
     url?: string;    // For WEBCONTENT blocks
     query?: string;  // For GOOGLERAG blocks
     [key: string]: any; // Allow any additional fields
-  };
-}
-
-export interface BlockStartBrowserMessage {
-  type: Agent2Front.BLOCK_START_BROWSER;
-  payload: {
-    todoId: string;
-    messageId: string;
-    blockId: string;
-    tool_name: string;
   };
 }
 
@@ -1104,18 +1001,8 @@ export type WebSocketMessage =
   | TodoMsgMetaUsrMessage
   | TodoMsgMetaAiMessage
   | NewTodo
-  | BlockStartClickMessage
-  | BlockStartCatfileMessage
   | BlockStartUniversalMessage
-  | BlockStartShellMessage
-  | BlockStartCreatefileMessage
-  | BlockStartModifyfileMessage
-  | BlockStartSendkeyMessage
-  | BlockStartWebsearchMessage
-  | BlockStartWorkspaceSearchMessage
   | BlockStartTextMessage
-  | BlockStartBrowserMessage
-  | BlockStartErrorMessage
   | BlockUpdateMessage
   | MessageUpdateMessage
   | MessageUpdateMessageProcessed

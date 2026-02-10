@@ -141,6 +141,7 @@ export const EDGE_TOOL_TYPES = new Set([
   ToolType.Read,
   ToolType.Create,
   ToolType.Edit,
+  ToolType.ModifyFile,
   ToolType.Bash,
   ToolType.Search,
   ToolType.Download,
@@ -199,6 +200,7 @@ export const FILE_TOOL_TYPES = new Set([
   ToolType.Read,
   ToolType.Create,
   ToolType.Edit,
+  ToolType.ModifyFile,
   ToolType.Download,
 ]);
 
@@ -232,11 +234,6 @@ export interface FileProps {
 }
 
 export interface FileContentProps {
-  // snake_case (new canonical names)
-  original_content?: string;
-  modified_content?: string;
-  initial_original_content?: string;
-  // camelCase (legacy aliases for backward compatibility)
   originalContent?: string;
   modifiedContent?: string;
   initialOriginalContent?: string;
@@ -345,6 +342,13 @@ export interface CreateBlock extends BaseBlock, FileProps {
 
 export interface EditBlock extends BaseBlock, FileProps, FileContentProps {
   type: ToolType.Edit;
+  changes?: string;
+}
+
+export interface ModifyFileBlock extends BaseBlock, FileProps, FileContentProps {
+  type: ToolType.ModifyFile;
+  changes?: string;
+  attachmentName?: string;
 }
 
 export interface BashBlock extends BaseBlock {
@@ -604,6 +608,7 @@ export type MessageBlock =
   | ReadBlock
   | CreateBlock
   | EditBlock
+  | ModifyFileBlock
   | BashBlock
   | SearchBlock
   | DownloadBlock
@@ -674,7 +679,7 @@ export type BrowserBlock =
 
 export function isEdgeBlock(
   block: MessageBlock
-): block is ReadBlock | CreateBlock | EditBlock | BashBlock | SearchBlock | DownloadBlock {
+): block is ReadBlock | CreateBlock | EditBlock | ModifyFileBlock | BashBlock | SearchBlock | DownloadBlock {
   return EDGE_TOOL_TYPES.has(block.type);
 }
 
@@ -720,8 +725,8 @@ export type CatFileBlock = ReadBlock;
 /** @deprecated Use CreateBlock instead */
 export type CreateFileBlock = CreateBlock;
 
-/** @deprecated Use EditBlock instead */
-export type ModifyFileBlock = EditBlock;
+/** @deprecated Use the proper ModifyFileBlock interface defined above */
+// Legacy alias removed - ModifyFileBlock is now a first-class type
 
 /** @deprecated Use BashBlock instead */
 export type ShellBlock = BashBlock;
