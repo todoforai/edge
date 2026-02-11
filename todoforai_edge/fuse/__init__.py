@@ -5,7 +5,7 @@ import logging
 from ._compat import is_fuse_available
 from .mount_manager import FuseMountManager
 
-__all__ = ["is_fuse_available", "FuseMountManager", "create_extension"]
+__all__ = ["is_fuse_available", "FuseMountManager", "FuseExtension"]
 
 logger = logging.getLogger("todoforai-edge")
 
@@ -15,8 +15,8 @@ class FuseExtension:
 
     name = "fuse"
 
-    def __init__(self, mount_path=None):
-        self._mount_path = mount_path
+    def __init__(self, config):
+        self._mount_path = getattr(config, "fuse_mount_path", None)
         self._manager = None
 
     async def start(self, edge) -> None:
@@ -46,9 +46,3 @@ class FuseExtension:
                 logger.exception("Error stopping FUSE mount")
             finally:
                 self._manager = None
-
-
-def create_extension(config):
-    """Factory: return a FuseExtension or None."""
-    mount_path = getattr(config, "fuse_mount_path", None)
-    return FuseExtension(mount_path=mount_path)

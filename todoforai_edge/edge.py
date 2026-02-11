@@ -35,7 +35,6 @@ from .handlers.handlers import (
 from .handlers.file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
 from .mcp_collector import MCPCollector
 from .frontend_ws import FrontendWebSocket, TodoStreamError
-from .extensions import load_extensions
 import aiohttp
 from .types import ProjectListItem, AgentSettings, Todo
 
@@ -93,7 +92,13 @@ class TODOforAIEdge:
         self.heartbeat_task = None
         self.fingerprint = None
         self.mcp_collector = MCPCollector(self.edge_config)
-        self._extensions = load_extensions(config)
+        self._extensions = []
+        if getattr(config, 'fuse_enabled', True):
+            try:
+                from .fuse import FuseExtension
+                self._extensions.append(FuseExtension(config))
+            except ImportError:
+                pass
 
         # Set logging level based on config
         if self.debug:
