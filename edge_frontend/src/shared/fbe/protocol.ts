@@ -66,6 +66,14 @@ export interface TodoStatusMessage {
   };
 }
 
+export interface TodoCurrentAttachmentsUpdateMessage {
+  type: Server2Front.TODO_CURRENT_ATTACHMENTS_UPDATE;
+  payload: {
+    todoId: string;
+    currentAttachments: AttachmentFrame[];
+  };
+}
+
 export interface TaskActionUpdateMessage {
   type: Edge2Front.TASK_ACTION_UPDATE;
   payload: {
@@ -1022,6 +1030,7 @@ export type WebSocketMessage =
   | EdgeCDResponseMessage
   | ProjectStatusMessage
   | TodoStatusMessage
+  | TodoCurrentAttachmentsUpdateMessage
   // | TaskActionNewMessage
   | EdgeStatusMessage
   | EdgeConfigUpdateMessage

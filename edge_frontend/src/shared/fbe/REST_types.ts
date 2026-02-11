@@ -284,6 +284,8 @@ export interface Todo {
   scheduledTimestamp: number;
   /** For optimistic concurrency */
   workflowVersion?: string;
+  /** Buffer for attachments from tool results, flushed into the next user message */
+  currentAttachments?: AttachmentFrame[];
 }
 
 /** A message in a todo conversation. */
@@ -718,6 +720,11 @@ export interface TodoMessageIdInput {
 export interface TodoBlockIdInput {
   todoId: string;
   blockId: string;
+}
+
+export interface RemoveCurrentAttachmentInput {
+  todoId: string;
+  attachmentId: string;
 }
 
 /**
