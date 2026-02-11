@@ -10,8 +10,7 @@ export type TodoInputType = 'text' | 'number' | 'textarea';
 
 // Base schemas
 export const requiredToolConfigSchema = z.object({
-  isActive: z.boolean().optional(),
-  autoRun: z.boolean().optional(),
+  permission: z.enum(['allow', 'ask', 'deny']).optional(), // defaults to 'allow' (required tools are allowed)
   description: z.string().optional(),
 });
 
