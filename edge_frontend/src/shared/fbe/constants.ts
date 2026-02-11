@@ -11,6 +11,7 @@ export enum Server2Edge {
 
 export enum Server2Front {
   TODO_STATUS = 'todo:status',
+  TODO_CURRENT_ATTACHMENTS_UPDATE = 'todo:current_attachments_update',
   NEW_TODO = 'todo:new',
   BUSINESS_CONTEXT_UPDATED = 'business_context:updated',
 }

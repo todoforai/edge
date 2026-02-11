@@ -48,7 +48,8 @@ export const SERVER_TO_FRONTENDS = {
 
     status: (todoId: string) => `todo:${todoId}:status`,
     block_update: (todoId: string) => `todo:${todoId}:block_update`,
-    message_update: (todoId: string) => `todo:${todoId}:message_update`, // NEW
+    message_update: (todoId: string) => `todo:${todoId}:message_update`,
+    current_attachments_update: (todoId: string) => `todo:${todoId}:current_attachments_update`,
 
     error_result:         (todoId: string) => `${Edge2Front.BLOCK_ERROR_RESULT}:${todoId}`,
     meta_result:          (todoId: string) => `${Edge2Front.BLOCK_META_RESULT}:${todoId}`,
