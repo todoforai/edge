@@ -52,6 +52,8 @@ class FrontendWebSocket:
         self._blocks: Dict[str, Dict[str, Any]] = {}  # block_id -> block info
         self._completion_events: Dict[str, asyncio.Event] = {}
         self._completion_results: Dict[str, Dict[str, Any]] = {}
+        self._pending_approvals: list = []  # queued (todo_id, block_info)
+        self._approval_timer: Optional[asyncio.Task] = None
         self._receive_task: Optional[asyncio.Task] = None
 
     def _get_ws_url(self) -> str:
@@ -115,7 +117,14 @@ class FrontendWebSocket:
         if self.ws:
             await self.ws.close()
             self.ws = None
+        if self._approval_timer and not self._approval_timer.done():
+            self._approval_timer.cancel()
+            try:
+                await self._approval_timer
+            except asyncio.CancelledError:
+                pass
         self._callbacks.clear()
+        self._pending_approvals.clear()
         self._completion_events.clear()
         self._completion_results.clear()
 
@@ -163,6 +172,27 @@ class FrontendWebSocket:
         except asyncio.CancelledError:
             pass
 
+    async def _delayed_process_approvals(self):
+        """Wait 300ms then process all queued approvals."""
+        await asyncio.sleep(0.3)
+        while self._pending_approvals:
+            todo_id, block_info = self._pending_approvals.pop(0)
+            handler = self._approval_handlers.get(todo_id)
+            if handler:
+                try:
+                    await handler(self, block_info)
+                except Exception as e:
+                    logger.error(f"Approval handler error: {e}")
+
+    def _restart_approval_timer(self):
+        """(Re)start the 300ms approval timer. Called on every incoming message
+        so that pending approvals are only shown after the stream goes quiet."""
+        if not self._pending_approvals:
+            return
+        if self._approval_timer and not self._approval_timer.done():
+            self._approval_timer.cancel()
+        self._approval_timer = asyncio.create_task(self._delayed_process_approvals())
+
     async def _handle_message(self, data: Dict[str, Any]):
         msg_type = data.get("type", "")
         payload = data.get("payload", {})
@@ -182,23 +212,17 @@ class FrontendWebSocket:
                     "messageId": payload.get("messageId"),
                 }
 
-        # Handle BLOCK_UPDATE with AWAITING_APPROVAL status
+        # Handle BLOCK_UPDATE with AWAITING_APPROVAL status — queue for later
         if msg_type == "BLOCK_UPDATE":
             updates = payload.get("updates", {})
             if updates.get("status") == "AWAITING_APPROVAL":
                 block_id = payload.get("blockId")
                 if todo_id and todo_id in self._approval_handlers:
-                    # Get stored block info for content
                     block_info = self._blocks.get(block_id, {})
                     block_info["blockId"] = block_id
                     block_info["todoId"] = todo_id
                     block_info["messageId"] = payload.get("messageId") or block_info.get("messageId")
-                    handler = self._approval_handlers[todo_id]
-                    try:
-                        # Handler is async and receives (ws, block_info)
-                        await handler(self, block_info)
-                    except Exception as e:
-                        logger.error(f"Approval handler error: {e}")
+                    self._pending_approvals.append((todo_id, block_info))
 
         if todo_id and todo_id in self._callbacks:
             callback = self._callbacks[todo_id]
@@ -218,6 +242,9 @@ class FrontendWebSocket:
                     "success": msg_type == self.MSG_TODO_DONE
                 }
                 self._completion_events[todo_id].set()
+
+        # Reset approval timer on every message — approvals fire 300ms after stream goes quiet
+        self._restart_approval_timer()
 
     async def send_interrupt(self, project_id: str, todo_id: str):
         """Send interrupt signal to stop todo execution."""
