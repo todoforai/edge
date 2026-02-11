@@ -368,7 +368,6 @@ export interface TodoMsgStartMessage {
   payload: {
     todoId: string;
     messageId: string;
-    userMessageId: string;
     mode: string;
   };
 }
@@ -378,7 +377,6 @@ export interface TodoMsgDoneMessage {
   payload: {
     todoId: string;
     messageId: string;
-    userMessageId: string;
     mode: string;
   };
 }
@@ -388,7 +386,6 @@ export interface TodoMsgErrorMessage {
   payload: {
     todoId: string;
     messageId: string;
-    userMessageId: string;
     error: string;
   };
 }
@@ -459,7 +456,6 @@ export interface TodoInterruptSignalMessage {
   payload: {
     projectId: string;
     todoId: string;
-    userMessageId?: string;
   };
 }
 
@@ -468,7 +464,6 @@ export interface TodoGracefulStopMessage {
   payload: {
     projectId: string;
     todoId: string;
-    userMessageId?: string;
   };
 }
 
@@ -478,7 +473,6 @@ export interface TodoMsgMetaUsrMessage {
   payload: {
     todoId: string;
     messageId: string;
-    userMessageId: string;
     userId: string;
     $append?: {
       runMeta?: RunMeta[];
@@ -504,7 +498,6 @@ export interface MessageUpdateMessage {
   payload: {
     todoId: string;
     messageId: string;
-    userMessageId?: string;
     updates: {
       $append?: {
         runMeta?: RunMeta[];
@@ -521,7 +514,6 @@ export interface MessageUpdateMessageProcessed {
   payload: {
     todoId: string;
     messageId: string;
-    userMessageId?: string;
     updates: {
       $append?: {
         runMeta?: RunMeta[];
@@ -950,7 +942,6 @@ export interface TaskNewMessage {
     taskId: string;
     status: TaskStatus;
     userId: string;
-    userMessageId: string;
     todoId: string;
     projectId: string;
     content: string;
