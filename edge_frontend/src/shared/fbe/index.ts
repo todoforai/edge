@@ -35,3 +35,6 @@ export * from './REST_types';
 
 // Protocol (WebSocket messages)
 export * from './protocol';
+
+// Permission utilities (shared logic for frontend + backend)
+export * from './permissionUtils';

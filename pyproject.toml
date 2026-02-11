@@ -22,6 +22,9 @@ dynamic = ["dependencies"]
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
 
+[project.optional-dependencies]
+fuse = ["refuse>=0.0.4"]
+
 [project.urls]
 "Homepage" = "https://todofor.ai"
 "Bug Tracker" = "https://github.com/todoforai/edge/issues"

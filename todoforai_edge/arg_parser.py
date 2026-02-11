@@ -33,6 +33,10 @@ def create_argparse_apply_config():
     
     # Workspace management
     parser.add_argument("--add-path", dest="add_workspace_path", help="Add a workspace path to the edge configuration")
+
+    # FUSE mount options
+    parser.add_argument("--no-fuse", dest="fuse_enabled", action="store_false", default=True, help="Disable FUSE resource mount")
+    parser.add_argument("--fuse-mount-path", dest="fuse_mount_path", help="Custom FUSE mount path (default: ~/.todoforai/resources)")
     
     args = parser.parse_args()
 

@@ -36,6 +36,10 @@ class Config:
         
         # Authentication settings
         self.api_key  = get_env_var("API_KEY")
+
+        # FUSE mount settings
+        self.fuse_enabled = get_env_var("FUSE_ENABLED").lower() not in ("false", "0", "no")
+        self.fuse_mount_path = get_env_var("FUSE_MOUNT_PATH") or None
     
     def __repr__(self):
         """Return a detailed string representation of the config"""
@@ -44,7 +48,8 @@ class Config:
         return (f"Config(api_url='{self.api_url}', "
                 f"api_key='{api_key_display}', "
                 f"debug={self.debug}, log_level='{self.log_level}', "
-                f"add_workspace_path={getattr(self, 'add_workspace_path', None)})")
+                f"add_workspace_path={getattr(self, 'add_workspace_path', None)}, "
+                f"fuse_enabled={self.fuse_enabled})")
             
     def update_from_args(self, args):
         """Update configuration from parsed arguments"""
@@ -59,6 +64,12 @@ class Config:
         if hasattr(args, 'add_workspace_path') and args.add_workspace_path:
             import os
             self.add_workspace_path = os.path.abspath(os.path.expanduser(args.add_workspace_path))
+
+        # FUSE settings from args
+        if hasattr(args, 'fuse_enabled') and not args.fuse_enabled:
+            self.fuse_enabled = False
+        if hasattr(args, 'fuse_mount_path') and args.fuse_mount_path:
+            self.fuse_mount_path = os.path.abspath(os.path.expanduser(args.fuse_mount_path))
 
     def apply_overrides(self, overrides):
         """Apply overrides from a dict (e.g., credentials)"""

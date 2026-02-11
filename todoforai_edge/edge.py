@@ -35,6 +35,7 @@ from .handlers.handlers import (
 from .handlers.file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
 from .mcp_collector import MCPCollector
 from .frontend_ws import FrontendWebSocket, TodoStreamError
+from .extensions import load_extensions
 import aiohttp
 from .types import ProjectListItem, AgentSettings, Todo
 
@@ -92,7 +93,8 @@ class TODOforAIEdge:
         self.heartbeat_task = None
         self.fingerprint = None
         self.mcp_collector = MCPCollector(self.edge_config)
-        
+        self._extensions = load_extensions(config)
+
         # Set logging level based on config
         if self.debug:
             logger.setLevel(logging.DEBUG)
@@ -304,6 +306,9 @@ class TODOforAIEdge:
             
             # Load MCP if exists (run in background, don't block)
             asyncio.create_task(self._load_mcp_if_exists())
+
+            # Start extensions (FUSE, etc.) in background
+            asyncio.create_task(self._start_extensions())
             
         elif msg_type == S2E.EDGE_CONFIG_UPDATE:  # Handle EDGE_CONFIG_UPDATE
             asyncio.create_task(self._handle_edge_config_update(payload))
@@ -565,6 +570,22 @@ class TODOforAIEdge:
         else:
             logger.error("Could not create or find MCP config file")
 
+    async def _start_extensions(self):
+        """Start all loaded extensions."""
+        for ext in self._extensions:
+            try:
+                await ext.start(self)
+            except Exception:
+                logger.exception(f"Failed to start extension '{ext.name}'")
+
+    async def _stop_extensions(self):
+        """Stop all loaded extensions."""
+        for ext in self._extensions:
+            try:
+                await ext.stop()
+            except Exception:
+                logger.exception(f"Error stopping extension '{ext.name}'")
+
     async def send_response(self, message):
         """Send a response to the server
         
@@ -678,8 +699,9 @@ class TODOforAIEdge:
                     self.heartbeat_task.cancel()
                     self.heartbeat_task = None
                 logger.info("WebSocket disconnected!")
-                
-                # Stop all file syncs on error
+
+                # Stop extensions and file syncs on disconnect
+                await self._stop_extensions()
                 await stop_all_syncs()
                 
             if attempt < max_attempts and attempt > 0:

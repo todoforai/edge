@@ -7,3 +7,4 @@ watchfiles
 aiofiles
 aiohttp>=3.8.0
 ripgrep>=14.0.0
+refuse>=0.0.4
