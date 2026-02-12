@@ -9,18 +9,24 @@ import requests
 from .constants.workspace_handler import is_path_allowed
 from .handlers.shell_handler import ShellProcess, _get_windows_shell
 from .handlers.path_utils import resolve_file_path
+from .errors import ExpectedFunctionError
 
 logger = logging.getLogger("todoforai-edge")
+
 
 # Function registry for dynamic function calls
 FUNCTION_REGISTRY = {}
 
+
 def register_function(name: str):
     """Decorator to register functions for dynamic calling"""
+
     def decorator(func):
         FUNCTION_REGISTRY[name] = func
         return func
+
     return decorator
+
 
 # Helpers moved here so both handlers and functions can use/import
 def get_platform_default_directory():
@@ -33,34 +39,34 @@ def get_platform_default_directory():
         pass
     return os.getcwd()
 
+
 def get_path_or_platform_default(path):
     if path in [".", "", None]:
         path = get_platform_default_directory()
         logger.info(f"Using platform default directory: {path}")
     return path
 
+
 @register_function("list_available_functions")
 async def list_available_functions():
     """List all available functions in the registry"""
     return {
         "functions": list(FUNCTION_REGISTRY.keys()),
-        "count": len(FUNCTION_REGISTRY)
+        "count": len(FUNCTION_REGISTRY),
     }
+
 
 @register_function("get_current_directory")
 async def get_current_directory():
     """Get the current working directory"""
-    return {
-        "current_directory": os.getcwd()
-    }
+    return {"current_directory": os.getcwd()}
+
 
 @register_function("get_environment_variable")
 async def get_environment_variable(var_name: str):
     """Get an environment variable value"""
-    return {
-        "variable": var_name,
-        "value": os.environ.get(var_name, None)
-    }
+    return {"variable": var_name, "value": os.environ.get(var_name, None)}
+
 
 @register_function("get_system_info")
 async def get_system_info():
@@ -71,11 +77,11 @@ async def get_system_info():
             system_name = "macOS"
         elif system_info == "Linux":
             try:
-                with open('/etc/os-release', 'r') as f:
+                with open("/etc/os-release", "r") as f:
                     lines = f.readlines()
                     for line in lines:
-                        if line.startswith('PRETTY_NAME='):
-                            system_name = line.split('=')[1].strip().strip('"')
+                        if line.startswith("PRETTY_NAME="):
+                            system_name = line.split("=")[1].strip().strip('"')
                             break
                     else:
                         system_name = "Linux"
@@ -92,22 +98,20 @@ async def get_system_info():
                 _, shell_type = _get_windows_shell()
                 shell_info = shell_type  # git_bash, bash, powershell, or cmd
             else:
-                shell_env = os.environ.get('SHELL', '')
+                shell_env = os.environ.get("SHELL", "")
                 if shell_env:
                     shell_info = os.path.basename(shell_env)
         except:
             pass
 
-        return {
-            "system": system_name,
-            "shell": shell_info
-        }
+        return {"system": system_name, "shell": shell_info}
     except Exception as error:
         logger.error(f"Error getting system info: {str(error)}")
         return {
             "system": f"Unknown system (error: {str(error)})",
-            "shell": "Unknown shell"
+            "shell": "Unknown shell",
         }
+
 
 @register_function("get_os_aware_default_path")
 async def get_os_aware_default_path():
@@ -116,6 +120,7 @@ async def get_os_aware_default_path():
     if not path.endswith(os.sep):
         path += os.sep
     return {"path": path}
+
 
 @register_function("create_directory")
 async def create_directory(path: str, name: str):
@@ -129,7 +134,7 @@ async def create_directory(path: str, name: str):
 
         target_path = Path(folder_name).expanduser()
         if not target_path.is_absolute():
-            target_path = (base_dir / folder_name)
+            target_path = base_dir / folder_name
 
         existed_before = target_path.exists()
         target_path.mkdir(parents=True, exist_ok=True)
@@ -138,54 +143,56 @@ async def create_directory(path: str, name: str):
         if not full_path.endswith(os.sep):
             full_path += os.sep
 
-        return {
-            "path": full_path,
-            "created": not existed_before,
-            "exists": True
-        }
+        return {"path": full_path, "created": not existed_before, "exists": True}
     except Exception as error:
         logger.error(f"Error creating directory: {str(error)}")
         raise
+
 
 # Backward-compatibility aliases (can be removed once callers switch to snake_case)
 FUNCTION_REGISTRY["getOSAwareDefaultPath"] = get_os_aware_default_path
 FUNCTION_REGISTRY["createDirectory"] = create_directory
 
+
 @register_function("execute_shell_command")
-async def execute_shell_command(command: str, timeout: int = 120, root_path: str = "", client_instance=None):
+async def execute_shell_command(
+    command: str, timeout: int = 120, root_path: str = "", client_instance=None
+):
     """Execute a shell command and return the full result when complete"""
     if not client_instance:
         raise ValueError("No client instance available")
     try:
         shell = ShellProcess()
         import uuid
+
         block_id = str(uuid.uuid4())
         todo_id = ""
         message_id = ""
         logger.info(f"Executing shell command via function call: {command[:50]}...")
-        await shell.execute_block(block_id, command, client_instance, todo_id, message_id, timeout, root_path)
+        await shell.execute_block(
+            block_id, command, client_instance, todo_id, message_id, timeout, root_path
+        )
         full_output = ""
         while block_id in shell.processes:
             await asyncio.sleep(0.1)
-        if hasattr(shell, '_output_buffer') and block_id in shell._output_buffer:
+        if hasattr(shell, "_output_buffer") and block_id in shell._output_buffer:
             full_output = shell._output_buffer[block_id].get_output()
             del shell._output_buffer[block_id]
-        return {
-            "command": command,
-            "result": full_output,
-            "success": True
-        }
+        return {"command": command, "result": full_output, "success": True}
     except Exception as error:
         logger.error(f"Error executing shell command: {str(error)}")
         return {
             "command": command,
             "result": str(error),
             "success": False,
-            "error": str(error)
+            "error": str(error),
         }
 
+
 @register_function("download_attachment")
-async def download_attachment(attachmentId: str, filePath: str, rootPath: str = "", client_instance=None):
+async def download_attachment(
+    attachmentId: str, filePath: str, rootPath: str = "", client_instance=None
+):
     """Download an attachment from the backend API to the local filesystem."""
     if not client_instance:
         raise ValueError("Client instance required for download_attachment")
@@ -210,7 +217,7 @@ async def download_attachment(attachmentId: str, filePath: str, rootPath: str = 
         if response.status_code >= 400:
             return {
                 "success": False,
-                "error": f"Backend responded with {response.status_code}: {response.text}"
+                "error": f"Backend responded with {response.status_code}: {response.text}",
             }
 
         with open(target_path, "wb") as file:
@@ -219,14 +226,12 @@ async def download_attachment(attachmentId: str, filePath: str, rootPath: str = 
         return {
             "success": True,
             "path": str(target_path),
-            "bytes": len(response.content)
+            "bytes": len(response.content),
         }
     except Exception as error:
         logger.error(f"Error downloading attachment {attachmentId}: {error}")
-        return {
-            "success": False,
-            "error": str(error)
-        }
+        return {"success": False, "error": str(error)}
+
 
 @register_function("download_chat")
 async def download_chat(todoId: str, client_instance=None):
@@ -245,11 +250,15 @@ async def download_chat(todoId: str, client_instance=None):
     try:
         response = requests.get(url, headers=headers, timeout=60)
         if response.status_code >= 400:
-            return {"success": False, "error": f"Backend responded with {response.status_code}: {response.text}"}
+            return {
+                "success": False,
+                "error": f"Backend responded with {response.status_code}: {response.text}",
+            }
         return {"success": True, "todo": response.json()}
     except Exception as error:
         logger.error(f"Error downloading chat {todoId}: {error}")
         return {"success": False, "error": str(error)}
+
 
 @register_function("register_attachment")
 async def register_attachment(
@@ -294,7 +303,9 @@ async def register_attachment(
     files = {"file": (target_path.name, target_path.read_bytes())}
 
     try:
-        response = requests.post(upload_endpoint, headers=headers, data=data, files=files, timeout=60)
+        response = requests.post(
+            upload_endpoint, headers=headers, data=data, files=files, timeout=60
+        )
     except Exception as error:
         logger.error(f"Error uploading attachment {target_path}: {error}")
         return {"success": False, "error": str(error)}
@@ -302,7 +313,7 @@ async def register_attachment(
     if response.status_code >= 400:
         return {
             "success": False,
-            "error": f"Backend responded with {response.status_code}: {response.text}"
+            "error": f"Backend responded with {response.status_code}: {response.text}",
         }
 
     try:
@@ -312,11 +323,8 @@ async def register_attachment(
 
     attachment_id = payload.get("attachmentId")
 
-    return {
-        "success": True,
-        "attachmentId": attachment_id,
-        "response": payload
-    }
+    return {"success": True, "attachmentId": attachment_id, "response": payload}
+
 
 @register_function("read_file")
 async def read_file(
@@ -327,9 +335,15 @@ async def read_file(
     **_: Any,
 ):
     """Read a file and return plain text content."""
-    from .handlers.handlers import read_file_content  # lazy import to avoid circular dependency
+    from .handlers.handlers import (
+        read_file_content,
+    )  # lazy import to avoid circular dependency
+
     fallbackRootPaths = fallbackRootPaths or []
-    return await read_file_content(path, rootPath, fallbackRootPaths, client_instance)
+    result = await read_file_content(path, rootPath, fallbackRootPaths, client_instance)
+    if not result.get("success"):
+        raise ExpectedFunctionError(result.get("error", "Unknown read error"))
+    return {k: v for k, v in result.items() if k != "success"}
 
 
 @register_function("create_file")
@@ -345,30 +359,18 @@ async def create_file(
     fallbackRootPaths = fallbackRootPaths or []
     full_path = resolve_file_path(path, rootPath, fallbackRootPaths)
 
-    # Check permissions
-    try:
-        if client_instance and hasattr(client_instance, "edge_config"):
-            if not is_path_allowed(full_path, client_instance.edge_config.config):
-                return {"success": False, "error": f"No permission to write to {full_path}"}
-    except Exception as error:
-        logger.warning(f"Path permission check failed for {full_path}: {error}")
+    if client_instance and hasattr(client_instance, "edge_config"):
+        if not is_path_allowed(full_path, client_instance.edge_config.config):
+            raise ExpectedFunctionError(f"No permission to write to {full_path}")
 
     # Create parent directories if needed
     dirname = os.path.dirname(full_path)
     if dirname:
         os.makedirs(dirname, exist_ok=True)
 
-    try:
-        with open(full_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        return {
-            "success": True,
-            "path": full_path,
-            "bytes": len(content.encode('utf-8'))
-        }
-    except Exception as error:
-        logger.error(f"Error creating file {full_path}: {error}")
-        return {"success": False, "error": str(error)}
+    with open(full_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return {"path": full_path, "bytes": len(content.encode("utf-8"))}
 
 
 @register_function("read_file_base64")
@@ -383,29 +385,27 @@ async def read_file_base64(
     fallbackRootPaths = fallbackRootPaths or []
     full_path = resolve_file_path(path, rootPath, fallbackRootPaths)
 
-    try:
-        if client_instance and hasattr(client_instance, "edge_config"):
-            if not is_path_allowed(full_path, client_instance.edge_config.config):
-                return {"success": False, "error": f"No permission to access the given file {full_path}"}
-    except Exception as error:
-        logger.warning(f"Path permission check failed for {full_path}: {error}")
+    if client_instance and hasattr(client_instance, "edge_config"):
+        if not is_path_allowed(full_path, client_instance.edge_config.config):
+            raise ExpectedFunctionError(
+                f"No permission to access the given file {full_path}"
+            )
 
     if not os.path.exists(full_path):
-        return {"success": False, "error": f"File not found: {full_path}"}
+        raise ExpectedFunctionError(f"File not found: {full_path}")
 
     max_bytes = 50_000_000  # 50MB
     size = os.path.getsize(full_path)
     if size > max_bytes:
-        return {"success": False, "error": f"File too large: {size:,} bytes (max {max_bytes:,})"}
+        raise ExpectedFunctionError(
+            f"File too large: {size:,} bytes (max {max_bytes:,})"
+        )
 
-    try:
-        with open(full_path, "rb") as f:
-            data = f.read()
-        encoded = base64.b64encode(data).decode("ascii")
-        return {"success": True, "path": full_path, "base64": encoded, "bytes": len(data)}
-    except Exception as error:
-        logger.error(f"Error reading binary file {full_path}: {error}")
-        return {"success": False, "error": str(error)}
+    with open(full_path, "rb") as f:
+        data = f.read()
+    encoded = base64.b64encode(data).decode("ascii")
+    return {"path": full_path, "base64": encoded, "bytes": len(data)}
+
 
 @register_function("search_files")
 async def search_files(
@@ -477,31 +477,47 @@ async def search_files(
 
 
 @register_function("mcp_call_tool")
-async def mcp_call_tool(tool_name: str, arguments: Dict[str, Any] = None, client_instance=None):
+async def mcp_call_tool(
+    tool_name: str, arguments: Dict[str, Any] = None, client_instance=None
+):
     """Call an MCP tool with given arguments"""
-    if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
+    if (
+        not hasattr(client_instance, "mcp_collector")
+        or not client_instance.mcp_collector
+    ):
         raise ValueError("No MCP collector available")
     if arguments is None:
         arguments = {}
     result = await client_instance.mcp_collector.call_tool(tool_name, arguments)
     return result
 
+
 @register_function("mcp_list_servers")
 async def mcp_list_servers(client_instance=None):
     """List all connected MCP servers with raw MCP structure"""
-    if not hasattr(client_instance, 'mcp_collector') or not client_instance.mcp_collector:
+    if (
+        not hasattr(client_instance, "mcp_collector")
+        or not client_instance.mcp_collector
+    ):
         raise ValueError("No MCP collector available")
     servers = []
-    if hasattr(client_instance.mcp_collector, 'clients'):
+    if hasattr(client_instance.mcp_collector, "clients"):
         servers = list(client_instance.mcp_collector.clients.keys())
     return {
         "servers": servers,
         "count": len(servers),
-        "description": "List of connected MCP servers"
+        "description": "List of connected MCP servers",
     }
 
+
 @register_function("mcp_install_server")
-async def mcp_install_server(serverId: str, command: str, args: List[str] = None, env: Dict[str, str] = None, client_instance=None):
+async def mcp_install_server(
+    serverId: str,
+    command: str,
+    args: List[str] = None,
+    env: Dict[str, str] = None,
+    client_instance=None,
+):
     """Install or register an MCP server on the edge using the MCPCollector."""
     if not client_instance:
         raise ValueError("Client instance required")
@@ -516,26 +532,27 @@ async def mcp_install_server(serverId: str, command: str, args: List[str] = None
     if not cmd:
         raise ValueError("command is required")
 
-    logger.info(f"Updating MCP server '{server_id}' with command='{cmd}', args={args}, env_keys={list(env.keys())}")
+    logger.info(
+        f"Updating MCP server '{server_id}' with command='{cmd}', args={args}, env_keys={list(env.keys())}"
+    )
 
-    if not getattr(client_instance, 'mcp_collector', None):
+    if not getattr(client_instance, "mcp_collector", None):
         from .mcp_collector import MCPCollector
+
         client_instance.mcp_collector = MCPCollector(client_instance.edge_config)
 
     mcp_json = dict(client_instance.edge_config.config.safe_get("mcp_json", {}))
-    logger.info(f'mcp_json: {mcp_json}')
+    logger.info(f"mcp_json: {mcp_json}")
 
     if "mcpServers" not in mcp_json:
         mcp_json["mcpServers"] = {}
 
-    mcp_json["mcpServers"][server_id] = {
-        "command": cmd,
-        "args": args,
-        "env": env
-    }
-    logger.info(f'mcp_json after update: {mcp_json}')
+    mcp_json["mcpServers"][server_id] = {"command": cmd, "args": args, "env": env}
+    logger.info(f"mcp_json after update: {mcp_json}")
 
-    current_installed = dict(client_instance.edge_config.config.safe_get("installedMCPs", {}))
+    current_installed = dict(
+        client_instance.edge_config.config.safe_get("installedMCPs", {})
+    )
     prev_entry = current_installed.get(server_id, {})
     is_new_installation = not prev_entry or not prev_entry.get("tools")
     current_installed[server_id] = {
@@ -550,18 +567,18 @@ async def mcp_install_server(serverId: str, command: str, args: List[str] = None
         "status": "INSTALLING" if is_new_installation else "STARTING",
     }
 
-    client_instance.edge_config.config.update_value({
-        "mcp_json": mcp_json,
-        "installedMCPs": current_installed
-    })
+    client_instance.edge_config.config.update_value(
+        {"mcp_json": mcp_json, "installedMCPs": current_installed}
+    )
 
     return {
         "installed": True,
         "serverId": server_id,
         "command": cmd,
         "args": args,
-        "env_keys": list(env.keys())
+        "env_keys": list(env.keys()),
     }
+
 
 @register_function("mcp_uninstall_server")
 async def mcp_uninstall_server(serverId: str, client_instance=None):
@@ -579,18 +596,19 @@ async def mcp_uninstall_server(serverId: str, client_instance=None):
         del mcp_json["mcpServers"][server_id]
         logger.info(f"Removed '{server_id}' from mcp_json mcpServers")
 
-    current_installed = dict(client_instance.edge_config.config.safe_get("installedMCPs", {}))
+    current_installed = dict(
+        client_instance.edge_config.config.safe_get("installedMCPs", {})
+    )
     if server_id in current_installed:
         del current_installed[server_id]
         logger.info(f"Removed '{server_id}' from installedMCPs")
 
-    client_instance.edge_config.config.update_value({
-        "mcp_json": mcp_json,
-        "installedMCPs": current_installed
-    })
+    client_instance.edge_config.config.update_value(
+        {"mcp_json": mcp_json, "installedMCPs": current_installed}
+    )
 
     return {
         "uninstalled": True,
         "serverId": server_id,
-        "message": f"MCP server '{server_id}' has been completely removed"
+        "message": f"MCP server '{server_id}' has been completely removed",
     }

@@ -1,8 +1,11 @@
 import os
+import logging
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse, unquote
 from urllib.request import url2pathname
+
+logger = logging.getLogger(__name__)
 
 
 def get_parent_directory_if_needed(path: str, root_path: Optional[str], fallback_root_paths: List[str]) -> Optional[str]:
@@ -48,6 +51,26 @@ def find_file_in_workspaces(path: str, workspace_paths: List[str], primary_path:
     return None
 
 
+class WorkspacePathNotFoundError(FileNotFoundError):
+    """Raised when workspace root path(s) do not exist on disk."""
+    def __init__(self, path: str, missing_roots: List[str]):
+        self.missing_roots = missing_roots
+        super().__init__(f"File not found: {path} — workspace path(s) do not exist: {missing_roots}")
+
+
+def check_roots_exist(path: str, root_path: Optional[str], fallback_root_paths: Optional[List[str]]) -> None:
+    """Raise WorkspacePathNotFoundError if any provided root paths don't exist on disk."""
+    roots = []
+    if root_path:
+        roots.append(root_path)
+    if fallback_root_paths:
+        roots.extend(fallback_root_paths)
+    missing = [r for r in roots if r and not os.path.exists(r)]
+    if missing:
+        logger.warning(f"Workspace path(s) do not exist: {missing} (resolving: {path})")
+        raise WorkspacePathNotFoundError(path, missing)
+
+
 def resolve_file_path(path: str, root_path: Optional[str] = None, fallback_root_paths: List[str] = None) -> str:
     """Resolve file path using root path and fallback paths (supports file://)"""
     if isinstance(path, str) and path.startswith('file://'):
@@ -55,6 +78,9 @@ def resolve_file_path(path: str, root_path: Optional[str] = None, fallback_root_
         path = url2pathname(unquote(parsed.path))
 
     path = os.path.expanduser(path)
+
+    # Early check: raise clear error if workspace roots don't exist
+    check_roots_exist(path, root_path, fallback_root_paths)
 
     if fallback_root_paths:
         all_paths = [root_path] + fallback_root_paths if root_path else fallback_root_paths
