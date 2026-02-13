@@ -1,32 +1,19 @@
-node_modules
-dist
+dist/
+build/
+venv/
 
-package-lock.json
-edge_node/yarn.lock
-
+*.egg-info
+*.pyc
+__pycache__/
 
 logs/mcp*.log
 logs/mcp*.log.gz
 
-edge_frontend/yarn.lock
-
-*.egg-info
-node_modules/
-
 runs
 
 .env
-*.pyc
-
 .vscode/settings.json
 
-build/
-./build/
-./dist/
-dist/
-venv/
-
-edge_frontend/src-tauri/Cargo.lock
 uv.lock
 
 # Local MCP configs (may contain API keys)

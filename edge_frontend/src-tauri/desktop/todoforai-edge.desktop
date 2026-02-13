@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=TODOforAI Edge
-Comment=Desktop Edge client for TODOforAI service enabling you to extend your AI agent's capabilities
-Exec=todoforai-edge %u
-Icon=todoforai-edge
-Terminal=false
-Type=Application
-Categories=Development;Utility;
-MimeType=x-scheme-handler/todoforai;x-scheme-handler/todoforaiedge;
