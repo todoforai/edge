@@ -33,7 +33,6 @@ from ..constants.messages import (
     block_mcp_result_msg,
 )
 from ..constants.constants import Edge2Agent as EA
-from ..constants.workspace_handler import is_path_allowed
 from .file_sync import ensure_workspace_synced
 
 # NEW: import registry and helpers from separated module
@@ -241,10 +240,6 @@ async def handle_block_save(payload, client):
         filepath = resolve_file_path(filepath, rootpath, fallback_root_paths)
         logger.info(f"Saving file: {filepath}")
 
-        # Check if path is allowed before proceeding
-        if not is_path_allowed(filepath, client.edge_config.config):
-            raise PermissionError("No permission to save file to the given path")
-
         # Special handling for DOCX files
         if filepath.lower().endswith(".docx"):
             # Validate XML content by checking the actual XML part
@@ -380,13 +375,6 @@ async def read_file_content(
     try:
         full_path = resolve_file_path(path, root_path, fallback_root_paths)
         full_path = os.path.abspath(full_path)
-
-        # Check if path is allowed
-        if not is_path_allowed(full_path, client.edge_config.config):
-            return {
-                "success": False,
-                "error": f"No permission to access the given file {full_path}",
-            }
 
         # Ensure the workspace containing this file is being synced
         await ensure_workspace_synced(client, full_path)

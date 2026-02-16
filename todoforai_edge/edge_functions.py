@@ -6,7 +6,6 @@ import base64
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import requests
-from .constants.workspace_handler import is_path_allowed
 from .handlers.shell_handler import ShellProcess, _get_windows_shell
 from .handlers.path_utils import resolve_file_path
 from .errors import ExpectedFunctionError
@@ -359,10 +358,6 @@ async def create_file(
     fallbackRootPaths = fallbackRootPaths or []
     full_path = resolve_file_path(path, rootPath, fallbackRootPaths)
 
-    if client_instance and hasattr(client_instance, "edge_config"):
-        if not is_path_allowed(full_path, client_instance.edge_config.config):
-            raise ExpectedFunctionError(f"No permission to write to {full_path}")
-
     # Create parent directories if needed
     dirname = os.path.dirname(full_path)
     if dirname:
@@ -384,12 +379,6 @@ async def read_file_base64(
     """Read a file as binary and return base64 content."""
     fallbackRootPaths = fallbackRootPaths or []
     full_path = resolve_file_path(path, rootPath, fallbackRootPaths)
-
-    if client_instance and hasattr(client_instance, "edge_config"):
-        if not is_path_allowed(full_path, client_instance.edge_config.config):
-            raise ExpectedFunctionError(
-                f"No permission to access the given file {full_path}"
-            )
 
     if not os.path.exists(full_path):
         raise ExpectedFunctionError(f"File not found: {full_path}")
@@ -433,14 +422,6 @@ async def search_files(
 
     if not os.path.exists(search_path):
         return {"success": False, "error": f"Search path does not exist: {search_path}"}
-
-    # Check permissions
-    try:
-        if client_instance and hasattr(client_instance, "edge_config"):
-            if not is_path_allowed(search_path, client_instance.edge_config.config):
-                return {"success": False, "error": f"No permission to search in {search_path}"}
-    except Exception as error:
-        logger.warning(f"Path permission check failed for {search_path}: {error}")
 
     cmd = [rg_path, "--no-heading", "--line-number", "--color=never"]
     cmd.append(f"--max-count={max_results}")
