@@ -60,6 +60,7 @@ async def handle_block_execute(payload, client):
     content = payload.get("content", "")
     todo_id = payload.get("todoId", "")
     root_path = payload.get("rootPath", "")
+    manual = payload.get("manual", False)
     logger.info(f"handle_block_execute: {payload}")
 
     # Send start message
@@ -75,9 +76,7 @@ async def handle_block_execute(payload, client):
 
         # Start the execution in a separate task so we don't block
         asyncio.create_task(
-            shell.execute_block(
-                block_id, content, client, todo_id, message_id, timeout, root_path
-            )
+            shell.execute_block(block_id, content, client, todo_id, message_id, timeout, root_path, manual=manual)
         )
 
         # Return immediately without waiting for the command to complete

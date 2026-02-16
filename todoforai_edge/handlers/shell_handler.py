@@ -140,7 +140,7 @@ class ShellProcess:
         self._output_buffer: Dict[str, OutputBuffer] = {}  # Add output buffer for sync calls
         self._stdin_writers = _stdin_writers  # Use the shared global writers
         
-    async def execute_block(self, block_id: str, content: str, client, todo_id: str, request_id: str, timeout: float, root_path: str = ""):
+    async def execute_block(self, block_id: str, content: str, client, todo_id: str, request_id: str, timeout: float, root_path: str = "", manual: bool = False):
         """Execute a shell command block and stream results back to client."""
         logger.info(f"Executing shell block {block_id} with content: {content[:50]}...")
         
@@ -238,7 +238,7 @@ class ShellProcess:
             asyncio.create_task(self._handle_timeout(block_id, timeout, client, todo_id, request_id))
             
             # Start a task to wait for process completion - don't wait for it
-            asyncio.create_task(self._wait_for_process(process, block_id, client, todo_id, request_id))
+            asyncio.create_task(self._wait_for_process(process, block_id, client, todo_id, request_id, manual=manual))
             
             # Return immediately without waiting for any tasks
             return
@@ -481,13 +481,13 @@ class ShellProcess:
                     except Exception:
                         pass
 
-    async def _wait_for_process(self, process, block_id, client, todo_id, request_id):
+    async def _wait_for_process(self, process, block_id, client, todo_id, request_id, manual=False):
         """Wait for process to complete and send completion message."""
         try:
             # Wait for process to complete
             return_code = await asyncio.get_event_loop().run_in_executor(None, process.wait)
             logger.info(f"Process completed with return code {return_code}")
-            
+
             # Handle output buffer - send truncation notice if output was truncated
             buf = self._output_buffer.get(block_id)
             if buf and buf.total_len > 0:
@@ -496,18 +496,18 @@ class ShellProcess:
                     await client.send_response(shell_block_message_result_msg(
                         todo_id, block_id, truncation_msg, request_id
                     ))
-            
+
             # Send completion message
             await client.send_response(shell_block_done_result_msg(
-                todo_id, request_id, block_id, "execute", return_code
+                todo_id, request_id, block_id, "execute", return_code, manual=manual
             ))
-            
+
         except Exception as e:
             logger.error(f"Error waiting for process: {str(e)}")
             # Send completion message even on error
             return_code = process.returncode if process.returncode is not None else -1
             await client.send_response(shell_block_done_result_msg(
-                todo_id, request_id, block_id, "execute", return_code
+                todo_id, request_id, block_id, "execute", return_code, manual=manual
             ))
         finally:
             # Clean up
