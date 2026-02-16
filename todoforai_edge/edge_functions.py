@@ -177,15 +177,10 @@ async def execute_shell_command(
         if hasattr(shell, "_output_buffer") and block_id in shell._output_buffer:
             full_output = shell._output_buffer[block_id].get_output()
             del shell._output_buffer[block_id]
-        return {"command": command, "result": full_output, "success": True}
+        return {"command": command, "result": full_output}
     except Exception as error:
         logger.error(f"Error executing shell command: {str(error)}")
-        return {
-            "command": command,
-            "result": str(error),
-            "success": False,
-            "error": str(error),
-        }
+        raise ExpectedFunctionError(f"Shell command failed: {error}")
 
 
 @register_function("download_attachment")
@@ -214,22 +209,20 @@ async def download_attachment(
     try:
         response = requests.get(url, headers=headers, timeout=60)
         if response.status_code >= 400:
-            return {
-                "success": False,
-                "error": f"Backend responded with {response.status_code}: {response.text}",
-            }
+            raise ExpectedFunctionError(f"Backend responded with {response.status_code}: {response.text}")
 
         with open(target_path, "wb") as file:
             file.write(response.content)
 
         return {
-            "success": True,
             "path": str(target_path),
             "bytes": len(response.content),
         }
+    except ExpectedFunctionError:
+        raise
     except Exception as error:
         logger.error(f"Error downloading attachment {attachmentId}: {error}")
-        return {"success": False, "error": str(error)}
+        raise ExpectedFunctionError(f"Download failed: {error}")
 
 
 @register_function("download_chat")
@@ -249,14 +242,13 @@ async def download_chat(todoId: str, client_instance=None):
     try:
         response = requests.get(url, headers=headers, timeout=60)
         if response.status_code >= 400:
-            return {
-                "success": False,
-                "error": f"Backend responded with {response.status_code}: {response.text}",
-            }
-        return {"success": True, "todo": response.json()}
+            raise ExpectedFunctionError(f"Backend responded with {response.status_code}: {response.text}")
+        return {"todo": response.json()}
+    except ExpectedFunctionError:
+        raise
     except Exception as error:
         logger.error(f"Error downloading chat {todoId}: {error}")
-        return {"success": False, "error": str(error)}
+        raise ExpectedFunctionError(f"Download chat failed: {error}")
 
 
 @register_function("register_attachment")
@@ -285,7 +277,7 @@ async def register_attachment(
     target_path = target_path.resolve()
 
     if not target_path.exists() or not target_path.is_file():
-        return {"success": False, "error": f"File not found: {target_path}"}
+        raise ExpectedFunctionError(f"File not found: {target_path}")
 
     upload_endpoint = f"{api_url}/api/v1/files/register"
     headers = {"x-api-key": api_key}
@@ -307,13 +299,10 @@ async def register_attachment(
         )
     except Exception as error:
         logger.error(f"Error uploading attachment {target_path}: {error}")
-        return {"success": False, "error": str(error)}
+        raise ExpectedFunctionError(f"Upload failed: {error}")
 
     if response.status_code >= 400:
-        return {
-            "success": False,
-            "error": f"Backend responded with {response.status_code}: {response.text}",
-        }
+        raise ExpectedFunctionError(f"Backend responded with {response.status_code}: {response.text}")
 
     try:
         payload = response.json()
@@ -322,7 +311,7 @@ async def register_attachment(
 
     attachment_id = payload.get("attachmentId")
 
-    return {"success": True, "attachmentId": attachment_id, "response": payload}
+    return {"attachmentId": attachment_id, "response": payload}
 
 
 @register_function("read_file")
@@ -412,7 +401,7 @@ async def search_files(
 
     rg_path = shutil.which("rg")
     if not rg_path:
-        return {"success": False, "error": "ripgrep (rg) not found. Install with: pip install ripgrep"}
+        raise ExpectedFunctionError("ripgrep (rg) not found. Install with: pip install ripgrep")
 
     # Resolve search directory
     search_path = os.path.expanduser(path)
@@ -421,7 +410,7 @@ async def search_files(
     search_path = os.path.abspath(search_path)
 
     if not os.path.exists(search_path):
-        return {"success": False, "error": f"Search path does not exist: {search_path}"}
+        raise ExpectedFunctionError(f"Search path does not exist: {search_path}")
 
     cmd = [rg_path, "--no-heading", "--line-number", "--color=never"]
     cmd.append(f"--max-count={max_results}")
@@ -444,17 +433,19 @@ async def search_files(
         if proc.returncode == 0:
             if len(output) > 100_000:
                 output = output[:100_000] + "\n... (output truncated)"
-            return {"success": True, "result": output}
+            return {"result": output}
         elif proc.returncode == 1:
-            return {"success": True, "result": "No matches found."}
+            return {"result": "No matches found."}
         else:
             err = stderr.decode("utf-8", errors="replace")
-            return {"success": False, "error": f"ripgrep error (exit {proc.returncode}): {err}"}
+            raise ExpectedFunctionError(f"ripgrep error (exit {proc.returncode}): {err}")
     except asyncio.TimeoutError:
-        return {"success": False, "error": "Search timed out after 30 seconds"}
+        raise ExpectedFunctionError("Search timed out after 30 seconds")
+    except ExpectedFunctionError:
+        raise
     except Exception as error:
         logger.error(f"Error running search_files: {error}")
-        return {"success": False, "error": str(error)}
+        raise ExpectedFunctionError(f"Search failed: {error}")
 
 
 @register_function("mcp_call_tool")

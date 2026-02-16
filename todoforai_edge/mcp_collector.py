@@ -387,7 +387,7 @@ class MCPCollector:
                 })
             
             logger.error(f"Error calling tool {tool_name}: {e}")
-            return {"error": str(e), "success": False}
+            raise
     
     async def list_tools(self) -> List[MCPTool]:
         """List all available tools"""

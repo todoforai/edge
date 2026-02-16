@@ -35,16 +35,19 @@ def shell_block_start_result_msg(todo_id, block_id, mode, message_id):
         }
     }
 
-def shell_block_done_result_msg(todo_id, message_id, block_id, mode, return_code):
+def shell_block_done_result_msg(todo_id, message_id, block_id, mode, return_code, manual=False):
+    payload = {
+        "todoId": todo_id,
+        "messageId": message_id,
+        "blockId": block_id,
+        "mode": mode,
+        "return_code": return_code,
+    }
+    if manual:
+        payload["manual"] = True
     return {
-        "type": EF.BLOCK_SH_DONE,  # Updated to match protocol
-        "payload": {
-            "todoId": todo_id,
-            "messageId": message_id,
-            "blockId": block_id,
-            "mode": mode,
-            "return_code": return_code
-        }
+        "type": EF.BLOCK_SH_DONE,
+        "payload": payload,
     }
 
 
