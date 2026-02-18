@@ -5,6 +5,7 @@ import os
 import select
 import logging
 import shutil
+import tempfile
 from functools import lru_cache
 from typing import Dict, Tuple, List
 import traceback
@@ -16,6 +17,7 @@ from ..constants.messages import (
     shell_block_done_result_msg,
     shell_block_start_result_msg,
 )
+from ..tool_registry import ensure_tools_for_command, build_env_with_tools
 
 logger = logging.getLogger("todoforai-edge")
 
@@ -149,7 +151,9 @@ class ShellProcess:
   
         try:
             # Determine working directory
-            cwd = None
+            default_cwd = os.path.join(tempfile.gettempdir(), "todoforai")
+            os.makedirs(default_cwd, exist_ok=True)
+            cwd = default_cwd
             logger.info(f'root_path: {root_path}')
             if root_path:
                 # Validate and use the provided root_path
@@ -158,8 +162,17 @@ class ShellProcess:
                     cwd = root_path
                     logger.info(f"Using working directory: {cwd}")
                 else:
-                    logger.warning(f"Invalid root_path provided: {root_path}, using current directory")
+                    logger.warning(f"Invalid root_path provided: {root_path}, using default: {default_cwd}")
                  
+            # Auto-install missing tools (non-blocking)
+            try:
+                installed = await asyncio.get_event_loop().run_in_executor(None, ensure_tools_for_command, content)
+                if installed:
+                    notice = f"[auto-installed: {', '.join(installed)}]\n"
+                    await client.send_response(shell_block_message_result_msg(todo_id, block_id, notice, request_id))
+            except Exception as e:
+                logger.warning(f"Tool auto-install check failed: {e}")
+
             # Determine shell based on platform
             if os.name == 'nt':
                 shell_prefix, shell_type = _get_windows_shell()
@@ -206,6 +219,7 @@ class ShellProcess:
                 text=(False if use_pty_for_io else True),
                 bufsize=(0 if use_pty_for_io else 1),
                 universal_newlines=(False if use_pty_for_io else True),
+                env=build_env_with_tools(),
                 cwd=cwd,
                 preexec_fn=preexec_fn,  # Only use setsid on Unix systems
                 encoding='utf-8' if os.name == 'nt' else None,
