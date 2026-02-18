@@ -279,6 +279,18 @@ class TODOforAIEdge:
         
         logger.info("Edge config update processed successfully")
 
+    def _safe_create_task(self, coro, name=None):
+        """Create an asyncio task with error logging so exceptions are never silently lost."""
+        task = asyncio.create_task(coro, name=name)
+        def _on_done(t):
+            if t.cancelled():
+                return
+            exc = t.exception()
+            if exc is not None:
+                logger.error(f"Unhandled exception in task '{name or 'unnamed'}': {exc}", exc_info=exc)
+        task.add_done_callback(_on_done)
+        return task
+
     async def _handle_message(self, message):
         """Process incoming messages from the server"""
         data = json.loads(message)
@@ -304,67 +316,66 @@ class TODOforAIEdge:
             self.edge_id = payload.get("edgeId", "")
             self.user_id = payload.get("userId", "")
             safe_print(f"{Colors.GREEN}{Colors.BOLD}🔗 Connected with edge ID: {self.edge_id} and user ID: {self.user_id}{Colors.END}")
-            
+
             # Update the edge config with the edge ID
             if self.edge_id:
                 self.edge_config.config.update_value({"id": self.edge_id}, source="server_connection")
-            
+
             # Load MCP if exists (run in background, don't block)
-            asyncio.create_task(self._load_mcp_if_exists())
+            self._safe_create_task(self._load_mcp_if_exists(), name="load_mcp")
 
             # Start extensions (FUSE, etc.) in background
-            asyncio.create_task(self._start_extensions())
-            
+            self._safe_create_task(self._start_extensions(), name="start_extensions")
+
         elif msg_type == S2E.EDGE_CONFIG_UPDATE:  # Handle EDGE_CONFIG_UPDATE
-            asyncio.create_task(self._handle_edge_config_update(payload))
-        
+            self._safe_create_task(self._handle_edge_config_update(payload), name="edge_config_update")
+
         elif msg_type == FE.EDGE_DIR_LIST:
-            asyncio.create_task(handle_todo_dir_list(payload, self))
-        
+            self._safe_create_task(handle_todo_dir_list(payload, self), name="dir_list")
+
         elif msg_type == FE.EDGE_CD:
-            asyncio.create_task(handle_todo_cd(payload, self))
-        
+            self._safe_create_task(handle_todo_cd(payload, self), name="cd")
+
         elif msg_type == FE.BLOCK_SAVE:
-            asyncio.create_task(handle_block_save(payload, self))
-        
+            self._safe_create_task(handle_block_save(payload, self), name="block_save")
+
         elif msg_type == FE.BLOCK_REFRESH:
-            asyncio.create_task(handle_block_refresh(payload, self))
-        
+            self._safe_create_task(handle_block_refresh(payload, self), name="block_refresh")
+
         elif msg_type == FE.BLOCK_EXECUTE:
-            asyncio.create_task(handle_block_execute(payload, self))
-        
+            self._safe_create_task(handle_block_execute(payload, self), name="block_execute")
+
         elif msg_type == FE.BLOCK_KEYBOARD:
-            asyncio.create_task(handle_block_keyboard(payload, self))
-        
-        
+            self._safe_create_task(handle_block_keyboard(payload, self), name="block_keyboard")
+
         elif msg_type == FE.TASK_ACTION_NEW:
-            asyncio.create_task(handle_task_action_new(payload, self))
-        
+            self._safe_create_task(handle_task_action_new(payload, self), name="task_action_new")
+
         elif msg_type == AE.CTX_JULIA_REQUEST:
-            asyncio.create_task(handle_ctx_julia_request(payload, self))
-        
+            self._safe_create_task(handle_ctx_julia_request(payload, self), name="ctx_julia_request")
+
         elif msg_type == AE.CTX_WORKSPACE_REQUEST:
             path = payload.get("path", ".")
-            asyncio.create_task(ensure_workspace_synced(self, path))
-            asyncio.create_task(handle_ctx_workspace_request(payload, self))
-        
+            self._safe_create_task(ensure_workspace_synced(self, path), name="ensure_workspace_synced")
+            self._safe_create_task(handle_ctx_workspace_request(payload, self), name="ctx_workspace_request")
+
         elif msg_type == AE.FILE_CHUNK_REQUEST:
-            asyncio.create_task(handle_file_chunk_request(payload, self))
+            self._safe_create_task(handle_file_chunk_request(payload, self), name="file_chunk_request")
 
         elif msg_type == FE.FRONTEND_FILE_CHUNK_REQUEST:
-            asyncio.create_task(handle_file_chunk_request(payload, self, response_type=EF.FRONTEND_FILE_CHUNK_RESULT))
-        
+            self._safe_create_task(handle_file_chunk_request(payload, self, response_type=EF.FRONTEND_FILE_CHUNK_RESULT), name="frontend_file_chunk_request")
+
         elif msg_type == FE.GET_FOLDERS:
-            asyncio.create_task(handle_get_folders(payload, self))
-        
+            self._safe_create_task(handle_get_folders(payload, self), name="get_folders")
+
         elif msg_type == AE.FUNCTION_CALL_REQUEST_AGENT:
-            asyncio.create_task(handle_function_call_request_agent(payload, self))
-        
+            self._safe_create_task(handle_function_call_request_agent(payload, self), name="function_call_agent")
+
         elif msg_type == FE.FUNCTION_CALL_REQUEST_FRONT:
-            asyncio.create_task(handle_function_call_request_front(payload, self))
+            self._safe_create_task(handle_function_call_request_front(payload, self), name="function_call_front")
 
         elif msg_type == FE.BLOCK_MCP_EXECUTE:
-            asyncio.create_task(handle_block_mcp_execute(payload, self))
+            self._safe_create_task(handle_block_mcp_execute(payload, self), name="block_mcp_execute")
 
         else:
             logger.warning(f"Unknown message type: {msg_type}")
@@ -593,20 +604,27 @@ class TODOforAIEdge:
 
     async def send_response(self, message):
         """Send a response to the server
-        
+
         Args:
             message: A complete message object with type and payload
         """
         if self.ws and self.connected:
             message_json = json.dumps(message)
             message_size = len(message_json.encode('utf-8'))
-            
+
             if self.debug:
                 logger.debug(f"Sending response: {message['type']} (size: {message_size} bytes)")
                 if message_size > 100000:  # Log if message is larger than 100KB
                     logger.warning(f"Large message detected: {message_size} bytes")
-                    
-            await self.ws.send(message_json)
+
+            try:
+                await self.ws.send(message_json)
+            except Exception as e:
+                msg_type = message.get("type", "unknown")
+                logger.error(f"Failed to send response (type={msg_type}): {e}")
+        else:
+            msg_type = message.get("type", "unknown")
+            logger.warning(f"Cannot send response (type={msg_type}): WebSocket not connected")
 
     async def connect(self):
         """Connect to the WebSocket server"""

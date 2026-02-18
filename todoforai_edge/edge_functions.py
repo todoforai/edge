@@ -185,11 +185,13 @@ async def execute_shell_command(
 
 @register_function("download_attachment")
 async def download_attachment(
-    attachmentId: str, filePath: str, rootPath: str = "", client_instance=None
+    attachmentId: str, path: str = "", rootPath: str = "", client_instance=None,
 ):
     """Download an attachment from the backend API to the local filesystem."""
     if not client_instance:
         raise ValueError("Client instance required for download_attachment")
+    if not path:
+        raise ValueError("No file path provided")
 
     api_url = getattr(client_instance, "api_url", "").rstrip("/")
     api_key = getattr(client_instance, "api_key", "")
@@ -197,7 +199,7 @@ async def download_attachment(
         raise ValueError("Missing API credentials for attachment download")
 
     base_path = Path(get_path_or_platform_default(rootPath or ""))
-    target_path = Path(filePath).expanduser()
+    target_path = Path(path).expanduser()
     if not target_path.is_absolute():
         target_path = base_path / target_path
     target_path = target_path.resolve()

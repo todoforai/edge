@@ -33,7 +33,7 @@ async def test_download_attachment_roundtrip_public(tmp_path):
     assert attachment_id, "No attachmentId returned from upload"
 
     dest = tmp_path / "downloaded.txt"
-    result = await download_attachment(attachment_id, str(dest), "", client)
+    result = await download_attachment(attachment_id, str(dest), "", client_instance=client)
 
     assert result.get("success"), f"Download failed: {result}"
     assert dest.exists(), "Downloaded file missing"
