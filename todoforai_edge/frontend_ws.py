@@ -29,7 +29,6 @@ class FrontendWebSocket:
     # Todo lifecycle
     MSG_TODO_START = "todo:msg_start"
     MSG_TODO_DONE = "todo:msg_done"
-    MSG_TODO_ERROR = "todo:msg_error"
     MSG_TODO_STOP = "todo:msg_stop_sequence"
 
     # Block types (for callback to distinguish)
@@ -249,7 +248,7 @@ class FrontendWebSocket:
             except Exception as e:
                 logger.error(f"Callback error: {e}")
 
-        if msg_type in (self.MSG_TODO_DONE, self.MSG_TODO_ERROR):
+        if msg_type == self.MSG_TODO_DONE:
             if todo_id and todo_id in self._completion_events:
                 self._completion_results[todo_id] = {
                     "type": msg_type,
