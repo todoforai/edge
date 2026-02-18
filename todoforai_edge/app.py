@@ -61,6 +61,9 @@ async def run_app(api_key=None):
     default_workspace = Path("/tmp/todoforai")
     default_workspace.mkdir(parents=True, exist_ok=True)
 
+    # Ensure tools directory exists for auto-install
+    (Path.home() / ".todoforai" / "tools").mkdir(parents=True, exist_ok=True)
+
     # Create a edge
     print(f"{Colors.CYAN}🚀 Starting TODOforAI Edge CLI v{get_cli_version()}...{Colors.END}")
     todo_edge = TODOforAIEdge(config)
