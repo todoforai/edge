@@ -13,7 +13,7 @@ async def test_download_attachment_roundtrip_public(tmp_path):
         pytest.skip("TODOFORAI_API_KEY_DEV not set")
 
     api_url = os.getenv("TODOFORAI_API_BASE", "http://localhost:4000")
-    upload_endpoint = f"{api_url}/api/v1/files/register"
+    upload_endpoint = f"{api_url}/api/v1/resources/register"
 
     class DummyClient:
         def __init__(self, api_url: str, api_key: str):

@@ -279,7 +279,7 @@ async def register_attachment(
     if not target_path.exists() or not target_path.is_file():
         raise ExpectedFunctionError(f"File not found: {target_path}")
 
-    upload_endpoint = f"{api_url}/api/v1/files/register"
+    upload_endpoint = f"{api_url}/api/v1/resources/register"
     headers = {"x-api-key": api_key}
 
     data = {}
