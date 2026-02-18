@@ -34,7 +34,6 @@ class FrontendWebSocket:
     # Block types (for callback to distinguish)
     MSG_BLOCK_MESSAGE = "block:message"
     MSG_BLOCK_END = "block:end"
-    MSG_BLOCK_START_TEXT = "block:start_text"
     MSG_BLOCK_START_SHELL = "block:start_shell"
     MSG_BLOCK_START_FILE = "block:start_createfile"
     MSG_BLOCK_START_MODIFY = "block:start_modifyfile"
