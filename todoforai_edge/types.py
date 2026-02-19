@@ -65,7 +65,6 @@ class TodoMessage(TypedDict, total=False):
     role: str
     content: str
     agentSettingsId: str
-    attachmentIds: List[str]
     attachments: List[Dict[str, Any]]
 
 
