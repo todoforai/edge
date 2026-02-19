@@ -33,7 +33,6 @@ from ..constants.messages import (
     block_mcp_result_msg,
 )
 from ..constants.constants import Edge2Agent as EA
-from .file_sync import ensure_workspace_synced
 
 # NEW: import registry and helpers from separated module
 from ..edge_functions import (
@@ -374,9 +373,6 @@ async def read_file_content(
     try:
         full_path = resolve_file_path(path, root_path, fallback_root_paths)
         full_path = os.path.abspath(full_path)
-
-        # Ensure the workspace containing this file is being synced
-        await ensure_workspace_synced(client, full_path)
 
         file_path = Path(full_path)
         if not file_path.exists():

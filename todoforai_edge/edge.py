@@ -13,7 +13,6 @@ import platform
 from .constants.constants import SR, FE, AE, EF, S2E
 from .utils import generate_machine_fingerprint, async_request, normalize_api_url, safe_print, ensure_mcp_config_exists
 from .constants.messages import edge_status_msg
-from .constants.workspace_handler import handle_ctx_workspace_request
 from .config import get_ws_url
 from .edge_config import EdgeConfig, FORBIDDEN_WORKSPACE_PATHS
 from .colors import Colors
@@ -32,7 +31,6 @@ from .handlers.handlers import (
     handle_function_call_request_agent,
     handle_block_mcp_execute,
 )
-from .handlers.file_sync import ensure_workspace_synced, start_workspace_sync, stop_all_syncs
 from .mcp_collector import MCPCollector
 from .frontend_ws import FrontendWebSocket, TodoStreamError
 import aiohttp
@@ -92,6 +90,7 @@ class TODOforAIEdge:
         self.heartbeat_task = None
         self.fingerprint = None
         self.mcp_collector = MCPCollector(self.edge_config)
+        self._frontend_ws = None
         self._extensions = []
         if getattr(config, 'fuse_enabled', True):
             try:
@@ -354,11 +353,6 @@ class TODOforAIEdge:
         elif msg_type == AE.CTX_JULIA_REQUEST:
             self._safe_create_task(handle_ctx_julia_request(payload, self), name="ctx_julia_request")
 
-        elif msg_type == AE.CTX_WORKSPACE_REQUEST:
-            path = payload.get("path", ".")
-            self._safe_create_task(ensure_workspace_synced(self, path), name="ensure_workspace_synced")
-            self._safe_create_task(handle_ctx_workspace_request(payload, self), name="ctx_workspace_request")
-
         elif msg_type == AE.FILE_CHUNK_REQUEST:
             self._safe_create_task(handle_file_chunk_request(payload, self), name="file_chunk_request")
 
@@ -523,6 +517,19 @@ class TODOforAIEdge:
         else:
             raise Exception("Failed to create/update todo with message")
 
+    async def _get_frontend_ws(self) -> FrontendWebSocket:
+        """Get or create a persistent frontend WebSocket."""
+        if not self._frontend_ws or not self._frontend_ws.connected:
+            self._frontend_ws = FrontendWebSocket(self.api_url, self.api_key)
+            await self._frontend_ws._connect()
+        return self._frontend_ws
+
+    async def close_frontend_ws(self):
+        """Close the persistent frontend WebSocket."""
+        if self._frontend_ws:
+            await self._frontend_ws._close()
+            self._frontend_ws = None
+
     async def wait_for_todo_completion(
         self,
         todo_id: str,
@@ -542,38 +549,13 @@ class TODOforAIEdge:
                               Receives (ws, block_info) - can call ws.send_block_execute()
                               or ws.send_block_deny() to respond.
         """
-        async with FrontendWebSocket(self.api_url, self.api_key) as ws:
-            try:
-                return await ws.wait_for_completion(todo_id, callback, timeout, approval_handler)
-            except asyncio.CancelledError:
-                if project_id:
-                    await ws.send_interrupt(project_id, todo_id)
-                raise
-
-    async def _start_workspace_syncs(self):
-        """Start file synchronization for all workspace paths"""
-        # First stop any existing syncs to prevent duplicates
-        await stop_all_syncs()
-
-        for workspace_path in self.edge_config.config["workspacepaths"]:
-            try:
-                # Auto-create directories under /tmp (safe location for temp workspaces)
-                if not os.path.exists(workspace_path):
-                    if workspace_path.startswith("/tmp/"):
-                        try:
-                            os.makedirs(workspace_path, exist_ok=True)
-                            logger.info(f"Created workspace directory: {workspace_path}")
-                        except OSError as e:
-                            logger.warning(f"Could not create workspace directory {workspace_path}: {e}")
-                    else:
-                        logger.warning(f"Workspace path does not exist: {workspace_path}")
-                        continue
-
-                if os.path.exists(workspace_path):
-                    logger.info(f"Starting file sync for workspace: {workspace_path}")
-                    await start_workspace_sync(self, workspace_path)
-            except Exception as e:
-                logger.error(f"Failed to start file sync for {workspace_path}: {str(e)}")
+        ws = await self._get_frontend_ws()
+        try:
+            return await ws.wait_for_completion(todo_id, callback, timeout, approval_handler)
+        except asyncio.CancelledError:
+            if project_id:
+                await ws.send_interrupt(project_id, todo_id)
+            raise
 
     async def _load_mcp_if_exists(self):
         """Find and set MCP config path - actual loading happens via config observer"""
@@ -677,9 +659,6 @@ class TODOforAIEdge:
                 # Reset attempt counter
                 attempt = 0
                 
-                # Stop all file syncs when disconnected
-                await stop_all_syncs()
-                
                 # Wait before reconnecting
                 logger.info("Connection closed. Reconnecting in 4 seconds...")
                 await asyncio.sleep(attempt * 2)
@@ -723,9 +702,8 @@ class TODOforAIEdge:
                     self.heartbeat_task = None
                 logger.info("WebSocket disconnected!")
 
-                # Stop extensions and file syncs on disconnect
+                # Stop extensions on disconnect
                 await self._stop_extensions()
-                await stop_all_syncs()
                 
             if attempt < max_attempts and attempt > 0:
                 delay = min(4 + attempt, 20.0)

@@ -155,7 +155,7 @@ FUNCTION_REGISTRY["createDirectory"] = create_directory
 
 @register_function("execute_shell_command")
 async def execute_shell_command(
-    command: str, timeout: int = 120, root_path: str = "", client_instance=None
+    cmd: str, timeout: int = 120, root_path: str = "", client_instance=None
 ):
     """Execute a shell command and return the full result when complete"""
     if not client_instance:
@@ -167,9 +167,9 @@ async def execute_shell_command(
         block_id = str(uuid.uuid4())
         todo_id = ""
         message_id = ""
-        logger.info(f"Executing shell command via function call: {command[:50]}...")
+        logger.info(f"Executing shell command via function call: {cmd[:50]}...")
         await shell.execute_block(
-            block_id, command, client_instance, todo_id, message_id, timeout, root_path
+            block_id, cmd, client_instance, todo_id, message_id, timeout, root_path
         )
         full_output = ""
         while block_id in shell.processes:
@@ -177,7 +177,7 @@ async def execute_shell_command(
         if hasattr(shell, "_output_buffer") and block_id in shell._output_buffer:
             full_output = shell._output_buffer[block_id].get_output()
             del shell._output_buffer[block_id]
-        return {"command": command, "result": full_output}
+        return {"cmd": cmd, "result": full_output}
     except Exception as error:
         logger.error(f"Error executing shell command: {str(error)}")
         raise ExpectedFunctionError(f"Shell command failed: {error}")

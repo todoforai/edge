@@ -148,21 +148,6 @@ def ctx_julia_result_msg(todo_id, message_id, filepaths=None, contents=None, err
     }
 
 
-
-# Updated workspace result message to match the new interface
-def workspace_result_msg(request_id, user_id, agent_id, project_files, filtered_files, filtered_dirs):
-    return {
-        "type": EA.CTX_WORKSPACE_RESULT,
-        "payload": {
-            "requestId": request_id,
-            "userId": user_id,
-            "agentId": agent_id,
-            "project_files": project_files,
-            "filtered_files": filtered_files,
-            "filtered_dirs": filtered_dirs
-        }
-    }
-
 def file_chunk_result_msg(response_type, content=None, error=None, full_path=None, **payload):
     if content is not None:
         payload["content"] = content

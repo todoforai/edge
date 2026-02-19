@@ -41,7 +41,6 @@ class Front2Edge:
 # Agent to Edge Messages
 class Agent2Edge:
     CTX_JULIA_REQUEST = 'ctx:julia_request'
-    CTX_WORKSPACE_REQUEST = 'ctx:workspace_request'
     DIFF_FILE_REQUEST = 'diff:file_request'
     FILE_CHUNK_REQUEST = 'file:chunk_request'
     FUNCTION_CALL_REQUEST_AGENT = 'FUNCTION_CALL_REQUEST_AGENT'
@@ -50,7 +49,6 @@ class Agent2Edge:
 # Edge to Agent Messages
 class Edge2Agent:
     CTX_JULIA_RESULT = 'ctx:julia_result'
-    CTX_WORKSPACE_RESULT = 'ctx:workspace_result'
     DIFF_FILE_RESULT = 'diff:file_result'
     FILE_CHUNK_RESULT = 'file:chunk_result'
     EDGE_DISCONNECTED = 'edge:disconnected'
