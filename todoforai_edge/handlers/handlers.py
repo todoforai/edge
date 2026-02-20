@@ -598,6 +598,10 @@ async def handle_function_call_request(payload, client):
             f"{req_type.capitalize()} function call request: {function_name} with args: {args}"
         )
         result = await _execute_function(function_name, args, client)
+        # If function signals awaiting approval, don't respond to agent — keep call pending
+        if isinstance(result, dict) and result.get("__awaiting_approval__"):
+            logger.info(f"Function call '{function_name}' awaiting approval, not sending response to agent")
+            return
         response = response_handler.success_response(result)
     except (ExpectedFunctionError, WorkspacePathNotFoundError) as error:
         logger.warning(

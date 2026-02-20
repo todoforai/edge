@@ -17,7 +17,7 @@ from ..constants.messages import (
     shell_block_done_result_msg,
     shell_block_start_result_msg,
 )
-from ..tool_registry import ensure_tools_for_command, build_env_with_tools
+from ..tool_registry import ensure_tool, find_missing_tools, build_env_with_tools
 
 logger = logging.getLogger("todoforai-edge")
 
@@ -28,6 +28,8 @@ STREAM_LAST_CHARS = 10000
 # Make processes dictionary a global variable so it's shared across all instances
 _processes: Dict[str, subprocess.Popen] = {}
 _stdin_writers = {}  # Make stdin writers global too so all instances can access
+# Blocks sent back for AWAITING_APPROVAL — on re-execute, install the approved tools
+_pending_tool_approvals: Dict[str, list] = {}  # block_id -> list of tool names
 
 
 @lru_cache(maxsize=1)
@@ -164,14 +166,39 @@ class ShellProcess:
                 else:
                     logger.warning(f"Invalid root_path provided: {root_path}, using default: {default_cwd}")
                  
-            # Auto-install missing tools (non-blocking)
-            try:
-                installed = await asyncio.get_event_loop().run_in_executor(None, ensure_tools_for_command, content)
-                if installed:
-                    notice = f"[auto-installed: {', '.join(installed)}]\n"
-                    await client.send_response(shell_block_message_result_msg(todo_id, block_id, notice, request_id))
-            except Exception as e:
-                logger.warning(f"Tool auto-install check failed: {e}")
+            # Check for missing tools — request approval before executing
+            missing = find_missing_tools(content)
+            if missing and block_id not in _pending_tool_approvals:
+                _pending_tool_approvals[block_id] = missing
+                logger.info(f"Missing tools {missing}, requesting approval for block {block_id}")
+                await client.send_response({
+                    "type": "BLOCK_UPDATE",
+                    "payload": {
+                        "todoId": todo_id, "blockId": block_id, "messageId": request_id,
+                        "updates": {
+                            "status": "AWAITING_APPROVAL",
+                            "approvalContext": {
+                                "source": "edge",
+                                "toolInstalls": missing,
+                                "workspace": cwd,
+                            }
+                        }
+                    }
+                })
+                return  # wait for re-execute after approval
+
+            if block_id in _pending_tool_approvals:
+                # Re-execute after approval — install the approved tools
+                tools = _pending_tool_approvals.pop(block_id)
+                try:
+                    installed = await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: [t for t in tools if ensure_tool(t)]
+                    )
+                    if installed:
+                        notice = f"[installed: {', '.join(installed)}]\n"
+                        await client.send_response(shell_block_message_result_msg(todo_id, block_id, notice, request_id))
+                except Exception as e:
+                    logger.warning(f"Tool install failed: {e}")
 
             # Determine shell based on platform
             if os.name == 'nt':

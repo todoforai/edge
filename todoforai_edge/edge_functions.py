@@ -6,7 +6,7 @@ import base64
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import requests
-from .handlers.shell_handler import ShellProcess, _get_windows_shell
+from .handlers.shell_handler import ShellProcess, _pending_tool_approvals, _get_windows_shell
 from .handlers.path_utils import resolve_file_path
 from .errors import ExpectedFunctionError
 
@@ -155,28 +155,32 @@ FUNCTION_REGISTRY["createDirectory"] = create_directory
 
 @register_function("execute_shell_command")
 async def execute_shell_command(
-    cmd: str, timeout: int = 120, root_path: str = "", client_instance=None
+    cmd: str, timeout: int = 120, root_path: str = "", client_instance=None,
+    todoId: str = "", messageId: str = "", blockId: str = "",
 ):
     """Execute a shell command and return the full result when complete"""
     if not client_instance:
         raise ValueError("No client instance available")
     try:
-        shell = ShellProcess()
-        import uuid
+        if not blockId or not todoId or not messageId:
+            raise ValueError(f"Missing block context: todoId={todoId!r} messageId={messageId!r} blockId={blockId!r}")
 
-        block_id = str(uuid.uuid4())
-        todo_id = ""
-        message_id = ""
+        shell = ShellProcess()
         logger.info(f"Executing shell command via function call: {cmd[:50]}...")
         await shell.execute_block(
-            block_id, cmd, client_instance, todo_id, message_id, timeout, root_path
+            blockId, cmd, client_instance, todoId, messageId, timeout, root_path
         )
+
+        # If block is pending tool approval, signal handler to suppress response
+        if blockId in _pending_tool_approvals:
+            return {"__awaiting_approval__": True, "tools": _pending_tool_approvals[blockId]}
+
         full_output = ""
-        while block_id in shell.processes:
+        while blockId in shell.processes:
             await asyncio.sleep(0.1)
-        if hasattr(shell, "_output_buffer") and block_id in shell._output_buffer:
-            full_output = shell._output_buffer[block_id].get_output()
-            del shell._output_buffer[block_id]
+        if hasattr(shell, "_output_buffer") and blockId in shell._output_buffer:
+            full_output = shell._output_buffer[blockId].get_output()
+            del shell._output_buffer[blockId]
         return {"cmd": cmd, "result": full_output}
     except Exception as error:
         logger.error(f"Error executing shell command: {str(error)}")
