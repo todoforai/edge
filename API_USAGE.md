@@ -67,7 +67,6 @@ asyncio.run(main())
 - `todo_id` - Optional todo ID (auto-generated if not provided)
 - `attachments` - List of file attachments
 - `scheduled_timestamp` - Schedule the todo for later
-- `allow_queue` - Allow queueing messages to running todos (default: False)
 
 ## Examples
 

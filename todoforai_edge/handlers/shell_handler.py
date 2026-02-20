@@ -540,7 +540,8 @@ class ShellProcess:
 
             # Send completion message
             await client.send_response(shell_block_done_result_msg(
-                todo_id, request_id, block_id, "execute", return_code, manual=manual
+                todo_id, request_id, block_id, "execute", return_code,
+                run_mode="manual" if manual else None
             ))
 
         except Exception as e:
@@ -548,7 +549,8 @@ class ShellProcess:
             # Send completion message even on error
             return_code = process.returncode if process.returncode is not None else -1
             await client.send_response(shell_block_done_result_msg(
-                todo_id, request_id, block_id, "execute", return_code, manual=manual
+                todo_id, request_id, block_id, "execute", return_code,
+                run_mode="manual" if manual else None
             ))
         finally:
             # Clean up

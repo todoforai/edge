@@ -6,7 +6,7 @@ import base64
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import requests
-from .handlers.shell_handler import ShellProcess, _pending_tool_approvals, _get_windows_shell
+from .handlers.shell_handler import _get_windows_shell
 from .handlers.path_utils import resolve_file_path
 from .errors import ExpectedFunctionError
 
@@ -155,33 +155,86 @@ FUNCTION_REGISTRY["createDirectory"] = create_directory
 
 @register_function("execute_shell_command")
 async def execute_shell_command(
-    cmd: str, timeout: int = 120, root_path: str = "", client_instance=None,
+    cmd: str, timeout: int = 120, root_path: str = "",
     todoId: str = "", messageId: str = "", blockId: str = "",
+    client_instance=None,
 ):
-    """Execute a shell command and return the full result when complete"""
-    if not client_instance:
-        raise ValueError("No client instance available")
-    try:
-        if not blockId or not todoId or not messageId:
-            raise ValueError(f"Missing block context: todoId={todoId!r} messageId={messageId!r} blockId={blockId!r}")
+    """Execute a shell command and return the full result when complete.
 
-        shell = ShellProcess()
+    Uses direct subprocess (NOT ShellProcess). Streams output via sh_msg_result
+    and sends sh_done(agentManaged=True) so the frontend knows execution finished.
+    The agent handles block finalization via BLOCK_UPDATE — the backend skips
+    finalizeBlock/continuation for agentManaged sh_done messages.
+    """
+    from .constants.messages import shell_block_message_result_msg, shell_block_done_result_msg
+    import tempfile
+
+    can_stream = bool(todoId and blockId and client_instance)
+
+    try:
+        # Determine working directory
+        default_cwd = os.path.join(tempfile.gettempdir(), "todoforai")
+        os.makedirs(default_cwd, exist_ok=True)
+        cwd = default_cwd
+        if root_path:
+            root_path = os.path.expanduser(root_path)
+            if os.path.isdir(root_path):
+                cwd = root_path
+
         logger.info(f"Executing shell command via function call: {cmd[:50]}...")
-        await shell.execute_block(
-            blockId, cmd, client_instance, todoId, messageId, timeout, root_path
+
+        if os.name == 'nt':
+            shell_cmd, _ = _get_windows_shell()
+            shell_cmd = shell_cmd + [cmd]
+        else:
+            shell_cmd = ['/bin/bash', '-c', cmd]
+
+        # Merge stderr into stdout so we stream everything in order
+        process = await asyncio.create_subprocess_exec(
+            *shell_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            cwd=cwd,
         )
 
-        # If block is pending tool approval, signal handler to suppress response
-        if blockId in _pending_tool_approvals:
-            return {"__awaiting_approval__": True, "tools": _pending_tool_approvals[blockId]}
-
         full_output = ""
-        while blockId in shell.processes:
-            await asyncio.sleep(0.1)
-        if hasattr(shell, "_output_buffer") and blockId in shell._output_buffer:
-            full_output = shell._output_buffer[blockId].get_output()
-            del shell._output_buffer[blockId]
+        try:
+            async def read_and_stream():
+                nonlocal full_output
+                while True:
+                    chunk = await process.stdout.read(4096)
+                    if not chunk:
+                        break
+                    text = chunk.decode("utf-8", errors="replace")
+                    full_output += text
+                    if can_stream:
+                        try:
+                            msg = shell_block_message_result_msg(todoId, blockId, text, messageId)
+                            await client_instance.send_response(msg)
+                        except Exception as e:
+                            logger.warning(f"Failed to stream shell output: {e}")
+
+            await asyncio.wait_for(read_and_stream(), timeout=timeout)
+            await process.wait()
+        except asyncio.TimeoutError:
+            process.kill()
+            await process.communicate()
+            raise ExpectedFunctionError(f"Shell command timed out after {timeout}s")
+
+        # Notify frontend that command finished (runMode="internal" skips backend finalization)
+        if can_stream:
+            return_code = process.returncode if process.returncode is not None else -1
+            try:
+                msg = shell_block_done_result_msg(
+                    todoId, messageId, blockId, "execute", return_code, run_mode="internal"
+                )
+                await client_instance.send_response(msg)
+            except Exception as e:
+                logger.warning(f"Failed to send sh_done: {e}")
+
         return {"cmd": cmd, "result": full_output}
+    except ExpectedFunctionError:
+        raise
     except Exception as error:
         logger.error(f"Error executing shell command: {str(error)}")
         raise ExpectedFunctionError(f"Shell command failed: {error}")

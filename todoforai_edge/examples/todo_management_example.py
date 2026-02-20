@@ -68,8 +68,7 @@ async def main():
             project_id=project_id,
             content="This is an additional message to the existing todo",
             agent_settings=agentSettings,
-            todo_id=todo1['id'],
-            allow_queue=True
+            todo_id=todo1['id']
         )
         print(f"Added message to todo: {todo1['id']}")
         

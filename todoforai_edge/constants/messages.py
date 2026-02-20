@@ -35,7 +35,7 @@ def shell_block_start_result_msg(todo_id, block_id, mode, message_id):
         }
     }
 
-def shell_block_done_result_msg(todo_id, message_id, block_id, mode, return_code, manual=False):
+def shell_block_done_result_msg(todo_id, message_id, block_id, mode, return_code, run_mode=None):
     payload = {
         "todoId": todo_id,
         "messageId": message_id,
@@ -43,8 +43,8 @@ def shell_block_done_result_msg(todo_id, message_id, block_id, mode, return_code
         "mode": mode,
         "return_code": return_code,
     }
-    if manual:
-        payload["manual"] = True
+    if run_mode:
+        payload["runMode"] = run_mode
     return {
         "type": EF.BLOCK_SH_DONE,
         "payload": payload,
