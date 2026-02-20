@@ -475,7 +475,6 @@ class TODOforAIEdge:
         todo_id: str = None, 
         attachments: List[Dict[str, Any]] = None,
         scheduled_timestamp: int = None,
-        allow_queue: bool = False,
     ) -> Todo:
         """Add a message to a todo, optionally creating the todo if it doesn't exist
         
@@ -486,8 +485,6 @@ class TODOforAIEdge:
             todo_id: Optional todo ID. If provided, will be used as custom ID for new todo
             attachments: Optional file attachments
             scheduled_timestamp: Optional scheduling timestamp
-            allow_queue: If True, allow adding messages to running todos (queue them)
-            
         Returns:
             Dict containing the message response and todo info
         """
@@ -503,9 +500,6 @@ class TODOforAIEdge:
             payload["todoId"] = todo_id
         if scheduled_timestamp:
             payload["scheduledTimestamp"] = scheduled_timestamp
-        if allow_queue:
-            payload["allowQueue"] = allow_queue
-        
         # Always use the project-scoped todo creation endpoint
         # This will either create a new todo or add to existing one based on todoId
         response = await async_request(self, 'post', f"/api/v1/projects/{project_id}/todos", payload)
