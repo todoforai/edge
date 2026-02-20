@@ -6,8 +6,8 @@ venv/
 *.pyc
 __pycache__/
 
-logs/mcp*.log
-logs/mcp*.log.gz
+logs/
+
 
 runs
 
@@ -20,5 +20,14 @@ uv.lock
 mcp*.json
 !mcp.json
 tasks.db
+
+# node tool installs
+edge_node/node_modules/
+edge_node/package-lock.json
+edge_node/yarn.lock
+scripts/node_modules/
+
+# misc
+mcp.json.bak
 
 CLAUDE.md
