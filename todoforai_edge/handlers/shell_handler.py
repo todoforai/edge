@@ -28,6 +28,8 @@ STREAM_LAST_CHARS = 10000
 # Make processes dictionary a global variable so it's shared across all instances
 _processes: Dict[str, subprocess.Popen] = {}
 _stdin_writers = {}  # Make stdin writers global too so all instances can access
+_output_buffers: Dict[str, 'OutputBuffer'] = {}  # Global output buffers for sync callers
+_completion_events: Dict[str, asyncio.Event] = {}  # Signalled when a block finishes
 # Blocks sent back for AWAITING_APPROVAL — on re-execute, install the approved tools
 _pending_tool_approvals: Dict[str, list] = {}  # block_id -> list of tool names
 
@@ -141,10 +143,10 @@ class OutputBuffer:
 class ShellProcess:
     def __init__(self):
         self.processes = _processes
-        self._output_buffer: Dict[str, OutputBuffer] = {}  # Add output buffer for sync calls
+        self._output_buffer = _output_buffers  # Use the shared global buffers
         self._stdin_writers = _stdin_writers  # Use the shared global writers
         
-    async def execute_block(self, block_id: str, content: str, client, todo_id: str, request_id: str, timeout: float, root_path: str = "", manual: bool = False):
+    async def execute_block(self, block_id: str, content: str, client, todo_id: str, request_id: str, timeout: float, root_path: str = "", manual: bool = False, run_mode: str = None):
         """Execute a shell command block and stream results back to client."""
         logger.info(f"Executing shell block {block_id} with content: {content[:50]}...")
         
@@ -185,6 +187,10 @@ class ShellProcess:
                         }
                     }
                 })
+                # Signal completion event so awaiting callers unblock
+                evt = _completion_events.get(block_id)
+                if evt:
+                    evt.set()
                 return  # wait for re-execute after approval
 
             if block_id in _pending_tool_approvals:
@@ -279,7 +285,7 @@ class ShellProcess:
             asyncio.create_task(self._handle_timeout(block_id, timeout, client, todo_id, request_id))
             
             # Start a task to wait for process completion - don't wait for it
-            asyncio.create_task(self._wait_for_process(process, block_id, client, todo_id, request_id, manual=manual))
+            asyncio.create_task(self._wait_for_process(process, block_id, client, todo_id, request_id, manual=manual, run_mode=run_mode))
             
             # Return immediately without waiting for any tasks
             return
@@ -291,6 +297,10 @@ class ShellProcess:
             await client.send_response(shell_block_message_result_msg(
                 todo_id, block_id, f"Error creating process: {str(e)}\n\nStacktrace:\n{stack_trace}", request_id
             ))
+            # Signal completion event so awaiting callers unblock
+            evt = _completion_events.get(block_id)
+            if evt:
+                evt.set()
 
     async def _handle_timeout(self, block_id: str, timeout: float, client, todo_id: str, request_id: str):
         """Handle timeout for a running process."""
@@ -522,8 +532,10 @@ class ShellProcess:
                     except Exception:
                         pass
 
-    async def _wait_for_process(self, process, block_id, client, todo_id, request_id, manual=False):
+    async def _wait_for_process(self, process, block_id, client, todo_id, request_id, manual=False, run_mode=None):
         """Wait for process to complete and send completion message."""
+        # Determine the run_mode for the done message
+        effective_run_mode = run_mode or ("manual" if manual else None)
         try:
             # Wait for process to complete
             return_code = await asyncio.get_event_loop().run_in_executor(None, process.wait)
@@ -541,7 +553,7 @@ class ShellProcess:
             # Send completion message
             await client.send_response(shell_block_done_result_msg(
                 todo_id, request_id, block_id, "execute", return_code,
-                run_mode="manual" if manual else None
+                run_mode=effective_run_mode
             ))
 
         except Exception as e:
@@ -550,7 +562,7 @@ class ShellProcess:
             return_code = process.returncode if process.returncode is not None else -1
             await client.send_response(shell_block_done_result_msg(
                 todo_id, request_id, block_id, "execute", return_code,
-                run_mode="manual" if manual else None
+                run_mode=effective_run_mode
             ))
         finally:
             # Clean up
@@ -563,4 +575,8 @@ class ShellProcess:
                     writer.close()
                 except Exception:
                     pass
+            # Signal completion event so awaiting callers (execute_shell_command) unblock
+            evt = _completion_events.get(block_id)
+            if evt:
+                evt.set()
             # Note: Don't delete _output_buffer here, let the sync caller handle it
