@@ -461,7 +461,7 @@ async def search_files(
     path: str = ".",
     root_path: str = "",
     max_results: int = 100,
-    file_type: str = "",
+    glob: str = "",
     case_sensitive: bool = False,
     client_instance=None,
     **_: Any,
@@ -486,8 +486,8 @@ async def search_files(
     cmd.append(f"--max-count={max_results}")
     if not case_sensitive:
         cmd.append("--ignore-case")
-    if file_type:
-        cmd.extend(["--type", file_type])
+    if glob:
+        cmd.extend(["--glob", glob])
     cmd.append(pattern)
     cmd.append(search_path)
 
