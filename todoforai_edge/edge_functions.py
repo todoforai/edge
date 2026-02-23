@@ -462,7 +462,7 @@ async def search_files(
     root_path: str = "",
     max_results: int = 100,
     glob: str = "",
-    case_sensitive: bool = False,
+    ignore_case: bool = True,
     client_instance=None,
     **_: Any,
 ):
@@ -484,7 +484,7 @@ async def search_files(
 
     cmd = [rg_path, "--no-heading", "--line-number", "--color=never"]
     cmd.append(f"--max-count={max_results}")
-    if not case_sensitive:
+    if ignore_case:
         cmd.append("--ignore-case")
     if glob:
         cmd.extend(["--glob", glob])
