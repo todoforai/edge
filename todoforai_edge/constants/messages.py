@@ -102,16 +102,6 @@ def task_action_update_msg(task_id, edge_id, status, message=None):
     }
 
 
-# Directory and file messages
-def dir_list_response_msg(todo_id, paths):
-    return {
-        "type": EF.EDGE_DIR_RESPONSE,
-        "payload": {
-            "todoId": todo_id,
-            "paths": paths
-        }
-    }
-
 
 def cd_response_msg(edge_id, path, request_id, success=True, error=None):
     payload = {
@@ -197,10 +187,6 @@ def general_result_msg(response_type: str, request_id: str, edge_id: str, succes
         "type": response_type,
         "payload": payload
     }
-
-def call_edge_method_result_msg(request_id: str, edge_id: str, success: bool, result: Any = None, error: str = None):
-    """Create a call edge method result message (frontend)"""
-    return general_result_msg(EF.CALL_EDGE_METHOD_RESULT, request_id, edge_id, success, result, error)
 
 def function_call_result_msg(request_id: str, edge_id: str, success: bool, result: Any = None, error: str = None, agent_id: str = None):
     """Create a function call result message (agent)"""

@@ -21,16 +21,13 @@ class Front2Edge:
 
     # Todo operations
     EDGE_CD = 'edge:cd'
-    EDGE_DIR_LIST = 'edge:dir'
     GET_FOLDERS = 'edge:get_folders'
 
     # Block operations
-    BLOCK_REFRESH = 'block:refresh'
     BLOCK_EXECUTE = 'block:execute'
     BLOCK_SAVE = 'block:save'
     BLOCK_KEYBOARD = 'block:keyboard'
     BLOCK_SIGNAL = 'block:signal'
-    BLOCK_FILE_WATCH = 'block:file_watch'
     BLOCK_MCP_EXECUTE = 'block:mcp_execute'  # MCP tool execution (fire-and-forget)
     FRONTEND_FILE_CHUNK_REQUEST = 'frontend:file_chunk_request'
 
@@ -41,7 +38,6 @@ class Front2Edge:
 # Agent to Edge Messages
 class Agent2Edge:
     CTX_JULIA_REQUEST = 'ctx:julia_request'
-    DIFF_FILE_REQUEST = 'diff:file_request'
     FILE_CHUNK_REQUEST = 'file:chunk_request'
     FUNCTION_CALL_REQUEST_AGENT = 'FUNCTION_CALL_REQUEST_AGENT'
 
@@ -49,7 +45,6 @@ class Agent2Edge:
 # Edge to Agent Messages
 class Edge2Agent:
     CTX_JULIA_RESULT = 'ctx:julia_result'
-    DIFF_FILE_RESULT = 'diff:file_result'
     FILE_CHUNK_RESULT = 'file:chunk_result'
     EDGE_DISCONNECTED = 'edge:disconnected'
     FUNCTION_CALL_RESULT_AGENT = 'FUNCTION_CALL_RESULT_AGENT'
@@ -64,7 +59,6 @@ class Edge2Front:
     EDGE_STATUS = 'edge:status'
 
     # Project responses
-    EDGE_DIR_RESPONSE = 'edge:dir_response'
     EDGE_CD_RESPONSE = 'edge:cd_response'
     EDGE_GET_FOLDERS_RESPONSE = 'edge:get_folders_response'
 
