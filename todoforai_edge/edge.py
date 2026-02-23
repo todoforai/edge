@@ -17,11 +17,10 @@ from .config import get_ws_url
 from .edge_config import EdgeConfig, FORBIDDEN_WORKSPACE_PATHS
 from .colors import Colors
 from .handlers.handlers import (
-    handle_todo_dir_list,
     handle_todo_cd,
     handle_block_execute,
     handle_block_save,
-    handle_block_refresh,
+    handle_block_signal,
     handle_block_keyboard,
     handle_task_action_new,
     handle_ctx_julia_request,
@@ -329,23 +328,20 @@ class TODOforAIEdge:
         elif msg_type == S2E.EDGE_CONFIG_UPDATE:  # Handle EDGE_CONFIG_UPDATE
             self._safe_create_task(self._handle_edge_config_update(payload), name="edge_config_update")
 
-        elif msg_type == FE.EDGE_DIR_LIST:
-            self._safe_create_task(handle_todo_dir_list(payload, self), name="dir_list")
-
         elif msg_type == FE.EDGE_CD:
             self._safe_create_task(handle_todo_cd(payload, self), name="cd")
 
         elif msg_type == FE.BLOCK_SAVE:
             self._safe_create_task(handle_block_save(payload, self), name="block_save")
 
-        elif msg_type == FE.BLOCK_REFRESH:
-            self._safe_create_task(handle_block_refresh(payload, self), name="block_refresh")
-
         elif msg_type == FE.BLOCK_EXECUTE:
             self._safe_create_task(handle_block_execute(payload, self), name="block_execute")
 
         elif msg_type == FE.BLOCK_KEYBOARD:
             self._safe_create_task(handle_block_keyboard(payload, self), name="block_keyboard")
+
+        elif msg_type == FE.BLOCK_SIGNAL:
+            self._safe_create_task(handle_block_signal(payload, self), name="block_signal")
 
         elif msg_type == FE.TASK_ACTION_NEW:
             self._safe_create_task(handle_task_action_new(payload, self), name="task_action_new")

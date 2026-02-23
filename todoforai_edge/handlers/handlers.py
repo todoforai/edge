@@ -21,7 +21,6 @@ from ..constants.messages import (
     shell_block_start_result_msg,
     block_error_result_msg,
     get_folders_response_msg,
-    dir_list_response_msg,
     cd_response_msg,
     block_save_result_msg,
     shell_block_message_result_msg,
@@ -92,6 +91,18 @@ async def handle_block_execute(payload, client):
         )
 
 
+async def handle_block_signal(payload, client):
+    """Handle block signal (interrupt/kill) request"""
+    block_id = payload.get("blockId")
+
+    try:
+        logger.info(f"Signal received for block {block_id}")
+        shell = ShellProcess()
+        shell.interrupt_block(block_id)
+    except Exception as error:
+        logger.error(f"Error sending signal: {str(error)}")
+
+
 async def handle_block_keyboard(payload, client):
     print("""Handle keyboard events""")
     block_id = payload.get("blockId")
@@ -157,33 +168,6 @@ async def handle_get_folders(payload, client):
             get_folders_response_msg(request_id, edge_id, [], [], f"{str(error)}")
         )
 
-
-async def handle_todo_dir_list(payload, client):
-    """Handle todo directory listing request"""
-    request_id = payload.get("requestId")
-    path = get_path_or_platform_default(payload.get("path", "."))
-    todo_id = payload.get("todoId", "")
-
-    try:
-        items = []
-        paths = []
-        for item in Path(path).iterdir():
-            item_type = "directory" if item.is_dir() else "file"
-            items.append({"name": item.name, "type": item_type})
-            paths.append(str(item))
-
-        # Use the new protocol structure
-        await client.send_response(dir_list_response_msg(todo_id, paths))
-    except Exception as error:
-        stack_trace = traceback.format_exc()
-        logger.error(
-            f"Error listing directory: {str(error)}\nStacktrace:\n{stack_trace}"
-        )
-        await client.send_response(
-            block_error_result_msg(
-                request_id, todo_id, f"{str(error)}\n\nStacktrace:\n{stack_trace}"
-            )
-        )
 
 
 async def handle_todo_cd(payload: Dict[str, Any], client: Any) -> None:
@@ -293,16 +277,6 @@ async def handle_block_save(payload, client):
             )
         )
 
-
-async def handle_block_refresh(payload, client):
-    """Handle block refresh request"""
-    block_id = payload.get("blockId")
-    todo_id = payload.get("todoId", "")
-    data = payload.get("data", "")
-
-    await client.send_response(
-        block_message_result_msg(todo_id, block_id, "REFRESHING")
-    )
 
 
 async def handle_task_action_new(payload, client):
