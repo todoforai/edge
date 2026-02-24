@@ -3,6 +3,7 @@ import asyncio
 import logging
 import platform
 import base64
+import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import requests
@@ -112,6 +113,96 @@ async def get_system_info():
         }
 
 
+@register_function("get_workspace_tree")
+async def get_workspace_tree(path: str, max_depth: int = 2):
+    """Shallow directory tree, tries `tree` command first, falls back to pure Python."""
+    import subprocess
+
+    root = Path(path).expanduser().resolve()
+    if not root.is_dir():
+        return {"tree": ""}
+
+    # Try external tree on Unix if available
+    if platform.system() != "Windows" and shutil.which("tree"):
+        try:
+            result = subprocess.run(
+                ["tree", "-L", str(max_depth), "--gitignore", "--dirsfirst", "-I", ".git"],
+                cwd=str(root), capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return {"tree": result.stdout.strip()}
+        except Exception:
+            pass
+
+    # Pure Python fallback
+    return {"tree": _python_tree(root, max_depth)}
+
+
+def _collect_gitignore_spec(root: Path):
+    """Collect all .gitignore files under root into a single pathspec matcher."""
+    import pathspec
+    patterns = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        # Don't descend into .git
+        dirnames[:] = [d for d in dirnames if d != ".git"]
+        if ".gitignore" in filenames:
+            gi_path = Path(dirpath) / ".gitignore"
+            try:
+                rel_dir = Path(dirpath).relative_to(root)
+                prefix = "" if rel_dir == Path(".") else str(rel_dir).replace(os.sep, "/") + "/"
+                for line in gi_path.read_text(errors="replace").splitlines():
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    # Prefix nested gitignore patterns with their directory
+                    if prefix:
+                        if line.startswith("!"):
+                            patterns.append("!" + prefix + line[1:])
+                        else:
+                            patterns.append(prefix + line)
+                    else:
+                        patterns.append(line)
+            except Exception:
+                pass
+    return pathspec.GitIgnoreSpec.from_lines(patterns) if patterns else None
+
+
+def _python_tree(root: Path, max_depth: int) -> str:
+    """Render a tree string with dirs first, respecting .gitignore and max_depth."""
+    spec = _collect_gitignore_spec(root)
+    lines = [root.name + "/"]
+
+    def _is_ignored(entry: Path) -> bool:
+        if entry.name == ".git":
+            return True
+        if spec is None:
+            return False
+        rel = str(entry.relative_to(root)).replace(os.sep, "/")
+        if entry.is_dir():
+            rel += "/"
+        return spec.match_file(rel)
+
+    def _walk(dir_path: Path, prefix: str, depth: int):
+        if depth > max_depth:
+            return
+        try:
+            entries = sorted(dir_path.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower()))
+        except PermissionError:
+            return
+        visible = [e for e in entries if not _is_ignored(e)]
+        for i, entry in enumerate(visible):
+            is_last = i == len(visible) - 1
+            connector = "└── " if is_last else "├── "
+            suffix = "/" if entry.is_dir() else ""
+            lines.append(f"{prefix}{connector}{entry.name}{suffix}")
+            if entry.is_dir():
+                extension = "    " if is_last else "│   "
+                _walk(entry, prefix + extension, depth + 1)
+
+    _walk(root, "", 1)
+    return "\n".join(lines)
+
+
 @register_function("get_os_aware_default_path")
 async def get_os_aware_default_path():
     """Return default path for the current OS: home directory if exists, else cwd"""
@@ -166,7 +257,7 @@ async def execute_shell_command(
     Sends sh_done with runMode="internal" so the backend skips finalization.
     """
     from .constants.messages import shell_block_start_result_msg
-    from .handlers.shell_handler import ShellProcess, _output_buffers, _completion_events
+    from .handlers.shell_handler import ShellProcess, _output_buffers, _completion_events, _pending_tool_approvals
 
     can_stream = bool(todoId and blockId and client_instance)
 
@@ -192,6 +283,13 @@ async def execute_shell_command(
             blockId, cmd, client_instance, todoId, messageId, timeout,
             root_path=root_path, run_mode="internal",
         )
+
+        # If execute_block sent AWAITING_APPROVAL for missing tools, don't
+        # return a result — let handle_function_call_request suppress the
+        # response so the block stays in AWAITING_APPROVAL until the user
+        # approves via the frontend.
+        if blockId in _pending_tool_approvals:
+            return {"__awaiting_approval__": True}
 
         # Wait for process to finish (signalled by _wait_for_process)
         try:
