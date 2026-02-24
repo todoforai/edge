@@ -120,22 +120,26 @@ async def get_workspace_tree(path: str, max_depth: int = 2):
 
     root = Path(path).expanduser().resolve()
     if not root.is_dir():
-        return {"tree": ""}
+        return {"tree": "", "is_git": False}
+
+    is_git = (root / ".git").is_dir()
 
     # Try external tree on Unix if available
     if platform.system() != "Windows" and shutil.which("tree"):
         try:
+            cmd = ["tree", "-L", str(max_depth), "--dirsfirst"]
+            if is_git:
+                cmd += ["--gitignore", "-I", ".git"]
             result = subprocess.run(
-                ["tree", "-L", str(max_depth), "--gitignore", "--dirsfirst", "-I", ".git"],
-                cwd=str(root), capture_output=True, text=True, timeout=5,
+                cmd, cwd=str(root), capture_output=True, text=True, timeout=5,
             )
             if result.returncode == 0 and result.stdout.strip():
-                return {"tree": result.stdout.strip()}
+                return {"tree": result.stdout.strip(), "is_git": is_git}
         except Exception:
             pass
 
     # Pure Python fallback
-    return {"tree": _python_tree(root, max_depth)}
+    return {"tree": _python_tree(root, max_depth), "is_git": is_git}
 
 
 def _collect_gitignore_spec(root: Path):
