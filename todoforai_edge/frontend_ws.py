@@ -235,6 +235,8 @@ class FrontendWebSocket:
                     block_info["blockId"] = block_id
                     block_info["todoId"] = todo_id
                     block_info["messageId"] = payload.get("messageId") or block_info.get("messageId")
+                    if "approvalContext" in updates:
+                        block_info["approvalContext"] = updates["approvalContext"]
                     self._pending_approvals.append((todo_id, block_info))
 
         if todo_id and todo_id in self._callbacks:
@@ -377,8 +379,8 @@ class FrontendWebSocket:
             # Wait for any running approval task to finish before returning
             if self._approval_task and not self._approval_task.done():
                 try:
-                    await asyncio.wait_for(self._approval_task, timeout=30)
-                except (asyncio.TimeoutError, asyncio.CancelledError):
+                    await self._approval_task
+                except (asyncio.CancelledError, Exception):
                     pass
             return self._completion_results.get(todo_id, {})
         finally:
