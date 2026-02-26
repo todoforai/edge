@@ -31,3 +31,5 @@ scripts/node_modules/
 mcp.json.bak
 
 CLAUDE.md
+bun/node_modules/
+bun/bun.lock
