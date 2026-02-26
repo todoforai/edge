@@ -80,10 +80,7 @@ class Edge2Front:
     
     
 class Edge2FrontAgent:
-    WORKSPACE_FILE_CREATE_SYNC = "workspace:file_create_sync"
-    WORKSPACE_FILE_MODIFY_SYNC = "workspace:file_modify_sync"
-    WORKSPACE_FILE_DELETE_SYNC = "workspace:file_delete_sync"
-    WORKSPACE_FILE_DONE = "workspace:file_done"
+    pass
 
 
 class Server2Edge:
