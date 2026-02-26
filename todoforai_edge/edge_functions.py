@@ -603,6 +603,20 @@ async def search_files(
         output = stdout.decode("utf-8", errors="replace")
 
         if proc.returncode == 0:
+            # Strip root_path prefix from results for cleaner display
+            if root_path and output:
+                prefix = root_path if root_path.endswith("/") else root_path + "/"
+                lines = []
+                for line in output.splitlines():
+                    if ":" in line:
+                        # Format: /full/path/to/file.ext:line_num:content
+                        file_part, _, rest = line.partition(":")
+                        if file_part.startswith(prefix):
+                            file_part = file_part[len(prefix):]
+                        lines.append(f"{file_part}:{rest}")
+                    else:
+                        lines.append(line)
+                output = "\n".join(lines)
             if len(output) > 100_000:
                 output = output[:100_000] + "\n... (output truncated)"
             return {"result": output}
