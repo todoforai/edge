@@ -603,17 +603,26 @@ async def search_files(
         output = stdout.decode("utf-8", errors="replace")
 
         if proc.returncode == 0:
-            # Strip root_path prefix from results for cleaner display
+            # Make paths relative if close, truncate long lines for cleaner display
             if root_path and output:
-                prefix = root_path if root_path.endswith("/") else root_path + "/"
                 lines = []
                 for line in output.splitlines():
                     if ":" in line:
                         # Format: /full/path/to/file.ext:line_num:content
                         file_part, _, rest = line.partition(":")
-                        if file_part.startswith(prefix):
-                            file_part = file_part[len(prefix):]
-                        lines.append(f"{file_part}:{rest}")
+                        # Try to make relative if within 2 levels, otherwise keep absolute
+                        try:
+                            rel_path = os.path.relpath(file_part, root_path)
+                            up_levels = rel_path.count("../")
+                            if up_levels <= 2:
+                                file_part = rel_path
+                        except (ValueError, TypeError):
+                            pass  # Keep absolute on error
+                        # Truncate very long lines (keep file:line but limit content)
+                        full_line = f"{file_part}:{rest}"
+                        if len(full_line) > 300:
+                            full_line = full_line[:300] + "..."
+                        lines.append(full_line)
                     else:
                         lines.append(line)
                 output = "\n".join(lines)

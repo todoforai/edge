@@ -160,18 +160,29 @@ register("search_files", async (args) => {
 
   if (code === 0) {
     let output = stdout;
-    // Strip root_path prefix from results for cleaner display
+    // Make paths relative if close, truncate long lines for cleaner display
     if (root_path && output) {
-      const prefix = root_path.endsWith("/") ? root_path : root_path + "/";
       const lines = output.split("\n").map(line => {
         if (line.includes(":")) {
           const colonIdx = line.indexOf(":");
           let filePart = line.slice(0, colonIdx);
           const rest = line.slice(colonIdx);
-          if (filePart.startsWith(prefix)) {
-            filePart = filePart.slice(prefix.length);
+          // Try to make relative if within 2 levels, otherwise keep absolute
+          try {
+            const relPath = path.relative(root_path, filePart);
+            const upLevels = (relPath.match(/\.\.\//g) || []).length;
+            if (upLevels <= 2) {
+              filePart = relPath;
+            }
+          } catch {
+            // Keep absolute on error
           }
-          return filePart + rest;
+          let fullLine = filePart + rest;
+          // Truncate very long lines (keep file:line but limit content)
+          if (fullLine.length > 300) {
+            fullLine = fullLine.slice(0, 300) + "...";
+          }
+          return fullLine;
         }
         return line;
       });
