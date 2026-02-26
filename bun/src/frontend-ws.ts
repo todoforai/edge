@@ -32,12 +32,10 @@ export class FrontendWebSocket {
     if (this.connected && this.ws) return true;
     return new Promise((resolve) => {
       const wsUrl = this.getWsUrl();
-      log("info", `Connecting to ${wsUrl}`);
       this.ws = new WebSocket(wsUrl, [this.apiKey], { maxPayload: 5 * 1024 * 1024 });
 
       this.ws.on("open", () => {
         this.connected = true;
-        log("info", "Connected");
         resolve(true);
       });
 
@@ -140,7 +138,6 @@ export class FrontendWebSocket {
   async waitForCompletion(
     todoId: string,
     callback?: (msgType: string, payload: any) => void,
-    timeout = 300,
   ): Promise<any> {
     if (!(await this.subscribe(todoId, callback))) {
       throw new Error(`Failed to subscribe to todo ${todoId}`);
@@ -155,16 +152,9 @@ export class FrontendWebSocket {
       return early;
     }
 
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.completionEvents.delete(todoId);
-        this.callbacks.delete(todoId);
-        reject(new Error(`Timeout waiting for todo ${todoId}`));
-      }, timeout * 1000);
-
+    return new Promise((resolve) => {
       this.completionEvents.set(todoId, {
         resolve: (v: any) => {
-          clearTimeout(timer);
           this.completionEvents.delete(todoId);
           this.completionResults.delete(todoId);
           this.callbacks.delete(todoId);
