@@ -187,10 +187,6 @@ class ShellProcess:
                         }
                     }
                 })
-                # Signal completion event so awaiting callers unblock
-                evt = _completion_events.get(block_id)
-                if evt:
-                    evt.set()
                 return  # wait for re-execute after approval
 
             if block_id in _pending_tool_approvals:
