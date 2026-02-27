@@ -129,7 +129,9 @@ export class TODOforAIEdge {
 
     if (!promptIfMissing) return false;
 
-    console.log("\x1b[33mPlease provide your API key\x1b[0m");
+    const frontendUrl = this.api.apiUrl.replace("://api.", "://");
+    console.log(`\x1b[33mPlease provide your API key\x1b[0m`);
+    console.log(`\x1b[36mGet one at: ${frontendUrl}/apikey\x1b[0m`);
     const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
     return new Promise((resolve) => {
       const ask = () => {
