@@ -45,7 +45,9 @@ function generateFingerprint(): string {
     identifiers.node = os.hostname();
   }
 
-  return Buffer.from(JSON.stringify(identifiers, Object.keys(identifiers).sort())).toString("base64");
+  const keys = Object.keys(identifiers).sort();
+  const json = "{" + keys.map(k => JSON.stringify(k) + ": " + JSON.stringify(identifiers[k])).join(", ") + "}";
+  return Buffer.from(json).toString("base64");
 }
 
 // ── Forbidden workspace paths ──
