@@ -47,6 +47,68 @@ register("get_system_info", async () => {
   return { system, shell };
 });
 
+register("get_workspace_tree", async (args) => {
+  const { path: p, max_depth = 2 } = args;
+  const root = path.resolve(p.replace(/^~/, process.env.HOME || "~"));
+  if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+    return { tree: "", is_git: false };
+  }
+
+  const isGit = fs.existsSync(path.join(root, ".git"));
+
+  // Try external tree command first (Unix-like systems)
+  if (process.platform !== "win32") {
+    try {
+      const { execSync } = await import("child_process");
+      // Check if tree is available
+      execSync("which tree", { encoding: "utf-8", stdio: "pipe" });
+      const cmd = ["tree", "-L", String(max_depth), "--dirsfirst"];
+      if (isGit) cmd.push("--gitignore", "-I", ".git");
+      const result = execSync(cmd.join(" "), {
+        cwd: root, encoding: "utf-8", timeout: 5000,
+        maxBuffer: 1024 * 1024, stdio: ["pipe", "pipe", "pipe"],
+      }).trim();
+      if (result) return { tree: result, is_git: isGit };
+    } catch { /* fall through to JS implementation */ }
+  }
+
+  // Pure JS fallback
+  const lines: string[] = [path.basename(root) + "/"];
+
+  function walk(dirPath: string, prefix: string, depth: number) {
+    if (depth > max_depth) return;
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    } catch { return; }
+
+    // Filter .git, sort dirs first then case-insensitive
+    const visible = entries
+      .filter(e => e.name !== ".git")
+      .sort((a, b) => {
+        const aDir = a.isDirectory() ? 0 : 1;
+        const bDir = b.isDirectory() ? 0 : 1;
+        if (aDir !== bDir) return aDir - bDir;
+        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      });
+
+    for (let i = 0; i < visible.length; i++) {
+      const entry = visible[i];
+      const isLast = i === visible.length - 1;
+      const connector = isLast ? "└── " : "├── ";
+      const suffix = entry.isDirectory() ? "/" : "";
+      lines.push(`${prefix}${connector}${entry.name}${suffix}`);
+      if (entry.isDirectory()) {
+        const extension = isLast ? "    " : "│   ";
+        walk(path.join(dirPath, entry.name), prefix + extension, depth + 1);
+      }
+    }
+  }
+
+  walk(root, "", 1);
+  return { tree: lines.join("\n"), is_git: isGit };
+});
+
 register("get_os_aware_default_path", async () => {
   let p = getPlatformDefaultDirectory();
   if (!p.endsWith(path.sep)) p += path.sep;
@@ -145,7 +207,7 @@ register("search_files", async (args) => {
   searchPath = path.resolve(searchPath);
   if (!fs.existsSync(searchPath)) throw new Error(`Search path does not exist: ${searchPath}`);
 
-  const cmd = [rgPath, "--no-heading", "--line-number", "--color=never", `--max-count=${max_results}`];
+  const cmd = [rgPath, "--no-heading", "--line-number", "--color=never"];
   if (ignore_case) cmd.push("--ignore-case");
   if (globPattern) cmd.push("--glob", globPattern);
   cmd.push(pattern, searchPath);
@@ -161,6 +223,11 @@ register("search_files", async (args) => {
 
   if (code === 0) {
     let output = stdout;
+    // Limit total number of result lines
+    const lines = output.split("\n").filter(l => l.trim());
+    if (lines.length > max_results) {
+      output = lines.slice(0, max_results).join("\n") + `\n... (${lines.length - max_results} more matches truncated)`;
+    }
     // Make paths relative if close, truncate long lines for cleaner display
     if (root_path && output) {
       const lines = output.split("\n").map(line => {
