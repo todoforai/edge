@@ -585,7 +585,6 @@ async def search_files(
         raise ExpectedFunctionError(f"Search path does not exist: {search_path}")
 
     cmd = [rg_path, "--no-heading", "--line-number", "--color=never"]
-    cmd.append(f"--max-count={max_results}")
     if ignore_case:
         cmd.append("--ignore-case")
     if glob:
@@ -603,10 +602,19 @@ async def search_files(
         output = stdout.decode("utf-8", errors="replace")
 
         if proc.returncode == 0:
+            # Limit total number of result lines
+            all_lines = [l for l in output.splitlines() if l.strip()]
+            if len(all_lines) > max_results:
+                truncated_count = len(all_lines) - max_results
+                all_lines = all_lines[:max_results]
+                truncation_msg = f"... ({truncated_count} more matches truncated)"
+            else:
+                truncation_msg = None
+            
             # Make paths relative if close, truncate long lines for cleaner display
-            if root_path and output:
+            if root_path:
                 lines = []
-                for line in output.splitlines():
+                for line in all_lines:
                     if ":" in line:
                         # Format: /full/path/to/file.ext:line_num:content
                         file_part, _, rest = line.partition(":")
@@ -626,6 +634,13 @@ async def search_files(
                     else:
                         lines.append(line)
                 output = "\n".join(lines)
+                if truncation_msg:
+                    output += f"\n{truncation_msg}"
+            else:
+                output = "\n".join(all_lines)
+                if truncation_msg:
+                    output += f"\n{truncation_msg}"
+            
             if len(output) > 100_000:
                 output = output[:100_000] + "\n... (output truncated)"
             return {"result": output}
