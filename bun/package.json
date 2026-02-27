@@ -1,10 +1,16 @@
 {
-  "name": "todoforai-edge",
-  "version": "0.1.0",
+  "name": "@todoforai/edge",
+  "version": "0.12.4",
   "type": "module",
+  "bin": {
+    "todoforai-edge": "dist/index.js"
+  },
+  "files": ["dist"],
   "scripts": {
+    "build": "bun build src/index.ts --target=node --outdir=dist --format=esm && echo '#!/usr/bin/env node' | cat - dist/index.js > dist/tmp && mv dist/tmp dist/index.js && chmod +x dist/index.js",
     "start": "bun run src/index.ts",
-    "dev": "bun --watch run src/index.ts --api-key $TODOFORAI_API_KEY_DEV --api-url http://localhost:4000"
+    "dev": "bun --watch run src/index.ts --api-key $TODOFORAI_API_KEY_DEV --api-url http://localhost:4000",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "node-pty": "^1.1.0",

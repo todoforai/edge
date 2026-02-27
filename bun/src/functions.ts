@@ -76,15 +76,13 @@ register("execute_shell_command", async (args, client) => {
 
   if (!canStream) {
     // Simple fallback
-    const proc = Bun.spawn(["bash", "-c", cmd], {
-      cwd: root_path || os.tmpdir(),
-      stdout: "pipe",
-      stderr: "pipe",
+    const { exec } = await import("child_process");
+    const result = await new Promise<string>((resolve) => {
+      exec(cmd, { cwd: root_path || os.tmpdir(), encoding: "utf-8", timeout: 120_000, maxBuffer: 10 * 1024 * 1024 }, (_err, stdout, stderr) => {
+        resolve((stdout || "") + (stderr || ""));
+      });
     });
-    const out = await new Response(proc.stdout).text();
-    const err = await new Response(proc.stderr).text();
-    await proc.exited;
-    return { cmd, result: out + err };
+    return { cmd, result };
   }
 
   // Streaming via ShellProcess
@@ -132,7 +130,8 @@ register("read_file_base64", async (args) => {
 
 register("search_files", async (args) => {
   const { pattern, path: p = ".", root_path = "", max_results = 100, glob: globPattern = "", ignore_case = true } = args;
-  const { which } = await import("bun");
+  const { execSync: execWhich } = await import("child_process");
+  const which = (bin: string) => { try { return execWhich(`which ${bin}`, { encoding: "utf-8" }).trim(); } catch { return null; } };
   let rgPath = which("rg");
   if (!rgPath) {
     // Auto-install ripgrep if missing
@@ -151,12 +150,14 @@ register("search_files", async (args) => {
   if (globPattern) cmd.push("--glob", globPattern);
   cmd.push(pattern, searchPath);
 
-  const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe" });
-  const [stdout, stderr] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ]);
-  const code = await proc.exited;
+  const { spawn: spawnChild } = await import("child_process");
+  const { stdout, stderr, code } = await new Promise<{ stdout: string; stderr: string; code: number }>((resolve) => {
+    const child = spawnChild(cmd[0], cmd.slice(1));
+    let out = "", err = "";
+    child.stdout?.on("data", (d: Buffer) => { out += d.toString(); });
+    child.stderr?.on("data", (d: Buffer) => { err += d.toString(); });
+    child.on("close", (exitCode) => resolve({ stdout: out, stderr: err, code: exitCode ?? 1 }));
+  });
 
   if (code === 0) {
     let output = stdout;

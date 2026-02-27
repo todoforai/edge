@@ -1,0 +1,34 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:   [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+
+jobs:
+  deploy-npm:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v2
+
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        registry-url: 'https://registry.npmjs.org'
+
+    - name: Install dependencies
+      run: cd bun && npm install
+
+    - name: Build
+      run: cd bun && npm run build
+
+    - name: Publish to npm
+      run: cd bun && npm publish --access public --provenance --ignore-scripts

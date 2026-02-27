@@ -117,7 +117,7 @@ export class TODOforAIEdge {
         }
         if (result.connectionError) {
           console.log(`\x1b[33mCannot reach server at ${this.api.apiUrl}, retrying in ${delay}s...\x1b[0m`);
-          await Bun.sleep(delay * 1000);
+          await new Promise(r => setTimeout(r, delay * 1000));
           delay = Math.min(delay * 2, 60);
           continue;
         }
@@ -358,7 +358,7 @@ export class TODOforAIEdge {
       if (attempt > 0 && attempt < maxAttempts) {
         const delay = Math.min(4 + attempt, 20);
         console.log(`[info] Reconnecting in ${delay}s...`);
-        await Bun.sleep(delay * 1000);
+        await new Promise(r => setTimeout(r, delay * 1000));
       }
     }
 

@@ -38,7 +38,8 @@ bump-version:
 	NEW_VERSION="$$MAJOR.$$MINOR.$$NEW_PATCH" && \
 	echo "Bumping version from $$VERSION to $$NEW_VERSION" && \
 	sed -i "s/version = \"$$VERSION\"/version = \"$$NEW_VERSION\"/" pyproject.toml && \
-	git add pyproject.toml && \
+	sed -i "s/\"version\": \"$$VERSION\"/\"version\": \"$$NEW_VERSION\"/" bun/package.json && \
+	git add pyproject.toml bun/package.json && \
 	git commit -m "Bump version to $$NEW_VERSION" && \
 	git push origin main && \
 	echo "Version updated to $$NEW_VERSION"
