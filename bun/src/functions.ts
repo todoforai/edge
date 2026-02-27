@@ -72,7 +72,38 @@ register("get_workspace_tree", async (args) => {
     } catch { /* fall through to JS implementation */ }
   }
 
-  // Pure JS fallback
+  // Pure JS fallback with gitignore support via `ignore` package
+  const ignore = (await import("ignore")).default;
+  const ig = ignore();
+
+  if (isGit) {
+    // Collect all .gitignore patterns with directory-relative prefixes
+    function scanGitignores(dir: string) {
+      const giPath = path.join(dir, ".gitignore");
+      if (fs.existsSync(giPath)) {
+        try {
+          const relDir = path.relative(root, dir).replace(/\\/g, "/");
+          const prefix = relDir === "" || relDir === "." ? "" : relDir + "/";
+          for (let line of fs.readFileSync(giPath, "utf-8").split("\n")) {
+            line = line.trim();
+            if (!line || line.startsWith("#")) continue;
+            if (prefix) {
+              ig.add(line.startsWith("!") ? "!" + prefix + line.slice(1) : prefix + line);
+            } else {
+              ig.add(line);
+            }
+          }
+        } catch {}
+      }
+      try {
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+          if (e.isDirectory() && e.name !== ".git") scanGitignores(path.join(dir, e.name));
+        }
+      } catch {}
+    }
+    scanGitignores(root);
+  }
+
   const lines: string[] = [path.basename(root) + "/"];
 
   function walk(dirPath: string, prefix: string, depth: number) {
@@ -82,9 +113,16 @@ register("get_workspace_tree", async (args) => {
       entries = fs.readdirSync(dirPath, { withFileTypes: true });
     } catch { return; }
 
-    // Filter .git, sort dirs first then case-insensitive
     const visible = entries
-      .filter(e => e.name !== ".git")
+      .filter(e => {
+        if (e.name === ".git") return false;
+        if (isGit) {
+          let rel = path.relative(root, path.join(dirPath, e.name)).replace(/\\/g, "/");
+          if (e.isDirectory()) rel += "/";
+          if (ig.ignores(rel)) return false;
+        }
+        return true;
+      })
       .sort((a, b) => {
         const aDir = a.isDirectory() ? 0 : 1;
         const bDir = b.isDirectory() ? 0 : 1;
