@@ -22,6 +22,9 @@ class Front2Edge:
     # Todo operations
     EDGE_CD = 'edge:cd'
     GET_FOLDERS = 'edge:get_folders'
+    EDGE_CREATE_FOLDER = 'edge:create_folder'
+    EDGE_DELETE_PATH = 'edge:delete_path'
+    EDGE_WRITE_FILE = 'edge:write_file'
 
     # Block operations
     BLOCK_EXECUTE = 'block:execute'
@@ -61,6 +64,9 @@ class Edge2Front:
     # Project responses
     EDGE_CD_RESPONSE = 'edge:cd_response'
     EDGE_GET_FOLDERS_RESPONSE = 'edge:get_folders_response'
+    EDGE_CREATE_FOLDER_RESPONSE = 'edge:create_folder_response'
+    EDGE_DELETE_PATH_RESPONSE = 'edge:delete_path_response'
+    EDGE_WRITE_FILE_RESPONSE = 'edge:write_file_response'
 
     # Block responses
     BLOCK_SAVE_RESULT = 'block:save_result'

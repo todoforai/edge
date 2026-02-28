@@ -30,6 +30,9 @@ from ..constants.messages import (
     function_call_result_msg,
     function_call_result_front_msg,
     block_mcp_result_msg,
+    create_folder_response_msg,
+    delete_path_response_msg,
+    write_file_response_msg,
 )
 from ..constants.constants import Edge2Agent as EA
 
@@ -602,6 +605,64 @@ async def handle_function_call_request_front(payload, client):
 async def handle_function_call_request_agent(payload, client):
     """Handle function call request from agent (wrapper)"""
     return await handle_function_call_request(payload, client)
+
+
+async def handle_create_folder(payload, client):
+    """Handle create folder request"""
+    import shutil
+    request_id = payload.get("requestId")
+    edge_id = payload.get("edgeId")
+    folder_path = payload.get("path")
+
+    try:
+        os.makedirs(folder_path, exist_ok=True)
+        await client.send_response(create_folder_response_msg(request_id, edge_id, True))
+    except Exception as error:
+        logger.error(f"Error creating folder: {str(error)}")
+        await client.send_response(create_folder_response_msg(request_id, edge_id, False, str(error)))
+
+
+async def handle_delete_path(payload, client):
+    """Handle delete file/folder request"""
+    import shutil
+    request_id = payload.get("requestId")
+    edge_id = payload.get("edgeId")
+    target_path = payload.get("path")
+
+    try:
+        if os.path.isdir(target_path):
+            shutil.rmtree(target_path)
+        elif os.path.exists(target_path):
+            os.remove(target_path)
+        else:
+            raise FileNotFoundError(f"Path does not exist: {target_path}")
+        await client.send_response(delete_path_response_msg(request_id, edge_id, True))
+    except Exception as error:
+        logger.error(f"Error deleting path: {str(error)}")
+        await client.send_response(delete_path_response_msg(request_id, edge_id, False, str(error)))
+
+
+async def handle_write_file(payload, client):
+    """Handle write file request (base64-encoded data)"""
+    import base64
+    request_id = payload.get("requestId")
+    edge_id = payload.get("edgeId")
+    dir_path = payload.get("path")
+    file_name = payload.get("fileName")
+    data_base64 = payload.get("dataBase64")
+
+    try:
+        file_path = os.path.join(dir_path, file_name)
+        dirname = os.path.dirname(file_path)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
+        file_data = base64.b64decode(data_base64)
+        with open(file_path, "wb") as f:
+            f.write(file_data)
+        await client.send_response(write_file_response_msg(request_id, edge_id, True))
+    except Exception as error:
+        logger.error(f"Error writing file: {str(error)}")
+        await client.send_response(write_file_response_msg(request_id, edge_id, False, str(error)))
 
 
 async def handle_block_mcp_execute(payload, client):

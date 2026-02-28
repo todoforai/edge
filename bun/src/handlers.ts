@@ -1,4 +1,5 @@
 import fs from "fs";
+import { mkdir, rm, writeFile } from "fs/promises";
 import path from "path";
 import { msg, EA, EF, type WsMessage } from "./constants.js";
 import { resolveFilePath, getPathOrDefault, WorkspacePathNotFoundError } from "./path-utils.js";
@@ -81,6 +82,46 @@ export async function handleGetFolders(payload: Record<string, any>, send: SendF
     await send(msg.getFoldersResponse(requestId, edgeId, folders, files, undefined, targetPath));
   } catch (e: any) {
     await send(msg.getFoldersResponse(requestId, edgeId, [], [], e.message));
+  }
+}
+
+// ── Create Folder ──
+
+export async function handleCreateFolder(payload: Record<string, any>, send: SendFn) {
+  const { requestId, edgeId, path: folderPath } = payload;
+  try {
+    await mkdir(folderPath, { recursive: true });
+    await send(msg.createFolderResponse(requestId, edgeId, true));
+  } catch (e: any) {
+    await send(msg.createFolderResponse(requestId, edgeId, false, e.message));
+  }
+}
+
+// ── Delete Path ──
+
+export async function handleDeletePath(payload: Record<string, any>, send: SendFn) {
+  const { requestId, edgeId, path: targetPath } = payload;
+  try {
+    await rm(targetPath, { recursive: true });
+    await send(msg.deletePathResponse(requestId, edgeId, true));
+  } catch (e: any) {
+    await send(msg.deletePathResponse(requestId, edgeId, false, e.message));
+  }
+}
+
+// ── Write File ──
+
+export async function handleWriteFile(payload: Record<string, any>, send: SendFn) {
+  const { requestId, edgeId, path: dirPath, fileName, dataBase64 } = payload;
+  try {
+    const filePath = path.join(dirPath, fileName);
+    const dir = path.dirname(filePath);
+    if (dir) fs.mkdirSync(dir, { recursive: true });
+    const buffer = Buffer.from(dataBase64, "base64");
+    await writeFile(filePath, buffer);
+    await send(msg.writeFileResponse(requestId, edgeId, true));
+  } catch (e: any) {
+    await send(msg.writeFileResponse(requestId, edgeId, false, e.message));
   }
 }
 

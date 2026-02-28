@@ -26,6 +26,9 @@ from .handlers.handlers import (
     handle_ctx_julia_request,
     handle_file_chunk_request,
     handle_get_folders,
+    handle_create_folder,
+    handle_delete_path,
+    handle_write_file,
     handle_function_call_request_front,
     handle_function_call_request_agent,
     handle_block_mcp_execute,
@@ -357,6 +360,15 @@ class TODOforAIEdge:
 
         elif msg_type == FE.GET_FOLDERS:
             self._safe_create_task(handle_get_folders(payload, self), name="get_folders")
+
+        elif msg_type == FE.EDGE_CREATE_FOLDER:
+            self._safe_create_task(handle_create_folder(payload, self), name="create_folder")
+
+        elif msg_type == FE.EDGE_DELETE_PATH:
+            self._safe_create_task(handle_delete_path(payload, self), name="delete_path")
+
+        elif msg_type == FE.EDGE_WRITE_FILE:
+            self._safe_create_task(handle_write_file(payload, self), name="write_file")
 
         elif msg_type == AE.FUNCTION_CALL_REQUEST_AGENT:
             self._safe_create_task(handle_function_call_request_agent(payload, self), name="function_call_agent")

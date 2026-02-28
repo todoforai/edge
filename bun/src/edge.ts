@@ -10,6 +10,9 @@ import {
   handleBlockSignal,
   handleBlockKeyboard,
   handleGetFolders,
+  handleCreateFolder,
+  handleDeletePath,
+  handleWriteFile,
   handleCd,
   handleFileChunkRequest,
   handleTaskActionNew,
@@ -272,6 +275,18 @@ export class TODOforAIEdge {
 
       case FE.GET_FOLDERS:
         run(() => handleGetFolders(payload, send));
+        break;
+
+      case FE.EDGE_CREATE_FOLDER:
+        run(() => handleCreateFolder(payload, send));
+        break;
+
+      case FE.EDGE_DELETE_PATH:
+        run(() => handleDeletePath(payload, send));
+        break;
+
+      case FE.EDGE_WRITE_FILE:
+        run(() => handleWriteFile(payload, send));
         break;
 
       case AE.FUNCTION_CALL_REQUEST_AGENT:

@@ -168,6 +168,24 @@ def get_folders_response_msg(request_id, edge_id, folders, files, error=None, ac
         "payload": payload
     }
 
+def create_folder_response_msg(request_id, edge_id, success, error=None):
+    payload = {"requestId": request_id, "edgeId": edge_id, "success": success}
+    if error:
+        payload["error"] = error
+    return {"type": EF.EDGE_CREATE_FOLDER_RESPONSE, "payload": payload}
+
+def delete_path_response_msg(request_id, edge_id, success, error=None):
+    payload = {"requestId": request_id, "edgeId": edge_id, "success": success}
+    if error:
+        payload["error"] = error
+    return {"type": EF.EDGE_DELETE_PATH_RESPONSE, "payload": payload}
+
+def write_file_response_msg(request_id, edge_id, success, error=None):
+    payload = {"requestId": request_id, "edgeId": edge_id, "success": success}
+    if error:
+        payload["error"] = error
+    return {"type": EF.EDGE_WRITE_FILE_RESPONSE, "payload": payload}
+
 def general_result_msg(response_type: str, request_id: str, edge_id: str, success: bool, result: Any = None, error: str = None, agent_id: str = None):
     """Create a generic result message for function calls"""
     payload = {
