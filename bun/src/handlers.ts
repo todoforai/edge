@@ -56,13 +56,13 @@ export async function handleGetFolders(payload: Record<string, any>, send: SendF
   const { requestId, edgeId } = payload;
   const rawPath = getPathOrDefault(payload.path);
   try {
+    const expandedPath = path.resolve(rawPath.replace(/^~/, process.env.HOME || "~"));
     let targetPath: string;
-    if (rawPath.endsWith(path.sep)) {
-      targetPath = rawPath.replace(/^~/, process.env.HOME || "~");
+    if (fs.existsSync(expandedPath) && fs.statSync(expandedPath).isDirectory()) {
+      targetPath = expandedPath;
     } else {
-      targetPath = path.dirname(rawPath.replace(/^~/, process.env.HOME || "~"));
+      targetPath = path.dirname(expandedPath);
     }
-    targetPath = path.resolve(targetPath);
 
     if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isDirectory()) {
       throw new Error(`No existing ancestor for path: ${rawPath}`);

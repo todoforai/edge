@@ -133,14 +133,13 @@ async def handle_get_folders(payload, client):
     path = get_path_or_platform_default(payload.get("path", "."))
 
     try:
-        # If path ends with separator, list contents of that directory
-        # If path doesn't end with separator, list contents of parent directory
-        if path.endswith(os.sep):
-            # Remove trailing separator and use as target directory
-            target_path = Path(path).expanduser()
+        # If the path is a directory, list its contents directly
+        # Otherwise fall back to listing the parent directory
+        expanded = Path(path).expanduser().resolve()
+        if expanded.exists() and expanded.is_dir():
+            target_path = expanded
         else:
-            # Use parent directory
-            target_path = Path(path).expanduser().parent
+            target_path = expanded.parent
 
         if not (target_path.exists() and target_path.is_dir()):
             raise FileNotFoundError(f"No existing ancestor for path: {path}")
