@@ -562,7 +562,8 @@ async def search_files(
     pattern: str,
     path: str = ".",
     root_path: str = "",
-    max_results: int = 100,
+    head: int = 100,
+    max_count: int = 5,
     glob: str = "",
     ignore_case: bool = True,
     client_instance=None,
@@ -587,6 +588,8 @@ async def search_files(
     cmd = [rg_path, "--no-heading", "--line-number", "--color=never"]
     if ignore_case:
         cmd.append("--ignore-case")
+    if max_count > 0:
+        cmd.append(f"--max-count={max_count}")
     if glob:
         cmd.extend(["--glob", glob])
     cmd.append(pattern)
@@ -604,9 +607,9 @@ async def search_files(
         if proc.returncode == 0:
             # Limit total number of result lines
             all_lines = [l for l in output.splitlines() if l.strip()]
-            if len(all_lines) > max_results:
-                truncated_count = len(all_lines) - max_results
-                all_lines = all_lines[:max_results]
+            if len(all_lines) > head:
+                truncated_count = len(all_lines) - head
+                all_lines = all_lines[:head]
                 truncation_msg = f"... ({truncated_count} more matches truncated)"
             else:
                 truncation_msg = None

@@ -46,9 +46,18 @@ function whichWithTools(name: string): string | null {
 
 // ── Find missing tools ──
 
-function findReferencedTools(content: string): string[] {
+/** Match tool names only in command position (start of line, after pipe, after && || ; $( ` xargs) */
+export function findReferencedTools(content: string): string[] {
   return Object.keys(TOOL_REGISTRY).filter(name => {
-    const re = new RegExp("\\b" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b");
+    const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Command position: start of string/line, or preceded by | && || ; $( ` xargs sudo env
+    const re = new RegExp(
+      String.raw`(?:^|[|;&\n]|&&|\|\||` +
+      String.raw`\$\(|` + "`" +
+      String.raw`|xargs\s+|sudo\s+|env\s+)\s*` +
+      esc + String.raw`\b`,
+      "m"
+    );
     return re.test(content);
   });
 }

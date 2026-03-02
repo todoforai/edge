@@ -229,7 +229,7 @@ register("read_file_base64", async (args) => {
 });
 
 register("search_files", async (args) => {
-  const { pattern, path: p = ".", root_path = "", max_results = 100, glob: globPattern = "", ignore_case = true } = args;
+  const { pattern, path: p = ".", root_path = "", head = 100, max_count = 5, glob: globPattern = "", ignore_case = true } = args;
   const { execSync: execWhich } = await import("child_process");
   const which = (bin: string) => { try { return execWhich(`which ${bin}`, { encoding: "utf-8" }).trim(); } catch { return null; } };
   let rgPath = which("rg");
@@ -247,6 +247,7 @@ register("search_files", async (args) => {
 
   const cmd = [rgPath, "--no-heading", "--line-number", "--color=never"];
   if (ignore_case) cmd.push("--ignore-case");
+  if (max_count > 0) cmd.push(`--max-count=${max_count}`);
   if (globPattern) cmd.push("--glob", globPattern);
   cmd.push(pattern, searchPath);
 
@@ -263,8 +264,8 @@ register("search_files", async (args) => {
     let output = stdout;
     // Limit total number of result lines
     const lines = output.split("\n").filter(l => l.trim());
-    if (lines.length > max_results) {
-      output = lines.slice(0, max_results).join("\n") + `\n... (${lines.length - max_results} more matches truncated)`;
+    if (lines.length > head) {
+      output = lines.slice(0, head).join("\n") + `\n... (${lines.length - head} more matches truncated)`;
     }
     // Make paths relative if close, truncate long lines for cleaner display
     if (root_path && output) {
