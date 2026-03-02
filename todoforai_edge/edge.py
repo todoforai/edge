@@ -459,9 +459,16 @@ class TODOforAIEdge:
         else:
             raise Exception(f"Failed to update todo {todo_id}")
 
-    async def list_agent_settings(self) -> List[AgentSettings]:
-        """List all user agent settings"""
-        response = await async_request(self, 'get', "/api/v1/agents")
+    async def list_agent_settings(self, workspace_path: str = None, name: str = None) -> List[AgentSettings]:
+        """List user agent settings, optionally filtered by workspace_path or name"""
+        from urllib.parse import urlencode
+        params = {}
+        if workspace_path:
+            params["workspacePath"] = workspace_path
+        if name:
+            params["name"] = name
+        qs = f"?{urlencode(params)}" if params else ""
+        response = await async_request(self, 'get', f"/api/v1/agents{qs}")
         if response:
             return response.json()
         else:

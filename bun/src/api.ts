@@ -71,8 +71,12 @@ export class ApiClient {
     return this.request("PUT", `/api/v1/todos/${todoId}`, { status });
   }
 
-  listAgentSettings() {
-    return this.request("GET", "/api/v1/agents");
+  listAgentSettings(filters?: { workspacePath?: string; name?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.workspacePath) params.set("workspacePath", filters.workspacePath);
+    if (filters?.name) params.set("name", filters.name);
+    const qs = params.toString();
+    return this.request("GET", `/api/v1/agents${qs ? `?${qs}` : ""}`);
   }
 
   getAgentSettings(id: string) {
