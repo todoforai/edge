@@ -135,6 +135,13 @@ export class TODOforAIEdge {
     const frontendUrl = this.api.apiUrl.replace("://api.", "://");
     console.log(`\x1b[33mPlease provide your API key\x1b[0m`);
     console.log(`\x1b[36mGet one at: ${frontendUrl}/apikey\x1b[0m`);
+
+    // If stdin is not a TTY (e.g. spawned as a sidecar with no terminal), exit instead of hanging
+    if (!process.stdin.isTTY) {
+      console.error("No API key provided and stdin is not interactive. Set TODOFORAI_API_KEY or pass --api-key.");
+      process.exit(1);
+    }
+
     const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
     return new Promise((resolve) => {
       const ask = () => {
