@@ -92,6 +92,7 @@ class TODOforAIEdge:
         self.heartbeat_task = None
         self.fingerprint = None
         self.mcp_collector = MCPCollector(self.edge_config)
+        self._pending_binaries: Dict[str, bytes] = {}
         self._frontend_ws = None
         self._extensions = []
         if getattr(config, 'fuse_enabled', True):
@@ -649,6 +650,15 @@ class TODOforAIEdge:
             
             # Process messages
             async for message in ws:
+                if isinstance(message, bytes):
+                    # Binary frame: first 36 bytes = UUID, rest = data
+                    if len(message) >= 36:
+                        binary_id = message[:36].decode('ascii')
+                        data = message[36:]
+                        self._pending_binaries[binary_id] = data
+                        # Auto-expire after 60s
+                        asyncio.get_event_loop().call_later(60, self._pending_binaries.pop, binary_id, None)
+                    continue
                 await self._handle_message(message)
 
     async def start(self):

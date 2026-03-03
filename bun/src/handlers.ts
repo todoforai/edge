@@ -111,13 +111,21 @@ export async function handleDeletePath(payload: Record<string, any>, send: SendF
 
 // ── Write File ──
 
-export async function handleWriteFile(payload: Record<string, any>, send: SendFn) {
-  const { requestId, edgeId, path: dirPath, fileName, dataBase64 } = payload;
+export async function handleWriteFile(payload: Record<string, any>, send: SendFn, pendingBinaries?: Map<string, Uint8Array>) {
+  const { requestId, edgeId, path: dirPath, fileName, binaryId, dataBase64 } = payload;
   try {
     const filePath = path.join(dirPath, fileName);
     const dir = path.dirname(filePath);
     if (dir) fs.mkdirSync(dir, { recursive: true });
-    const buffer = Buffer.from(dataBase64, "base64");
+    let buffer: Buffer | Uint8Array;
+    if (binaryId && pendingBinaries?.has(binaryId)) {
+      buffer = pendingBinaries.get(binaryId)!;
+      pendingBinaries.delete(binaryId);
+    } else if (dataBase64) {
+      buffer = Buffer.from(dataBase64, "base64");
+    } else {
+      throw new Error("No file data provided (neither binaryId nor dataBase64)");
+    }
     await writeFile(filePath, buffer);
     await send(msg.writeFileResponse(requestId, edgeId, true));
   } catch (e: any) {

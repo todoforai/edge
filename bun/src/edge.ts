@@ -200,6 +200,19 @@ export class TODOforAIEdge {
     }
   }
 
+  // ── Pending binary frames (binaryId → Uint8Array) ──
+  private pendingBinaries = new Map<string, Uint8Array>();
+
+  private storeBinaryFrame(frame: Uint8Array) {
+    if (frame.length < 36) return;
+    let id = '';
+    for (let i = 0; i < 36; i++) id += String.fromCharCode(frame[i]);
+    const data = frame.slice(36);
+    this.pendingBinaries.set(id, data);
+    // Auto-expire after 60s
+    setTimeout(() => this.pendingBinaries.delete(id), 60_000);
+  }
+
   // ── Message handling ──
 
   private async handleMessage(raw: string) {
@@ -286,7 +299,7 @@ export class TODOforAIEdge {
         break;
 
       case FE.EDGE_WRITE_FILE:
-        run(() => handleWriteFile(payload, send));
+        run(() => handleWriteFile(payload, send, this.pendingBinaries));
         break;
 
       case AE.FUNCTION_CALL_REQUEST_AGENT:
@@ -316,7 +329,12 @@ export class TODOforAIEdge {
         console.log("[info] WebSocket connected");
       });
 
-      this.ws.on("message", (data) => {
+      this.ws.on("message", (data, isBinary) => {
+        if (isBinary) {
+          const frame = data instanceof Buffer ? new Uint8Array(data) : new Uint8Array(data as ArrayBuffer);
+          this.storeBinaryFrame(frame);
+          return;
+        }
         this.handleMessage(data.toString()).catch(e => {
           if (e instanceof AuthenticationError || e instanceof ServerError) {
             this.ws?.close();

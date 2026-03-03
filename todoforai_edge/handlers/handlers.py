@@ -642,12 +642,13 @@ async def handle_delete_path(payload, client):
 
 
 async def handle_write_file(payload, client):
-    """Handle write file request (base64-encoded data)"""
+    """Handle write file request (binary frame or base64-encoded data)"""
     import base64
     request_id = payload.get("requestId")
     edge_id = payload.get("edgeId")
     dir_path = payload.get("path")
     file_name = payload.get("fileName")
+    binary_id = payload.get("binaryId")
     data_base64 = payload.get("dataBase64")
 
     try:
@@ -655,7 +656,12 @@ async def handle_write_file(payload, client):
         dirname = os.path.dirname(file_path)
         if dirname:
             os.makedirs(dirname, exist_ok=True)
-        file_data = base64.b64decode(data_base64)
+        if binary_id and hasattr(client, '_pending_binaries') and binary_id in client._pending_binaries:
+            file_data = client._pending_binaries.pop(binary_id)
+        elif data_base64:
+            file_data = base64.b64decode(data_base64)
+        else:
+            raise ValueError("No file data provided (neither binaryId nor dataBase64)")
         with open(file_path, "wb") as f:
             f.write(file_data)
         await client.send_response(write_file_response_msg(request_id, edge_id, True))
