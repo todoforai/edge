@@ -1,9 +1,50 @@
-import { spawn, type ChildProcess } from "child_process";
+import { spawn, execFileSync, type ChildProcess } from "child_process";
 import os from "os";
 import fs from "fs";
 import path from "path";
 import { msg, type WsMessage } from "./constants.js";
 import { findMissingTools, ensureTool, buildEnvWithTools } from "./tool-registry.js";
+
+const IS_WIN = os.platform() === "win32";
+
+// ── Shell detection (Windows support) ──
+
+function whichSync(name: string): string | null {
+  const dirs = (process.env.PATH || "").split(path.delimiter);
+  const exts = IS_WIN ? ["", ".exe", ".cmd", ".bat"] : [""];
+  for (const dir of dirs) {
+    for (const ext of exts) {
+      const full = path.join(dir, name + ext);
+      try {
+        fs.accessSync(full, fs.constants.X_OK);
+        return full;
+      } catch {}
+    }
+  }
+  return null;
+}
+
+interface ShellCommand { shell: string; args: string[]; prefix: string }
+
+function getShellCommand(content: string): ShellCommand {
+  if (!IS_WIN) return { shell: "/bin/bash", args: ["-c", content], prefix: "" };
+
+  // Try git bash first
+  const gitBash = "C:\\Program Files\\Git\\bin\\bash.exe";
+  if (fs.existsSync(gitBash)) return { shell: gitBash, args: ["-c", content], prefix: "" };
+
+  const bashPath = whichSync("bash");
+  if (bashPath) return { shell: bashPath, args: ["-c", content], prefix: "" };
+
+  const psPath = whichSync("powershell") || whichSync("pwsh");
+  if (psPath) {
+    const psPrefix = "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8;\n";
+    return { shell: psPath, args: ["-NoProfile", "-Command", psPrefix + content], prefix: "" };
+  }
+
+  // Fallback: cmd
+  return { shell: "cmd.exe", args: ["/c", "chcp 65001>nul && " + content], prefix: "" };
+}
 
 // Lazy-load node-pty so the module doesn't crash if native addon isn't built
 let ptySpawn: typeof import("node-pty").spawn | null = null;
@@ -180,9 +221,11 @@ export async function executeBlock(
       if (toStream) await send(msg.shellBlockResult(todoId, blockId, toStream, messageId));
     };
 
+    const sc = getShellCommand(content);
+
     if (ptySpawn) {
       // PTY mode (interactive, sudo support)
-      const pty = ptySpawn("/bin/bash", ["-c", content], {
+      const pty = ptySpawn(sc.shell, sc.args, {
         name: "xterm", cols: 200, rows: 50, cwd, env,
       });
       const handle: ProcHandle = { pty, pid: pty.pid };
@@ -192,8 +235,8 @@ export async function executeBlock(
       pty.onExit(async ({ exitCode }) => onExit(exitCode ?? -1, timer));
     } else {
       // Fallback: child_process pipes
-      const proc = spawn("/bin/bash", ["-c", content], {
-        cwd, stdio: ["pipe", "pipe", "pipe"], detached: true, env,
+      const proc = spawn(sc.shell, sc.args, {
+        cwd, stdio: ["pipe", "pipe", "pipe"], detached: !IS_WIN, env,
       });
       const handle: ProcHandle = { child: proc, pid: proc.pid! };
       processes.set(blockId, handle);
@@ -253,6 +296,8 @@ export function interruptBlock(blockId: string) {
           try { handle.pty?.kill("SIGKILL"); } catch {}
         }, 500);
       }, 1000);
+    } else if (IS_WIN) {
+      handle.child?.kill();
     } else {
       process.kill(-handle.pid, "SIGINT");
     }

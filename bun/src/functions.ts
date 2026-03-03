@@ -186,25 +186,31 @@ register("execute_shell_command", async (args, client) => {
   }
 
   // Streaming via ShellProcess
-  const send: SendFn = (m) => client.sendResponse(m);
-  await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
-  await executeBlock(blockId, cmd, send, todoId, messageId, timeout, root_path, false, "internal");
+  try {
+    const send: SendFn = (m) => client.sendResponse(m);
+    await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
+    await executeBlock(blockId, cmd, send, todoId, messageId, timeout, root_path, false, "internal");
 
-  // If awaiting tool approval, signal caller to suppress response
-  if (pendingToolApprovals.has(blockId)) {
-    return { __awaiting_approval__: true };
+    // If awaiting tool approval, signal caller to suppress response
+    if (pendingToolApprovals.has(blockId)) {
+      return { __awaiting_approval__: true };
+    }
+
+    await waitForCompletion(blockId, (timeout + 5) * 1000);
+    const output = getBlockOutput(blockId);
+    clearBlockOutput(blockId);
+    return { cmd, result: output };
+  } catch (e: any) {
+    throw e;
+  } finally {
+    clearBlockOutput(blockId);
   }
-
-  await waitForCompletion(blockId, (timeout + 5) * 1000);
-  const output = getBlockOutput(blockId);
-  clearBlockOutput(blockId);
-  return { cmd, result: output };
 });
 
 register("read_file", async (args) => {
   const { path: p, rootPath = "", fallbackRootPaths = [] } = args;
   const result = await readFileContent(p, rootPath, fallbackRootPaths);
-  if (!result.success) throw new Error(result.error);
+  if (!result.success) throw new Error(result.error || "Unknown read error");
   const { success, ...rest } = result;
   return rest;
 });
@@ -319,18 +325,27 @@ register("download_attachment", async (args, client) => {
   target = path.resolve(target);
   fs.mkdirSync(path.dirname(target), { recursive: true });
 
-  const data = Buffer.from(await res.arrayBuffer());
-  fs.writeFileSync(target, data);
-  return { path: target, bytes: data.length };
+  try {
+    const data = Buffer.from(await res.arrayBuffer());
+    fs.writeFileSync(target, data);
+    return { path: target, bytes: data.length };
+  } catch (e: any) {
+    throw new Error(`Download failed: ${e.message}`);
+  }
 });
 
 register("download_chat", async (args, client) => {
   if (!client) throw new Error("Client instance required");
-  const res = await fetch(`${client.apiUrl.replace(/\/+$/, "")}/api/v1/todos/${args.todoId}`, {
-    headers: { "x-api-key": client.apiKey },
-  });
-  if (!res.ok) throw new Error(`Backend responded with ${res.status}`);
-  return { todo: await res.json() };
+  try {
+    const res = await fetch(`${client.apiUrl.replace(/\/+$/, "")}/api/v1/todos/${args.todoId}`, {
+      headers: { "x-api-key": client.apiKey },
+    });
+    if (!res.ok) throw new Error(`Backend responded with ${res.status}: ${await res.text()}`);
+    return { todo: await res.json() };
+  } catch (e: any) {
+    if (e instanceof Error) throw e;
+    throw new Error(`Download chat failed: ${e.message}`);
+  }
 });
 
 register("register_attachment", async (args, client) => {
@@ -355,7 +370,7 @@ register("register_attachment", async (args, client) => {
     headers: { "x-api-key": client.apiKey },
     body: form,
   });
-  if (!res.ok) throw new Error(`Backend responded with ${res.status}`);
+  if (!res.ok) throw new Error(`Backend responded with ${res.status}: ${await res.text()}`);
   const payload = await res.json().catch(() => ({}));
   return { attachmentId: payload.attachmentId, response: payload };
 });

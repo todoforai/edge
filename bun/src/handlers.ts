@@ -4,6 +4,7 @@ import path from "path";
 import { msg, EA, EF, type WsMessage } from "./constants.js";
 import { resolveFilePath, getPathOrDefault, WorkspacePathNotFoundError } from "./path-utils.js";
 import { readFileContent } from "./files.js";
+import { saveDocxContent, saveXlsxContent } from "./docx-handler.js";
 import { executeBlock, sendInput, interruptBlock, type SendFn } from "./shell.js";
 import { FUNCTION_REGISTRY } from "./functions.js";
 import type { EdgeConfigData } from "./types.js";
@@ -41,9 +42,19 @@ export async function handleBlockSave(payload: Record<string, any>, send: SendFn
   const { blockId, todoId, filepath, rootPath, fallbackRootPaths = [], content, requestId } = payload;
   try {
     const resolved = resolveFilePath(filepath, rootPath, fallbackRootPaths);
-    const dir = path.dirname(resolved);
-    if (dir) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(resolved, content, "utf-8");
+    const ext = path.extname(resolved).toLowerCase();
+
+    if (ext === ".docx" || ext === ".xlsx") {
+      if (!fs.existsSync(resolved)) {
+        throw new Error(`Cannot create new ${ext} file from XML — file must already exist: ${filepath}`);
+      }
+      if (ext === ".docx") saveDocxContent(resolved, content);
+      else saveXlsxContent(resolved, content);
+    } else {
+      const dir = path.dirname(resolved);
+      if (dir) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(resolved, content, "utf-8");
+    }
     await send(msg.blockSaveResult(blockId, todoId, "SUCCESS", requestId));
   } catch (e: any) {
     await send(msg.blockSaveResult(blockId, todoId, `ERROR: ${e.message}`, requestId));
