@@ -1,85 +1,48 @@
-# TODO for AI Python Client
+# TODO for AI Edge
 
-This is a Python client for the TODO for AI service that runs as a background task. It connects to the server, authenticates, and handles file operations and shell script execution requests.
+Edge agent that connects to the TODO for AI server. Handles file operations, shell execution, DOCX/XLSX editing, and more.
 
 ## Desktop App
 
 The desktop app (Tauri) lives in a separate repo: [todoforai/edge-app](https://github.com/todoforai/edge-app)
 
-## Features
-
-- WebSocket connection to TODO for AI server
-- Authentication with API key
-- Automatic reconnection logic
-- File system operations (directory listing)
-- Shell script execution
-- Heartbeat mechanism to maintain connection
-- Command Line Interface (CLI)
-
 ## Installation
 
 Recommended guide: [Connect PC](https://todofor.ai/connect-pc)
 
-### From PyPI (Recommended)
-
-```bash
-pip install todoforai-edge-cli
-```
-
 ### Download Prebuilt Executables
 
-For desktop app downloads (Windows, macOS, Linux), see [todoforai/edge-app](https://github.com/todoforai/edge-app).
+See [todoforai/edge-app](https://github.com/todoforai/edge-app) for Windows, macOS, Linux downloads.
 
 ### From Source
 
 ```bash
 git clone https://github.com/todoforai/edge.git
-cd edge
-pip install -e .
+cd edge/bun
+bun install
+bun run src/index.ts --api-key YOUR_API_KEY
 ```
 
-## Usage
+### Compile Standalone Binary
 
 ```bash
-# Using an API key
-todoforai-edge-cli --api-key your-api-key
+cd bun
+bun build src/index.ts --compile --outfile dist/todoforai-edge
 ```
 
-### Environment Variables
-
-You can also set the following environment variable:
-
-- `TODO4AI_API_KEY`: Your API key for authentication
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes and releases.
-
 ## Development
-
-Set up your environment variables:
 
 ```bash
 export TODOFORAI_API_KEY="your-production-api-key"
 export TODOFORAI_API_KEY_DEV="your-local-dev-api-key"
-```
 
-Then run:
-```bash
 make run          # Production
-make run-test     # Local development
+make run-dev      # Local development
 ```
 
-## Let Us Know You're Using TODOforAI!
+## Previous Python Implementation
 
-We'd love to hear from you! If you're using TODOforAI in your projects or organization, please consider dropping us a quick note at marcellhavlik@todofor.ai. 
-
-Hearing about your use cases helps us:
-- Improve the product based on real-world usage
-- Prioritize features that matter to our community
-- Connect with users who might benefit from upcoming features
-
-This is completely optional and not required by our license, but your feedback is incredibly valuable to our small team!
+The original Python implementation is archived at [todoforai/edge-py](https://github.com/todoforai/edge-py).
 
 ## License
 

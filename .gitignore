@@ -1,35 +1,10 @@
 dist/
 build/
-venv/
-
-*.egg-info
-*.pyc
-__pycache__/
-
 logs/
-
-
-runs
-
 .env
 .vscode/settings.json
-
-uv.lock
-
-# Local MCP configs (may contain API keys)
-mcp*.json
-!mcp.json
 tasks.db
-
-# node tool installs
-edge_node/node_modules/
-edge_node/package-lock.json
-edge_node/yarn.lock
 scripts/node_modules/
-
-# misc
-mcp.json.bak
-
 CLAUDE.md
 bun/node_modules/
 bun/bun.lock
