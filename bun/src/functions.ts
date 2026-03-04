@@ -6,6 +6,7 @@ import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "
 import { executeBlock, waitForCompletion, getBlockOutput, clearBlockOutput, pendingToolApprovals, type SendFn } from "./shell.js";
 import { msg } from "./constants.js";
 import { ensureTool, buildEnvWithTools } from "./tool-registry.js";
+import { TOOL_REGISTRY } from "./tool-catalog.js";
 
 // ── Registry ──
 
@@ -45,6 +46,14 @@ register("get_system_info", async () => {
   }
   const shell = process.env.SHELL ? path.basename(process.env.SHELL) : "unknown";
   return { system, shell };
+});
+
+register("get_available_tools", async () => {
+  const tools: Record<string, string> = {};
+  for (const [name, [, type]] of Object.entries(TOOL_REGISTRY)) {
+    tools[name] = type;
+  }
+  return { tools };
 });
 
 register("get_workspace_tree", async (args) => {
