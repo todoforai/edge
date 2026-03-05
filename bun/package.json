@@ -10,7 +10,7 @@
     "build": "bun build src/index.ts --target=node --outdir=dist --format=esm && echo '#!/usr/bin/env node' | cat - dist/index.js > dist/tmp && mv dist/tmp dist/index.js && chmod +x dist/index.js",
     "compile": "bun build src/index.ts --compile --outfile dist/todoforai-edge",
     "start": "bun run src/index.ts",
-    "dev": "bun --watch run src/index.ts --api-key $TODOFORAI_API_KEY_DEV --api-url http://localhost:4000",
+    "dev": "bun run src/index.ts --api-key $TODOFORAI_API_KEY_DEV --api-url http://localhost:4000",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
