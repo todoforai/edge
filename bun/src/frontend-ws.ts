@@ -11,6 +11,8 @@ export class FrontendWebSocket {
   private callbacks = new Map<string, (msgType: string, payload: any) => void>();
   private completionEvents = new Map<string, { resolve: (v: any) => void }>();
   private completionResults = new Map<string, any>();
+  private pendingBlocks = new Map<string, Set<string>>(); // todoId → active blockIds
+  private lastReadyPayload = new Map<string, any>(); // todoId → last READY payload
 
   constructor(
     private apiUrl: string,
@@ -64,6 +66,8 @@ export class FrontendWebSocket {
     this.callbacks.clear();
     this.completionEvents.clear();
     this.completionResults.clear();
+    this.pendingBlocks.clear();
+    this.lastReadyPayload.clear();
   }
 
   private handleMessage(data: Record<string, any>) {
@@ -77,10 +81,44 @@ export class FrontendWebSocket {
       try { this.callbacks.get(todoId)!(msgType, payload); } catch {}
     }
 
-    if (msgType === "todo:msg_done" && todoId) {
-      this.completionResults.set(todoId, { type: msgType, payload, success: true });
-      this.completionEvents.get(todoId)?.resolve(this.completionResults.get(todoId));
+    // Track pending blocks: only real tool blocks (those needing approval) → add on AWAITING_APPROVAL, remove on terminal status
+    if (msgType === "BLOCK_UPDATE" && todoId && payload.blockId && payload.updates?.status === "AWAITING_APPROVAL") {
+      if (!this.pendingBlocks.has(todoId)) this.pendingBlocks.set(todoId, new Set());
+      this.pendingBlocks.get(todoId)!.add(payload.blockId);
     }
+    if (msgType === "BLOCK_UPDATE" && todoId && payload.blockId) {
+      const status = payload.updates?.status;
+      if (["COMPLETED", "DENIED", "FAILED", "ERROR"].includes(status)) {
+        this.pendingBlocks.get(todoId)?.delete(payload.blockId);
+        // If READY fired while this block was pending, that READY was intermediate
+        // (the AI's tool-call turn). Clear it — a new RUNNING→READY cycle will follow.
+        const pending = this.pendingBlocks.get(todoId);
+        if (!pending || pending.size === 0) {
+          this.lastReadyPayload.delete(todoId);
+        }
+      }
+    }
+
+    if (msgType === "todo:status" && todoId) {
+      const status = payload.status;
+      if (status === "RUNNING") {
+        this.lastReadyPayload.delete(todoId);
+      } else if (status === "READY" || status === "READY_CHECKED") {
+        const pending = this.pendingBlocks.get(todoId);
+        if (!pending || pending.size === 0) {
+          this.completionResults.set(todoId, { type: msgType, payload, success: true });
+          this.completionEvents.get(todoId)?.resolve(this.completionResults.get(todoId));
+        } else {
+          // Blocks still pending — remember this READY for when they complete
+          this.lastReadyPayload.set(todoId, payload);
+        }
+      } else if (["DONE", "CANCELLED", "CANCELLED_CHECKED", "ERROR", "ERROR_CHECKED"].includes(status)) {
+        const success = status === "DONE";
+        this.completionResults.set(todoId, { type: msgType, payload, success });
+        this.completionEvents.get(todoId)?.resolve(this.completionResults.get(todoId));
+      }
+    }
+
   }
 
   private async subscribe(todoId: string, callback?: (msgType: string, payload: any) => void): Promise<boolean> {
