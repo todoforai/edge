@@ -15,11 +15,19 @@ jobs:
         include:
           - os: ubuntu-22.04
             target: linux-x64
+            bun_target: ""
+          - os: ubuntu-22.04
+            target: linux-arm64
+            bun_target: "--target=bun-linux-arm64"
           - os: macos-latest
             target: macos-arm64
-          # macos-13 (Intel) runners retired by GitHub; re-add when available
+            bun_target: ""
+          - os: macos-latest
+            target: macos-x64
+            bun_target: "--target=bun-darwin-x64"
           - os: windows-latest
             target: windows-x64
+            bun_target: ""
 
     runs-on: ${{ matrix.os }}
 
@@ -37,9 +45,9 @@ jobs:
       run: |
         cd bun
         if [[ "${{ matrix.target }}" == windows-* ]]; then
-          bun build src/index.ts --compile --outfile dist/todoforai-edge.exe
+          bun build src/index.ts --compile ${{ matrix.bun_target }} --outfile dist/todoforai-edge.exe
         else
-          bun build src/index.ts --compile --outfile dist/todoforai-edge
+          bun build src/index.ts --compile ${{ matrix.bun_target }} --outfile dist/todoforai-edge
         fi
 
     - name: Package artifact
