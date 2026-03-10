@@ -1,0 +1,84 @@
+name: Build and Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: linux-x64
+          - os: macos-latest
+            target: macos-arm64
+          - os: macos-13
+            target: macos-x64
+          - os: windows-latest
+            target: windows-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@v2
+
+    - name: Install dependencies
+      run: cd bun && bun install
+
+    - name: Compile standalone binary
+      shell: bash
+      run: |
+        cd bun
+        if [[ "${{ matrix.target }}" == windows-* ]]; then
+          bun build src/index.ts --compile --outfile dist/todoforai-edge.exe
+        else
+          bun build src/index.ts --compile --outfile dist/todoforai-edge
+        fi
+
+    - name: Package artifact
+      shell: bash
+      run: |
+        mkdir -p release
+        if [[ "${{ matrix.target }}" == windows-* ]]; then
+          cp bun/dist/todoforai-edge.exe release/todoforai-edge-${{ matrix.target }}.exe
+        else
+          cp bun/dist/todoforai-edge release/todoforai-edge-${{ matrix.target }}
+          chmod +x release/todoforai-edge-${{ matrix.target }}
+        fi
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: todoforai-edge-${{ matrix.target }}
+        path: release/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Collect release files
+      run: |
+        mkdir -p release
+        find artifacts -type f -exec cp {} release/ \;
+        ls -la release/
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: release/*
+        generate_release_notes: true
