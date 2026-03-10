@@ -179,6 +179,16 @@ register("create_directory", async (args) => {
 FUNCTION_REGISTRY.set("getOSAwareDefaultPath", FUNCTION_REGISTRY.get("get_os_aware_default_path")!);
 FUNCTION_REGISTRY.set("createDirectory", FUNCTION_REGISTRY.get("create_directory")!);
 
+// Strip trailing `| tail -N` so the command streams fully,
+// then apply the line filter to the collected output before returning.
+// (head streams naturally — it emits first N lines immediately — so no need to strip it)
+function extractTrailingTail(cmd: string): { execCmd: string; postFilter?: (s: string) => string } {
+  const m = cmd.match(/^(.*?)\s*\|\s*tail\s+-(?:n\s*)?(\d+)\s*$/);
+  if (!m) return { execCmd: cmd };
+  const n = parseInt(m[2], 10);
+  return { execCmd: m[1], postFilter: (s) => s.split("\n").slice(-n).join("\n") };
+}
+
 register("execute_shell_command", async (args, client) => {
   const { cmd, timeout = 120, root_path = "", todoId = "", messageId = "", blockId = "" } = args;
   const canStream = !!(todoId && blockId && client);
@@ -194,11 +204,14 @@ register("execute_shell_command", async (args, client) => {
     return { cmd, result };
   }
 
+  // Strip trailing | tail so the raw command streams, then filter the result
+  const { execCmd, postFilter } = extractTrailingTail(cmd);
+
   // Streaming via ShellProcess
   try {
     const send: SendFn = (m) => client.sendResponse(m);
     await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
-    await executeBlock(blockId, cmd, send, todoId, messageId, timeout, root_path, false, "internal");
+    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, root_path, false, "internal");
 
     // If awaiting tool approval, signal caller to suppress response
     if (pendingToolApprovals.has(blockId)) {
@@ -206,8 +219,9 @@ register("execute_shell_command", async (args, client) => {
     }
 
     await waitForCompletion(blockId, (timeout + 5) * 1000);
-    const output = getBlockOutput(blockId);
+    let output = getBlockOutput(blockId);
     clearBlockOutput(blockId);
+    if (postFilter) output = postFilter(output);
     return { cmd, result: output };
   } catch (e: any) {
     throw e;
