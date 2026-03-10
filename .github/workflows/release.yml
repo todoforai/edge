@@ -17,8 +17,7 @@ jobs:
             target: linux-x64
           - os: macos-latest
             target: macos-arm64
-          - os: macos-13
-            target: macos-x64
+          # macos-13 (Intel) runners retired by GitHub; re-add when available
           - os: windows-latest
             target: windows-x64
 
