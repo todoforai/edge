@@ -197,7 +197,7 @@ register("execute_shell_command", async (args, client) => {
     // Simple fallback
     const { exec } = await import("child_process");
     const result = await new Promise<string>((resolve) => {
-      exec(cmd, { cwd: root_path || os.tmpdir(), encoding: "utf-8", timeout: 120_000, maxBuffer: 10 * 1024 * 1024 }, (_err, stdout, stderr) => {
+      exec(cmd, { cwd: root_path || os.tmpdir(), encoding: "utf-8", timeout: 120_000, maxBuffer: 10 * 1024 * 1024, env: buildEnvWithTools() }, (_err, stdout, stderr) => {
         resolve((stdout || "") + (stderr || ""));
       });
     });

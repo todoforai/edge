@@ -1,4 +1,4 @@
-/** Tool definitions: registry entries and binary download URL resolvers. */
+/** Tool definitions: registry entries, binary download URL resolvers, and tool info. */
 
 import os from "os";
 
@@ -69,6 +69,39 @@ export const TOOL_REGISTRY: Record<string, [string, string]> = {
   supabase: ["supabase", "binary"],
   stripe: ["stripe", "binary"],
   pscale: ["pscale", "binary"],
+};
+
+// ── Tool info: status checks, login commands, credential paths, and labels ──
+// statusCmd: exit 0 = authenticated (used to check if tool is logged in)
+// loginCmd:  interactive login command
+// credentialPaths: where credentials are stored (for backup/transfer across machines)
+//   Paths use ~ for $HOME. On transfer: copy these paths to the new machine to skip re-login.
+// label: human-readable service name
+
+export interface ToolInfo {
+  statusCmd: string;
+  loginCmd: string;
+  credentialPaths: string[];
+  label: string;
+}
+
+export const TOOL_INFO: Record<string, ToolInfo> = {
+  zele:       { statusCmd: 'zele whoami',                  loginCmd: 'zele login',          credentialPaths: ['~/.zele/sqlite.db'],                                          label: 'Mail (Gmail)' },
+  gh:         { statusCmd: 'gh auth status',               loginCmd: 'gh auth login',       credentialPaths: ['~/.config/gh/hosts.yml'],                                     label: 'GitHub' },
+  glab:       { statusCmd: 'glab auth status',             loginCmd: 'glab auth login',     credentialPaths: ['~/.config/glab-cli/config.yml'],                              label: 'GitLab' },
+  vercel:     { statusCmd: 'vercel whoami',                loginCmd: 'vercel login',        credentialPaths: ['~/.local/share/com.vercel.cli/auth.json'],                    label: 'Vercel' },
+  netlify:    { statusCmd: 'netlify status',               loginCmd: 'netlify login',       credentialPaths: ['~/.netlify/config.json'],                                     label: 'Netlify' },
+  firebase:   { statusCmd: 'firebase login:list',          loginCmd: 'firebase login',      credentialPaths: ['~/.config/configstore/firebase-tools.json'],                  label: 'Firebase' },
+  wrangler:   { statusCmd: 'wrangler whoami',              loginCmd: 'wrangler login',      credentialPaths: ['~/.config/.wrangler/config/default.toml'],                    label: 'Cloudflare' },
+  stripe:     { statusCmd: 'stripe config --list',         loginCmd: 'stripe login',        credentialPaths: ['~/.config/stripe/config.toml'],                               label: 'Stripe' },
+  aws:        { statusCmd: 'aws sts get-caller-identity',  loginCmd: 'aws configure',       credentialPaths: ['~/.aws/credentials', '~/.aws/config'],                       label: 'AWS' },
+  flyctl:     { statusCmd: 'flyctl auth whoami',           loginCmd: 'flyctl auth login',   credentialPaths: ['~/.fly/config.yml'],                                          label: 'Fly.io' },
+  supabase:   { statusCmd: 'supabase projects list',       loginCmd: 'supabase login',      credentialPaths: ['~/.config/supabase/access-token'],                            label: 'Supabase' },
+  railway:    { statusCmd: 'railway whoami',               loginCmd: 'railway login',       credentialPaths: ['~/.railway/config.json'],                                     label: 'Railway' },
+  pscale:     { statusCmd: 'pscale auth status',           loginCmd: 'pscale auth login',   credentialPaths: ['~/.config/planetscale/access-token'],                         label: 'PlanetScale' },
+  shopify:    { statusCmd: 'shopify auth info',            loginCmd: 'shopify auth login',  credentialPaths: ['~/.config/shopify/config.json'],                              label: 'Shopify' },
+  terraform:  { statusCmd: 'terraform login --help',       loginCmd: 'terraform login',     credentialPaths: ['~/.terraform.d/credentials.tfrc.json'],                       label: 'Terraform Cloud' },
+  vault:      { statusCmd: 'vault token lookup',           loginCmd: 'vault login',         credentialPaths: ['~/.vault-token'],                                             label: 'HashiCorp Vault' },
 };
 
 type UrlResult = [url: string, isArchive: boolean];
