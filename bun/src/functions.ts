@@ -6,7 +6,7 @@ import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "
 import { executeBlock, waitForCompletion, getBlockOutput, clearBlockOutput, pendingToolApprovals, type SendFn } from "./shell.js";
 import { msg } from "./constants.js";
 import { ensureTool, buildEnvWithTools } from "./tool-registry.js";
-import { TOOL_REGISTRY } from "./tool-catalog.js";
+import { TOOL_CATALOG } from "./tool-catalog.js";
 
 // ── Registry ──
 
@@ -50,8 +50,8 @@ register("get_system_info", async () => {
 
 register("get_available_tools", async () => {
   const tools: Record<string, string> = {};
-  for (const [name, [, type]] of Object.entries(TOOL_REGISTRY)) {
-    tools[name] = type;
+  for (const [name, { installer }] of Object.entries(TOOL_CATALOG)) {
+    tools[name] = installer;
   }
   return { tools };
 });

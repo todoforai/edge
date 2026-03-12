@@ -4,7 +4,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { execSync, spawnSync } from "child_process";
-import { TOOL_REGISTRY, BINARY_URL_FUNCS } from "./tool-catalog.js";
+import { TOOL_CATALOG, BINARY_URL_FUNCS } from "./tool-catalog.js";
 
 const TOOLS_DIR = path.join(os.homedir(), ".todoforai", "tools");
 
@@ -48,7 +48,7 @@ function whichWithTools(name: string): string | null {
 
 /** Match tool names only in command position (start of line, after pipe, after && || ; $( ` xargs) */
 export function findReferencedTools(content: string): string[] {
-  return Object.keys(TOOL_REGISTRY).filter(name => {
+  return Object.keys(TOOL_CATALOG).filter(name => {
     const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     // Command position: start of string/line, or preceded by | && || ; $( ` xargs sudo env
     const re = new RegExp(
@@ -183,14 +183,14 @@ const INSTALLERS: Record<string, (name: string, pkg: string) => void | Promise<v
 const installing = new Set<string>();
 
 export async function ensureTool(name: string): Promise<boolean> {
-  if (!(name in TOOL_REGISTRY)) return false;
+  if (!(name in TOOL_CATALOG)) return false;
   if (installing.has(name)) return false;
 
   installing.add(name);
   try {
     if (whichWithTools(name)) return false; // already installed
 
-    const [pkg, installerType] = TOOL_REGISTRY[name];
+    const { pkg, installer: installerType } = TOOL_CATALOG[name];
     const installFn = INSTALLERS[installerType];
     if (!installFn) { log("warn", `Unknown installer: ${installerType}`); return false; }
 

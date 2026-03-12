@@ -1,8 +1,8 @@
 /** Tool definitions: re-exports shared catalog + binary download URL resolvers (edge-only). */
 
 import os from "os";
-export { TOOL_REGISTRY, TOOL_INFO } from "../../../packages/shared-fbe/src/toolCatalog";
-export type { ToolInfo } from "../../../packages/shared-fbe/src/toolCatalog";
+export { TOOL_CATALOG } from "../../../packages/shared-fbe/src/toolCatalog";
+export type { ToolEntry, ToolInstaller } from "../../../packages/shared-fbe/src/toolCatalog";
 
 function arch(): string {
   const m = os.machine?.() || os.arch();
