@@ -311,6 +311,7 @@ export class TODOforAIEdge {
 
       case AE.FUNCTION_CALL_REQUEST_AGENT:
       case FE.FUNCTION_CALL_REQUEST_FRONT:
+        if (this.debug) console.log(`[edge] ← ${msgType} reqId=${payload.requestId} fn=${payload.functionName} cmd=${String(payload.args?.cmd || '').slice(0, 100)}`);
         run(() => handleFunctionCall(payload, send, this));
         break;
 
