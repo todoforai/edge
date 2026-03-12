@@ -1,6 +1,8 @@
-/** Tool definitions: registry entries, binary download URL resolvers, and tool info. */
+/** Tool definitions: re-exports shared catalog + binary download URL resolvers (edge-only). */
 
 import os from "os";
+export { TOOL_REGISTRY, TOOL_INFO } from "../../../packages/shared-fbe/src/toolCatalog";
+export type { ToolInfo } from "../../../packages/shared-fbe/src/toolCatalog";
 
 function arch(): string {
   const m = os.machine?.() || os.arch();
@@ -28,81 +30,6 @@ async function githubLatestTag(repo: string): Promise<string> {
   const data = await jsonGet(`https://api.github.com/repos/${repo}/releases/latest`);
   return data.tag_name;
 }
-
-// binary_name -> [package_spec, installer_type]
-export const TOOL_REGISTRY: Record<string, [string, string]> = {
-  "apollo-api": ["@todoforai/apollo-api", "npm"],
-  "google-play-api": ["@todoforai/google-play-api", "npm"],
-  zele: ["zele", "npm"],
-  netlify: ["netlify-cli", "npm"],
-  vercel: ["vercel", "npm"],
-  wrangler: ["wrangler", "npm"],
-  shopify: ["@shopify/cli", "npm"],
-  "datadog-ci": ["@datadog/datadog-ci", "npm"],
-  "sentry-cli": ["@sentry/cli", "npm"],
-  "todoai-cli": ["todoai-cli", "pip"],
-  firebase: ["firebase-tools", "npm"],
-  railway: ["@railway/cli", "npm"],
-  newman: ["newman", "npm"],
-  aws: ["awscli", "pip"],
-  jq: ["jq", "binary"],
-  yq: ["yq", "binary"],
-  rg: ["rg", "binary"],
-  fd: ["fd", "binary"],
-  bat: ["bat", "binary"],
-  glab: ["glab", "binary"],
-  lazygit: ["lazygit", "binary"],
-  stern: ["stern", "binary"],
-  kustomize: ["kustomize", "binary"],
-  terragrunt: ["terragrunt", "binary"],
-  vault: ["vault", "binary"],
-  sops: ["sops", "binary"],
-  age: ["age", "binary"],
-  duckdb: ["duckdb", "binary"],
-  k6: ["k6", "binary"],
-  gh: ["gh", "binary"],
-  cloudflared: ["cloudflared", "binary"],
-  kubectl: ["kubectl", "binary"],
-  helm: ["helm", "binary"],
-  terraform: ["terraform", "binary"],
-  flyctl: ["flyctl", "binary"],
-  supabase: ["supabase", "binary"],
-  stripe: ["stripe", "binary"],
-  pscale: ["pscale", "binary"],
-};
-
-// ── Tool info: status checks, login commands, credential paths, and labels ──
-// statusCmd: exit 0 = authenticated (used to check if tool is logged in)
-// loginCmd:  interactive login command
-// credentialPaths: where credentials are stored (for backup/transfer across machines)
-//   Paths use ~ for $HOME. On transfer: copy these paths to the new machine to skip re-login.
-// label: human-readable service name
-
-export interface ToolInfo {
-  statusCmd: string;
-  loginCmd: string;
-  credentialPaths: string[];
-  label: string;
-}
-
-export const TOOL_INFO: Record<string, ToolInfo> = {
-  zele:       { statusCmd: 'zele whoami',                  loginCmd: 'zele login',          credentialPaths: ['~/.zele/sqlite.db'],                                          label: 'Mail (Gmail)' },
-  gh:         { statusCmd: 'gh auth status',               loginCmd: 'gh auth login',       credentialPaths: ['~/.config/gh/hosts.yml'],                                     label: 'GitHub' },
-  glab:       { statusCmd: 'glab auth status',             loginCmd: 'glab auth login',     credentialPaths: ['~/.config/glab-cli/config.yml'],                              label: 'GitLab' },
-  vercel:     { statusCmd: 'vercel whoami',                loginCmd: 'vercel login',        credentialPaths: ['~/.local/share/com.vercel.cli/auth.json'],                    label: 'Vercel' },
-  netlify:    { statusCmd: 'netlify status',               loginCmd: 'netlify login',       credentialPaths: ['~/.netlify/config.json'],                                     label: 'Netlify' },
-  firebase:   { statusCmd: 'firebase login:list',          loginCmd: 'firebase login',      credentialPaths: ['~/.config/configstore/firebase-tools.json'],                  label: 'Firebase' },
-  wrangler:   { statusCmd: 'wrangler whoami',              loginCmd: 'wrangler login',      credentialPaths: ['~/.config/.wrangler/config/default.toml'],                    label: 'Cloudflare' },
-  stripe:     { statusCmd: 'stripe config --list',         loginCmd: 'stripe login',        credentialPaths: ['~/.config/stripe/config.toml'],                               label: 'Stripe' },
-  aws:        { statusCmd: 'aws sts get-caller-identity',  loginCmd: 'aws configure',       credentialPaths: ['~/.aws/credentials', '~/.aws/config'],                       label: 'AWS' },
-  flyctl:     { statusCmd: 'flyctl auth whoami',           loginCmd: 'flyctl auth login',   credentialPaths: ['~/.fly/config.yml'],                                          label: 'Fly.io' },
-  supabase:   { statusCmd: 'supabase projects list',       loginCmd: 'supabase login',      credentialPaths: ['~/.config/supabase/access-token'],                            label: 'Supabase' },
-  railway:    { statusCmd: 'railway whoami',               loginCmd: 'railway login',       credentialPaths: ['~/.railway/config.json'],                                     label: 'Railway' },
-  pscale:     { statusCmd: 'pscale auth status',           loginCmd: 'pscale auth login',   credentialPaths: ['~/.config/planetscale/access-token'],                         label: 'PlanetScale' },
-  shopify:    { statusCmd: 'shopify auth info',            loginCmd: 'shopify auth login',  credentialPaths: ['~/.config/shopify/config.json'],                              label: 'Shopify' },
-  terraform:  { statusCmd: 'terraform login --help',       loginCmd: 'terraform login',     credentialPaths: ['~/.terraform.d/credentials.tfrc.json'],                       label: 'Terraform Cloud' },
-  vault:      { statusCmd: 'vault token lookup',           loginCmd: 'vault login',         credentialPaths: ['~/.vault-token'],                                             label: 'HashiCorp Vault' },
-};
 
 type UrlResult = [url: string, isArchive: boolean];
 
