@@ -262,7 +262,7 @@ export class TODOforAIEdge {
         break;
 
       case FE.BLOCK_EXECUTE:
-        run(() => handleBlockExecute(payload, send));
+        run(() => handleBlockExecute(payload, send, this.edgeId));
         break;
 
       case FE.BLOCK_SAVE:

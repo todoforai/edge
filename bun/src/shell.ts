@@ -1,7 +1,6 @@
 import os from "os";
 import fs from "fs";
 import path from "path";
-import type { Subprocess } from "bun";
 import { msg, type WsMessage } from "./constants.js";
 import { findMissingTools, ensureTool, buildEnvWithTools } from "./tool-registry.js";
 
@@ -114,7 +113,7 @@ class OutputBuffer {
 
 // ── Global state ──
 
-type ProcHandle = { proc: Subprocess; pid: number };
+type ProcHandle = { proc: any; pid: number };
 const processes = new Map<string, ProcHandle>();
 const outputBuffers = new Map<string, OutputBuffer>();
 const completionResolvers = new Map<string, () => void>();
@@ -136,6 +135,7 @@ export async function executeBlock(
   rootPath: string,
   manual = false,
   runMode?: string,
+  edgeId?: string,
 ) {
   const buf = new OutputBuffer();
   outputBuffers.set(blockId, buf);
@@ -161,7 +161,7 @@ export async function executeBlock(
           todoId, blockId, messageId,
           updates: {
             status: "AWAITING_APPROVAL",
-            approvalContext: { source: "edge", toolInstalls: missing, workspace: cwd },
+            approvalContext: { source: "edge", toolInstalls: missing, workspace: cwd, edgeId },
           },
         },
       });
@@ -213,18 +213,13 @@ export async function executeBlock(
     const sc = getShellCommand(content);
 
     const proc = Bun.spawn([sc.shell, ...sc.args], {
-      cwd,
-      env,
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "pipe",
+      cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe",
     });
 
     const handle: ProcHandle = { proc, pid: proc.pid };
     processes.set(blockId, handle);
     const timer = startTimeout();
 
-    // Stream stdout and stderr concurrently
     const pipeStream = async (stream: ReadableStream<Uint8Array> | null) => {
       if (!stream) return;
       const decoder = new TextDecoder();
