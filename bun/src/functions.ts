@@ -189,6 +189,20 @@ function extractTrailingTail(cmd: string): { execCmd: string; postFilter?: (s: s
   return { execCmd: m[1], postFilter: (s) => s.split("\n").slice(-n).join("\n") };
 }
 
+// TODO(@havliktamas): This is a direct install path called from the frontend UI "install" button.
+// It bypasses the normal AI flow (shell.ts → findMissingTools → AWAITING_APPROVAL → ensureTool).
+// Works, but feels not fully native — the AI goes through approval, the UI button doesn't.
+// Consider whether these should converge into a single install mechanism.
+register("install_tool", async (args) => {
+  const { name } = args;
+  if (!name || !(name in TOOL_CATALOG)) return { success: false, error: `Unknown tool: ${name}` };
+  const installed = await ensureTool(name);
+  // ensureTool returns false both when already installed and on failure — check if available now
+  const { execSync } = await import("child_process");
+  const available = (() => { try { execSync(`which ${name}`, { env: buildEnvWithTools(), stdio: "pipe" }); return true; } catch { return false; } })();
+  return { success: available, tool: name, label: TOOL_CATALOG[name].label };
+});
+
 register("execute_shell_command", async (args, client) => {
   const { cmd, timeout = 120, root_path = "", todoId = "", messageId = "", blockId = "" } = args;
   const canStream = !!(todoId && blockId && client);
