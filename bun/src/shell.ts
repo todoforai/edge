@@ -1,7 +1,7 @@
-import { spawn, execFileSync, type ChildProcess } from "child_process";
 import os from "os";
 import fs from "fs";
 import path from "path";
+import type { Subprocess } from "bun";
 import { msg, type WsMessage } from "./constants.js";
 import { findMissingTools, ensureTool, buildEnvWithTools } from "./tool-registry.js";
 
@@ -24,35 +24,24 @@ function whichSync(name: string): string | null {
   return null;
 }
 
-interface ShellCommand { shell: string; args: string[]; prefix: string }
+interface ShellCommand { shell: string; args: string[] }
 
 function getShellCommand(content: string): ShellCommand {
-  if (!IS_WIN) return { shell: "/bin/bash", args: ["-c", content], prefix: "" };
+  if (!IS_WIN) return { shell: "/bin/bash", args: ["-c", content] };
 
-  // Try git bash first
   const gitBash = "C:\\Program Files\\Git\\bin\\bash.exe";
-  if (fs.existsSync(gitBash)) return { shell: gitBash, args: ["-c", content], prefix: "" };
+  if (fs.existsSync(gitBash)) return { shell: gitBash, args: ["-c", content] };
 
   const bashPath = whichSync("bash");
-  if (bashPath) return { shell: bashPath, args: ["-c", content], prefix: "" };
+  if (bashPath) return { shell: bashPath, args: ["-c", content] };
 
   const psPath = whichSync("powershell") || whichSync("pwsh");
   if (psPath) {
     const psPrefix = "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $OutputEncoding = [System.Text.Encoding]::UTF8;\n";
-    return { shell: psPath, args: ["-NoProfile", "-Command", psPrefix + content], prefix: "" };
+    return { shell: psPath, args: ["-NoProfile", "-Command", psPrefix + content] };
   }
 
-  // Fallback: cmd
-  return { shell: "cmd.exe", args: ["/c", "chcp 65001>nul && " + content], prefix: "" };
-}
-
-// Lazy-load node-pty so the module doesn't crash if native addon isn't built
-let ptySpawn: typeof import("node-pty").spawn | null = null;
-type IPty = import("node-pty").IPty;
-try {
-  ptySpawn = require("node-pty").spawn;
-} catch {
-  // Will fall back to child_process
+  return { shell: "cmd.exe", args: ["/c", "chcp 65001>nul && " + content] };
 }
 
 // ── Output buffer (first 10k stream, middle truncate, last 10k) ──
@@ -125,7 +114,7 @@ class OutputBuffer {
 
 // ── Global state ──
 
-type ProcHandle = { pty?: IPty; child?: ChildProcess; pid: number };
+type ProcHandle = { proc: Subprocess; pid: number };
 const processes = new Map<string, ProcHandle>();
 const outputBuffers = new Map<string, OutputBuffer>();
 const completionResolvers = new Map<string, () => void>();
@@ -223,32 +212,33 @@ export async function executeBlock(
 
     const sc = getShellCommand(content);
 
-    if (ptySpawn) {
-      // PTY mode (interactive, sudo support)
-      const pty = ptySpawn(sc.shell, sc.args, {
-        name: "xterm", cols: 200, rows: 50, cwd, env,
-      });
-      const handle: ProcHandle = { pty, pid: pty.pid };
-      processes.set(blockId, handle);
-      pty.onData(onData);
-      const timer = startTimeout();
-      pty.onExit(async ({ exitCode }) => onExit(exitCode ?? -1, timer));
-    } else {
-      // Fallback: child_process pipes
-      const proc = spawn(sc.shell, sc.args, {
-        cwd, stdio: ["pipe", "pipe", "pipe"], detached: !IS_WIN, env,
-      });
-      const handle: ProcHandle = { child: proc, pid: proc.pid! };
-      processes.set(blockId, handle);
-      proc.stdout?.on("data", (d: Buffer) => onData(d.toString("utf-8")));
-      proc.stderr?.on("data", (d: Buffer) => onData(d.toString("utf-8")));
-      const timer = startTimeout();
-      proc.on("close", (code) => onExit(code ?? -1, timer));
-      proc.on("error", (err) => {
-        send(msg.shellBlockResult(todoId, blockId, `Process error: ${err.message}`, messageId));
-        onExit(-1, timer);
-      });
-    }
+    const proc = Bun.spawn([sc.shell, ...sc.args], {
+      cwd,
+      env,
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    const handle: ProcHandle = { proc, pid: proc.pid };
+    processes.set(blockId, handle);
+    const timer = startTimeout();
+
+    // Stream stdout and stderr concurrently
+    const pipeStream = async (stream: ReadableStream<Uint8Array> | null) => {
+      if (!stream) return;
+      const decoder = new TextDecoder();
+      for await (const chunk of stream) {
+        await onData(decoder.decode(chunk, { stream: true }));
+      }
+    };
+
+    Promise.all([
+      pipeStream(proc.stdout as ReadableStream<Uint8Array>),
+      pipeStream(proc.stderr as ReadableStream<Uint8Array>),
+      proc.exited,
+    ]).then(([, , code]) => onExit(code ?? -1, timer))
+      .catch(() => onExit(-1, timer));
   } catch (e: any) {
     await send(msg.shellBlockResult(todoId, blockId, `Error creating process: ${e.message}`, messageId));
     const resolver = completionResolvers.get(blockId);
@@ -270,10 +260,8 @@ export async function sendInput(blockId: string, text: string): Promise<boolean>
 
   if (!text.endsWith("\n")) text += "\n";
 
-  if (handle.pty) {
-    handle.pty.write(text);
-  } else if (handle.child?.stdin && !handle.child.stdin.destroyed) {
-    handle.child.stdin.write(text);
+  if (handle.proc.stdin) {
+    handle.proc.stdin.write(text);
   } else {
     return false;
   }
@@ -287,25 +275,15 @@ export function interruptBlock(blockId: string) {
   if (!handle) return;
 
   try {
-    if (handle.pty) {
-      handle.pty.kill("SIGINT");
-      // Give it a moment, then force
+    handle.proc.kill(2); // SIGINT
+    setTimeout(() => {
+      try { handle.proc.kill(15); } catch {} // SIGTERM
       setTimeout(() => {
-        try { handle.pty?.kill("SIGTERM"); } catch {}
-        setTimeout(() => {
-          try { handle.pty?.kill("SIGKILL"); } catch {}
-        }, 500);
-      }, 1000);
-    } else if (IS_WIN) {
-      handle.child?.kill();
-    } else {
-      process.kill(-handle.pid, "SIGINT");
-    }
+        try { handle.proc.kill(9); } catch {} // SIGKILL
+      }, 500);
+    }, 1000);
   } catch {
-    try {
-      if (handle.pty) handle.pty.kill("SIGKILL");
-      else if (handle.child) handle.child.kill("SIGKILL");
-    } catch {}
+    try { handle.proc.kill(9); } catch {} // SIGKILL
   }
   processes.delete(blockId);
 }
