@@ -189,6 +189,13 @@ function extractTrailingTail(cmd: string): { execCmd: string; postFilter?: (s: s
   return { execCmd: m[1], postFilter: (s) => s.split("\n").slice(-n).join("\n") };
 }
 
+register("install_tool", async (args) => {
+  const { name } = args;
+  if (!name || !(name in TOOL_CATALOG)) return { success: false, error: `Unknown tool: ${name}` };
+  const installed = await ensureTool(name);
+  return { success: installed, tool: name, label: TOOL_CATALOG[name].label };
+});
+
 register("execute_shell_command", async (args, client) => {
   const { cmd, timeout = 120, root_path = "", todoId = "", messageId = "", blockId = "" } = args;
   const canStream = !!(todoId && blockId && client);
