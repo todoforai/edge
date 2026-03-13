@@ -134,7 +134,7 @@ export class TODOforAIEdge {
 
     const frontendUrl = this.api.apiUrl.replace("://api.", "://");
     console.log(`\x1b[33mPlease provide your API key\x1b[0m`);
-    console.log(`Get one at: ${frontendUrl}/apikey`);
+    console.log(`\x1b[36mGet one at:\x1b[0m ${frontendUrl}/apikey`);
 
     // If stdin is not a TTY (e.g. spawned as a sidecar with no terminal), exit instead of hanging
     if (!process.stdin.isTTY) {
