@@ -5,6 +5,7 @@ import os from "os";
 import { readFileContent } from "./files.js";
 
 const INPUT_DOCX = path.resolve(__dirname, "../../test/input.docx");
+const INPUT_PDF = path.resolve(__dirname, "../../test/input.pdf");
 
 describe("readFileContent", () => {
   test("read text file", async () => {
@@ -18,6 +19,15 @@ describe("readFileContent", () => {
     expect(result.content).toBe("hello world");
 
     fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("read .pdf extracts text", async () => {
+    const root = path.dirname(INPUT_PDF);
+    const result = await readFileContent(INPUT_PDF, root, []);
+    expect(result.success).toBe(true);
+    expect(result.contentType).toBe("text");
+    expect(result.content).toContain("Dummy PDF file");
+    expect(result.content).toContain("PAGE 1");
   });
 
   test("read .docx returns docx-xml", async () => {

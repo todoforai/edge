@@ -2,12 +2,13 @@ import fs from "fs";
 import path from "path";
 import { resolveFilePath, WorkspacePathNotFoundError } from "./path-utils.js";
 import { extractDocxContent, extractXlsxContent } from "./docx-handler.js";
+import { extractPdfContent } from "./pdf-handler.js";
 import mimetypesJson from "../../../packages/shared-fbe/src/mimetypes.json";
 
 const MAX_FILE_SIZE = 100_000; // 100KB
 const MAX_OFFICE_FILE_SIZE = 500_000; // 500KB
 const MAX_IMAGE_FILE_SIZE = 5_000_000; // 5MB
-const OFFICE_EXTENSIONS = new Set([".docx", ".xlsx"]);
+const OFFICE_EXTENSIONS = new Set([".docx", ".xlsx", ".pdf"]);
 
 // Derive from mimetypes.json (single source of truth)
 const EXT_TO_MIME = new Map(Object.entries(mimetypesJson.extensions).map(([ext, e]) => [`.${ext}`, (e as any).mime as string]));
@@ -58,6 +59,10 @@ export async function readFileContent(
       };
     }
 
+    if (ext === ".pdf") {
+      const content = await extractPdfContent(fullPath);
+      return { success: true, content, fullPath, contentType: "text" };
+    }
     if (ext === ".docx") {
       const content = extractDocxContent(fullPath);
       return { success: true, content, fullPath, contentType: "docx-xml" };

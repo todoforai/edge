@@ -159,21 +159,48 @@ function installWithNpm(name: string, pkg: string) {
 
 function installWithPip(name: string, pkg: string) {
   const venvDir = path.join(TOOLS_DIR, "venv");
-  const python = os.platform() === "win32"
+  const venvPython = os.platform() === "win32"
     ? path.join(venvDir, "Scripts", "python.exe")
     : path.join(venvDir, "bin", "python");
 
-  // Create venv if needed
-  if (!fs.existsSync(python)) {
+  const sysPy = whichWithTools("python3") || whichWithTools("python") || "python3";
+  let python: string = sysPy;
+  let useVenv = false;
+
+  // Check if existing venv has working pip
+  if (fs.existsSync(venvPython)) {
+    const check = spawnSync(venvPython, ["-m", "pip", "--version"], { stdio: "pipe", timeout: 5_000 });
+    if (check.status === 0) {
+      python = venvPython;
+      useVenv = true;
+    }
+  }
+
+  // Try creating venv if we don't have a working one
+  if (!useVenv) {
     log("info", `Creating venv at ${venvDir}`);
-    const py = whichWithTools("python3") || whichWithTools("python") || "python3";
-    spawnSync(py, ["-m", "venv", venvDir], { stdio: "pipe" });
+    const r = spawnSync(sysPy, ["-m", "venv", venvDir], { stdio: "pipe", timeout: 30_000 });
+    if (r.status === 0 && fs.existsSync(venvPython)) {
+      const check = spawnSync(venvPython, ["-m", "pip", "--version"], { stdio: "pipe", timeout: 5_000 });
+      if (check.status === 0) {
+        python = venvPython;
+        useVenv = true;
+      }
+    }
+  }
+
+  // Fallback to system python with --user
+  if (!useVenv) {
+    log("warn", `venv not usable, falling back to --user install`);
+    python = sysPy;
   }
 
   log("info", `Installing ${name} via pip (${pkg})`);
-  spawnSync(python, ["-m", "pip", "install", pkg], {
-    stdio: "pipe", timeout: 120_000,
-  });
+  const args = useVenv
+    ? ["-m", "pip", "install", pkg]
+    : ["-m", "pip", "install", "--user", pkg];
+  spawnSync(python, args, { stdio: "pipe", timeout: 120_000 });
+
 }
 
 const INSTALLERS: Record<string, (name: string, pkg: string) => void | Promise<void>> = {
@@ -228,6 +255,22 @@ export function scanCatalogTools(): Record<string, { installed: boolean; statusO
   const env = buildEnvWithTools();
 
   for (const [name, entry] of Object.entries(TOOL_CATALOG)) {
+    // "description" entries have no binary — check availability via statusCmd only
+    if (entry.installer === "description") {
+      if (entry.statusCmd) {
+        try {
+          const r = spawnSync("sh", ["-c", entry.statusCmd], { env, timeout: 10_000, encoding: "utf-8" });
+          result[name] = { installed: r.status === 0, authenticated: r.status === 0,
+            statusOutput: (r.stdout || r.stderr || "").toString().trim().slice(0, 200) };
+        } catch {
+          result[name] = { installed: false };
+        }
+      } else {
+        result[name] = { installed: true, authenticated: true };
+      }
+      continue;
+    }
+
     const binPath = whichWithTools(name);
     if (!binPath) {
       result[name] = { installed: false };
@@ -244,6 +287,9 @@ export function scanCatalogTools(): Record<string, { installed: boolean; statusO
       } catch {
         state.authenticated = false;
       }
+    } else {
+      // No statusCmd means no auth required — tool is ready once installed
+      state.authenticated = true;
     }
 
     result[name] = state;
