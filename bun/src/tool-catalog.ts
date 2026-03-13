@@ -70,15 +70,12 @@ export const BINARY_URL_FUNCS: Record<string, () => Promise<UrlResult>> = {
     return [`https://github.com/stripe/stripe-cli/releases/download/v${version}/stripe_${version}_${osName}_${a}.${ext}`, true];
   },
 
-  async jq() {
-    const a = arch(), s = system();
-    if (s === "windows") return [`https://github.com/jqlang/jq/releases/latest/download/jq-windows-${a}.exe`, false];
-    return [`https://github.com/jqlang/jq/releases/latest/download/jq-${s}-${a}`, false];
-  },
-  async yq() {
-    const a = arch(), s = system();
-    if (s === "windows") return [`https://github.com/mikefarah/yq/releases/latest/download/yq_${s}_${a}.exe`, false];
-    return [`https://github.com/mikefarah/yq/releases/latest/download/yq_${s}_${a}`, false];
+  async flyctl() {
+    const version = (await githubLatestTag("superfly/flyctl")).replace(/^v/, "");
+    const s = system(), a = arch() === "amd64" ? "x86_64" : "arm64";
+    const osName = { linux: "Linux", darwin: "macOS", windows: "Windows" }[s] || "Linux";
+    const ext = s === "windows" ? "zip" : "tar.gz";
+    return [`https://github.com/superfly/flyctl/releases/download/v${version}/flyctl_${version}_${osName}_${a}.${ext}`, true];
   },
 
   async glab() {
