@@ -94,5 +94,11 @@ export const BINARY_URL_FUNCS: Record<string, () => Promise<UrlResult>> = {
     return [`https://releases.hashicorp.com/vault/${data.current_version}/vault_${data.current_version}_${system()}_${arch()}.zip`, true];
   },
 
+  async rclone() {
+    const version = (await githubLatestTag("rclone/rclone")).replace(/^v/, "");
+    const s = system(), a = arch();
+    const ext = s === "windows" ? "zip" : "zip";
+    return [`https://github.com/rclone/rclone/releases/download/v${version}/rclone-v${version}-${s}-${a}.${ext}`, true];
+  },
 
 };
