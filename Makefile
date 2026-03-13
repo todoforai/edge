@@ -9,12 +9,10 @@ help:
 	@echo "  make deploy-latest     - Bump, push main, merge to prod"
 
 run:
-	@test -n "$$TODOFORAI_API_KEY" || (echo "Error: TODOFORAI_API_KEY not set" && exit 1)
-	cd bun && bun run src/index.ts --api-key $$TODOFORAI_API_KEY --api-url https://api.todofor.ai
+	cd bun && bun run src/index.ts --api-url https://api.todofor.ai
 
 run-dev:
-	@test -n "$$TODOFORAI_API_KEY_DEV" || (echo "Error: TODOFORAI_API_KEY_DEV not set" && exit 1)
-	cd bun && bun run src/index.ts --api-key $$TODOFORAI_API_KEY_DEV --api-url http://localhost:4000
+	cd bun && bun run src/index.ts --api-url http://localhost:4000
 
 build:
 	cd bun && bun run build
