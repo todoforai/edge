@@ -1,5 +1,5 @@
 import { loadConfig } from "./config.js";
-import { TODOforAIEdge } from "./edge.js";
+import { TODOforAIEdge, setGlobalEdgeInstance } from "./edge.js";
 import fs from "fs";
 import path from "path";
 import os from "os";

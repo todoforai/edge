@@ -428,6 +428,15 @@ export class TODOforAIEdge {
   }
 }
 
+// ── Global edge instance reference for functions ──
+let globalEdgeInstance: TODOforAIEdge | null = null;
+export function setGlobalEdgeInstance(edge: TODOforAIEdge) {
+  globalEdgeInstance = edge;
+}
+export function getGlobalEdgeInstance(): TODOforAIEdge | null {
+  return globalEdgeInstance;
+}
+
 // ── Error types ──
 
 class AuthenticationError extends Error {

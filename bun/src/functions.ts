@@ -7,6 +7,7 @@ import { executeBlock, waitForCompletion, getBlockOutput, clearBlockOutput, pend
 import { msg } from "./constants.js";
 import { ensureTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
 import { TOOL_CATALOG } from "./tool-catalog.js";
+import { getGlobalEdgeInstance } from "./edge.js";
 
 // ── Registry ──
 
@@ -69,6 +70,13 @@ register("install_tool", async (args) => {
   if (!installed) {
     return { success: false, error: `Failed to install ${name}` };
   }
+  
+  // Update edge config with new tool state
+  const edge = getGlobalEdgeInstance();
+  if (edge) {
+    edge.updateConfig({ installedTools: scanCatalogTools() });
+  }
+  
   return { success: true, tool: name, label: TOOL_CATALOG[name].label };
 });
 

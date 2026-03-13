@@ -163,7 +163,22 @@ function installWithPip(name: string, pkg: string) {
     ? path.join(venvDir, "Scripts", "python.exe")
     : path.join(venvDir, "bin", "python");
 
-  const sysPy = whichWithTools("python3") || whichWithTools("python") || "python3";
+  // Use system python directly (find absolute path, not from venv)
+  let sysPy = "/usr/bin/python3";
+  if (!fs.existsSync(sysPy)) {
+    sysPy = "/usr/bin/python";
+  }
+  if (!fs.existsSync(sysPy)) {
+    // Fallback to PATH, but filter out venv
+    const pathDirs = (process.env.PATH || "").split(path.delimiter).filter(d => !d.includes(".todoforai"));
+    for (const dir of pathDirs) {
+      const p3 = path.join(dir, "python3");
+      const p = path.join(dir, "python");
+      if (fs.existsSync(p3)) { sysPy = p3; break; }
+      if (fs.existsSync(p)) { sysPy = p; break; }
+    }
+  }
+
   let python: string = sysPy;
   let useVenv = false;
 
@@ -173,6 +188,10 @@ function installWithPip(name: string, pkg: string) {
     if (check.status === 0) {
       python = venvPython;
       useVenv = true;
+    } else {
+      // Venv exists but is broken, remove it
+      log("warn", `Removing broken venv at ${venvDir}`);
+      try { fs.rmSync(venvDir, { recursive: true, force: true }); } catch {}
     }
   }
 
@@ -199,7 +218,11 @@ function installWithPip(name: string, pkg: string) {
   const args = useVenv
     ? ["-m", "pip", "install", pkg]
     : ["-m", "pip", "install", "--user", pkg];
-  spawnSync(python, args, { stdio: "pipe", timeout: 120_000 });
+  const result = spawnSync(python, args, { stdio: "pipe", timeout: 120_000 });
+  
+  if (result.status !== 0) {
+    log("error", `Failed to install ${name}: ${result.stderr?.toString() || result.stdout?.toString()}`);
+  }
 
 }
 
@@ -267,6 +290,21 @@ export function scanCatalogTools(): Record<string, { installed: boolean; statusO
         }
       } else {
         result[name] = { installed: true, authenticated: true };
+      }
+      continue;
+    }
+
+    // For pip packages, check via statusCmd if available (Python modules don't create binaries)
+    if (entry.installer === "pip" && entry.statusCmd) {
+      try {
+        const r = spawnSync("sh", ["-c", entry.statusCmd], { env, timeout: 10_000, encoding: "utf-8" });
+        result[name] = { 
+          installed: r.status === 0, 
+          authenticated: r.status === 0,
+          statusOutput: (r.stdout || r.stderr || "").toString().trim().slice(0, 200) 
+        };
+      } catch {
+        result[name] = { installed: false };
       }
       continue;
     }
