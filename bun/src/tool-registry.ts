@@ -44,6 +44,20 @@ function whichWithTools(name: string): string | null {
   return null;
 }
 
+/** Check if a tool is installed (installer-aware). */
+function isToolInstalled(name: string): boolean {
+  const entry = TOOL_CATALOG[name];
+  if (!entry) return false;
+  
+  if (entry.installer === "pip") {
+    const checkCmd = entry.statusCmd || `python3 -c 'import ${entry.pkg.replace(/-/g, "_")}' 2>/dev/null`;
+    const r = spawnSync("sh", ["-c", checkCmd], { stdio: "pipe", timeout: 5_000 });
+    return r.status === 0;
+  }
+  
+  return whichWithTools(name) !== null;
+}
+
 // ── Find missing tools ──
 
 /** Match tool names only in command position (start of line, after pipe, after && || ; $( ` xargs) */
@@ -68,7 +82,7 @@ export function findReferencedTools(content: string): string[] {
 }
 
 export function findMissingTools(content: string): string[] {
-  return findReferencedTools(content).filter(name => !whichWithTools(name));
+  return findReferencedTools(content).filter(name => !isToolInstalled(name));
 }
 
 // ── Installers ──
@@ -243,7 +257,7 @@ export async function ensureTool(name: string): Promise<boolean> {
 
   installing.add(name);
   try {
-    if (whichWithTools(name)) return false; // already installed
+    if (isToolInstalled(name)) return false; // already installed
 
     const { pkg, installer: installerType } = TOOL_CATALOG[name];
     const installFn = INSTALLERS[installerType];
@@ -278,50 +292,20 @@ export function scanCatalogTools(): Record<string, { installed: boolean; statusO
   const env = buildEnvWithTools();
 
   for (const [name, entry] of Object.entries(TOOL_CATALOG)) {
-    // "description" entries have no binary — check availability via statusCmd only
-    if (entry.installer === "description") {
-      if (entry.statusCmd) {
-        try {
-          const r = spawnSync("sh", ["-c", entry.statusCmd], { env, timeout: 10_000, encoding: "utf-8" });
-          result[name] = { installed: r.status === 0, authenticated: r.status === 0,
-            statusOutput: (r.stdout || r.stderr || "").toString().trim().slice(0, 200) };
-        } catch {
-          result[name] = { installed: false };
-        }
-      } else {
-        result[name] = { installed: true, authenticated: true };
-      }
-      continue;
-    }
-
-    // For pip packages, check via statusCmd if available (Python modules don't create binaries)
-    if (entry.installer === "pip" && entry.statusCmd) {
-      try {
-        const r = spawnSync("sh", ["-c", entry.statusCmd], { env, timeout: 10_000, encoding: "utf-8" });
-        result[name] = { 
-          installed: r.status === 0, 
-          authenticated: r.status === 0,
-          statusOutput: (r.stdout || r.stderr || "").toString().trim().slice(0, 200) 
-        };
-      } catch {
-        result[name] = { installed: false };
-      }
-      continue;
-    }
-
-    const binPath = whichWithTools(name);
-    if (!binPath) {
+    // Use unified detection - pip packages need special handling
+    if (!isToolInstalled(name)) {
       result[name] = { installed: false };
       continue;
     }
 
+    // Tool is installed - now check authentication status
     const state: { installed: boolean; statusOutput?: string; authenticated?: boolean } = { installed: true };
 
     if (entry.statusCmd) {
       try {
         const r = spawnSync("sh", ["-c", entry.statusCmd], { env, timeout: 10_000, encoding: "utf-8" });
         state.authenticated = r.status === 0;
-        state.statusOutput = (r.stdout || r.stderr || "").trim().slice(0, 200);
+        state.statusOutput = (r.stdout || r.stderr || "").toString().trim().slice(0, 200);
       } catch {
         state.authenticated = false;
       }
