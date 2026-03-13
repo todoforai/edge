@@ -48,6 +48,11 @@ function whichWithTools(name: string): string | null {
 
 /** Match tool names only in command position (start of line, after pipe, after && || ; $( ` xargs) */
 export function findReferencedTools(content: string): string[] {
+  // Strip quoted strings so tool names inside "foo|stripe|bar" or 'stripe' aren't matched
+  const stripped = content
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''");
+
   return Object.keys(TOOL_CATALOG).filter(name => {
     const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     // Command position: start of string/line, or preceded by | && || ; $( ` xargs sudo env
@@ -58,7 +63,7 @@ export function findReferencedTools(content: string): string[] {
       esc + String.raw`\b`,
       "m"
     );
-    return re.test(content);
+    return re.test(stripped);
   });
 }
 
@@ -215,4 +220,34 @@ export async function ensureToolsForCommand(content: string): Promise<string[]> 
     if (await ensureTool(name)) installed.push(name);
   }
   return installed;
+}
+
+/** Scan all catalog tools: check binary presence and run statusCmd. */
+export function scanCatalogTools(): Record<string, { installed: boolean; statusOutput?: string; authenticated?: boolean }> {
+  const result: Record<string, { installed: boolean; statusOutput?: string; authenticated?: boolean }> = {};
+  const env = buildEnvWithTools();
+
+  for (const [name, entry] of Object.entries(TOOL_CATALOG)) {
+    const binPath = whichWithTools(name);
+    if (!binPath) {
+      result[name] = { installed: false };
+      continue;
+    }
+
+    const state: { installed: boolean; statusOutput?: string; authenticated?: boolean } = { installed: true };
+
+    if (entry.statusCmd) {
+      try {
+        const r = spawnSync("sh", ["-c", entry.statusCmd], { env, timeout: 10_000, encoding: "utf-8" });
+        state.authenticated = r.status === 0;
+        state.statusOutput = (r.stdout || r.stderr || "").trim().slice(0, 200);
+      } catch {
+        state.authenticated = false;
+      }
+    }
+
+    result[name] = state;
+  }
+
+  return result;
 }

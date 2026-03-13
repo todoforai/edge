@@ -19,6 +19,7 @@ import {
   handleCtxJuliaRequest,
   handleFunctionCall,
 } from "./handlers.js";
+import { scanCatalogTools } from "./tool-registry.js";
 import type { SendFn } from "./shell.js";
 
 // ── Fingerprint ──
@@ -82,7 +83,7 @@ export class TODOforAIEdge {
     isFileSystemEnabled: false,
   };
 
-  private configSyncableFields = ["workspacepaths", "name", "isShellEnabled", "isFileSystemEnabled"];
+  private configSyncableFields = ["workspacepaths", "name", "isShellEnabled", "isFileSystemEnabled", "installedTools"];
 
   constructor(config: Config) {
     this.api = new ApiClient(normalizeApiUrl(config.apiUrl), config.apiKey);
@@ -251,6 +252,7 @@ export class TODOforAIEdge {
         this.userId = payload.userId || "";
         this.edgeConfig.id = this.edgeId;
         console.log(`\x1b[32m\x1b[1m🔗 Connected edge=${this.edgeId} user=${this.userId}\x1b[0m`);
+        run(async () => this.updateConfig({ installedTools: scanCatalogTools() }));
         break;
 
       case S2E.EDGE_CONFIG_UPDATE:

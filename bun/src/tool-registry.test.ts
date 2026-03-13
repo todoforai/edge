@@ -18,6 +18,24 @@ describe("findReferencedTools - command position detection", () => {
     expect(findReferencedTools("name=stripe")).not.toContain("stripe");
   });
 
+  test("does NOT match tool names inside quoted strings (grep patterns, etc.)", () => {
+    const cmd = `ls /some/path | grep -iE "vercel|netlify|firebase|stripe|terraform|vault|duckdb|k6|helm" | head -30`;
+    const r = findReferencedTools(cmd);
+    expect(r).not.toContain("netlify");
+    expect(r).not.toContain("firebase");
+    expect(r).not.toContain("stripe");
+    expect(r).not.toContain("terraform");
+    expect(r).not.toContain("vault");
+    expect(r).not.toContain("duckdb");
+    expect(r).not.toContain("k6");
+    expect(r).not.toContain("helm");
+  });
+
+  test("does NOT match tool names inside single-quoted strings", () => {
+    expect(findReferencedTools("grep 'stripe' file.txt")).not.toContain("stripe");
+    expect(findReferencedTools("echo 'run jq here'")).not.toContain("jq");
+  });
+
   test("matches tool at start of command", () => {
     expect(findReferencedTools("stripe login")).toContain("stripe");
     expect(findReferencedTools("gh pr list")).toContain("gh");

@@ -86,5 +86,7 @@ export interface EdgeConfigData {
   status: string;
   isShellEnabled: boolean;
   isFileSystemEnabled: boolean;
+  /** Catalog tool states (installed, authenticated) — auto-scanned by edge */
+  installedTools?: Record<string, { installed: boolean; statusOutput?: string; authenticated?: boolean }>;
   createdAt?: string;
 }
