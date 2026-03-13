@@ -43,6 +43,31 @@ Functions available via the function call protocol:
 | `frontend:write_file` | Frontend → Edge | Write binary file |
 | `frontend:cd` | Frontend → Edge | Change workspace |
 
+## Runtime Environments
+
+The edge provides more than just shell access — it ships with managed runtime environments:
+
+### Python
+
+A Python venv is automatically created at `~/.todoforai/tools/venv/` and added to PATH.
+This means `python3` and `pip` are always available for:
+- Running `.py` scripts directly via `execute_shell_command`
+- Installing packages with `pip install`
+- Data processing, API calls, automation, web scraping
+- Any Python library ecosystem (numpy, pandas, requests, etc.)
+
+Python packages installed via the tool catalog (e.g. `tiktok-uploader`, `instagrapi`) also live in this venv.
+
+### Node.js / npm
+
+npm packages from the tool catalog are installed to `~/.todoforai/tools/node_modules/` with binaries in `.bin/`.
+
+### Native binaries
+
+Binary tools (e.g. `gh`, `rg`, `fd`, `duckdb`) are downloaded to `~/.todoforai/tools/bin/`.
+
+All three directories are prepended to PATH, so tools are available immediately after install.
+
 ## Compile Standalone Binary
 
 ```bash

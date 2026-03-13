@@ -56,6 +56,22 @@ register("get_available_tools", async () => {
   return { tools };
 });
 
+register("install_tool", async (args) => {
+  const { name } = args;
+  if (!name || !(name in TOOL_CATALOG)) {
+    return { success: false, error: `Unknown tool: ${name}` };
+  }
+  const scan = scanCatalogTools();
+  if (scan[name]?.installed) {
+    return { success: true, alreadyInstalled: true, tool: name };
+  }
+  const installed = await ensureTool(name);
+  if (!installed) {
+    return { success: false, error: `Failed to install ${name}` };
+  }
+  return { success: true, tool: name, label: TOOL_CATALOG[name].label };
+});
+
 register("get_workspace_tree", async (args) => {
   const { path: p, max_depth = 2 } = args;
   const root = path.resolve(p.replace(/^~/, process.env.HOME || "~"));
@@ -188,12 +204,6 @@ function extractTrailingTail(cmd: string): { execCmd: string; postFilter?: (s: s
   const n = parseInt(m[2], 10);
   return { execCmd: m[1], postFilter: (s) => s.split("\n").slice(-n).join("\n") };
 }
-
-// NOTE: install_tool is intentionally NOT registered as a public function.
-// Tool installation should go through the normal AI approval flow:
-// shell.ts → findMissingTools → AWAITING_APPROVAL → ensureTool
-// This ensures proper permission checking and user consent.
-// The frontend UI should trigger this flow rather than calling install_tool directly.
 
 register("execute_shell_command", async (args, client) => {
   const { cmd, timeout = 120, root_path = "", todoId = "", messageId = "", blockId = "" } = args;
