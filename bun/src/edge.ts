@@ -353,10 +353,16 @@ export class TODOforAIEdge {
         });
       });
 
-      this.ws.on("close", () => {
+      this.ws.on("close", (code, reason) => {
         this.connected = false;
         this.ws = null;
-        resolve();
+        if (code === 4001) {
+          const msg = reason?.toString() || 'Another edge is already connected';
+          console.log(`\x1b[33m[info] ${msg}. Not reconnecting.\x1b[0m`);
+          reject(new ServerError(msg));
+        } else {
+          resolve();
+        }
       });
 
       this.ws.on("error", (err) => {
