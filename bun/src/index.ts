@@ -35,6 +35,7 @@ async function main() {
   }
 
   const edge = new TODOforAIEdge(config);
+  setGlobalEdgeInstance(edge);
   await edge.ensureApiKey(true);
 
   const lp = lockPath(config.apiUrl, edge.userId);
