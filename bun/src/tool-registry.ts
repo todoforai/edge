@@ -166,9 +166,12 @@ function findFileRecursive(dir: string, names: Set<string>): string | null {
 function installWithNpm(name: string, pkg: string) {
   const npm = whichWithTools("npm") || "npm";
   log("info", `Installing ${name} via npm (${pkg})`);
-  spawnSync(npm, ["install", "--prefix", TOOLS_DIR, pkg], {
+  const result = spawnSync(npm, ["install", "--prefix", TOOLS_DIR, pkg], {
     stdio: "pipe", timeout: 120_000,
   });
+  if (result.status !== 0) {
+    throw new Error(`npm install failed: ${result.stderr?.toString() || result.stdout?.toString() || `exit code ${result.status}`}`);
+  }
 }
 
 function installWithPip(name: string, pkg: string) {
