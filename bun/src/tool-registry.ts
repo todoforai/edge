@@ -276,6 +276,35 @@ export async function ensureTool(name: string): Promise<boolean> {
   }
 }
 
+export function uninstallTool(name: string): boolean {
+  if (!(name in TOOL_CATALOG)) return false;
+  const { pkg, installer: installerType } = TOOL_CATALOG[name];
+
+  try {
+    if (installerType === "binary") {
+      const exts = os.platform() === "win32" ? ["", ".exe"] : [""];
+      for (const ext of exts) {
+        const p = path.join(binDir(), name + ext);
+        if (fs.existsSync(p)) fs.unlinkSync(p);
+      }
+    } else if (installerType === "npm") {
+      const npm = whichWithTools("npm") || "npm";
+      spawnSync(npm, ["uninstall", "--prefix", TOOLS_DIR, pkg], { stdio: "pipe", timeout: 30_000 });
+    } else if (installerType === "pip") {
+      const venvPython = os.platform() === "win32"
+        ? path.join(TOOLS_DIR, "venv", "Scripts", "python.exe")
+        : path.join(TOOLS_DIR, "venv", "bin", "python");
+      const python = fs.existsSync(venvPython) ? venvPython : "python3";
+      spawnSync(python, ["-m", "pip", "uninstall", "-y", pkg], { stdio: "pipe", timeout: 30_000 });
+    }
+    log("info", `Uninstalled tool: ${name}`);
+    return true;
+  } catch (e: any) {
+    log("warn", `Failed to uninstall ${name}: ${e.message}`);
+    return false;
+  }
+}
+
 export async function ensureToolsForCommand(content: string): Promise<string[]> {
   const missing = findMissingTools(content);
   if (!missing.length) return [];

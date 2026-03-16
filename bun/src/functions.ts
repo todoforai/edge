@@ -5,7 +5,7 @@ import { readFileContent } from "./files.js";
 import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "./path-utils.js";
 import { executeBlock, waitForCompletion, getBlockOutput, clearBlockOutput, pendingToolApprovals, type SendFn } from "./shell.js";
 import { msg } from "./constants.js";
-import { ensureTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
+import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
 import { TOOL_CATALOG } from "./tool-catalog.js";
 import { getGlobalEdgeInstance } from "./edge.js";
 
@@ -74,10 +74,23 @@ register("install_tool", async (args) => {
   // Update edge config with new tool state
   const edge = getGlobalEdgeInstance();
   if (edge) {
-    edge.updateConfig({ installedTools: scanCatalogTools() });
+    await edge.updateConfig({ installedTools: scanCatalogTools() });
   }
   
   return { success: true, tool: name, label: TOOL_CATALOG[name].label };
+});
+
+register("uninstall_tool", async (args) => {
+  const { name } = args;
+  if (!name || !(name in TOOL_CATALOG)) {
+    return { success: false, error: `Unknown tool: ${name}` };
+  }
+  const success = uninstallTool(name);
+  if (success) {
+    const edge = getGlobalEdgeInstance();
+    if (edge) await edge.updateConfig({ installedTools: scanCatalogTools() });
+  }
+  return { success, tool: name };
 });
 
 register("get_workspace_tree", async (args) => {

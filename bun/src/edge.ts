@@ -162,9 +162,9 @@ export class TODOforAIEdge {
 
   // ── Config sync ──
 
-  private updateConfig(updates: Partial<EdgeConfigData>) {
+  public async updateConfig(updates: Partial<EdgeConfigData>) {
     Object.assign(this.edgeConfig, updates);
-    this.syncConfigToServer(updates);
+    await this.syncConfigToServer(updates);
   }
 
   private async syncConfigToServer(changes: Partial<EdgeConfigData>) {
