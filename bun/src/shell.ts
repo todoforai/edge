@@ -182,6 +182,12 @@ export async function executeBlock(
       }
     }
 
+    // Notify frontend that execution is starting
+    await send({
+      type: "BLOCK_UPDATE",
+      payload: { todoId, blockId, messageId, updates: { status: "RUNNING" } },
+    });
+
     const effectiveRunMode = runMode || (manual ? "manual" : undefined);
     const env = { ...buildEnvWithTools(), NO_COLOR: "1", TERM: "dumb" };
 
