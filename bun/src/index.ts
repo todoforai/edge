@@ -14,10 +14,41 @@ function lockPath(apiUrl: string, userId: string): string {
   return path.join(dir, `edge-${hash}.lock`);
 }
 
-function acquireLock(lp: string): boolean {
+function isEdgeProcess(pid: number): boolean {
+  try {
+    process.kill(pid, 0); // throws if not alive
+    const cmdline = fs.readFileSync(`/proc/${pid}/cmdline`, "utf-8");
+    return cmdline.includes("index.ts") || cmdline.includes("todoforai-edge");
+  } catch { return false; }
+}
+
+function killExistingEdge(lp: string): boolean {
   try {
     const pid = parseInt(fs.readFileSync(lp, "utf-8").trim(), 10);
-    if (!isNaN(pid)) { process.kill(pid, 0); return false; } // alive
+    if (!isNaN(pid) && isEdgeProcess(pid)) {
+      console.log(`\x1b[33mKilling existing edge process (pid ${pid})...\x1b[0m`);
+      process.kill(pid, "SIGTERM");
+      // Wait up to 3s for graceful shutdown
+      for (let i = 0; i < 30; i++) {
+        try { process.kill(pid, 0); } catch { break; }
+        Bun.sleepSync(100);
+      }
+      // Force kill if still alive
+      try { process.kill(pid, "SIGKILL"); } catch {}
+      console.log(`\x1b[32mKilled.\x1b[0m`);
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+function acquireLock(lp: string, kill = false): boolean {
+  try {
+    const pid = parseInt(fs.readFileSync(lp, "utf-8").trim(), 10);
+    if (!isNaN(pid) && isEdgeProcess(pid)) {
+      if (kill) { killExistingEdge(lp); }
+      else return false;
+    }
   } catch {}
   fs.writeFileSync(lp, String(process.pid));
   return true;
@@ -39,8 +70,8 @@ async function main() {
   await edge.ensureApiKey(true);
 
   const lp = lockPath(config.apiUrl, edge.userId);
-  if (!acquireLock(lp)) {
-    console.error("\x1b[31mAnother edge is already running for this user+server. Exiting.\x1b[0m");
+  if (!acquireLock(lp, config.kill)) {
+    console.error("\x1b[31mAnother edge is already running for this user+server. Use --kill to replace it.\x1b[0m");
     process.exit(1);
   }
   const cleanup = () => releaseLock(lp);

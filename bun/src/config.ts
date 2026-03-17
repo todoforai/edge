@@ -24,6 +24,7 @@ export interface Config {
   apiUrl: string;
   apiKey: string;
   debug: boolean;
+  kill: boolean;
   addWorkspacePath?: string;
 }
 
@@ -34,6 +35,7 @@ export function loadConfig(): Config {
       "api-key": { type: "string" },
       "api-url": { type: "string" },
       debug: { type: "boolean", default: false },
+      kill: { type: "boolean", default: false },
       "add-path": { type: "string" },
       version: { type: "boolean", short: "v", default: false },
     },
@@ -49,6 +51,7 @@ export function loadConfig(): Config {
   const apiUrl = normalizeApiUrl((values["api-url"] as string) || getEnv("API_URL") || DEFAULT_API_URL);
   const apiKey = (values["api-key"] as string) || getEnv("API_KEY") || "";
   const debug = !!(values.debug || getEnv("DEBUG").toLowerCase().match(/^(true|1|yes)$/));
+  const kill = !!values.kill;
 
   let addWorkspacePath: string | undefined;
   if (values["add-path"]) {
@@ -56,5 +59,5 @@ export function loadConfig(): Config {
     addWorkspacePath = path.resolve(p.replace(/^~/, process.env.HOME || "~"));
   }
 
-  return { apiUrl, apiKey, debug, addWorkspacePath };
+  return { apiUrl, apiKey, debug, kill, addWorkspacePath };
 }
