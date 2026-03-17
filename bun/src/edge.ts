@@ -79,11 +79,9 @@ export class TODOforAIEdge {
     workspacepaths: [],
     ownerId: "",
     status: "OFFLINE",
-    isShellEnabled: false,
-    isFileSystemEnabled: false,
   };
 
-  private configSyncableFields = ["workspacepaths", "name", "isShellEnabled", "isFileSystemEnabled", "installedTools"];
+  private configSyncableFields = ["workspacepaths", "name", "installedTools"];
 
   constructor(config: Config) {
     this.api = new ApiClient(normalizeApiUrl(config.apiUrl), config.apiKey);
