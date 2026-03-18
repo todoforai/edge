@@ -9,10 +9,10 @@ help:
 	@echo "  make deploy-latest     - Bump, push main, merge to prod"
 
 run:
-	cd bun && bun run src/index.ts --api-url https://api.todofor.ai
+	cd bun && bun run src/index.ts --api-url https://api.todofor.ai --kill
 
 run-dev:
-	cd bun && bun run src/index.ts --api-url http://localhost:4000
+	cd bun && bun run src/index.ts --api-url http://localhost:4000 --kill
 
 build:
 	cd bun && bun run build
