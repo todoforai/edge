@@ -14,9 +14,9 @@ export function pathToUri(fsPath: string): string | null {
   if (!SCHEME_SET.has(scheme)) return null;
 
   if (scheme === "todoforai") {
-    return `todoforai://attachment/${parts.slice(1).join("/")}`;
+    return `todoforai:attachment/${parts.slice(1).join("/")}`;
   }
-  return `${scheme}://${parts.slice(1).join("/")}`;
+  return `${scheme}:${parts.slice(1).join("/")}`;
 }
 
 export function isSchemeRoot(fsPath: string): boolean {
