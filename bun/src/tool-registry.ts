@@ -318,9 +318,9 @@ export async function ensureToolsForCommand(content: string): Promise<string[]> 
   return installed;
 }
 
-/** Scan all catalog tools: check binary presence and run statusCmd. */
-export function scanCatalogTools(): Record<string, { installed: boolean; statusOutput?: string; authenticated?: boolean }> {
-  const result: Record<string, { installed: boolean; statusOutput?: string; authenticated?: boolean }> = {};
+/** Scan all catalog tools: check binary presence, version, and auth status. */
+export function scanCatalogTools(): Record<string, { installed: boolean; version?: string; statusOutput?: string; authenticated?: boolean }> {
+  const result: Record<string, { installed: boolean; version?: string; statusOutput?: string; authenticated?: boolean }> = {};
   const env = buildEnvWithTools();
 
   for (const [name, entry] of Object.entries(TOOL_CATALOG)) {
@@ -330,8 +330,15 @@ export function scanCatalogTools(): Record<string, { installed: boolean; statusO
       continue;
     }
 
-    // Tool is installed - now check authentication status
-    const state: { installed: boolean; statusOutput?: string; authenticated?: boolean } = { installed: true };
+    // Tool is installed - check version and authentication status
+    const state: { installed: boolean; version?: string; statusOutput?: string; authenticated?: boolean } = { installed: true };
+
+    if (entry.versionCmd) {
+      try {
+        const r = spawnSync("sh", ["-c", entry.versionCmd], { env, timeout: 5_000, encoding: "utf-8" });
+        if (r.status === 0) state.version = (r.stdout || "").toString().trim().slice(0, 100);
+      } catch {}
+    }
 
     if (entry.statusCmd) {
       try {
