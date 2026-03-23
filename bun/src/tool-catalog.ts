@@ -92,10 +92,10 @@ export const BINARY_URL_FUNCS: Record<string, () => Promise<UrlResult>> = {
   },
 
   async rclone() {
-    const version = (await githubLatestTag("rclone/rclone")).replace(/^v/, "");
+    const version = (await githubLatestTag("todoforai/rclone-backend")).replace(/^v/, "");
     const s = system(), a = arch();
-    const ext = s === "windows" ? "zip" : "zip";
-    return [`https://github.com/rclone/rclone/releases/download/v${version}/rclone-v${version}-${s}-${a}.${ext}`, true];
+    const ext = s === "windows" ? "zip" : "tar.gz";
+    return [`https://github.com/todoforai/rclone-backend/releases/download/v${version}/rclone-${s}-${a}.${ext}`, true];
   },
 
 };
