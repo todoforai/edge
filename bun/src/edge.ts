@@ -19,7 +19,7 @@ import {
   handleCtxJuliaRequest,
   handleFunctionCall,
 } from "./handlers.js";
-import { scanCatalogTools } from "./tool-registry.js";
+import { scanCatalogTools, autoMountRcloneRemotes } from "./tool-registry.js";
 import type { SendFn } from "./shell.js";
 
 // ── Fingerprint ──
@@ -250,7 +250,10 @@ export class TODOforAIEdge {
         this.userId = payload.userId || "";
         this.edgeConfig.id = this.edgeId;
         console.log(`\x1b[32m\x1b[1m🔗 Connected edge=${this.edgeId} user=${this.userId}\x1b[0m`);
-        run(async () => this.updateConfig({ installedTools: scanCatalogTools() }));
+        run(async () => {
+          this.updateConfig({ installedTools: scanCatalogTools() });
+          autoMountRcloneRemotes();
+        });
         break;
 
       case S2E.EDGE_CONFIG_UPDATE:

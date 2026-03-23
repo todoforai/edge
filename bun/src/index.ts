@@ -1,5 +1,6 @@
 import { loadConfig } from "./config.js";
 import { TODOforAIEdge, setGlobalEdgeInstance } from "./edge.js";
+import { unmountAllRclone } from "./tool-registry.js";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -74,7 +75,10 @@ async function main() {
     console.error("\x1b[31mAnother edge is already running for this user+server. Use --kill to replace it.\x1b[0m");
     process.exit(1);
   }
-  const cleanup = () => releaseLock(lp);
+  const cleanup = () => {
+    unmountAllRclone();
+    releaseLock(lp);
+  };
   process.on("exit", cleanup);
   process.on("SIGINT", () => process.exit(0));
   process.on("SIGTERM", () => process.exit(0));

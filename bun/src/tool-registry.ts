@@ -7,6 +7,7 @@ import { execSync, spawnSync } from "child_process";
 import { TOOL_CATALOG, BINARY_URL_FUNCS } from "./tool-catalog.js";
 
 const TOOLS_DIR = path.join(os.homedir(), ".todoforai", "tools");
+const MNT_DIR  = path.join(os.homedir(), ".todoforai", "mnt");
 
 const log = (level: string, ...args: any[]) => console.log(`[tool-registry:${level}]`, ...args);
 
@@ -357,4 +358,123 @@ export function scanCatalogTools(): Record<string, { installed: boolean; version
   }
 
   return result;
+}
+
+// ── Auto-mount rclone remotes as FUSE ──
+
+const MOUNT_FLAGS = [
+  "--vfs-cache-mode", "full",
+  "--vfs-fast-fingerprint",
+  "--no-modtime",
+  "--attr-timeout", "1h",
+  "--vfs-cache-max-size", "400M",
+  "--daemon",
+  "--log-level", "INFO",
+];
+
+const IS_LINUX = os.platform() === "linux";
+const IS_MAC   = os.platform() === "darwin";
+const HAS_FUSE = IS_LINUX || IS_MAC;
+
+function isMounted(mountPoint: string): boolean {
+  if (!HAS_FUSE) return false;
+  try {
+    if (IS_LINUX) {
+      return spawnSync("mountpoint", ["-q", mountPoint], { stdio: "pipe", timeout: 3_000 }).status === 0;
+    }
+    // macOS: check /sbin/mount output
+    const r = spawnSync("mount", [], { stdio: "pipe", timeout: 3_000, encoding: "utf-8" });
+    return (r.stdout || "").includes(mountPoint);
+  } catch {
+    return false;
+  }
+}
+
+function unmountPoint(mountPoint: string): void {
+  try {
+    if (IS_LINUX) {
+      spawnSync("fusermount", ["-uz", mountPoint], { stdio: "pipe", timeout: 5_000 });
+    } else if (IS_MAC) {
+      spawnSync("umount", [mountPoint], { stdio: "pipe", timeout: 5_000 });
+    }
+  } catch {}
+}
+
+function sanitizeRemoteName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+}
+
+function mountRemote(remote: string, mountPoint: string): boolean {
+  const rclone = whichWithTools("rclone");
+  if (!rclone) return false;
+
+  fs.mkdirSync(mountPoint, { recursive: true });
+  if (isMounted(mountPoint)) {
+    log("info", `Already mounted: ${remote}: → ${mountPoint}`);
+    return true;
+  }
+
+  const logFile = `/tmp/rclone-${sanitizeRemoteName(remote)}.log`;
+  const args = ["mount", `${remote}:`, mountPoint, ...MOUNT_FLAGS, "--log-file", logFile];
+  log("info", `Mounting ${remote}: → ${mountPoint}`);
+  const r = spawnSync(rclone, args, { stdio: "pipe", timeout: 10_000, env: buildEnvWithTools() });
+  if (r.status !== 0) {
+    log("warn", `Failed to mount ${remote}: ${r.stderr?.toString().trim()}`);
+    return false;
+  }
+
+  // Verify the daemon actually mounted (poll up to 3s)
+  for (let i = 0; i < 6; i++) {
+    if (isMounted(mountPoint)) {
+      log("info", `Mounted ${remote}: → ${mountPoint}`);
+      return true;
+    }
+    spawnSync("sleep", ["0.5"], { stdio: "pipe" });
+  }
+  log("warn", `Mount daemon started but ${remote}: not yet visible at ${mountPoint}`);
+  return false;
+}
+
+/** Mount all configured rclone remotes that aren't already mounted. */
+export function autoMountRcloneRemotes(): void {
+  if (!HAS_FUSE) return;
+
+  const rclone = whichWithTools("rclone");
+  if (!rclone) return;
+
+  let remotes: string[];
+  try {
+    const r = spawnSync(rclone, ["listremotes"], { stdio: "pipe", timeout: 5_000, env: buildEnvWithTools() });
+    if (r.status !== 0) return;
+    remotes = (r.stdout?.toString() || "").trim().split("\n").map(s => s.replace(/:$/, "")).filter(Boolean);
+  } catch { return; }
+
+  for (const remote of remotes) {
+    const safeName = sanitizeRemoteName(remote);
+    const mountPoint = path.join(MNT_DIR, safeName);
+
+    // Generic health check: can we reach the remote at all?
+    const check = spawnSync(rclone, ["lsd", `${remote}:`, "--max-depth", "0"], {
+      stdio: "pipe", timeout: 10_000, env: buildEnvWithTools(),
+    });
+    if (check.status !== 0) {
+      log("info", `Skipping mount for ${remote} (not reachable)`);
+      continue;
+    }
+
+    mountRemote(remote, mountPoint);
+  }
+}
+
+/** Unmount all rclone FUSE mounts under ~/.todoforai/mnt/. */
+export function unmountAllRclone(): void {
+  if (!HAS_FUSE || !fs.existsSync(MNT_DIR)) return;
+  for (const entry of fs.readdirSync(MNT_DIR, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const mountPoint = path.join(MNT_DIR, entry.name);
+    if (isMounted(mountPoint)) {
+      log("info", `Unmounting ${mountPoint}`);
+      unmountPoint(mountPoint);
+    }
+  }
 }
