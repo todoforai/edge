@@ -7,10 +7,24 @@ describe("findReferencedTools - command position detection", () => {
     expect(r).not.toContain("stripe");
   });
 
+  test("does NOT match newline-separated loop items with tool-name prefixes", () => {
+    const r = findReferencedTools(`cd /tmp && for old in \\
+  byword-setup-account \\
+  stripe-setup-dunning \\
+  typefully-setup-account; do
+  echo $old
+ done`);
+    expect(r).not.toContain("stripe");
+  });
+
+  test("does NOT match hyphenated tokens at command position", () => {
+    expect(findReferencedTools("stripe-setup-dunning")).not.toContain("stripe");
+  });
+
   test("does NOT match tool names in echo/string context", () => {
     expect(findReferencedTools("echo stripe is cool")).not.toContain("stripe");
     expect(findReferencedTools("echo gh is great")).not.toContain("gh");
-    expect(findReferencedTools("echo jq is nice")).not.toContain("jq");
+    expect(findReferencedTools("echo cloudflared is nice")).not.toContain("cloudflared");
   });
 
   test("does NOT match tool names as variable values", () => {
@@ -33,18 +47,18 @@ describe("findReferencedTools - command position detection", () => {
 
   test("does NOT match tool names inside single-quoted strings", () => {
     expect(findReferencedTools("grep 'stripe' file.txt")).not.toContain("stripe");
-    expect(findReferencedTools("echo 'run jq here'")).not.toContain("jq");
+    expect(findReferencedTools("echo 'run cloudflared here'")).not.toContain("cloudflared");
   });
 
   test("matches tool at start of command", () => {
     expect(findReferencedTools("stripe login")).toContain("stripe");
     expect(findReferencedTools("gh pr list")).toContain("gh");
-    expect(findReferencedTools("jq .foo file.json")).toContain("jq");
+    expect(findReferencedTools("cloudflared version")).toContain("cloudflared");
   });
 
   test("matches tool after pipe", () => {
-    expect(findReferencedTools("curl url | jq .foo")).toContain("jq");
     expect(findReferencedTools("echo foo | stripe listen")).toContain("stripe");
+    expect(findReferencedTools("cat hosts.txt | xargs cloudflared access ssh --hostname example.com")).toContain("cloudflared");
   });
 
   test("matches tool after && and ||", () => {
@@ -65,7 +79,7 @@ describe("findReferencedTools - command position detection", () => {
   });
 
   test("matches tool after xargs", () => {
-    expect(findReferencedTools("find . | xargs jq .")).toContain("jq");
+    expect(findReferencedTools("find . | xargs cloudflared version")).toContain("cloudflared");
   });
 
   test("matches tool on new line in multiline script", () => {

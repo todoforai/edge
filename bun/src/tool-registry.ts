@@ -69,12 +69,12 @@ export function findReferencedTools(content: string): string[] {
 
   return Object.keys(TOOL_CATALOG).filter(name => {
     const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    // Command position: start of string/line, or preceded by | && || ; $( ` xargs sudo env
+    // Reject hyphenated tokens like stripe-setup-dunning while still allowing args like jq .foo.
     const re = new RegExp(
       String.raw`(?:^|[|;&\n]|&&|\|\||` +
       String.raw`\$\(|` + "`" +
       String.raw`|xargs\s+|sudo\s+|env\s+)\s*` +
-      esc + String.raw`\b`,
+      esc + String.raw`\b(?!-)`,
       "m"
     );
     return re.test(stripped);
