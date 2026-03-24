@@ -196,7 +196,10 @@ export async function executeBlock(
     });
 
     const effectiveRunMode = runMode || (manual ? "manual" : undefined);
-    const env = { ...buildEnvWithTools(), NO_COLOR: "1", TERM: HAS_BUN_TERMINAL ? "xterm-256color" : "dumb" };
+    const env = {
+      ...buildEnvWithTools(), NO_COLOR: "1", TERM: HAS_BUN_TERMINAL ? "xterm-256color" : "dumb",
+      PAGER: "", GIT_PAGER: "", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "color.ui", GIT_CONFIG_VALUE_0: "false",
+    };
 
     // Timeout helper
     const startTimeout = () => setTimeout(() => {
