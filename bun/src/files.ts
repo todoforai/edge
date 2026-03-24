@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { resolveFilePath, WorkspacePathNotFoundError } from "./path-utils.js";
+import { refreshMountPath } from "./tool-registry.js";
 import { extractDocxContent, extractXlsxContent } from "./docx-handler.js";
 import { extractPdfContent } from "./pdf-handler.js";
 import mimetypesJson from "../../../packages/shared-fbe/src/mimetypes.json";
@@ -32,8 +33,11 @@ export async function readFileContent(
     const fullPath = path.resolve(resolveFilePath(filePath, rootPath, fallbackRootPaths));
 
     if (!fs.existsSync(fullPath)) {
-      const roots = rootPath ? [rootPath, ...fallbackRootPaths] : fallbackRootPaths;
-      return { success: false, error: `File not found: ${filePath} (roots: ${JSON.stringify(roots)})` };
+      await refreshMountPath(fullPath);
+      if (!fs.existsSync(fullPath)) {
+        const roots = rootPath ? [rootPath, ...fallbackRootPaths] : fallbackRootPaths;
+        return { success: false, error: `File not found: ${filePath} (roots: ${JSON.stringify(roots)})` };
+      }
     }
 
     const stat = fs.statSync(fullPath);

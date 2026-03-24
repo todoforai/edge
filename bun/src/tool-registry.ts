@@ -404,21 +404,59 @@ function sanitizeRemoteName(name: string): string {
   return name.replace(/[^a-zA-Z0-9_.@-]/g, "_");
 }
 
+/** Deterministic RC port per remote: 5600–5699 */
+function rcPort(remote: string): number {
+  let h = 0;
+  for (let i = 0; i < remote.length; i++) h = (h * 31 + remote.charCodeAt(i)) & 0xffff;
+  return 5600 + (h % 100);
+}
+
+const rcPortMap = new Map<string, number>(); // remote → port (populated on mount)
+
+/** Trigger vfs/refresh for the parent dir of absPath. No-op if RC not available. */
+export async function refreshMountPath(absPath: string): Promise<void> {
+  for (const [remote, port] of rcPortMap) {
+    const mountPoint = path.join(MNT_DIR, sanitizeRemoteName(remote));
+    if (absPath !== mountPoint && !absPath.startsWith(mountPoint + path.sep)) continue;
+    // Refresh the parent directory (rclone refreshes dir listings, not individual files)
+    const parentAbs = path.dirname(absPath);
+    const dirInMount = parentAbs.slice(mountPoint.length) || "/";
+    try {
+      const res = await fetch(`http://localhost:${port}/vfs/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dir: dirInMount, recursive: false }),
+        signal: AbortSignal.timeout(3_000),
+      });
+      if (!res.ok) log("warn", `vfs/refresh failed for ${remote}: HTTP ${res.status}`);
+    } catch { /* RC not up yet or timed out, ignore */ }
+    return;
+  }
+}
+
 function mountRemote(remote: string, mountPoint: string): boolean {
   const rclone = whichWithTools("rclone");
   if (!rclone) return false;
 
   fs.mkdirSync(mountPoint, { recursive: true });
+
+  const port = rcPort(remote);
+  // Always register before the isMounted check — needed even if already mounted (e.g. after edge restart)
+  rcPortMap.set(remote, port);
+
   if (isMounted(mountPoint)) {
     log("info", `Already mounted: ${remote}: → ${mountPoint}`);
     return true;
   }
 
   const logFile = `/tmp/rclone-${sanitizeRemoteName(remote)}.log`;
-  const args = ["mount", `${remote}:`, mountPoint, ...MOUNT_FLAGS, "--log-file", logFile];
+  const args = ["mount", `${remote}:`, mountPoint, ...MOUNT_FLAGS,
+    "--rc", "--rc-addr", `localhost:${port}`,
+    "--log-file", logFile];
   log("info", `Mounting ${remote}: → ${mountPoint}`);
   const r = spawnSync(rclone, args, { stdio: "pipe", timeout: 10_000, env: buildEnvWithTools() });
   if (r.status !== 0) {
+    rcPortMap.delete(remote);
     log("warn", `Failed to mount ${remote}: ${r.stderr?.toString().trim()}`);
     return false;
   }
