@@ -196,7 +196,7 @@ export async function executeBlock(
     });
 
     const effectiveRunMode = runMode || (manual ? "manual" : undefined);
-    const env = { ...buildEnvWithTools(), NO_COLOR: "1", TERM: "dumb" };
+    const env = { ...buildEnvWithTools(), NO_COLOR: "1", TERM: HAS_BUN_TERMINAL ? "xterm-256color" : "dumb" };
 
     // Timeout helper
     const startTimeout = () => setTimeout(() => {
