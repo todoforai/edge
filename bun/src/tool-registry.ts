@@ -431,7 +431,14 @@ function mountRemote(remote: string, mountPoint: string): boolean {
     }
     spawnSync("sleep", ["0.5"], { stdio: "pipe" });
   }
-  log("warn", `Mount daemon started but ${remote}: not yet visible at ${mountPoint}`);
+  // Read rclone log for the actual error
+  let logTail = "";
+  try {
+    const content = fs.readFileSync(logFile, "utf-8");
+    const lines = content.trim().split("\n");
+    logTail = lines.slice(-5).join("\n");
+  } catch {}
+  log("warn", `Mount daemon started but ${remote}: not yet visible at ${mountPoint}${logTail ? `\nRclone log tail:\n${logTail}` : ""}`);
   return false;
 }
 
