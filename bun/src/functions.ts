@@ -46,7 +46,8 @@ register("get_system_info", async () => {
     system = `Windows ${os.release()}`;
   }
   const shell = process.env.SHELL ? path.basename(process.env.SHELL) : "unknown";
-  return { system, shell };
+  const mount_path = path.join(os.homedir(), ".todoforai", "mnt", "todoforai");
+  return { system, shell, mount_path };
 });
 
 register("get_available_tools", async () => {
