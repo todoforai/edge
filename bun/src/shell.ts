@@ -5,6 +5,7 @@ import { msg, type WsMessage } from "./constants.js";
 import { findMissingTools, ensureTool, buildEnvWithTools } from "./tool-registry.js";
 
 const IS_WIN = os.platform() === "win32";
+const HAS_BUN_TERMINAL = typeof Bun.Terminal === "function";
 
 // ── Shell detection (Windows support) ──
 
@@ -113,7 +114,7 @@ class OutputBuffer {
 
 // ── Global state ──
 
-type ProcHandle = { proc: any; pid: number };
+type ProcHandle = { terminal?: any; proc?: any; pid: number };
 const processes = new Map<string, ProcHandle>();
 const outputBuffers = new Map<string, OutputBuffer>();
 const completionResolvers = new Map<string, () => void>();
@@ -137,6 +138,12 @@ export async function executeBlock(
   runMode?: string,
   edgeId?: string,
 ) {
+  // Kill any existing process with the same blockId (re-run scenario)
+  if (processes.has(blockId)) {
+    console.log(`[shell] killing existing process for blockId=${blockId}`);
+    interruptBlock(blockId);
+  }
+
   const buf = new OutputBuffer();
   outputBuffers.set(blockId, buf);
 
@@ -218,28 +225,57 @@ export async function executeBlock(
 
     const sc = getShellCommand(content);
 
-    const proc = Bun.spawn([sc.shell, ...sc.args], {
-      cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe",
-    });
-
-    const handle: ProcHandle = { proc, pid: proc.pid };
-    processes.set(blockId, handle);
-    const timer = startTimeout();
-
-    const pipeStream = async (stream: ReadableStream<Uint8Array> | null) => {
-      if (!stream) return;
+    if (HAS_BUN_TERMINAL) {
+      // PTY mode via Bun.Terminal (interactive, sudo/ssh support)
+      // Pass terminal config inline so Bun sets up setsid+TIOCSCTTY (controlling terminal).
+      // Pre-creating Bun.Terminal and passing it skips controlling terminal setup.
       const decoder = new TextDecoder();
-      for await (const chunk of stream) {
-        await onData(decoder.decode(chunk, { stream: true }));
-      }
-    };
+      const proc = Bun.spawn([sc.shell, ...sc.args], {
+        cwd, env,
+        terminal: {
+          cols: 200, rows: 50,
+          data(_term: any, data: any) {
+            const text = typeof data === "string" ? data : decoder.decode(data, { stream: true });
+            onData(text);
+          },
+        },
+      });
+      const terminal = proc.terminal!;
+      const handle: ProcHandle = { terminal, proc, pid: proc.pid };
+      processes.set(blockId, handle);
+      const timer = startTimeout();
+      proc.exited.then((code) => {
+        terminal.close();
+        onExit(code ?? -1, timer);
+      }).catch(() => {
+        terminal.close();
+        onExit(-1, timer);
+      });
+    } else {
+      // Fallback: Bun.spawn pipes (no TTY — interactive programs won't work)
+      const proc = Bun.spawn([sc.shell, ...sc.args], {
+        cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe",
+      });
 
-    Promise.all([
-      pipeStream(proc.stdout as ReadableStream<Uint8Array>),
-      pipeStream(proc.stderr as ReadableStream<Uint8Array>),
-      proc.exited,
-    ]).then(([, , code]) => onExit(code ?? -1, timer))
-      .catch(() => onExit(-1, timer));
+      const handle: ProcHandle = { proc, pid: proc.pid };
+      processes.set(blockId, handle);
+      const timer = startTimeout();
+
+      const pipeStream = async (stream: ReadableStream<Uint8Array> | null) => {
+        if (!stream) return;
+        const decoder = new TextDecoder();
+        for await (const chunk of stream) {
+          await onData(decoder.decode(chunk, { stream: true }));
+        }
+      };
+
+      Promise.all([
+        pipeStream(proc.stdout as ReadableStream<Uint8Array>),
+        pipeStream(proc.stderr as ReadableStream<Uint8Array>),
+        proc.exited,
+      ]).then(([, , code]) => onExit(code ?? -1, timer))
+        .catch(() => onExit(-1, timer));
+    }
   } catch (e: any) {
     await send(msg.shellBlockResult(todoId, blockId, `Error creating process: ${e.message}`, messageId));
     const resolver = completionResolvers.get(blockId);
@@ -261,7 +297,9 @@ export async function sendInput(blockId: string, text: string): Promise<boolean>
 
   if (!text.endsWith("\n")) text += "\n";
 
-  if (handle.proc.stdin) {
+  if (handle.terminal) {
+    handle.terminal.write(text);
+  } else if (handle.proc?.stdin) {
     handle.proc.stdin.write(text);
   } else {
     return false;
@@ -276,16 +314,20 @@ export function interruptBlock(blockId: string) {
   if (!handle) return;
 
   try {
-    handle.proc.kill(2); // SIGINT
-    setTimeout(() => {
-      try { handle.proc.kill(15); } catch {} // SIGTERM
+    if (handle.proc) {
+      handle.proc.kill(2); // SIGINT
       setTimeout(() => {
-        try { handle.proc.kill(9); } catch {} // SIGKILL
-      }, 500);
-    }, 1000);
+        try { handle.proc?.kill(15); } catch {} // SIGTERM
+        setTimeout(() => {
+          try { handle.proc?.kill(9); } catch {} // SIGKILL
+        }, 500);
+      }, 1000);
+    }
   } catch {
-    try { handle.proc.kill(9); } catch {} // SIGKILL
+    try { handle.proc?.kill(9); } catch {}
   }
+  // Close terminal after process is killed
+  try { handle.terminal?.close(); } catch {}
   processes.delete(blockId);
 }
 
