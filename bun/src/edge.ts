@@ -362,10 +362,12 @@ export class TODOforAIEdge {
       this.ws.on("close", (code, reason) => {
         this.connected = false;
         this.ws = null;
+        const reasonText = reason?.toString() || "<empty>";
+        const clean = code === 1000;
+        console.log(`[info] WebSocket closed code=${code} clean=${clean} reason=${reasonText}`);
         if (code === 4001) {
-          const msg = reason?.toString() || 'Another edge is already connected';
-          console.log(`\x1b[33m[info] ${msg}. Not reconnecting.\x1b[0m`);
-          reject(new ServerError(msg));
+          console.log(`\x1b[33m[info] ${reasonText}. Not reconnecting.\x1b[0m`);
+          reject(new ServerError(reasonText));
         } else {
           resolve();
         }
