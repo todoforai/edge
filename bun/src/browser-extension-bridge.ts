@@ -77,7 +77,12 @@ export class BrowserExtensionBridge {
 
     if (data.type === "browser.command") {
       if (!isOpen(this.extensionWs)) {
-        if (isOpen(ws)) ws.send(JSON.stringify({ type: "browser.command.result", error: "No browser extension connected" }));
+        const msg = [
+          "No browser extension connected.",
+          "Install the TODO for AI browser extension, open its side panel, and confirm it shows 'Connected' to this edge.",
+          "Chrome/Edge: https://chromewebstore.google.com/detail/todo-for-ai/oemlbhbggllbelfemliboclfagbchcoj",
+        ].join("\n");
+        if (isOpen(ws)) ws.send(JSON.stringify({ type: "browser.command.result", error: msg }));
         return;
       }
 
