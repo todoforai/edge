@@ -3,6 +3,7 @@ import { getWsUrl, normalizeApiUrl, type Config } from "./config.js";
 import { SR, FE, AE, EF, S2E, msg, type WsMessage } from "./constants.js";
 import { ApiClient } from "./api.js";
 import { FrontendWebSocket } from "./frontend-ws.js";
+import { BrowserExtensionBridge } from "./browser-extension-bridge.js";
 import type { EdgeConfigData } from "./types.js";
 import {
   handleBlockExecute,
@@ -72,6 +73,7 @@ export class TODOforAIEdge {
   private heartbeatTimer?: ReturnType<typeof setInterval>;
   private addWorkspacePath?: string;
   private frontendWs: FrontendWebSocket | null = null;
+  private browserExtensionBridge: BrowserExtensionBridge;
 
   edgeConfig: EdgeConfigData = {
     id: "",
@@ -88,6 +90,7 @@ export class TODOforAIEdge {
     this.debug = config.debug;
     this.wsUrl = getWsUrl(this.api.apiUrl);
     this.addWorkspacePath = config.addWorkspacePath;
+    this.browserExtensionBridge = new BrowserExtensionBridge(this.debug);
   }
 
   // Convenience accessors for functions that need client context
@@ -379,6 +382,7 @@ export class TODOforAIEdge {
   // ── Start with reconnect ──
 
   async start() {
+    this.browserExtensionBridge.start();
     this.fingerprint = generateFingerprint();
     console.log(`\x1b[36m\x1b[1m👆 Fingerprint:\x1b[0m ${this.fingerprint}`);
 
