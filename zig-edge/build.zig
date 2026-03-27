@@ -12,9 +12,10 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
 
-    // Link OpenSSL for TLS
-    exe.linkSystemLibrary("ssl");
-    exe.linkSystemLibrary("crypto");
+    // Default: Zig native TLS (~700KB, zero deps, cross-platform)
+    // For ~55KB Linux/macOS builds, switch to tls_openssl.zig and uncomment:
+    //   exe.linkSystemLibrary("ssl");
+    //   exe.linkSystemLibrary("crypto");
 
     b.installArtifact(exe);
 

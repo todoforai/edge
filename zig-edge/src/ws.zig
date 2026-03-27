@@ -129,7 +129,12 @@ pub fn handshake(conn: anytype, host: []const u8, path: []const u8, token: []con
     const response = buf[0..total];
 
     // Validate status line: HTTP/1.1 101
-    if (!std.mem.startsWith(u8, response, "HTTP/1.1 101")) return error.HandshakeFailed;
+    if (!std.mem.startsWith(u8, response, "HTTP/1.1 101")) {
+        // Log first line for debugging
+        const first_line_end = std.mem.indexOf(u8, response, "\r\n") orelse response.len;
+        std.log.err("WS handshake failed: {s}", .{response[0..first_line_end]});
+        return error.HandshakeFailed;
+    }
 
     // Validate required headers
     if (!hasHeader(response, "upgrade", "websocket")) return error.InvalidResponse;

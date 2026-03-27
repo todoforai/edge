@@ -13,6 +13,7 @@
 
 const std = @import("std");
 const tls = @import("tls.zig");
+const plain = @import("plain.zig");
 const ws = @import("ws.zig");
 const json = @import("json.zig");
 const Pty = @import("pty.zig").Pty;
@@ -29,12 +30,49 @@ const POLLERR = std.posix.POLL.ERR;
 // Configuration
 // ============================================================================
 
-const config = .{
+const defaults = .{
     .host = "api.todofor.ai",
     .port = 443,
-    .path = "/ws/v2/edge-shell",
+    .path = "/ws/v1/v2/edge-shell",
     .shell = "/bin/sh",
     .buf_size = 4096,
+};
+
+// ============================================================================
+// Connection abstraction
+// ============================================================================
+
+const Conn = union(enum) {
+    tls_conn: tls.Connection,
+    plain_conn: plain.Connection,
+
+    pub fn read(self: *Conn, buf: []u8) !usize {
+        return switch (self.*) {
+            .tls_conn => |*c| c.read(buf),
+            .plain_conn => |*c| c.read(buf),
+        };
+    }
+
+    pub fn writeAll(self: *Conn, data: []const u8) !void {
+        return switch (self.*) {
+            .tls_conn => |*c| c.writeAll(data),
+            .plain_conn => |*c| c.writeAll(data),
+        };
+    }
+
+    pub fn fd(self: Conn) std.posix.fd_t {
+        return switch (self) {
+            .tls_conn => |c| c.fd(),
+            .plain_conn => |c| c.fd(),
+        };
+    }
+
+    pub fn close(self: *Conn) void {
+        switch (self.*) {
+            .tls_conn => |*c| c.close(),
+            .plain_conn => |*c| c.close(),
+        }
+    }
 };
 
 // ============================================================================
@@ -42,15 +80,15 @@ const config = .{
 // ============================================================================
 
 const Edge = struct {
-    conn: *tls.Connection,
+    conn: *Conn,
     pty: ?Pty = null,
-    ws_buf: [config.buf_size]u8 = undefined,
+    ws_buf: [defaults.buf_size]u8 = undefined,
     ws_len: usize = 0,
-    pty_buf: [config.buf_size]u8 = undefined,
+    pty_buf: [defaults.buf_size]u8 = undefined,
     id: identity.Identity,
     id_buf: identity.Buffer = .{},
 
-    fn init(conn: *tls.Connection) Edge {
+    fn init(conn: *Conn) Edge {
         var edge = Edge{ .conn = conn, .id = undefined };
         edge.id = identity.Identity.gather(&edge.id_buf);
         return edge;
@@ -133,7 +171,7 @@ const Edge = struct {
 
         if (eql(cmd, "exec")) {
             if (self.pty == null) {
-                self.pty = try Pty.spawn(config.shell);
+                self.pty = try Pty.spawn(defaults.shell);
                 log.info("PTY spawned", .{});
             }
         } else if (eql(cmd, "resize")) {
@@ -168,7 +206,7 @@ const Edge = struct {
     }
 
     fn wsSend(self: *Edge, opcode: ws.Opcode, payload: []const u8) !void {
-        var buf: [config.buf_size + 14]u8 = undefined; // max header = 14 bytes
+        var buf: [defaults.buf_size + 14]u8 = undefined; // max header = 14 bytes
         var mask: [4]u8 = undefined;
         std.crypto.random.bytes(&mask);
         const len = ws.encode(&buf, opcode, payload, mask);
@@ -207,14 +245,27 @@ pub fn main() !void {
     tls.init();
 
     const token = getToken() orelse {
-        log.err("Usage: zig-edge <token> or set EDGE_TOKEN env", .{});
+        log.err("Usage: zig-edge <token> [--plain] [--host HOST] [--port PORT]", .{});
+        log.err("  env: EDGE_TOKEN, EDGE_HOST, EDGE_PORT, EDGE_PLAIN=1", .{});
         return;
     };
 
-    log.info("Connecting to {s}:{d}...", .{ config.host, config.port });
-    var conn = try tls.Connection.connect(config.host, config.port);
+    const use_plain = getFlag("--plain") or envBool("EDGE_PLAIN");
+    const host = getArg("--host") orelse std.posix.getenv("EDGE_HOST") orelse defaults.host;
+    const port = blk: {
+        const p = getArg("--port") orelse std.posix.getenv("EDGE_PORT");
+        break :blk if (p) |s| std.fmt.parseInt(u16, s, 10) catch defaults.port
+            else if (use_plain) @as(u16, 4000) else defaults.port;
+    };
 
-    try ws.handshake(&conn, config.host, config.path, token);
+    log.info("Connecting to {s}:{d} ({s})...", .{ host, port, if (use_plain) "plain" else "tls" });
+
+    var conn: Conn = if (use_plain)
+        .{ .plain_conn = try plain.Connection.connect(host, port) }
+    else
+        .{ .tls_conn = try tls.Connection.connect(host, port) };
+
+    try ws.handshake(&conn, host, defaults.path, token);
     log.info("Connected", .{});
 
     var edge = Edge.init(&conn);
@@ -229,5 +280,31 @@ pub fn main() !void {
 fn getToken() ?[]const u8 {
     var args = std.process.args();
     _ = args.skip();
-    return args.next() orelse std.posix.getenv("EDGE_TOKEN");
+    while (args.next()) |arg| {
+        if (arg[0] != '-') return arg;
+    }
+    return std.posix.getenv("EDGE_TOKEN");
+}
+
+fn getFlag(flag: []const u8) bool {
+    var args = std.process.args();
+    _ = args.skip();
+    while (args.next()) |arg| {
+        if (std.mem.eql(u8, arg, flag)) return true;
+    }
+    return false;
+}
+
+fn getArg(name: []const u8) ?[]const u8 {
+    var args = std.process.args();
+    _ = args.skip();
+    while (args.next()) |arg| {
+        if (std.mem.eql(u8, arg, name)) return args.next();
+    }
+    return null;
+}
+
+fn envBool(name: []const u8) bool {
+    const v = std.posix.getenv(name) orelse return false;
+    return v.len > 0 and v[0] == '1';
 }
