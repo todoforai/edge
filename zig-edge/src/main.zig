@@ -1,19 +1,20 @@
 //! Edge Shell - WebSocket → PTY relay for todofor.ai
 //!
-//! Protocol:
+//! Protocol v2 (multi-session):
 //!   Text frames (JSON) - Control messages:
-//!     → {"type":"identity","data":{...}}  (edge info on connect)
-//!     ← {"type":"exec"}                   (spawn PTY)
-//!     ← {"type":"resize","rows":N,"cols":N}
-//!     ← {"type":"signal","sig":N}         (2=INT,9=KILL,15=TERM,etc)
-//!     → {"type":"exit","code":N}          (PTY exited)
-//!   Binary frames - PTY data (raw bytes, no encoding):
-//!     ← binary                            (stdin to PTY)
-//!     → binary                            (stdout from PTY)
+//!     → {"type":"identity","data":{...}}
+//!     ← {"type":"exec","todoId":"uuid","blockId":"..."}
+//!     ← {"type":"input","todoId":"uuid","blockId":"...","data":"base64"}
+//!     ← {"type":"resize","todoId":"uuid","rows":N,"cols":N}
+//!     ← {"type":"signal","todoId":"uuid","sig":N}
+//!     ← {"type":"kill","todoId":"uuid"}
+//!     → {"type":"output","todoId":"uuid","blockId":"...","data":"base64"}
+//!     → {"type":"exit","todoId":"uuid","blockId":"...","code":N}
+//!     ↔ {"type":"error","todoId":"uuid","blockId":"...","code":"ERR","message":"..."}
 
 const std = @import("std");
 const tls = @import("tls.zig");
-const plain = @import("plain.zig");
+const plain = @import("plain.zig"); // plain TCP — local testing only (--plain flag)
 const ws = @import("ws.zig");
 const json = @import("json.zig");
 const Pty = @import("pty.zig").Pty;
@@ -36,6 +37,9 @@ const defaults = .{
     .path = "/ws/v1/v2/edge-shell",
     .shell = "/bin/sh",
     .buf_size = 4096,
+    .max_sessions = 16,
+    .todo_id_len = 36, // UUID length
+    .block_id_len = 64,
 };
 
 // ============================================================================
@@ -76,15 +80,43 @@ const Conn = union(enum) {
 };
 
 // ============================================================================
+// PTY Session — one per todoId
+// ============================================================================
+
+const Session = struct {
+    todo_id: [defaults.todo_id_len]u8,
+    block_id: [defaults.block_id_len]u8 = undefined,
+    block_id_len: usize = 0,
+    pty: Pty,
+
+    fn todoId(self: *const Session) []const u8 {
+        return self.todo_id[0..];
+    }
+
+    fn blockId(self: *const Session) []const u8 {
+        return self.block_id[0..self.block_id_len];
+    }
+
+    fn setBlockId(self: *Session, id: ?[]const u8) void {
+        if (id) |s| {
+            const n = @min(s.len, defaults.block_id_len);
+            @memcpy(self.block_id[0..n], s[0..n]);
+            self.block_id_len = n;
+        }
+    }
+};
+
+// ============================================================================
 // Edge Client
 // ============================================================================
 
 const Edge = struct {
     conn: *Conn,
-    pty: ?Pty = null,
-    ws_buf: [defaults.buf_size]u8 = undefined,
+    sessions: [defaults.max_sessions]?Session = [_]?Session{null} ** defaults.max_sessions,
+    ws_buf: [defaults.buf_size * 8]u8 = undefined, // larger for base64 output
     ws_len: usize = 0,
     pty_buf: [defaults.buf_size]u8 = undefined,
+    b64_buf: [defaults.buf_size * 2]u8 = undefined, // base64 encode buffer
     id: identity.Identity,
     id_buf: identity.Buffer = .{},
 
@@ -95,7 +127,7 @@ const Edge = struct {
     }
 
     fn sendIdentity(self: *Edge) !void {
-        try self.wsSend(.text, self.id.toJson(&self.id_buf));
+        try self.wsSendText(self.id.toJson(&self.id_buf));
         log.info("Identified as {s}@{s} ({s}/{s})", .{
             self.id.user, self.id.hostname, self.id.os, self.id.arch,
         });
@@ -105,36 +137,47 @@ const Edge = struct {
         try self.sendIdentity();
 
         while (true) {
-            // Check for zombie child
-            if (self.pty) |*p| {
-                if (p.reap()) |code| {
-                    try self.sendExit(code);
-                    self.closePty();
+            // Reap exited PTYs
+            for (&self.sessions) |*slot| {
+                if (slot.*) |*s| {
+                    if (s.pty.reap()) |code| {
+                        self.sendExit(s.todoId(), s.blockId(), code) catch {};
+                        _ = s.pty.close();
+                        slot.* = null;
+                    }
                 }
             }
 
-            var fds = [_]pollfd{
-                .{ .fd = self.conn.fd(), .events = POLLIN, .revents = 0 },
-                .{ .fd = if (self.pty) |p| p.fd() else -1, .events = POLLIN, .revents = 0 },
-            };
+            // Build poll fds: [0]=socket, [1..N]=active PTYs
+            var fds: [1 + defaults.max_sessions]pollfd = undefined;
+            fds[0] = .{ .fd = self.conn.fd(), .events = POLLIN, .revents = 0 };
+            var n_fds: usize = 1;
+            for (self.sessions) |slot| {
+                if (slot) |s| {
+                    fds[n_fds] = .{ .fd = s.pty.fd(), .events = POLLIN, .revents = 0 };
+                    n_fds += 1;
+                }
+            }
 
-            _ = poll(&fds, 100) catch continue;
+            _ = poll(fds[0..n_fds], 100) catch continue;
 
-            // Socket errors
             if (fds[0].revents & (POLLERR | POLLHUP) != 0) return error.ConnectionClosed;
-
-            // WebSocket data
             if (fds[0].revents & POLLIN != 0) try self.handleWsData();
 
-            // PTY handling
-            if (self.pty != null) {
-                if (fds[1].revents & POLLIN != 0) try self.forwardPtyOutput();
-                if (fds[1].revents & (POLLHUP | POLLERR) != 0) {
-                    if (self.pty) |*p| {
-                        const code = p.close();
-                        try self.sendExit(code orelse 0);
-                        self.pty = null;
+            // Forward PTY output — match fds[1..] back to sessions
+            var fi: usize = 1;
+            for (&self.sessions) |*slot| {
+                if (slot.*) |*s| {
+                    if (fi >= n_fds) break;
+                    if (fds[fi].revents & POLLIN != 0) {
+                        self.forwardPtyOutput(s) catch {};
                     }
+                    if (fds[fi].revents & (POLLHUP | POLLERR) != 0) {
+                        const code = s.pty.close();
+                        self.sendExit(s.todoId(), s.blockId(), code orelse 0) catch {};
+                        slot.* = null;
+                    }
+                    fi += 1;
                 }
             }
         }
@@ -142,7 +185,7 @@ const Edge = struct {
 
     fn handleWsData(self: *Edge) !void {
         const n = self.conn.read(self.ws_buf[self.ws_len..]) catch |err| {
-            log.err("TLS read error: {}", .{err});
+            log.err("Read error: {}", .{err});
             return error.ConnectionClosed;
         };
         if (n == 0) return error.ConnectionClosed;
@@ -155,9 +198,9 @@ const Edge = struct {
             } orelse break;
 
             switch (frame.opcode) {
-                .text => try self.handleCommand(frame.payload),
-                .binary => try self.handleInput(frame.payload),
-                .ping => try self.wsSend(.pong, frame.payload),
+                .text => self.handleCommand(frame.payload) catch |err|
+                    log.err("Command error: {}", .{err}),
+                .ping => try self.wsSendFrame(.pong, frame.payload),
                 .close => return error.ConnectionClosed,
                 else => {},
             }
@@ -168,73 +211,180 @@ const Edge = struct {
 
     fn handleCommand(self: *Edge, msg: []const u8) !void {
         const cmd = json.str(msg, "type") orelse return;
+        const todo_id = json.str(msg, "todoId");
+        const block_id = json.str(msg, "blockId");
 
         if (eql(cmd, "exec")) {
-            if (self.pty == null) {
-                self.pty = try Pty.spawn(defaults.shell);
-                log.info("PTY spawned", .{});
-            }
+            const tid = todo_id orelse return self.sendError(null, null, "MISSING_TODO_ID", "exec requires todoId");
+            if (!isValidUuid(tid)) return self.sendError(tid, block_id, "INVALID_TODO_ID", "todoId must be a valid UUID");
+            if (self.findSession(tid) != null) return self.sendError(tid, block_id, "SESSION_EXISTS", "session already exists");
+            const slot = self.freeSlot() orelse return self.sendError(tid, block_id, "MAX_SESSIONS", "max 16 concurrent sessions");
+            const pty = Pty.spawn(defaults.shell) catch |err| {
+                log.err("PTY spawn failed: {}", .{err});
+                return self.sendError(tid, block_id, "SPAWN_FAILED", "failed to spawn PTY");
+            };
+            slot.* = Session{ .todo_id = undefined, .pty = pty };
+            @memcpy(&slot.*.?.todo_id, tid[0..defaults.todo_id_len]);
+            slot.*.?.setBlockId(block_id);
+            log.info("PTY spawned for {s}", .{tid});
+
+        } else if (eql(cmd, "input")) {
+            const tid = todo_id orelse return self.sendError(null, null, "MISSING_TODO_ID", "input requires todoId");
+            const s = self.findSession(tid) orelse return self.sendError(tid, block_id, "SESSION_NOT_FOUND", "no session for todoId");
+            s.setBlockId(block_id);
+            const b64 = json.str(msg, "data") orelse return self.sendError(tid, block_id, "MISSING_DATA", "input requires data");
+            var decode_buf: [defaults.buf_size]u8 = undefined;
+            const decoded_len = std.base64.standard.Decoder.calcSizeForSlice(b64) catch
+                return self.sendError(tid, block_id, "INVALID_BASE64", "data is not valid base64");
+            if (decoded_len > defaults.buf_size) return self.sendError(tid, block_id, "INPUT_TOO_LARGE", "input exceeds 4096 bytes");
+            std.base64.standard.Decoder.decode(decode_buf[0..decoded_len], b64) catch
+                return self.sendError(tid, block_id, "INVALID_BASE64", "data is not valid base64");
+            s.pty.writeAll(decode_buf[0..decoded_len]) catch |err|
+                log.err("PTY write error: {}", .{err});
+
         } else if (eql(cmd, "resize")) {
-            if (self.pty) |p| p.resize(
+            const tid = todo_id orelse return;
+            if (self.findSession(tid)) |s| s.pty.resize(
                 json.int(msg, "rows", u16) orelse 24,
                 json.int(msg, "cols", u16) orelse 80,
             );
+
         } else if (eql(cmd, "signal")) {
-            if (self.pty) |p| {
-                if (json.int(msg, "sig", u8)) |sig| {
-                    if (!p.signal(sig)) log.warn("Signal {d} not allowed", .{sig});
+            const tid = todo_id orelse return;
+            if (self.findSession(tid)) |s| {
+                const sig = json.int(msg, "sig", u8) orelse return self.sendError(tid, block_id, "MISSING_SIG", "signal requires sig");
+                if (!s.pty.signal(sig)) return self.sendError(tid, block_id, "SIGNAL_NOT_ALLOWED", "signal not in whitelist");
+            }
+
+        } else if (eql(cmd, "kill")) {
+            const tid = todo_id orelse return;
+            for (&self.sessions) |*slot| {
+                if (slot.*) |*s| {
+                    if (eql(s.todoId(), tid)) {
+                        _ = s.pty.close();
+                        slot.* = null;
+                        log.info("Session killed: {s}", .{tid});
+                        break;
+                    }
                 }
             }
         }
     }
 
-    fn handleInput(self: *Edge, data: []const u8) !void {
-        if (self.pty) |p| p.writeAll(data) catch |err| {
-            log.err("PTY write error: {}", .{err});
+    fn forwardPtyOutput(self: *Edge, s: *Session) !void {
+        const n = s.pty.read(&self.pty_buf) catch |err| {
+            log.err("PTY read error: {}", .{err});
+            return;
         };
+        if (n == 0) return;
+
+        // base64-encode the raw PTY bytes
+        const b64_len = std.base64.standard.Encoder.calcSize(n);
+        const b64 = std.base64.standard.Encoder.encode(self.b64_buf[0..b64_len], self.pty_buf[0..n]);
+
+        // {"type":"output","todoId":"...","blockId":"...","data":"..."}
+        var msg_buf: [defaults.buf_size * 3]u8 = undefined;
+        const msg = if (s.block_id_len > 0)
+            std.fmt.bufPrint(&msg_buf,
+                "{{\"type\":\"output\",\"todoId\":\"{s}\",\"blockId\":\"{s}\",\"data\":\"{s}\"}}",
+                .{ s.todoId(), s.blockId(), b64 }) catch return
+        else
+            std.fmt.bufPrint(&msg_buf,
+                "{{\"type\":\"output\",\"todoId\":\"{s}\",\"data\":\"{s}\"}}",
+                .{ s.todoId(), b64 }) catch return;
+
+        try self.wsSendText(msg);
     }
 
-    fn forwardPtyOutput(self: *Edge) !void {
-        if (self.pty) |p| {
-            const n = p.read(&self.pty_buf) catch |err| {
-                log.err("PTY read error: {}", .{err});
-                return;
-            };
-            if (n == 0) return; // EOF handled by POLLHUP
-            try self.wsSend(.binary, self.pty_buf[0..n]); // Raw bytes!
-        }
+    fn sendExit(self: *Edge, todo_id: []const u8, block_id: []const u8, code: i32) !void {
+        var buf: [256]u8 = undefined;
+        const msg = if (block_id.len > 0)
+            std.fmt.bufPrint(&buf,
+                "{{\"type\":\"exit\",\"todoId\":\"{s}\",\"blockId\":\"{s}\",\"code\":{d}}}",
+                .{ todo_id, block_id, code }) catch return
+        else
+            std.fmt.bufPrint(&buf,
+                "{{\"type\":\"exit\",\"todoId\":\"{s}\",\"code\":{d}}}",
+                .{ todo_id, code }) catch return;
+        try self.wsSendText(msg);
+        log.info("PTY exited: {s} code={d}", .{ todo_id, code });
     }
 
-    fn wsSend(self: *Edge, opcode: ws.Opcode, payload: []const u8) !void {
-        var buf: [defaults.buf_size + 14]u8 = undefined; // max header = 14 bytes
+    fn sendError(self: *Edge, todo_id: ?[]const u8, block_id: ?[]const u8, code: []const u8, message: []const u8) void {
+        var buf: [512]u8 = undefined;
+        const msg = if (todo_id) |tid|
+            if (block_id) |bid|
+                std.fmt.bufPrint(&buf,
+                    "{{\"type\":\"error\",\"todoId\":\"{s}\",\"blockId\":\"{s}\",\"code\":\"{s}\",\"message\":\"{s}\"}}",
+                    .{ tid, bid, code, message }) catch return
+            else
+                std.fmt.bufPrint(&buf,
+                    "{{\"type\":\"error\",\"todoId\":\"{s}\",\"code\":\"{s}\",\"message\":\"{s}\"}}",
+                    .{ tid, code, message }) catch return
+        else
+            std.fmt.bufPrint(&buf,
+                "{{\"type\":\"error\",\"code\":\"{s}\",\"message\":\"{s}\"}}",
+                .{ code, message }) catch return;
+        self.wsSendText(msg) catch {};
+        log.warn("Error {s}: {s}", .{ code, message });
+    }
+
+    fn wsSendText(self: *Edge, payload: []const u8) !void {
+        try self.wsSendFrame(.text, payload);
+    }
+
+    fn wsSendFrame(self: *Edge, opcode: ws.Opcode, payload: []const u8) !void {
+        // Allocate on heap for large payloads (output messages can be big)
+        const frame_len = payload.len + 14;
+        const buf = try std.heap.page_allocator.alloc(u8, frame_len);
+        defer std.heap.page_allocator.free(buf);
         var mask: [4]u8 = undefined;
         std.crypto.random.bytes(&mask);
-        const len = ws.encode(&buf, opcode, payload, mask);
+        const len = ws.encode(buf, opcode, payload, mask);
         try self.conn.writeAll(buf[0..len]);
     }
 
-    fn sendExit(self: *Edge, code: i32) !void {
-        var buf: [64]u8 = undefined;
-        const msg = std.fmt.bufPrint(&buf, "{{\"type\":\"exit\",\"code\":{d}}}", .{code}) catch return;
-        try self.wsSend(.text, msg);
-        log.info("PTY exited with code {d}", .{code});
+    fn findSession(self: *Edge, todo_id: []const u8) ?*Session {
+        for (&self.sessions) |*slot| {
+            if (slot.*) |*s| {
+                if (eql(s.todoId(), todo_id)) return s;
+            }
+        }
+        return null;
     }
 
-    fn closePty(self: *Edge) void {
-        if (self.pty) |*p| {
-            _ = p.close();
-            self.pty = null;
+    fn freeSlot(self: *Edge) ?*?Session {
+        for (&self.sessions) |*slot| {
+            if (slot.* == null) return slot;
         }
+        return null;
     }
 
     fn deinit(self: *Edge) void {
-        self.closePty();
+        for (&self.sessions) |*slot| {
+            if (slot.*) |*s| {
+                _ = s.pty.close();
+                slot.* = null;
+            }
+        }
         self.conn.close();
     }
 };
 
 fn eql(a: []const u8, b: []const u8) bool {
     return std.mem.eql(u8, a, b);
+}
+
+fn isValidUuid(s: []const u8) bool {
+    if (s.len != 36) return false;
+    // xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    const dashes = [_]usize{ 8, 13, 18, 23 };
+    for (dashes) |i| if (s[i] != '-') return false;
+    for (s, 0..) |c, i| {
+        const is_dash_pos = i == 8 or i == 13 or i == 18 or i == 23;
+        if (!is_dash_pos and !std.ascii.isHex(c)) return false;
+    }
+    return true;
 }
 
 // ============================================================================
@@ -277,11 +427,20 @@ pub fn main() !void {
     };
 }
 
+// Known flags that take a value — their values must not be mistaken for the token
+const value_flags = [_][]const u8{ "--host", "--port" };
+
 fn getToken() ?[]const u8 {
     var args = std.process.args();
     _ = args.skip();
     while (args.next()) |arg| {
-        if (arg[0] != '-') return arg;
+        if (std.mem.startsWith(u8, arg, "-")) {
+            for (value_flags) |f| {
+                if (std.mem.eql(u8, arg, f)) { _ = args.next(); break; }
+            }
+            continue;
+        }
+        return arg;
     }
     return std.posix.getenv("EDGE_TOKEN");
 }
