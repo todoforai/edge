@@ -1,5 +1,6 @@
 import http from "http";
 import crypto from "crypto";
+import type { AddressInfo } from "net";
 import { WebSocketServer, WebSocket } from "ws";
 
 export const BRIDGE_HOST = process.env.TODOFORAI_BROWSER_BRIDGE_HOST || "127.0.0.1";
@@ -29,17 +30,34 @@ export class BrowserExtensionBridge {
   start() {
     if (this.server) return;
 
-    this.server = http.createServer();
-    this.wss = new WebSocketServer({ server: this.server });
-    this.wss.on("connection", (ws) => {
-      ws.on("message", (raw) => this.handleMessage(ws, raw.toString()));
-      ws.on("close", () => this.handleClose(ws));
-      ws.on("error", () => this.handleClose(ws));
+    const server = http.createServer();
+    const disableOnPortConflict = (err: NodeJS.ErrnoException) => {
+      if (err.code !== "EADDRINUSE" && !String(err.message || "").includes(`port ${BRIDGE_PORT} in use`)) return false;
+      console.warn(`[browser-bridge] ${this.url} in use; browser tools disabled. Set TODOFORAI_BROWSER_BRIDGE_PORT to override.`);
+      try { this.wss?.close(); } catch {}
+      try { server.close(); } catch {}
+      return true;
+    };
+
+    server.once("error", (err: NodeJS.ErrnoException) => {
+      if (!disableOnPortConflict(err)) throw err;
     });
 
-    this.server.listen(BRIDGE_PORT, BRIDGE_HOST, () => {
-      console.log(`[browser-bridge] listening on ${this.url}`);
-    });
+    try {
+      server.listen(BRIDGE_PORT, BRIDGE_HOST, () => {
+        this.server = server;
+        this.wss = new WebSocketServer({ server });
+        this.wss.on("connection", (ws) => {
+          ws.on("message", (raw) => this.handleMessage(ws, raw.toString()));
+          ws.on("close", () => this.handleClose(ws));
+          ws.on("error", () => this.handleClose(ws));
+        });
+        const address = server.address() as AddressInfo | null;
+        console.log(`[browser-bridge] listening on ws://${BRIDGE_HOST}:${address?.port || BRIDGE_PORT}`);
+      });
+    } catch (err) {
+      if (!disableOnPortConflict(err as NodeJS.ErrnoException)) throw err;
+    }
   }
 
   stop() {
