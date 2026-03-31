@@ -34,7 +34,8 @@ const POLLERR = std.posix.POLL.ERR;
 const defaults = .{
     .host = "api.todofor.ai",
     .port = 443,
-    .path = "/ws/v1/v2/edge-shell",
+    .path = "/ws/v2/edge-shell",
+    .path_sandbox = "/ws/v2/edge-shell?deviceType=SANDBOX",
     .shell = "/bin/sh",
     .buf_size = 4096,
     .max_sessions = 16,
@@ -394,7 +395,12 @@ fn isValidUuid(s: []const u8) bool {
 pub fn main() !void {
     tls.init();
 
-    const token = getToken() orelse {
+    // Try /proc/cmdline first (Firecracker kernel arg: edge.token=<token>)
+    var cmdline_buf: [4096]u8 = undefined;
+    const cmdline_token = getCmdlineToken(&cmdline_buf);
+    const from_cmdline = cmdline_token != null;
+
+    const token = cmdline_token orelse getToken() orelse {
         log.err("Usage: zig-edge <token> [--plain] [--host HOST] [--port PORT]", .{});
         log.err("  env: EDGE_TOKEN, EDGE_HOST, EDGE_PORT, EDGE_PLAIN=1", .{});
         return;
@@ -407,6 +413,8 @@ pub fn main() !void {
         break :blk if (p) |s| std.fmt.parseInt(u16, s, 10) catch defaults.port
             else if (use_plain) @as(u16, 4000) else defaults.port;
     };
+    // Sandbox VMs (token from kernel cmdline) register as DeviceType.SANDBOX
+    const path = if (from_cmdline) defaults.path_sandbox else defaults.path;
 
     log.info("Connecting to {s}:{d} ({s})...", .{ host, port, if (use_plain) "plain" else "tls" });
 
@@ -415,7 +423,7 @@ pub fn main() !void {
     else
         .{ .tls_conn = try tls.Connection.connect(host, port) };
 
-    try ws.handshake(&conn, host, defaults.path, token);
+    try ws.handshake(&conn, host, path, token);
     log.info("Connected", .{});
 
     var edge = Edge.init(&conn);
@@ -466,4 +474,18 @@ fn getArg(name: []const u8) ?[]const u8 {
 fn envBool(name: []const u8) bool {
     const v = std.posix.getenv(name) orelse return false;
     return v.len > 0 and v[0] == '1';
+}
+
+/// Read edge.token=<value> from /proc/cmdline (Firecracker kernel arg).
+/// Returns a slice into buf, or null if not present or unreadable.
+fn getCmdlineToken(buf: []u8) ?[]const u8 {
+    const f = std.fs.openFileAbsolute("/proc/cmdline", .{}) catch return null;
+    defer f.close();
+    const n = f.read(buf) catch return null;
+    const line = std.mem.trimRight(u8, buf[0..n], "\n ");
+    const needle = "edge.token=";
+    const start = (std.mem.indexOf(u8, line, needle) orelse return null) + needle.len;
+    const rest = line[start..];
+    const end = std.mem.indexOfScalar(u8, rest, ' ') orelse rest.len;
+    return if (end > 0) rest[0..end] else null;
 }

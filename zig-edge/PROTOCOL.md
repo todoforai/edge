@@ -5,11 +5,11 @@ Lightweight WebSocket protocol for PTY relay between zig-edge client and backend
 ## Connection
 
 ```
-Endpoint: wss://api.todofor.ai/ws/v1/v2/edge-shell
+Endpoint: wss://api.todofor.ai/ws/v2/edge-shell
 Auth: Bearer token in Authorization header (or sec-websocket-protocol)
 ```
 
-Note: The WebSocket server is mounted at `/ws/v1`, and the edge-shell handler is at `/v2/edge-shell`.
+Note: The WebSocket server is mounted at `/ws`, and the edge-shell handler is at `/v2/edge-shell`.
 
 ## Multi-Session Support
 
