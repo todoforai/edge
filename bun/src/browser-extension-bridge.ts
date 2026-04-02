@@ -85,7 +85,7 @@ export class BrowserExtensionBridge {
     if (this.debug) console.log("[browser-bridge:recv]", data.type);
 
     if (data.type === "hello") {
-      if (data.role === "extension") {
+      if (data.role === "extension" || data.role === "extension-control") {
         this.extensionWs = ws;
         if (isOpen(ws)) ws.send(JSON.stringify({ type: "connected_edge", payload: { edgeId: BRIDGE_EDGE_ID } }));
         return;
