@@ -112,7 +112,7 @@ export class BrowserExtensionBridge {
       }, REQUEST_TIMEOUT_MS);
 
       this.pending.set(requestId, { ws, timeout });
-      this.extensionWs.send(JSON.stringify({ type: "browser.command.request", requestId, cmd: String(data.cmd || "") }));
+      this.extensionWs.send(JSON.stringify({ type: "browser.command.request", requestId, cmd: String(data.cmd || ""), args: data.args }));
       return;
     }
 
