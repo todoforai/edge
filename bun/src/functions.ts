@@ -301,10 +301,8 @@ register("search_files", async (args) => {
   const which = (bin: string) => { try { return execWhich(`which ${bin}`, { encoding: "utf-8" }).trim(); } catch { return null; } };
   let rgPath = which("rg");
   if (!rgPath) {
-    // Auto-install ripgrep if missing
     await ensureTool("rg");
     rgPath = which("rg");
-    if (!rgPath) throw new Error("ripgrep (rg) not found and auto-install failed");
   }
 
   let searchPath = p.replace(/^~/, process.env.HOME || "~");
@@ -312,11 +310,26 @@ register("search_files", async (args) => {
   searchPath = path.resolve(searchPath);
   if (!fs.existsSync(searchPath)) throw new Error(`Search path does not exist: ${searchPath}`);
 
-  const cmd = [rgPath, "--no-heading", "--line-number", "--color=never"];
-  if (ignore_case) cmd.push("--ignore-case");
-  if (max_count > 0) cmd.push(`--max-count=${max_count}`);
-  if (globPattern) cmd.push("--glob", globPattern);
-  cmd.push(pattern, searchPath);
+  let cmd: string[];
+  if (rgPath) {
+    cmd = [rgPath, "--no-heading", "--line-number", "--color=never"];
+    if (ignore_case) cmd.push("--ignore-case");
+    if (max_count > 0) cmd.push(`--max-count=${max_count}`);
+    if (globPattern) cmd.push("--glob", globPattern);
+    cmd.push(pattern, searchPath);
+  } else {
+    // Fallback to grep when ripgrep is unavailable
+    console.warn("[search_files] ripgrep (rg) not found, falling back to grep");
+    const grepPath = which("grep") || "grep";
+    cmd = [grepPath, "-rn", "--color=never"];
+    if (ignore_case) cmd.push("-i");
+    if (max_count > 0) cmd.push(`--max-count=${max_count}`);
+    if (globPattern) {
+      // Convert rg glob to grep --include (e.g. "*.ts" or "*.{ts,tsx}")
+      cmd.push(`--include=${globPattern}`);
+    }
+    cmd.push(pattern, searchPath);
+  }
 
   const { spawn: spawnChild } = await import("child_process");
   const { stdout, stderr, code } = await new Promise<{ stdout: string; stderr: string; code: number }>((resolve) => {
@@ -366,7 +379,7 @@ register("search_files", async (args) => {
     return { result: output };
   }
   if (code === 1) return { result: "No matches found." };
-  throw new Error(`ripgrep error (exit ${code}): ${stderr}`);
+  throw new Error(`search error (exit ${code}): ${stderr}`);
 });
 
 register("download_attachment", async (args, client) => {
