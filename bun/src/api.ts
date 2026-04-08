@@ -1,5 +1,33 @@
 /** Thin REST client for the TODOforAI API */
 
+// ── Registry types (canonical source: @shared/fbe/REST_types) ────────
+
+export interface RegistryTemplateInput {
+  label: string;
+  type: "text" | "textarea" | "number" | "password";
+  placeholder?: string;
+  helpText?: string;
+  required?: boolean;
+  default?: string | number | boolean;
+}
+
+export interface RegistryTemplate {
+  id: string;
+  todoname: string;
+  description: string;
+  targetUrls?: string[];
+  categories: string[];
+  featured?: boolean;
+  creator: { name: string; avatar?: string };
+  requirements?: { anyOf: string[][]; optional?: boolean }[];
+  inputs?: RegistryTemplateInput[];
+  agentSettings: { systemMessage: string };
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ── Client ───────────────────────────────────────────────────────────
+
 export class ApiClient {
   constructor(
     public apiUrl: string,
@@ -108,5 +136,28 @@ export class ApiClient {
 
   listEdges() {
     return this.request("GET", "/api/v1/edges");
+  }
+
+  startFromTemplate(projectId: string, templateId: string, opts?: { inputValues?: Record<string, string | number | boolean>; scheduledTimestamp?: number; businessContextId?: string }) {
+    return this.request("POST", `/api/v1/projects/${projectId}/todos/from-template`, {
+      templateId,
+      ...opts,
+    });
+  }
+
+  /** Fetch a single template from the public registry (no auth required). */
+  async getRegistryTemplate(templateId: string): Promise<RegistryTemplate> {
+    const base = this.apiUrl.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
+    const res = await fetch(`${base}/cookie/v1/registry/templates/${templateId}`);
+    if (!res.ok) throw new Error(`Template '${templateId}' not found (${res.status})`);
+    return res.json();
+  }
+
+  /** List all templates from the public registry (no auth required). */
+  async listRegistryTemplates(category = "all"): Promise<RegistryTemplate[]> {
+    const base = this.apiUrl.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
+    const res = await fetch(`${base}/cookie/v1/registry/templates?category=${category}`);
+    if (!res.ok) throw new Error(`Failed to list templates (${res.status})`);
+    return res.json();
   }
 }
