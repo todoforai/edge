@@ -328,6 +328,28 @@ export class TODOforAIEdge {
 
   // ── Connection ──
 
+  private startHeartbeat() {
+    this.stopHeartbeat();
+    let pongReceived = true;
+    this.ws?.on("pong", () => { pongReceived = true; });
+    this.heartbeatTimer = setInterval(() => {
+      if (!pongReceived) {
+        console.log("[warn] No pong received, terminating stale connection");
+        this.ws?.terminate();
+        return;
+      }
+      pongReceived = false;
+      try { this.ws?.ping(); } catch {}
+    }, 30_000);
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = undefined;
+    }
+  }
+
   private connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       const url = `${this.wsUrl}?fingerprint=${encodeURIComponent(this.fingerprint)}`;
@@ -341,6 +363,7 @@ export class TODOforAIEdge {
       this.ws.on("open", () => {
         this.connected = true;
         console.log("[info] WebSocket connected");
+        this.startHeartbeat();
       });
 
       this.ws.on("message", (data, isBinary) => {
@@ -360,6 +383,7 @@ export class TODOforAIEdge {
       });
 
       this.ws.on("close", (code, reason) => {
+        this.stopHeartbeat();
         this.connected = false;
         this.ws = null;
         const reasonText = reason?.toString() || "<empty>";
@@ -374,6 +398,7 @@ export class TODOforAIEdge {
       });
 
       this.ws.on("error", (err) => {
+        this.stopHeartbeat();
         this.connected = false;
         this.ws = null;
         reject(err);
@@ -388,7 +413,7 @@ export class TODOforAIEdge {
     this.fingerprint = generateFingerprint();
     console.log(`\x1b[36m\x1b[1m👆 Fingerprint:\x1b[0m ${this.fingerprint}`);
 
-    const maxAttempts = 10;
+    const maxAttempts = 20;
     let attempt = 0;
 
     while (attempt < maxAttempts) {
