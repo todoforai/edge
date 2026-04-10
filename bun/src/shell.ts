@@ -285,9 +285,7 @@ export async function executeBlock(
     if (HAS_BUN_TERMINAL) {
       try {
         spawnWithPty();
-      } catch (ptyErr: any) {
-        // Bun.Terminal may fail on Windows if conpty.node native module is missing
-        console.warn(`[shell] PTY unavailable, falling back to pipes: ${ptyErr.message}`);
+      } catch {
         HAS_BUN_TERMINAL = false;
         spawnWithPipes();
       }
