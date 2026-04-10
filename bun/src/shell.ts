@@ -5,7 +5,7 @@ import { msg, type WsMessage } from "./constants.js";
 import { findMissingTools, ensureTool, buildEnvWithTools } from "./tool-registry.js";
 
 const IS_WIN = os.platform() === "win32";
-const HAS_BUN_TERMINAL = typeof Bun.Terminal === "function";
+let HAS_BUN_TERMINAL = typeof Bun.Terminal === "function";
 
 // ── Shell detection (Windows support) ──
 
@@ -228,7 +228,7 @@ export async function executeBlock(
 
     const sc = getShellCommand(content);
 
-    if (HAS_BUN_TERMINAL) {
+    const spawnWithPty = () => {
       // PTY mode via Bun.Terminal (interactive, sudo/ssh support)
       // Pass terminal config inline so Bun sets up setsid+TIOCSCTTY (controlling terminal).
       // Pre-creating Bun.Terminal and passing it skips controlling terminal setup.
@@ -254,8 +254,10 @@ export async function executeBlock(
         terminal.close();
         onExit(-1, timer);
       });
-    } else {
-      // Fallback: Bun.spawn pipes (no TTY — interactive programs won't work)
+    };
+
+    const spawnWithPipes = () => {
+      // Bun.spawn pipes (no TTY — interactive programs won't work)
       const proc = Bun.spawn([sc.shell, ...sc.args], {
         cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe",
       });
@@ -278,6 +280,19 @@ export async function executeBlock(
         proc.exited,
       ]).then(([, , code]) => onExit(code ?? -1, timer))
         .catch(() => onExit(-1, timer));
+    };
+
+    if (HAS_BUN_TERMINAL) {
+      try {
+        spawnWithPty();
+      } catch (ptyErr: any) {
+        // Bun.Terminal may fail on Windows if conpty.node native module is missing
+        console.warn(`[shell] PTY unavailable, falling back to pipes: ${ptyErr.message}`);
+        HAS_BUN_TERMINAL = false;
+        spawnWithPipes();
+      }
+    } else {
+      spawnWithPipes();
     }
   } catch (e: any) {
     await send(msg.shellBlockResult(todoId, blockId, `Error creating process: ${e.message}`, messageId));
