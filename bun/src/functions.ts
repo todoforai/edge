@@ -108,7 +108,7 @@ register("get_workspace_tree", async (args) => {
     try {
       const { execSync } = await import("child_process");
       // Check if tree is available
-      execSync("which tree", { encoding: "utf-8", stdio: "pipe" });
+      execSync(process.platform === "win32" ? "where tree" : "which tree", { encoding: "utf-8", stdio: "pipe" });
       const cmd = ["tree", "-L", String(max_depth), "--dirsfirst"];
       if (isGit) cmd.push("--gitignore", "-I", ".git");
       const result = execSync(cmd.join(" "), {
@@ -298,7 +298,8 @@ register("read_file_base64", async (args) => {
 register("search_files", async (args) => {
   const { pattern, path: p = ".", root_path = "", head = 100, max_count = 5, glob: globPattern = "", ignore_case = true } = args;
   const { execSync: execWhich } = await import("child_process");
-  const which = (bin: string) => { try { return execWhich(`which ${bin}`, { encoding: "utf-8" }).trim(); } catch { return null; } };
+  const whichCmd = process.platform === "win32" ? "where" : "which";
+  const which = (bin: string) => { try { return execWhich(`${whichCmd} ${bin}`, { encoding: "utf-8" }).trim().split("\n")[0].trim(); } catch { return null; } };
   let rgPath = which("rg");
   if (!rgPath) {
     await ensureTool("rg");
