@@ -4,8 +4,9 @@
 - ✅ Edge: `detectContentType()` in `functions.ts` — done, deployed v0.12.15
 - ✅ Agent: `BashTool.get_result()` with `contentType` → image attachment — done
 - ✅ EasyContext: `resultimg2base64` override added to `ShellBlockTool.jl`
-- ✅ Test file created: `EasyContext.jl/test/agents/test_shell_image_output.jl`
-- 🔧 Tests not passing yet — need fixes below
+- ✅ ToolCallFormat: `create_tool` forwards `no_confirm` to internal fields
+- ✅ ShellBlockTool: `cmd` → `shell_cmd` rename (fixed macro shadowing bug)
+- ✅ Tests passing (11/11): `EasyContext.jl/test/agents/test_shell_image_output.jl`
 
 ## Test issues to fix
 
