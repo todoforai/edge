@@ -133,11 +133,8 @@ export class TODOforAIEdge {
   }
 
   async ensureApiKey(promptIfMissing = true): Promise<boolean> {
-    // 1. --api-key / env var
-    if (this.api.apiKey && await this.tryValidateKey()) {
-      saveApiKey(this.api.apiUrl, this.api.apiKey);
-      return true;
-    }
+    // 1. --api-key / env var (don't persist — explicit keys are ephemeral)
+    if (this.api.apiKey && await this.tryValidateKey()) return true;
 
     // 2. Saved credentials
     const saved = loadSavedApiKey(this.api.apiUrl);
@@ -169,16 +166,21 @@ export class TODOforAIEdge {
       const deadline = Date.now() + expiresIn * 1000;
       while (Date.now() < deadline) {
         await new Promise(r => setTimeout(r, 3000));
-        const poll = await this.api.pollDeviceLogin(code);
-        if (poll.status === "complete" && poll.apiKey) {
-          this.api.apiKey = poll.apiKey;
-          saveApiKey(this.api.apiUrl, poll.apiKey);
-          console.log("\x1b[32m✅ Login successful! API key saved.\x1b[0m");
-          if (await this.tryValidateKey()) return true;
-        }
-        if (poll.status === "expired") {
-          console.log("\x1b[31mDevice login expired.\x1b[0m");
-          break;
+        try {
+          const poll = await this.api.pollDeviceLogin(code);
+          if (poll.status === "complete" && poll.apiKey) {
+            this.api.apiKey = poll.apiKey;
+            saveApiKey(this.api.apiUrl, poll.apiKey);
+            console.log("\x1b[32m✅ Login successful! API key saved.\x1b[0m");
+            // Trust the freshly-minted key — don't re-validate (code is already consumed)
+            return true;
+          }
+          if (poll.status === "expired") {
+            console.log("\x1b[31mDevice login expired.\x1b[0m");
+            break;
+          }
+        } catch {
+          // Transient network error — keep polling until deadline
         }
         // pending — keep polling
       }
@@ -203,8 +205,7 @@ export class TODOforAIEdge {
           key = key.trim();
           if (!key) { console.log("No API key provided. Please try again."); return ask(); }
           this.api.apiKey = key;
-          const result = await this.api.validateApiKey();
-          if (result.valid) {
+          if (await this.tryValidateKey()) {
             saveApiKey(this.api.apiUrl, key);
             console.log("\x1b[32m✅ API key saved.\x1b[0m");
             rl.close();

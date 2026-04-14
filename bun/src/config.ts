@@ -75,8 +75,9 @@ function readCredentials(): Record<string, string> {
 
 function writeCredentials(creds: Record<string, string>) {
   const dir = path.dirname(CREDENTIALS_PATH);
-  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(creds, null, 2), { mode: 0o600 });
+  try { fs.chmodSync(CREDENTIALS_PATH, 0o600); } catch {}
 }
 
 export function loadSavedApiKey(apiUrl: string): string | null {
