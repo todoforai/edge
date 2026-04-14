@@ -32,7 +32,7 @@ function killExistingEdge(lp: string): boolean {
       // Wait up to 3s for graceful shutdown
       for (let i = 0; i < 30; i++) {
         try { process.kill(pid, 0); } catch { break; }
-        Bun.sleepSync(100);
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
       }
       // Force kill if still alive
       try { process.kill(pid, "SIGKILL"); } catch {}

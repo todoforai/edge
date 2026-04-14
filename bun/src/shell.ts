@@ -1,11 +1,13 @@
 import os from "os";
 import fs from "fs";
 import path from "path";
+import { spawn as nodeSpawn } from "child_process";
 import { msg, type WsMessage } from "./constants.js";
 import { findMissingTools, ensureTool, buildEnvWithTools } from "./tool-registry.js";
 
 const IS_WIN = os.platform() === "win32";
-let HAS_BUN_TERMINAL = typeof Bun.Terminal === "function";
+const HAS_BUN = typeof globalThis.Bun !== "undefined";
+let HAS_BUN_TERMINAL = HAS_BUN && typeof Bun.Terminal === "function";
 
 // ── Shell detection (Windows support) ──
 
@@ -108,6 +110,13 @@ class OutputBuffer {
       current += `\n\n... [truncated: showing first ${this.firstPart.length} and last ${this.lastPart.length} chars of ${this.totalLen} total] ...\n\n${this.lastPart}`;
     }
     const all = current ? [...this.savedSegments, current] : [...this.savedSegments];
+    return all.join("\n");
+  }
+
+  /** Get raw output without truncation formatting. Returns null if truncated (incomplete data). */
+  getRawIfComplete(): string | null {
+    if (this.truncated) return null;
+    const all = this.firstPart ? [...this.savedSegments, this.firstPart] : [...this.savedSegments];
     return all.join("\n");
   }
 }
@@ -257,29 +266,47 @@ export async function executeBlock(
     };
 
     const spawnWithPipes = () => {
-      // Bun.spawn pipes (no TTY — interactive programs won't work)
-      const proc = Bun.spawn([sc.shell, ...sc.args], {
-        cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe",
-      });
+      if (HAS_BUN) {
+        // Bun.spawn pipes (no TTY — interactive programs won't work)
+        const proc = Bun.spawn([sc.shell, ...sc.args], {
+          cwd, env, stdin: "pipe", stdout: "pipe", stderr: "pipe",
+        });
 
-      const handle: ProcHandle = { proc, pid: proc.pid };
-      processes.set(blockId, handle);
-      const timer = startTimeout();
+        const handle: ProcHandle = { proc, pid: proc.pid };
+        processes.set(blockId, handle);
+        const timer = startTimeout();
 
-      const pipeStream = async (stream: ReadableStream<Uint8Array> | null) => {
-        if (!stream) return;
-        const decoder = new TextDecoder();
-        for await (const chunk of stream) {
-          await onData(decoder.decode(chunk, { stream: true }));
-        }
-      };
+        const pipeStream = async (stream: ReadableStream<Uint8Array> | null) => {
+          if (!stream) return;
+          const decoder = new TextDecoder();
+          for await (const chunk of stream) {
+            await onData(decoder.decode(chunk, { stream: true }));
+          }
+        };
 
-      Promise.all([
-        pipeStream(proc.stdout as ReadableStream<Uint8Array>),
-        pipeStream(proc.stderr as ReadableStream<Uint8Array>),
-        proc.exited,
-      ]).then(([, , code]) => onExit(code ?? -1, timer))
-        .catch(() => onExit(-1, timer));
+        Promise.all([
+          pipeStream(proc.stdout as ReadableStream<Uint8Array>),
+          pipeStream(proc.stderr as ReadableStream<Uint8Array>),
+          proc.exited,
+        ]).then(([, , code]) => onExit(code ?? -1, timer))
+          .catch(() => onExit(-1, timer));
+      } else {
+        // Node.js child_process fallback
+        const proc = nodeSpawn(sc.shell, sc.args, {
+          cwd, env: env as NodeJS.ProcessEnv, stdio: ["pipe", "pipe", "pipe"],
+        });
+
+        const handle: ProcHandle = { proc: proc as any, pid: proc.pid ?? -1 };
+        processes.set(blockId, handle);
+        const timer = startTimeout();
+        let exited = false;
+        const exit = (code: number) => { if (!exited) { exited = true; onExit(code, timer); } };
+
+        proc.stdout?.on("data", (chunk: Buffer) => onData(chunk.toString()));
+        proc.stderr?.on("data", (chunk: Buffer) => onData(chunk.toString()));
+        proc.on("close", (code) => exit(code ?? -1));
+        proc.on("error", () => exit(-1));
+      }
     };
 
     if (HAS_BUN_TERMINAL) {
@@ -364,6 +391,11 @@ export function waitForCompletion(blockId: string, timeoutMs: number): Promise<v
 
 export function getBlockOutput(blockId: string): string {
   return outputBuffers.get(blockId)?.getOutput() ?? "";
+}
+
+/** Get raw output if not truncated, otherwise null. Used for typed output detection (e.g., images). */
+export function getBlockRawOutput(blockId: string): string | null {
+  return outputBuffers.get(blockId)?.getRawIfComplete() ?? null;
 }
 
 export function clearBlockOutput(blockId: string) {
