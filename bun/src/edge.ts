@@ -138,10 +138,11 @@ export class TODOforAIEdge {
     console.log(`\x1b[33mPlease provide your API key\x1b[0m`);
     console.log(`\x1b[36mGet one at:\x1b[0m ${frontendUrl}/apikey`);
 
-    // If stdin is not a TTY (e.g. spawned as a sidecar with no terminal), exit instead of hanging
+    // If stdin is not a TTY (e.g. spawned as a sidecar with no terminal), exit instead of hanging.
+    // Exit 0 so PM2 / process managers don't treat this as a crash and restart in a loop.
     if (!process.stdin.isTTY) {
       console.error("No API key provided and stdin is not interactive. Set TODOFORAI_API_KEY or pass --api-key.");
-      process.exit(1);
+      process.exit(0);
     }
 
     const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
