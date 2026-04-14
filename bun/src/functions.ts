@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { readFileContent } from "./files.js";
 import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "./path-utils.js";
-import { executeBlock, waitForCompletion, getBlockOutput, clearBlockOutput, pendingToolApprovals, type SendFn } from "./shell.js";
+import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, pendingToolApprovals, type SendFn } from "./shell.js";
 import { msg } from "./constants.js";
 import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
 import { TOOL_CATALOG } from "./tool-catalog.js";
@@ -63,7 +63,7 @@ register("install_tool", async (args) => {
   if (!name || !(name in TOOL_CATALOG)) {
     return { success: false, error: `Unknown tool: ${name}` };
   }
-  const scan = scanCatalogTools();
+  const scan = await scanCatalogTools();
   if (scan[name]?.installed) {
     return { success: true, alreadyInstalled: true, tool: name };
   }
@@ -75,7 +75,7 @@ register("install_tool", async (args) => {
   // Update edge config with new tool state
   const edge = getGlobalEdgeInstance();
   if (edge) {
-    await edge.updateConfig({ installedTools: scanCatalogTools() });
+    await edge.updateConfig({ installedTools: await scanCatalogTools() });
   }
   
   return { success: true, tool: name, label: TOOL_CATALOG[name].label };
@@ -89,7 +89,7 @@ register("uninstall_tool", async (args) => {
   const success = uninstallTool(name);
   if (success) {
     const edge = getGlobalEdgeInstance();
-    if (edge) await edge.updateConfig({ installedTools: scanCatalogTools() });
+    if (edge) await edge.updateConfig({ installedTools: await scanCatalogTools() });
   }
   return { success, tool: name };
 });
@@ -227,6 +227,19 @@ function extractTrailingTail(cmd: string): { execCmd: string; postFilter?: (s: s
   return { execCmd: m[1], postFilter: (s) => s.split("\n").slice(-n).join("\n") };
 }
 
+// Detect data URL image in shell output (same pattern as readFileContent uses)
+const DATA_URL_IMAGE_REGEX = /^data:(image\/[^;]+);base64,[A-Za-z0-9+/]+=*$/;
+
+function detectContentType(output: string, cmd?: string): { result: string; contentType?: string } {
+  const trimmed = output.trim();
+  const match = trimmed.match(DATA_URL_IMAGE_REGEX);
+  if (match) {
+    console.log(`\n🖼️  [edge] Image output detected! type=${match[1]} size=${trimmed.length} chars${cmd ? `\n    cmd: ${cmd}` : ""}\n`);
+    return { result: trimmed, contentType: match[1] };
+  }
+  return { result: output };
+}
+
 register("execute_shell_command", async (args, client) => {
   const { cmd, timeout = 120, root_path = "", todoId = "", messageId = "", blockId = "" } = args;
   const canStream = !!(todoId && blockId && client);
@@ -239,7 +252,7 @@ register("execute_shell_command", async (args, client) => {
         resolve((stdout || "") + (stderr || ""));
       });
     });
-    return { cmd, result };
+    return { cmd, ...detectContentType(result, cmd) };
   }
 
   // Strip trailing | tail so the raw command streams, then filter the result
@@ -257,10 +270,13 @@ register("execute_shell_command", async (args, client) => {
     }
 
     await waitForCompletion(blockId, (timeout + 5) * 1000);
-    let output = getBlockOutput(blockId);
+    // Try raw output first for typed detection (images), fall back to truncated for text
+    const rawOutput = getBlockRawOutput(blockId);
+    let output = rawOutput ?? getBlockOutput(blockId);
     clearBlockOutput(blockId);
     if (postFilter) output = postFilter(output);
-    return { cmd, result: output };
+    // Only detect contentType if we have raw (untruncated) output
+    return rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
   } catch (e: any) {
     throw e;
   } finally {

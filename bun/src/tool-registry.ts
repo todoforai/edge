@@ -3,7 +3,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { execSync, spawnSync } from "child_process";
+import { execSync, spawnSync, execFile } from "child_process";
 import { TOOL_CATALOG, BINARY_URL_FUNCS } from "./tool-catalog.js";
 
 const TOOLS_DIR = path.join(os.homedir(), ".todoforai", "tools");
@@ -320,42 +320,55 @@ export async function ensureToolsForCommand(content: string): Promise<string[]> 
 }
 
 /** Scan all catalog tools: check binary presence, version, and auth status. */
-export function scanCatalogTools(): Record<string, { installed: boolean; version?: string; statusOutput?: string; authenticated?: boolean }> {
-  const result: Record<string, { installed: boolean; version?: string; statusOutput?: string; authenticated?: boolean }> = {};
+type ToolState = { installed: boolean; version?: string; statusOutput?: string; authenticated?: boolean };
+
+function execShellAsync(cmd: string, env: NodeJS.ProcessEnv, timeout: number): Promise<{ status: number; stdout: string; stderr: string }> {
+  return new Promise(resolve => {
+    execFile("sh", ["-c", cmd], { env, timeout, encoding: "utf-8", maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => {
+      resolve({ status: err ? 1 : 0, stdout: (stdout || "").toString(), stderr: (stderr || "").toString() });
+    });
+  });
+}
+
+export async function scanCatalogTools(): Promise<Record<string, ToolState>> {
+  const result: Record<string, ToolState> = {};
   const env = buildEnvWithTools();
 
-  for (const [name, entry] of Object.entries(TOOL_CATALOG)) {
-    // Use unified detection - pip packages need special handling
+  const entries = Object.entries(TOOL_CATALOG);
+  // Check installation synchronously (fast which lookups), then run version/status checks in parallel
+  const installed: [string, typeof TOOL_CATALOG[string]][] = [];
+  for (const [name, entry] of entries) {
     if (!isToolInstalled(name)) {
       result[name] = { installed: false };
-      continue;
+    } else {
+      installed.push([name, entry]);
     }
+  }
 
-    // Tool is installed - check version and authentication status
-    const state: { installed: boolean; version?: string; statusOutput?: string; authenticated?: boolean } = { installed: true };
+  await Promise.all(installed.map(async ([name, entry]) => {
+    const state: ToolState = { installed: true };
 
     if (entry.versionCmd) {
       try {
-        const r = spawnSync("sh", ["-c", entry.versionCmd], { env, timeout: 5_000, encoding: "utf-8" });
-        if (r.status === 0) state.version = (r.stdout || "").toString().trim().slice(0, 100);
+        const r = await execShellAsync(entry.versionCmd, env, 5_000);
+        if (r.status === 0) state.version = r.stdout.trim().slice(0, 100);
       } catch {}
     }
 
     if (entry.statusCmd) {
       try {
-        const r = spawnSync("sh", ["-c", entry.statusCmd], { env, timeout: 10_000, encoding: "utf-8" });
+        const r = await execShellAsync(entry.statusCmd, env, 10_000);
         state.authenticated = r.status === 0;
-        state.statusOutput = (r.stdout || r.stderr || "").toString().trim().slice(0, 200);
+        state.statusOutput = (r.stdout || r.stderr).trim().slice(0, 200);
       } catch {
         state.authenticated = false;
       }
     } else {
-      // No statusCmd means no auth required — tool is ready once installed
       state.authenticated = true;
     }
 
     result[name] = state;
-  }
+  }));
 
   return result;
 }
