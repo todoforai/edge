@@ -32,7 +32,8 @@ export class BrowserExtensionBridge {
 
     const server = http.createServer();
     const disableOnPortConflict = (err: NodeJS.ErrnoException) => {
-      if (err.code !== "EADDRINUSE" && !String(err.message || "").includes(`port ${BRIDGE_PORT} in use`)) return false;
+      const msg = String(err.message || "").toLowerCase();
+      if (err.code !== "EADDRINUSE" && !msg.includes("in use") && !msg.includes("failed to start server")) return false;
       console.warn(`[browser-bridge] ${this.url} in use; browser tools disabled. Set TODOFORAI_BROWSER_BRIDGE_PORT to override.`);
       try { this.wss?.close(); } catch {}
       try { server.close(); } catch {}
@@ -40,7 +41,10 @@ export class BrowserExtensionBridge {
     };
 
     server.once("error", (err: NodeJS.ErrnoException) => {
-      if (!disableOnPortConflict(err)) throw err;
+      if (!disableOnPortConflict(err)) {
+        console.warn(`[browser-bridge] failed to start: ${err.message}`);
+        try { server.close(); } catch {}
+      }
     });
 
     try {
@@ -56,7 +60,9 @@ export class BrowserExtensionBridge {
         console.log(`[browser-bridge] listening on ws://${BRIDGE_HOST}:${address?.port || BRIDGE_PORT}`);
       });
     } catch (err) {
-      if (!disableOnPortConflict(err as NodeJS.ErrnoException)) throw err;
+      if (!disableOnPortConflict(err as NodeJS.ErrnoException)) {
+        console.warn(`[browser-bridge] failed to start: ${(err as Error).message}`);
+      }
     }
   }
 

@@ -409,7 +409,7 @@ export class TODOforAIEdge {
   // ── Start with reconnect ──
 
   async start() {
-    this.browserExtensionBridge.start();
+    try { this.browserExtensionBridge.start(); } catch {}
     this.fingerprint = generateFingerprint();
     console.log(`\x1b[36m\x1b[1m👆 Fingerprint:\x1b[0m ${this.fingerprint}`);
 
