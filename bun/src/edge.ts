@@ -74,6 +74,8 @@ export class TODOforAIEdge {
   private addWorkspacePath?: string;
   private frontendWs: FrontendWebSocket | null = null;
   private browserExtensionBridge: BrowserExtensionBridge;
+  private stopping = false;
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
 
   edgeConfig: EdgeConfigData = {
     id: "",
@@ -278,7 +280,7 @@ export class TODOforAIEdge {
     const data = frame.slice(36);
     this.pendingBinaries.set(id, data);
     // Auto-expire after 60s
-    setTimeout(() => this.pendingBinaries.delete(id), 60_000);
+    setTimeout(() => this.pendingBinaries.delete(id), 60_000).unref();
   }
 
   // ── Message handling ──
@@ -475,11 +477,12 @@ export class TODOforAIEdge {
     const maxAttempts = 20;
     let attempt = 0;
 
-    while (attempt < maxAttempts) {
+    while (attempt < maxAttempts && !this.stopping) {
       console.log(`[info] Connecting (attempt ${attempt + 1}/${maxAttempts})`);
 
       try {
         await this.connect();
+        if (this.stopping) break;
         attempt = 0; // reset on clean close
       } catch (e: any) {
         if (e instanceof AuthenticationError) {
@@ -497,16 +500,29 @@ export class TODOforAIEdge {
         this.ws = null;
       }
 
-      if (attempt > 0 && attempt < maxAttempts) {
+      if (attempt > 0 && attempt < maxAttempts && !this.stopping) {
         const delay = Math.min(4 + attempt, 20);
         console.log(`[info] Reconnecting in ${delay}s...`);
-        await new Promise(r => setTimeout(r, delay * 1000));
+        await new Promise<void>(r => {
+          this.reconnectTimer = setTimeout(r, delay * 1000);
+        });
       }
     }
 
     if (attempt >= maxAttempts) {
       console.error("\x1b[31mMax reconnection attempts reached.\x1b[0m");
     }
+  }
+
+  // ── Shutdown ──
+
+  stop() {
+    this.stopping = true;
+    clearTimeout(this.reconnectTimer);
+    this.stopHeartbeat();
+    this.browserExtensionBridge.stop();
+    this.frontendWs?.close();
+    this.ws?.terminate();
   }
 
   // ── Frontend WS (for SDK use) ──

@@ -75,13 +75,17 @@ async function main() {
     console.error("\x1b[31mAnother edge is already running for this user+server. Use --kill to replace it.\x1b[0m");
     process.exit(1);
   }
+  let cleaned = false;
   const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    edge.stop();
     unmountAllRclone();
     releaseLock(lp);
   };
   process.on("exit", cleanup);
-  process.on("SIGINT", () => process.exit(0));
-  process.on("SIGTERM", () => process.exit(0));
+  process.on("SIGINT", () => { cleanup(); process.exit(0); });
+  process.on("SIGTERM", () => { cleanup(); process.exit(0); });
 
   await edge.start();
 }

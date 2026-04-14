@@ -72,8 +72,12 @@ export class BrowserExtensionBridge {
       if (isOpen(pending.ws)) pending.ws.send(JSON.stringify({ type: "browser.command.result", requestId, error: "Browser bridge stopped" }));
     }
     this.pending.clear();
+    if (isOpen(this.extensionWs)) this.extensionWs!.terminate();
     this.extensionWs = null;
+    // Terminate all connected WebSocket clients so wss.close() doesn't hang
+    this.wss?.clients.forEach(ws => ws.terminate());
     this.wss?.close();
+    this.server?.closeAllConnections();
     this.server?.close();
     this.wss = undefined;
     this.server = undefined;
