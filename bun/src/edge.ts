@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { getWsUrl, normalizeApiUrl, type Config } from "./config.js";
+import { getWsUrl, normalizeApiUrl, loadSavedApiKey, saveApiKey, clearApiKey, type Config } from "./config.js";
 import { SR, FE, AE, EF, S2E, msg, type WsMessage } from "./constants.js";
 import { ApiClient } from "./api.js";
 import { FrontendWebSocket } from "./frontend-ws.js";
@@ -111,39 +111,90 @@ export class TODOforAIEdge {
 
   // ── Auth ──
 
-  async ensureApiKey(promptIfMissing = true): Promise<boolean> {
-    if (this.api.apiKey) {
-      let delay = 5;
-      while (true) {
-        const result = await this.api.validateApiKey();
-        if (result.valid) {
-          if (result.userId) this.userId = result.userId;
-          return true;
-        }
-        if (result.connectionError) {
-          console.log(`\x1b[33mCannot reach server at ${this.api.apiUrl}, retrying in ${delay}s...\x1b[0m`);
-          await new Promise(r => setTimeout(r, delay * 1000));
-          delay = Math.min(delay * 2, 60);
-          continue;
-        }
-        console.log(`\x1b[33mAPI key invalid: ${result.error}\x1b[0m`);
-        this.api.apiKey = "";
-        break;
+  /** Validate a key with retry on connection errors; clears key if invalid. */
+  private async tryValidateKey(): Promise<boolean> {
+    let delay = 5;
+    while (true) {
+      const result = await this.api.validateApiKey();
+      if (result.valid) {
+        if (result.userId) this.userId = result.userId;
+        return true;
       }
+      if (result.connectionError) {
+        console.log(`\x1b[33mCannot reach server at ${this.api.apiUrl}, retrying in ${delay}s...\x1b[0m`);
+        await new Promise(r => setTimeout(r, delay * 1000));
+        delay = Math.min(delay * 2, 60);
+        continue;
+      }
+      console.log(`\x1b[33mAPI key invalid: ${result.error}\x1b[0m`);
+      this.api.apiKey = "";
+      return false;
+    }
+  }
+
+  async ensureApiKey(promptIfMissing = true): Promise<boolean> {
+    // 1. --api-key / env var
+    if (this.api.apiKey && await this.tryValidateKey()) {
+      saveApiKey(this.api.apiUrl, this.api.apiKey);
+      return true;
+    }
+
+    // 2. Saved credentials
+    const saved = loadSavedApiKey(this.api.apiUrl);
+    if (saved) {
+      this.api.apiKey = saved;
+      if (await this.tryValidateKey()) return true;
+      console.log("\x1b[33mSaved API key is no longer valid, clearing...\x1b[0m");
+      clearApiKey(this.api.apiUrl);
     }
 
     if (!promptIfMissing) return false;
 
-    const frontendUrl = this.api.apiUrl.replace("://api.", "://");
-    console.log(`\x1b[33mPlease provide your API key\x1b[0m`);
-    console.log(`\x1b[36mGet one at:\x1b[0m ${frontendUrl}/apikey`);
+    // 3. Device login flow
+    try {
+      console.log("\x1b[36mStarting device login...\x1b[0m");
+      const { code, url, expiresIn } = await this.api.initDeviceLogin("edge");
 
-    // If stdin is not a TTY (e.g. spawned as a sidecar with no terminal), exit instead of hanging.
-    // Exit 0 so PM2 treats this as intentional stop (configure stop_exit_codes or autorestart accordingly).
+      console.log(`\n\x1b[1m🔑 Open this URL to authorize:\x1b[0m`);
+      console.log(`\x1b[36m${url}\x1b[0m\n`);
+
+      // Best-effort open browser
+      try {
+        const { exec } = require("child_process");
+        const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+        exec(`${cmd} "${url}"`);
+      } catch {}
+
+      console.log(`Waiting for approval (expires in ${Math.round(expiresIn / 60)}min)...`);
+      const deadline = Date.now() + expiresIn * 1000;
+      while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 3000));
+        const poll = await this.api.pollDeviceLogin(code);
+        if (poll.status === "complete" && poll.apiKey) {
+          this.api.apiKey = poll.apiKey;
+          saveApiKey(this.api.apiUrl, poll.apiKey);
+          console.log("\x1b[32m✅ Login successful! API key saved.\x1b[0m");
+          if (await this.tryValidateKey()) return true;
+        }
+        if (poll.status === "expired") {
+          console.log("\x1b[31mDevice login expired.\x1b[0m");
+          break;
+        }
+        // pending — keep polling
+      }
+    } catch (e: any) {
+      console.error(`\x1b[31mDevice login failed: ${e.message}\x1b[0m`);
+    }
+
+    // 4. Fallback: manual API key entry (TTY only)
     if (!process.stdin.isTTY) {
       console.error("No API key provided and stdin is not interactive. Set TODOFORAI_API_KEY or pass --api-key.");
       process.exit(0);
     }
+
+    const frontendUrl = this.api.apiUrl.replace("://api.", "://");
+    console.log(`\x1b[33mOr enter your API key manually:\x1b[0m`);
+    console.log(`\x1b[36mGet one at:\x1b[0m ${frontendUrl}/apikey`);
 
     const rl = require("readline").createInterface({ input: process.stdin, output: process.stdout });
     return new Promise((resolve) => {
@@ -153,7 +204,13 @@ export class TODOforAIEdge {
           if (!key) { console.log("No API key provided. Please try again."); return ask(); }
           this.api.apiKey = key;
           const result = await this.api.validateApiKey();
-          if (result.valid) { rl.close(); resolve(true); return; }
+          if (result.valid) {
+            saveApiKey(this.api.apiUrl, key);
+            console.log("\x1b[32m✅ API key saved.\x1b[0m");
+            rl.close();
+            resolve(true);
+            return;
+          }
           console.log("\x1b[31mInvalid API key. Please try again.\x1b[0m");
           ask();
         });

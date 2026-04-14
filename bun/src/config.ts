@@ -1,5 +1,7 @@
 import { parseArgs } from "util";
 import path from "path";
+import fs from "fs";
+import os from "os";
 
 const DEFAULT_API_URL = "https://api.todofor.ai";
 
@@ -60,4 +62,35 @@ export function loadConfig(): Config {
   }
 
   return { apiUrl, apiKey, debug, kill, addWorkspacePath };
+}
+
+// ── Credential persistence (~/.todoforai/credentials.json) ──
+// JSON map: { "https://api.todofor.ai": "sk_xxx", "http://localhost:3000": "sk_yyy" }
+
+const CREDENTIALS_PATH = path.join(os.homedir(), ".todoforai", "credentials.json");
+
+function readCredentials(): Record<string, string> {
+  try { return JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf-8")); } catch { return {}; }
+}
+
+function writeCredentials(creds: Record<string, string>) {
+  const dir = path.dirname(CREDENTIALS_PATH);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(creds, null, 2), { mode: 0o600 });
+}
+
+export function loadSavedApiKey(apiUrl: string): string | null {
+  return readCredentials()[apiUrl] || null;
+}
+
+export function saveApiKey(apiUrl: string, apiKey: string): void {
+  const creds = readCredentials();
+  creds[apiUrl] = apiKey;
+  writeCredentials(creds);
+}
+
+export function clearApiKey(apiUrl: string): void {
+  const creds = readCredentials();
+  delete creds[apiUrl];
+  writeCredentials(creds);
 }

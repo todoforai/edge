@@ -153,6 +153,24 @@ export class ApiClient {
     return res.json();
   }
 
+  // ── Device login flow ──
+
+  async initDeviceLogin(clientName = "edge"): Promise<{ code: string; url: string; expiresIn: number }> {
+    const res = await fetch(`${this.apiUrl}/api/v1/cli/login/init`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ clientName }),
+    });
+    if (!res.ok) throw new Error(`Device login init failed: ${res.status}`);
+    return res.json();
+  }
+
+  async pollDeviceLogin(code: string): Promise<{ status: "pending" | "complete" | "expired"; apiKey?: string }> {
+    const res = await fetch(`${this.apiUrl}/api/v1/cli/login/poll?code=${code}`);
+    if (!res.ok) throw new Error(`Device login poll failed: ${res.status}`);
+    return res.json();
+  }
+
   /** List all templates from the public registry (no auth required). */
   async listRegistryTemplates(category = "all"): Promise<RegistryTemplate[]> {
     const base = this.apiUrl.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
