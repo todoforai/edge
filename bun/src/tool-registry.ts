@@ -32,7 +32,7 @@ export function buildEnvWithTools(): Record<string, string> {
 
 function whichWithTools(name: string): string | null {
   const dirs = [...toolPathEntries(), ...(process.env.PATH || "").split(path.delimiter)];
-  const exts = os.platform() === "win32" ? ["", ".exe", ".cmd", ".bat"] : [""];
+  const exts = os.platform() === "win32" ? [".exe", ".cmd", ".bat", ""] : [""];
   for (const dir of dirs) {
     for (const ext of exts) {
       const full = path.join(dir, name + ext);
@@ -165,11 +165,16 @@ function findFileRecursive(dir: string, names: Set<string>): string | null {
 }
 
 function installWithNpm(name: string, pkg: string) {
-  const npm = whichWithTools("npm") || "npm";
   log("info", `Installing ${name} via npm (${pkg})`);
-  const result = spawnSync(npm, ["install", "--prefix", TOOLS_DIR, pkg], {
-    stdio: "pipe", timeout: 120_000,
+  const result = spawnSync("npm", ["install", "--prefix", TOOLS_DIR, pkg], {
+    stdio: "pipe", timeout: 120_000, shell: true,
   });
+  if (result.error) {
+    throw new Error(`npm install failed: ${result.error.message}`);
+  }
+  if (result.signal) {
+    throw new Error(`npm install killed by ${result.signal}${result.signal === 'SIGTERM' ? ' (likely timed out after 120s)' : ''}`);
+  }
   if (result.status !== 0) {
     throw new Error(`npm install failed: ${result.stderr?.toString() || result.stdout?.toString() || `exit code ${result.status}`}`);
   }
@@ -238,7 +243,9 @@ function installWithPip(name: string, pkg: string) {
     : ["-m", "pip", "install", "--user", pkg];
   const result = spawnSync(python, args, { stdio: "pipe", timeout: 120_000 });
   
-  if (result.status !== 0) {
+  if (result.signal) {
+    log("error", `Failed to install ${name}: killed by ${result.signal}${result.signal === 'SIGTERM' ? ' (likely timed out after 120s)' : ''}`);
+  } else if (result.status !== 0) {
     log("error", `Failed to install ${name}: ${result.stderr?.toString() || result.stdout?.toString()}`);
   }
 
@@ -292,8 +299,7 @@ export function uninstallTool(name: string): boolean {
         if (fs.existsSync(p)) fs.unlinkSync(p);
       }
     } else if (installerType === "npm") {
-      const npm = whichWithTools("npm") || "npm";
-      spawnSync(npm, ["uninstall", "--prefix", TOOLS_DIR, pkg], { stdio: "pipe", timeout: 30_000 });
+      spawnSync("npm", ["uninstall", "--prefix", TOOLS_DIR, pkg], { stdio: "pipe", timeout: 30_000, shell: true });
     } else if (installerType === "pip") {
       const venvPython = os.platform() === "win32"
         ? path.join(TOOLS_DIR, "venv", "Scripts", "python.exe")
