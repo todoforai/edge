@@ -452,6 +452,10 @@ export class TODOforAIEdge {
         console.log(`[info] WebSocket closed code=${code} clean=${clean} reason=${reasonText}`);
         if (code === 4001) {
           console.log(`\x1b[33m[info] ${reasonText}. Not reconnecting.\x1b[0m`);
+          console.log(`\x1b[33m[info] To replace the existing connection, restart with: todoforai-edge --kill\x1b[0m`);
+          reject(new ServerError(reasonText));
+        } else if (code === 4002) {
+          console.log(`\x1b[33m[info] ${reasonText}. This instance was replaced by a new connection.\x1b[0m`);
           reject(new ServerError(reasonText));
         } else {
           resolve();

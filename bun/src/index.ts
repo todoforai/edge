@@ -72,7 +72,7 @@ async function main() {
 
   const lp = lockPath(config.apiUrl, edge.userId);
   if (!acquireLock(lp, config.kill)) {
-    console.error("\x1b[31mAnother edge is already running for this user+server. Use --kill to replace it.\x1b[0m");
+    console.error(`\x1b[31mAnother edge is already running for this user+server. Use --kill to replace it, or delete the lock file: ${lp}\x1b[0m`);
     process.exit(1);
   }
   let cleaned = false;
