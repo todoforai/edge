@@ -164,19 +164,26 @@ function findFileRecursive(dir: string, names: Set<string>): string | null {
   return null;
 }
 
-function installWithNpm(name: string, pkg: string) {
+export function installWithNpm(name: string, pkg: string) {
+  const TIMEOUT_MS = 120_000;
   log("info", `Installing ${name} via npm (${pkg})`);
   const result = spawnSync("npm", ["install", "--prefix", TOOLS_DIR, pkg], {
-    stdio: "pipe", timeout: 120_000, shell: true,
+    stdio: "pipe", timeout: TIMEOUT_MS, shell: true,
   });
+  const stderr = result.stderr?.toString().trim() || "";
+  const stdout = result.stdout?.toString().trim() || "";
   if (result.error) {
-    throw new Error(`npm install failed: ${result.error.message}`);
+    throw new Error(`npm install failed: ${result.error.message} | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
   }
   if (result.signal) {
-    throw new Error(`npm install killed by ${result.signal}${result.signal === 'SIGTERM' ? ' (likely timed out after 120s)' : ''}`);
+    throw new Error(`npm install killed by ${result.signal}${result.signal === 'SIGTERM' ? ` (likely timed out after ${TIMEOUT_MS / 1000}s)` : ''} | stderr: ${stderr || '(empty)'}`);
+  }
+  // On Windows with shell:true, timeout-kills can yield status:null AND signal:null.
+  if (result.status === null) {
+    throw new Error(`npm install: null exit code (likely timed out after ${TIMEOUT_MS / 1000}s on Windows, signal not propagated through cmd.exe) | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
   }
   if (result.status !== 0) {
-    throw new Error(`npm install failed: ${result.stderr?.toString() || result.stdout?.toString() || `exit code ${result.status}`}`);
+    throw new Error(`npm install failed (exit ${result.status}) | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
   }
 }
 

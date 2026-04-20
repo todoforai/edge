@@ -1,5 +1,8 @@
 import { describe, test, expect } from "bun:test";
-import { findReferencedTools } from "./tool-registry.js";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { findReferencedTools, installWithNpm } from "./tool-registry.js";
 
 describe("findReferencedTools - command position detection", () => {
   test("does NOT match tool names as loop arguments", () => {
@@ -88,4 +91,40 @@ stripe listen --forward-to localhost:3000
 echo "done"`;
     expect(findReferencedTools(script)).toContain("stripe");
   });
-});
+  });
+
+    // Opt-in: hits the real npm registry. Run with: RUN_NPM_INSTALL_TEST=1 bun test tool-registry
+    const RUN_INSTALL_TEST = process.env.RUN_NPM_INSTALL_TEST === "1";
+    describe.skipIf(!RUN_INSTALL_TEST)("installWithNpm - real install diagnostics", () => {
+    test("installs zele (heavy pkg, ~400 deps, native modules)", () => {
+    // Clear any prior install so we test the cold path
+    const toolsDir = path.join(os.homedir(), ".todoforai", "tools");
+    const zeleDir = path.join(toolsDir, "node_modules", "zele");
+    if (fs.existsSync(zeleDir)) fs.rmSync(zeleDir, { recursive: true, force: true });
+
+    const start = Date.now();
+    try {
+      installWithNpm("zele", "zele");
+      const elapsed = Date.now() - start;
+      console.log(`[test] zele installed in ${elapsed}ms`);
+      expect(fs.existsSync(zeleDir)).toBe(true);
+    } catch (e: any) {
+      const elapsed = Date.now() - start;
+      console.error(`[test] zele install FAILED after ${elapsed}ms: ${e.message}`);
+      throw e;
+    }
+    }, 180_000);
+
+    test("bogus package name produces diagnostic error (not 'exit code null')", () => {
+    const bogus = "this-package-definitely-does-not-exist-xyz-" + Date.now();
+    expect(() => installWithNpm(bogus, bogus)).toThrow();
+    try {
+      installWithNpm(bogus, bogus);
+    } catch (e: any) {
+      console.log(`[test] bogus install error: ${e.message}`);
+      // Must contain useful info, not just "exit code null"
+      expect(e.message).not.toBe("npm install failed: exit code null");
+      expect(e.message.length).toBeGreaterThan(30);
+    }
+    }, 60_000);
+  });
