@@ -9,6 +9,14 @@ This is the machine-side runtime that:
 - runs local actions and commands
 - bridges the OS / VM / host to the TODOforAI backend
 
+## Design principle
+
+Bridges are **islands by default.** A bridge's one guaranteed capability is "accept commands from the backend over WebSocket and execute them." Everything else — SSH, port exposure, overlay networking, language runtimes — is configured by the AI at the user's request by running commands through this same channel.
+
+The same binary runs on user laptops, Firecracker sandboxes, and user-owned cloud VMs. Location is a deployment detail; the protocol is uniform.
+
+See [`../../ARCHITECTURE_BRIDGE_MACHINES.md`](../../ARCHITECTURE_BRIDGE_MACHINES.md) for the overall model.
+
 ## Scope
 
 Bridge is broader than shell:
