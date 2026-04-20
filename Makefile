@@ -1,4 +1,4 @@
-.PHONY: help run run-dev build compile bump-version deploy-tag deploy-latest
+.PHONY: help run run-dev build compile bump-version deploy-tag
 
 help:
 	@echo "  make run               - Run edge (production)"
@@ -6,7 +6,7 @@ help:
 	@echo "  make build             - Build for Node"
 	@echo "  make compile           - Compile standalone binary"
 	@echo "  make bump-version      - Bump version by 0.0.1"
-	@echo "  make deploy-latest     - Bump, push main, merge to prod"
+    @echo "  make deploy-tag        - Bump version and push tag (triggers publish CI)"
 
 run:
 	cd bun && bun run src/index.ts --api-url https://api.todofor.ai --kill
@@ -37,6 +37,3 @@ deploy-tag: bump-version
 	@VERSION=$$(grep -oP '"version": "\K[0-9]+\.[0-9]+\.[0-9]+' bun/package.json) && \
 	git tag -a "v$$VERSION" -m "Release v$$VERSION" && \
 	git push origin "v$$VERSION"
-
-deploy-latest: bump-version
-	@git checkout prod && git pull origin prod && git merge origin/main && git push origin prod && git checkout -
