@@ -6,7 +6,7 @@ help:
 	@echo "  make build             - Build for Node"
 	@echo "  make compile           - Compile standalone binary"
 	@echo "  make bump-version      - Bump version by 0.0.1"
-    @echo "  make deploy-tag        - Bump version and push tag (triggers publish CI)"
+	@echo "  make deploy-tag        - Bump version and push tag (triggers publish CI)"
 
 run:
 	cd bun && bun run src/index.ts --api-url https://api.todofor.ai --kill
