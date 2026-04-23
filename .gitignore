@@ -8,3 +8,4 @@ scripts/node_modules/
 CLAUDE.md
 bun/node_modules/
 bun/bun.lock
+mcp.json
