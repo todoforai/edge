@@ -130,6 +130,14 @@ export class ApiClient {
     return this.request("PUT", `/api/v1/agents/${agentId}/settings`, { agentSettingsId, updates });
   }
 
+  getGlobalAgentSettings() {
+    return this.request("GET", "/api/v1/agents/global");
+  }
+
+  updateGlobalAgentSettings(updates: Record<string, any>) {
+    return this.request("PUT", "/api/v1/agents/global", updates);
+  }
+
   setAgentEdgeMcpConfig(agentId: string, agentSettingsId: string, edgeId: string, mcpName: string, config: Record<string, any>) {
     return this.request("PUT", `/api/v1/agents/${agentId}/edge-mcp-config`, { agentSettingsId, edgeId, mcpName, config });
   }
