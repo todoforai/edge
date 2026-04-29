@@ -8,6 +8,7 @@ import { msg } from "./constants.js";
 import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
 import { TOOL_CATALOG } from "./tool-catalog.js";
 import { getGlobalEdgeInstance } from "./edge.js";
+import { discoverSkills } from "./skills.js";
 
 // ── Registry ──
 
@@ -192,6 +193,12 @@ register("get_workspace_tree", async (args) => {
 
   walk(root, "", 1);
   return { tree: lines.join("\n"), is_git: isGit };
+});
+
+register("get_skills", async (args) => {
+  const paths: string[] = Array.isArray(args?.paths) ? args.paths : [];
+  const includeUserScope = !!args?.includeUserScope;
+  return await discoverSkills(paths, { includeUserScope });
 });
 
 register("get_os_aware_default_path", async () => {
