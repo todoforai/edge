@@ -146,6 +146,7 @@ export async function executeBlock(
   manual = false,
   runMode?: string,
   edgeId?: string,
+  agentSettingsId = "",
 ) {
   // Kill any existing process with the same blockId (re-run scenario)
   if (processes.has(blockId)) {
@@ -208,6 +209,8 @@ export async function executeBlock(
     const env = {
       ...buildEnvWithTools(), NO_COLOR: "1", TERM: HAS_BUN_TERMINAL ? "xterm-256color" : "dumb",
       PAGER: "", GIT_PAGER: "", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "color.ui", GIT_CONFIG_VALUE_0: "false",
+      TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId,
+      TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId,
     };
 
     // Timeout helper

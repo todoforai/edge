@@ -248,14 +248,14 @@ function detectContentType(output: string, cmd?: string): { result: string; cont
 }
 
 register("execute_shell_command", async (args, client) => {
-  const { cmd, timeout = 120, root_path = "", todoId = "", messageId = "", blockId = "" } = args;
+  const { cmd, timeout = 120, root_path = "", todoId = "", messageId = "", blockId = "", agentSettingsId = "" } = args as Record<string, any>;
   const canStream = !!(todoId && blockId && client);
 
   if (!canStream) {
     // Simple fallback
     const { exec } = await import("child_process");
     const result = await new Promise<string>((resolve) => {
-      exec(cmd, { cwd: root_path || os.tmpdir(), encoding: "utf-8", timeout: 120_000, maxBuffer: 10 * 1024 * 1024, env: buildEnvWithTools() }, (_err, stdout, stderr) => {
+      exec(cmd, { cwd: root_path || os.tmpdir(), encoding: "utf-8", timeout: 120_000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId } }, (_err, stdout, stderr) => {
         resolve((stdout || "") + (stderr || ""));
       });
     });
@@ -269,7 +269,7 @@ register("execute_shell_command", async (args, client) => {
   try {
     const send: SendFn = (m) => client.sendResponse(m);
     await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
-    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, root_path, false, "internal");
+    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, root_path, false, "internal", undefined, agentSettingsId);
 
     // If awaiting tool approval, signal caller to suppress response
     if (pendingToolApprovals.has(blockId)) {
