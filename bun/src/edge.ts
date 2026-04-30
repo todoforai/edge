@@ -1,5 +1,6 @@
 import WebSocket from "ws";
 import { getWsUrl, normalizeApiUrl, loadSavedApiKey, saveApiKey, clearApiKey, type Config } from "./config.js";
+import { setConnectionContext } from "./connection-context.js";
 import { SR, FE, AE, EF, S2E, msg, type WsMessage } from "./constants.js";
 import { ApiClient } from "./api.js";
 import { FrontendWebSocket } from "./frontend-ws.js";
@@ -93,6 +94,7 @@ export class TODOforAIEdge {
     this.wsUrl = getWsUrl(this.api.apiUrl);
     this.addWorkspacePath = config.addWorkspacePath;
     this.browserExtensionBridge = new BrowserExtensionBridge(this.debug);
+    setConnectionContext(() => ({ apiUrl: this.api.apiUrl, apiKey: this.api.apiKey }));
   }
 
   // Convenience accessors for functions that need client context

@@ -4,6 +4,7 @@ import path from "path";
 import { spawn as nodeSpawn } from "child_process";
 import { msg, type WsMessage } from "./constants.js";
 import { findMissingTools, ensureTool, buildEnvWithTools } from "./tool-registry.js";
+import { getConnectionEnv } from "./connection-context.js";
 
 const IS_WIN = os.platform() === "win32";
 const HAS_BUN = typeof globalThis.Bun !== "undefined";
@@ -207,7 +208,7 @@ export async function executeBlock(
 
     const effectiveRunMode = runMode || (manual ? "manual" : undefined);
     const env = {
-      ...buildEnvWithTools(), NO_COLOR: "1", TERM: HAS_BUN_TERMINAL ? "xterm-256color" : "dumb",
+      ...buildEnvWithTools(), ...getConnectionEnv(), NO_COLOR: "1", TERM: HAS_BUN_TERMINAL ? "xterm-256color" : "dumb",
       PAGER: "", GIT_PAGER: "", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "color.ui", GIT_CONFIG_VALUE_0: "false",
       TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId,
       TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId,

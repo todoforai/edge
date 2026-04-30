@@ -6,6 +6,7 @@ import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "
 import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, pendingToolApprovals, type SendFn } from "./shell.js";
 import { msg } from "./constants.js";
 import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
+import { getConnectionEnv } from "./connection-context.js";
 import { TOOL_CATALOG } from "./tool-catalog.js";
 import { getGlobalEdgeInstance } from "./edge.js";
 import { discoverSkills } from "./skills.js";
@@ -255,7 +256,7 @@ register("execute_shell_command", async (args, client) => {
     // Simple fallback
     const { exec } = await import("child_process");
     const result = await new Promise<string>((resolve) => {
-      exec(cmd, { cwd: root_path || os.tmpdir(), encoding: "utf-8", timeout: 120_000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId } }, (_err, stdout, stderr) => {
+      exec(cmd, { cwd: root_path || os.tmpdir(), encoding: "utf-8", timeout: 120_000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId } }, (_err, stdout, stderr) => {
         resolve((stdout || "") + (stderr || ""));
       });
     });
