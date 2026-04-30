@@ -44,6 +44,7 @@ describe("discoverSkills", () => {
     const byName = Object.fromEntries(skills.map((s) => [s.name, s]));
     expect(byName.formatter.description).toBe("Formats code.");
     expect(byName.formatter.scope).toBe("repo");
+    expect(byName.formatter.path).toBe(path.join(".agents", "skills", "formatter", "SKILL.md"));
     expect(byName.linter.shortDescription).toBe("Lints.");
     fs.rmSync(tmp, { recursive: true });
   });

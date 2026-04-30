@@ -16,21 +16,31 @@ export type SkillMeta = {
   name: string;
   description: string;
   shortDescription?: string;
+  /** Shortest representation: relative to root, `~/`-prefixed, or absolute. */
   path: string;
   scope: SkillScope;
 };
 export type SkillError = { path: string; message: string };
+
+/** Pick the shortest of: relative-to-root, `~/`-prefixed, absolute. */
+function shortestPath(filePath: string, relTo: string): string {
+  const rel = path.relative(relTo, filePath);
+  const home = os.homedir();
+  const homeRel = filePath.startsWith(home + path.sep) ? "~" + filePath.slice(home.length) : filePath;
+  return [rel, homeRel, filePath].reduce((a, b) => (b.length < a.length ? b : a));
+}
 
 export async function discoverSkills(
   rootPaths: string[],
   opts: { includeUserScope?: boolean } = {},
 ): Promise<{ skills: SkillMeta[]; errors: SkillError[] }> {
   const includeUserScope = opts.includeUserScope ?? false;
-  const roots: { path: string; scope: SkillScope }[] = [
-    ...rootPaths.map((p) => ({ path: path.join(p, ".agents", "skills"), scope: "repo" as const })),
+  const roots: { path: string; relTo: string; scope: SkillScope }[] = [
+    ...rootPaths.map((p) => ({ path: path.join(p, ".agents", "skills"), relTo: p, scope: "repo" as const })),
   ];
   if (includeUserScope) {
-    roots.push({ path: path.join(os.homedir(), ".agents", "skills"), scope: "user" });
+    const home = os.homedir();
+    roots.push({ path: path.join(home, ".agents", "skills"), relTo: home, scope: "user" });
   }
 
   const skills: SkillMeta[] = [];
@@ -46,13 +56,13 @@ export async function discoverSkills(
     try { stat = fs.statSync(root.path); } catch { continue; }
     if (!stat.isDirectory()) continue;
 
-    walkRoot(root.path, root.scope, skills, errors, seenSkillPaths);
+    walkRoot(root.path, root.relTo, root.scope, skills, errors, seenSkillPaths);
   }
 
   return { skills, errors };
 }
 
-function walkRoot(root: string, scope: SkillScope, skills: SkillMeta[], errors: SkillError[], seen: Set<string>) {
+function walkRoot(root: string, relTo: string, scope: SkillScope, skills: SkillMeta[], errors: SkillError[], seen: Set<string>) {
   const queue: { dir: string; depth: number }[] = [{ dir: root, depth: 0 }];
   let dirsVisited = 0;
 
@@ -87,14 +97,14 @@ function walkRoot(root: string, scope: SkillScope, skills: SkillMeta[], errors: 
       if (isFile && entry.name === "SKILL.md") {
         if (seen.has(full)) continue;
         seen.add(full);
-        const skill = parseSkillFile(full, scope, errors);
+        const skill = parseSkillFile(full, relTo, scope, errors);
         if (skill) skills.push(skill);
       }
     }
   }
 }
 
-function parseSkillFile(filePath: string, scope: SkillScope, errors: SkillError[]): SkillMeta | null {
+function parseSkillFile(filePath: string, relTo: string, scope: SkillScope, errors: SkillError[]): SkillMeta | null {
   let head: string;
   try {
     const fd = fs.openSync(filePath, "r");
@@ -131,7 +141,7 @@ function parseSkillFile(filePath: string, scope: SkillScope, errors: SkillError[
     name,
     description,
     shortDescription: shortDescription && shortDescription.length <= MAX_DESC_LEN ? shortDescription : undefined,
-    path: filePath,
+    path: shortestPath(filePath, relTo),
     scope,
   };
 }
