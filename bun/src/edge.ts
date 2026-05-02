@@ -398,6 +398,7 @@ export class TODOforAIEdge {
     this.heartbeatTimer = setInterval(() => {
       if (!pongReceived) {
         console.log("[warn] No pong received, terminating stale connection");
+        this.stopHeartbeat();
         this.ws?.terminate();
         return;
       }
