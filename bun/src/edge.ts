@@ -391,7 +391,7 @@ export class TODOforAIEdge {
 
   // ── Connection ──
 
-  private startHeartbeat() {
+  private startHeartbeat(onStale: () => void) {
     this.stopHeartbeat();
     let pongReceived = true;
     this.ws?.on("pong", () => { pongReceived = true; });
@@ -400,6 +400,7 @@ export class TODOforAIEdge {
         console.log("[warn] No pong received, terminating stale connection");
         this.stopHeartbeat();
         this.ws?.terminate();
+        onStale();
         return;
       }
       pongReceived = false;
@@ -427,7 +428,11 @@ export class TODOforAIEdge {
       this.ws.on("open", () => {
         this.connected = true;
         console.log("[info] WebSocket connected");
-        this.startHeartbeat();
+        this.startHeartbeat(() => {
+          this.connected = false;
+          this.ws = null;
+          resolve();
+        });
       });
 
       this.ws.on("message", (data, isBinary) => {
