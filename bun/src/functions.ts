@@ -249,7 +249,7 @@ function detectContentType(output: string, cmd?: string): { result: string; cont
 }
 
 register("execute_shell_command", async (args, client) => {
-  const { cmd, timeout = 120, cwd = "", todoId = "", messageId = "", blockId = "", agentSettingsId = "" } = args as Record<string, any>;
+  const { cmd, timeout = 120, cwd = (args as any).root_path ?? "", todoId = "", messageId = "", blockId = "", agentSettingsId = "" } = args as Record<string, any>;
   const canStream = !!(todoId && blockId && client);
 
   if (!canStream) {
@@ -320,7 +320,7 @@ register("read_file_base64", async (args) => {
 });
 
 register("search_files", async (args) => {
-  const { pattern, path: p = ".", cwd = "", head = 100, max_count = 5, glob: globPattern = "", ignore_case = true } = args;
+  const { pattern, path: p = ".", cwd = (args as any).root_path ?? "", head = 100, max_count = 5, glob: globPattern = "", ignore_case = true } = args;
   const { execSync: execWhich } = await import("child_process");
   const whichCmd = process.platform === "win32" ? "where" : "which";
   const which = (bin: string) => { try { return execWhich(`${whichCmd} ${bin}`, { encoding: "utf-8" }).trim().split("\n")[0].trim(); } catch { return null; } };
