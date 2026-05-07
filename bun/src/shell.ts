@@ -143,7 +143,7 @@ export async function executeBlock(
   todoId: string,
   messageId: string,
   timeout: number,
-  rootPath: string,
+  cwd: string,
   manual = false,
   runMode?: string,
   edgeId?: string,
@@ -159,13 +159,14 @@ export async function executeBlock(
   outputBuffers.set(blockId, buf);
 
   try {
-    // Determine cwd
+    // Resolve cwd: expand ~ and validate, fall back to tmp dir
     const tmpDir = path.join(os.tmpdir(), "todoforai");
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-    let cwd = tmpDir;
-    if (rootPath) {
-      const expanded = rootPath.replace(/^~/, process.env.HOME || "~");
-      if (fs.existsSync(expanded) && fs.statSync(expanded).isDirectory()) cwd = expanded;
+    if (cwd) {
+      const expanded = cwd.replace(/^~/, process.env.HOME || "~");
+      cwd = fs.existsSync(expanded) && fs.statSync(expanded).isDirectory() ? expanded : tmpDir;
+    } else {
+      cwd = tmpDir;
     }
 
     // Check for missing tools — request approval before executing

@@ -249,14 +249,14 @@ function detectContentType(output: string, cmd?: string): { result: string; cont
 }
 
 register("execute_shell_command", async (args, client) => {
-  const { cmd, timeout = 120, root_path = "", todoId = "", messageId = "", blockId = "", agentSettingsId = "" } = args as Record<string, any>;
+  const { cmd, timeout = 120, cwd = "", todoId = "", messageId = "", blockId = "", agentSettingsId = "" } = args as Record<string, any>;
   const canStream = !!(todoId && blockId && client);
 
   if (!canStream) {
     // Simple fallback
     const { exec } = await import("child_process");
     const result = await new Promise<string>((resolve) => {
-      exec(cmd, { cwd: root_path || os.tmpdir(), encoding: "utf-8", timeout: 120_000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId } }, (_err, stdout, stderr) => {
+      exec(cmd, { cwd: cwd || os.tmpdir(), encoding: "utf-8", timeout: 120_000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId } }, (_err, stdout, stderr) => {
         resolve((stdout || "") + (stderr || ""));
       });
     });
@@ -270,7 +270,7 @@ register("execute_shell_command", async (args, client) => {
   try {
     const send: SendFn = (m) => client.sendResponse(m);
     await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
-    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, root_path, false, "internal", undefined, agentSettingsId);
+    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, cwd, false, "internal", undefined, agentSettingsId);
 
     // If awaiting tool approval, signal caller to suppress response
     if (pendingToolApprovals.has(blockId)) {
@@ -320,7 +320,7 @@ register("read_file_base64", async (args) => {
 });
 
 register("search_files", async (args) => {
-  const { pattern, path: p = ".", root_path = "", head = 100, max_count = 5, glob: globPattern = "", ignore_case = true } = args;
+  const { pattern, path: p = ".", cwd = "", head = 100, max_count = 5, glob: globPattern = "", ignore_case = true } = args;
   const { execSync: execWhich } = await import("child_process");
   const whichCmd = process.platform === "win32" ? "where" : "which";
   const which = (bin: string) => { try { return execWhich(`${whichCmd} ${bin}`, { encoding: "utf-8" }).trim().split("\n")[0].trim(); } catch { return null; } };
@@ -331,7 +331,7 @@ register("search_files", async (args) => {
   }
 
   let searchPath = p.replace(/^~/, process.env.HOME || "~");
-  if (!path.isAbsolute(searchPath) && root_path) searchPath = path.join(root_path, searchPath);
+  if (!path.isAbsolute(searchPath) && cwd) searchPath = path.join(cwd, searchPath);
   searchPath = path.resolve(searchPath);
   if (!fs.existsSync(searchPath)) throw new Error(`Search path does not exist: ${searchPath}`);
 
@@ -373,7 +373,7 @@ register("search_files", async (args) => {
       output = lines.slice(0, head).join("\n") + `\n... (${lines.length - head} more matches truncated)`;
     }
     // Make paths relative if close, truncate long lines for cleaner display
-    if (root_path && output) {
+    if (cwd && output) {
       const lines = output.split("\n").map(line => {
         if (line.includes(":")) {
           const colonIdx = line.indexOf(":");
@@ -381,7 +381,7 @@ register("search_files", async (args) => {
           const rest = line.slice(colonIdx);
           // Try to make relative if within 2 levels, otherwise keep absolute
           try {
-            const relPath = path.relative(root_path, filePart);
+            const relPath = path.relative(cwd, filePart);
             const upLevels = (relPath.match(/\.\.\//g) || []).length;
             if (upLevels <= 2) {
               filePart = relPath;
