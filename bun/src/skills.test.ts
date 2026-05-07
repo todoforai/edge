@@ -38,7 +38,7 @@ describe("discoverSkills", () => {
         },
       },
     });
-    const { skills, errors } = await discoverSkills([tmp]);
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
     expect(errors).toEqual([]);
     expect(skills.length).toBe(2);
     const byName = Object.fromEntries(skills.map((s) => [s.name, s]));
@@ -51,7 +51,7 @@ describe("discoverSkills", () => {
 
   test("returns empty when .agents/skills missing", async () => {
     const tmp = makeTmpDir();
-    const { skills, errors } = await discoverSkills([tmp]);
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
     expect(skills).toEqual([]);
     expect(errors).toEqual([]);
     fs.rmSync(tmp, { recursive: true });
@@ -67,7 +67,7 @@ describe("discoverSkills", () => {
         },
       },
     });
-    const { skills, errors } = await discoverSkills([tmp]);
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
     expect(skills.map((s) => s.name)).toEqual(["good"]);
     expect(errors.length).toBe(1);
     expect(errors[0].message).toMatch(/frontmatter/);
@@ -79,7 +79,7 @@ describe("discoverSkills", () => {
     makeStructure(tmp, {
       ".agents": { skills: { a: { "SKILL.md": validSkill("a", "x") } } },
     });
-    const { skills } = await discoverSkills([tmp, tmp]);
+    const { skills } = await discoverSkills([tmp, tmp], { includeUserScope: false });
     expect(skills.length).toBe(1);
     fs.rmSync(tmp, { recursive: true });
   });
@@ -94,7 +94,7 @@ describe("discoverSkills", () => {
         },
       },
     });
-    const { skills } = await discoverSkills([tmp]);
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
     expect(skills.map((s) => s.name)).toEqual(["shown"]);
     fs.rmSync(tmp, { recursive: true });
   });
@@ -104,7 +104,7 @@ describe("discoverSkills", () => {
     const b = makeTmpDir();
     makeStructure(a, { ".agents": { skills: { foo: { "SKILL.md": validSkill("foo", "x") } } } });
     makeStructure(b, { ".agents": { skills: { bar: { "SKILL.md": validSkill("bar", "y") } } } });
-    const { skills } = await discoverSkills([a, b]);
+    const { skills } = await discoverSkills([a, b], { includeUserScope: false });
     expect(skills.map((s) => s.name).sort()).toEqual(["bar", "foo"]);
     fs.rmSync(a, { recursive: true });
     fs.rmSync(b, { recursive: true });
@@ -123,7 +123,7 @@ describe("discoverSkills", () => {
         },
       },
     });
-    const { skills } = await discoverSkills([tmp]);
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
     expect(skills.map((s) => s.name)).toEqual(["shallow"]);
     fs.rmSync(tmp, { recursive: true });
   });
@@ -132,7 +132,7 @@ describe("discoverSkills", () => {
     const tmp = makeTmpDir();
     const content = "---\nname: commented # ignored\ndescription: ok # ignored\n---\n# body\n";
     makeStructure(tmp, { ".agents": { skills: { commented: { "SKILL.md": content } } } });
-    const { skills, errors } = await discoverSkills([tmp]);
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
     expect(errors).toEqual([]);
     expect(skills[0].name).toBe("commented");
     expect(skills[0].description).toBe("ok");
@@ -143,7 +143,7 @@ describe("discoverSkills", () => {
     const tmp = makeTmpDir();
     const content = "---  \nname: tol\ndescription: ok\n--- \n# body\n";
     makeStructure(tmp, { ".agents": { skills: { tol: { "SKILL.md": content } } } });
-    const { skills, errors } = await discoverSkills([tmp]);
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
     expect(errors).toEqual([]);
     expect(skills.map((s) => s.name)).toEqual(["tol"]);
     fs.rmSync(tmp, { recursive: true });

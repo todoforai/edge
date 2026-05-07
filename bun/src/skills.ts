@@ -34,7 +34,7 @@ export async function discoverSkills(
   rootPaths: string[],
   opts: { includeUserScope?: boolean } = {},
 ): Promise<{ skills: SkillMeta[]; errors: SkillError[] }> {
-  const includeUserScope = opts.includeUserScope ?? false;
+  const includeUserScope = opts.includeUserScope ?? true;
   const roots: { path: string; relTo: string; scope: SkillScope }[] = [
     ...rootPaths.map((p) => ({ path: path.join(p, ".agents", "skills"), relTo: p, scope: "repo" as const })),
   ];

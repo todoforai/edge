@@ -198,7 +198,7 @@ register("get_workspace_tree", async (args) => {
 
 register("get_skills", async (args) => {
   const paths: string[] = Array.isArray(args?.paths) ? args.paths : [];
-  const includeUserScope = !!args?.includeUserScope;
+  const includeUserScope = args?.includeUserScope ?? true;
   return await discoverSkills(paths, { includeUserScope });
 });
 
