@@ -1,6 +1,6 @@
 {
   "name": "@todoforai/edge",
-  "version": "0.12.1344",
+  "version": "0.12.1345",
   "type": "module",
   "bin": {
     "todoforai-edge": "dist/index.js"
