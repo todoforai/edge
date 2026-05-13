@@ -39,7 +39,7 @@ describe("get_workspace_tree", () => {
     fs.rmSync(tmp, { recursive: true });
   });
 
-  test("dirs-first ordering", async () => {
+  test("files-first ordering", async () => {
     const tmp = makeTmpDir();
     makeStructure(tmp, {
       "zebra.txt": null,
@@ -51,8 +51,8 @@ describe("get_workspace_tree", () => {
     const alphaIdx = lines.findIndex((l: string) => l.includes("alpha"));
     const betaIdx = lines.findIndex((l: string) => l.includes("beta"));
     const zebraIdx = lines.findIndex((l: string) => l.includes("zebra"));
-    expect(alphaIdx).toBeLessThan(zebraIdx);
-    expect(betaIdx).toBeLessThan(zebraIdx);
+    expect(zebraIdx).toBeLessThan(alphaIdx);
+    expect(zebraIdx).toBeLessThan(betaIdx);
     fs.rmSync(tmp, { recursive: true });
   });
 

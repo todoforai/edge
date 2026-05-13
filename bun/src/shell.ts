@@ -5,6 +5,7 @@ import { spawn as nodeSpawn } from "child_process";
 import { msg, type WsMessage } from "./constants.js";
 import { findMissingTools, ensureTool, buildEnvWithTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
+import { pauseDetector } from "./shell-pause-detector.js";
 
 const IS_WIN = os.platform() === "win32";
 const HAS_BUN = typeof globalThis.Bun !== "undefined";
@@ -148,6 +149,7 @@ export async function executeBlock(
   runMode?: string,
   edgeId?: string,
   agentSettingsId = "",
+  keepAliveOnTimeout = false,
 ) {
   // Kill any existing process with the same blockId (re-run scenario)
   if (processes.has(blockId)) {
@@ -215,17 +217,37 @@ export async function executeBlock(
       TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId,
     };
 
-    // Timeout helper
+    // Resolve waiter early without killing the process (used by paused-detection and keep-alive timeout).
+    const resolveAlive = () => {
+      const resolver = completionResolvers.get(blockId);
+      if (resolver) { resolver(); completionResolvers.delete(blockId); }
+    };
+
+    // Timeout helper. keepAliveOnTimeout=true (LLM bash with session support):
+    // resolve the waiter so the caller can return paused-status, but leave the process alive.
     const startTimeout = () => setTimeout(() => {
-      if (processes.has(blockId)) {
+      if (!processes.has(blockId)) return;
+      if (keepAliveOnTimeout) {
+        resolveAlive();
+      } else {
         interruptBlock(blockId);
         send(msg.shellBlockResult(todoId, blockId, `Execution timed out after ${timeout} seconds`, messageId));
       }
     }, timeout * 1000);
 
+    // Platform-specific paused-on-stdin detector (Linux: wchan polling; others: no-op).
+    let cancelPauseWatch: (() => void) | null = null;
+    const startPauseWatch = (pid: number) => {
+      if (!keepAliveOnTimeout) return;
+      cancelPauseWatch = pauseDetector.watch(pid, () => {
+        if (processes.has(blockId)) resolveAlive();
+      });
+    };
+
     // Exit handler
     const onExit = async (returnCode: number, timer: ReturnType<typeof setTimeout>) => {
       clearTimeout(timer);
+      cancelPauseWatch?.();
       const notice = buf.getTruncationNotice();
       if (notice) await send(msg.shellBlockResult(todoId, blockId, notice, messageId));
       await send(msg.shellBlockDone(todoId, messageId, blockId, "execute", returnCode, effectiveRunMode));
@@ -261,6 +283,7 @@ export async function executeBlock(
       const handle: ProcHandle = { terminal, proc, pid: proc.pid };
       processes.set(blockId, handle);
       const timer = startTimeout();
+      startPauseWatch(proc.pid);
       proc.exited.then((code) => {
         terminal.close();
         onExit(code ?? -1, timer);
@@ -280,6 +303,7 @@ export async function executeBlock(
         const handle: ProcHandle = { proc, pid: proc.pid };
         processes.set(blockId, handle);
         const timer = startTimeout();
+        startPauseWatch(proc.pid);
 
         const pipeStream = async (stream: ReadableStream<Uint8Array> | null) => {
           if (!stream) return;
@@ -304,6 +328,7 @@ export async function executeBlock(
         const handle: ProcHandle = { proc: proc as any, pid: proc.pid ?? -1 };
         processes.set(blockId, handle);
         const timer = startTimeout();
+        if (proc.pid != null) startPauseWatch(proc.pid);
         let exited = false;
         const exit = (code: number) => { if (!exited) { exited = true; onExit(code, timer); } };
 
@@ -343,6 +368,8 @@ export async function sendInput(blockId: string, text: string): Promise<boolean>
   const buf = outputBuffers.get(blockId);
   if (buf) buf.resetForInteraction();
 
+  // Auto-append newline so callers (LLM, frontend) don't need to think about it.
+  // Harmless for control bytes like \x03 (Ctrl+C) — the kernel reacts to them immediately.
   if (!text.endsWith("\n")) text += "\n";
 
   if (handle.terminal) {
@@ -377,6 +404,9 @@ export function interruptBlock(blockId: string) {
   // Close terminal after process is killed
   try { handle.terminal?.close(); } catch {}
   processes.delete(blockId);
+  // Release any waiter (e.g. execute_shell_command) so it doesn't hang until its own timeout.
+  const resolver = completionResolvers.get(blockId);
+  if (resolver) { resolver(); completionResolvers.delete(blockId); }
 }
 
 // ── Helpers for execute_shell_command function ──
@@ -405,4 +435,9 @@ export function getBlockRawOutput(blockId: string): string | null {
 
 export function clearBlockOutput(blockId: string) {
   outputBuffers.delete(blockId);
+}
+
+/** Returns true if a process is still running for the given blockId/session. */
+export function isBlockAlive(blockId: string): boolean {
+  return processes.has(blockId);
 }

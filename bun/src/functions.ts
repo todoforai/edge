@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { readFileContent } from "./files.js";
 import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "./path-utils.js";
-import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, pendingToolApprovals, type SendFn } from "./shell.js";
+import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, isBlockAlive, sendInput, pendingToolApprovals, type SendFn } from "./shell.js";
 import { msg } from "./constants.js";
 import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
@@ -173,8 +173,8 @@ register("get_workspace_tree", async (args) => {
         return true;
       })
       .sort((a, b) => {
-        const aDir = a.isDirectory() ? 0 : 1;
-        const bDir = b.isDirectory() ? 0 : 1;
+        const aDir = a.isDirectory() ? 1 : 0;
+        const bDir = b.isDirectory() ? 1 : 0;
         if (aDir !== bDir) return aDir - bDir;
         return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
       });
@@ -249,11 +249,11 @@ function detectContentType(output: string, cmd?: string): { result: string; cont
 }
 
 register("execute_shell_command", async (args, client) => {
-  const { cmd, timeout = 120, cwd = (args as any).root_path ?? "", todoId = "", messageId = "", blockId = "", agentSettingsId = "" } = args as Record<string, any>;
+  const { cmd, timeout = 120, cwd = (args as any).root_path ?? "", todoId = "", messageId = "", blockId = "", agentSettingsId = "", session_id: sessionId = "" } = args as Record<string, any>;
   const canStream = !!(todoId && blockId && client);
 
   if (!canStream) {
-    // Simple fallback
+    // Simple fallback (no session support without streaming context)
     const { exec } = await import("child_process");
     const result = await new Promise<string>((resolve) => {
       exec(cmd, { cwd: cwd || os.tmpdir(), encoding: "utf-8", timeout: 120_000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId } }, (_err, stdout, stderr) => {
@@ -266,11 +266,28 @@ register("execute_shell_command", async (args, client) => {
   // Strip trailing | tail so the raw command streams, then filter the result
   const { execCmd, postFilter } = extractTrailingTail(cmd);
 
-  // Streaming via ShellProcess
+  const send: SendFn = (m) => client.sendResponse(m);
+
+  // ── Continue paused session: send stdin to existing process, wait for new output ──
+  if (sessionId && isBlockAlive(sessionId)) {
+    await sendInput(sessionId, cmd);  // resets buffer for interaction
+    await waitForCompletion(sessionId, timeout * 1000);
+    const rawOutput = getBlockRawOutput(sessionId);
+    let output = rawOutput ?? getBlockOutput(sessionId);
+    if (postFilter) output = postFilter(output);
+    const stillAlive = isBlockAlive(sessionId);
+    if (stillAlive) {
+      output = (output || "") + `\n\n[Session id for continuation: ${sessionId}]`;
+    } else {
+      clearBlockOutput(sessionId);
+    }
+    return !stillAlive && rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
+  }
+
+  // ── Fresh exec ──
   try {
-    const send: SendFn = (m) => client.sendResponse(m);
     await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
-    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, cwd, false, "internal", undefined, agentSettingsId);
+    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, cwd, false, "internal", undefined, agentSettingsId, true);
 
     // If awaiting tool approval, signal caller to suppress response
     if (pendingToolApprovals.has(blockId)) {
@@ -278,17 +295,19 @@ register("execute_shell_command", async (args, client) => {
     }
 
     await waitForCompletion(blockId, (timeout + 5) * 1000);
-    // Try raw output first for typed detection (images), fall back to truncated for text
     const rawOutput = getBlockRawOutput(blockId);
     let output = rawOutput ?? getBlockOutput(blockId);
-    clearBlockOutput(blockId);
     if (postFilter) output = postFilter(output);
-    // Only detect contentType if we have raw (untruncated) output
+    const stillAlive = isBlockAlive(blockId);
+    if (stillAlive) {
+      output = (output || "") + `\n\n[paused — session_id: ${blockId}]`;
+      return { cmd, result: output };  // contentType detection skipped for paused sessions
+    }
+    clearBlockOutput(blockId);
     return rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
   } catch (e: any) {
-    throw e;
-  } finally {
     clearBlockOutput(blockId);
+    throw e;
   }
 });
 
