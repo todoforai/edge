@@ -437,7 +437,18 @@ export function clearBlockOutput(blockId: string) {
   outputBuffers.delete(blockId);
 }
 
-/** Returns true if a process is still running for the given blockId/session. */
+/** Returns true if a process is still running for the given blockId. */
 export function isBlockAlive(blockId: string): boolean {
   return processes.has(blockId);
+}
+
+/** Get the OS pid for a live blockId (null if no live process). */
+export function getPid(blockId: string): number | null {
+  return processes.get(blockId)?.pid ?? null;
+}
+
+/** Resolve a live OS pid back to its blockId (null if no live process). */
+export function findBlockIdByPid(pid: number): string | null {
+  for (const [bid, h] of processes) if (h.pid === pid) return bid;
+  return null;
 }

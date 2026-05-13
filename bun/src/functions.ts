@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { readFileContent } from "./files.js";
 import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "./path-utils.js";
-import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, isBlockAlive, sendInput, pendingToolApprovals, type SendFn } from "./shell.js";
+import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, isBlockAlive, sendInput, getPid, findBlockIdByPid, pendingToolApprovals, type SendFn } from "./shell.js";
 import { msg } from "./constants.js";
 import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
@@ -249,7 +249,7 @@ function detectContentType(output: string, cmd?: string): { result: string; cont
 }
 
 register("execute_shell_command", async (args, client) => {
-  const { cmd, timeout = 120, cwd = (args as any).root_path ?? "", todoId = "", messageId = "", blockId = "", agentSettingsId = "", session_id: sessionId = "" } = args as Record<string, any>;
+  const { cmd, timeout = 120, cwd = (args as any).root_path ?? "", todoId = "", messageId = "", blockId = "", agentSettingsId = "", pid: resumePid = 0 } = args as Record<string, any>;
   const canStream = !!(todoId && blockId && client);
 
   if (!canStream) {
@@ -268,16 +268,17 @@ register("execute_shell_command", async (args, client) => {
 
   const send: SendFn = (m) => client.sendResponse(m);
 
-  // ── Continue paused session: send stdin to existing process, wait for new output ──
-  if (sessionId && isBlockAlive(sessionId)) {
-    await sendInput(sessionId, cmd);  // resets buffer for interaction
-    await waitForCompletion(sessionId, timeout * 1000);
-    const rawOutput = getBlockRawOutput(sessionId);
-    let output = rawOutput ?? getBlockOutput(sessionId);
+  // ── Continue paused session by pid: send stdin to existing process, wait for new output ──
+  const resumeBlockId = resumePid ? findBlockIdByPid(Number(resumePid)) : null;
+  if (resumeBlockId) {
+    await sendInput(resumeBlockId, cmd);  // resets buffer for interaction
+    await waitForCompletion(resumeBlockId, timeout * 1000);
+    const rawOutput = getBlockRawOutput(resumeBlockId);
+    let output = rawOutput ?? getBlockOutput(resumeBlockId);
     if (postFilter) output = postFilter(output);
-    const stillAlive = isBlockAlive(sessionId);
-    if (!stillAlive) clearBlockOutput(sessionId);
-    if (stillAlive) return { cmd, result: output, paused: true, session_id: sessionId };
+    const stillAlive = isBlockAlive(resumeBlockId);
+    if (!stillAlive) clearBlockOutput(resumeBlockId);
+    if (stillAlive) return { cmd, result: output, paused: true, pid: getPid(resumeBlockId) ?? 0 };
     return rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
   }
 
@@ -296,7 +297,7 @@ register("execute_shell_command", async (args, client) => {
     let output = rawOutput ?? getBlockOutput(blockId);
     if (postFilter) output = postFilter(output);
     const stillAlive = isBlockAlive(blockId);
-    if (stillAlive) return { cmd, result: output, paused: true, session_id: blockId };
+    if (stillAlive) return { cmd, result: output, paused: true, pid: getPid(blockId) ?? 0 };
     clearBlockOutput(blockId);
     return rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
   } catch (e: any) {
