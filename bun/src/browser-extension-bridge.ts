@@ -96,9 +96,10 @@ export class BrowserExtensionBridge {
 
     if (data.type === "hello") {
       // Only 'extension-control' is used for CLI command routing.
-      // Per-tab 'extension' connections are content-script side-channels and must not overwrite this.extensionWs.
+      // Per-tab channels ('extension-tab', or legacy 'extension') are side-channels and must not overwrite this.extensionWs.
+      const isTabChannel = data.role === "extension-tab" || data.role === "extension";
       if (data.role === "extension-control") this.extensionWs = ws;
-      if (data.role === "extension-control" || data.role === "extension") {
+      if (data.role === "extension-control" || isTabChannel) {
         if (isOpen(ws)) ws.send(JSON.stringify({ type: "connected_edge", payload: { edgeId: BRIDGE_EDGE_ID } }));
       }
       return;
