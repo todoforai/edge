@@ -95,10 +95,11 @@ export class BrowserExtensionBridge {
     if (this.debug) console.log("[browser-bridge:recv]", data.type);
 
     if (data.type === "hello") {
-      if (data.role === "extension" || data.role === "extension-control") {
-        this.extensionWs = ws;
+      // Only 'extension-control' is used for CLI command routing.
+      // Per-tab 'extension' connections are content-script side-channels and must not overwrite this.extensionWs.
+      if (data.role === "extension-control") this.extensionWs = ws;
+      if (data.role === "extension-control" || data.role === "extension") {
         if (isOpen(ws)) ws.send(JSON.stringify({ type: "connected_edge", payload: { edgeId: BRIDGE_EDGE_ID } }));
-        return;
       }
       return;
     }
