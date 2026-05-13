@@ -276,12 +276,9 @@ register("execute_shell_command", async (args, client) => {
     let output = rawOutput ?? getBlockOutput(sessionId);
     if (postFilter) output = postFilter(output);
     const stillAlive = isBlockAlive(sessionId);
-    if (stillAlive) {
-      output = (output || "") + `\n\n[Session id for continuation: ${sessionId}]`;
-    } else {
-      clearBlockOutput(sessionId);
-    }
-    return !stillAlive && rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
+    if (!stillAlive) clearBlockOutput(sessionId);
+    if (stillAlive) return { cmd, result: output, paused: true, session_id: sessionId };
+    return rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
   }
 
   // ── Fresh exec ──
@@ -299,10 +296,7 @@ register("execute_shell_command", async (args, client) => {
     let output = rawOutput ?? getBlockOutput(blockId);
     if (postFilter) output = postFilter(output);
     const stillAlive = isBlockAlive(blockId);
-    if (stillAlive) {
-      output = (output || "") + `\n\n[paused — session_id: ${blockId}]`;
-      return { cmd, result: output };  // contentType detection skipped for paused sessions
-    }
+    if (stillAlive) return { cmd, result: output, paused: true, session_id: blockId };
     clearBlockOutput(blockId);
     return rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
   } catch (e: any) {
