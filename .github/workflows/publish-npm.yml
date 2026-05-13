@@ -2,15 +2,20 @@ name: Publish to npm
 
 on:
   push:
-    tags:   [ 'v*' ]
+    branches: [ 'prod' ]
   workflow_dispatch:
 
 jobs:
   deploy-npm:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GH_PAT }}
 
     - name: Checkout shared packages
       run: git clone --depth 1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/todoforai/packages.git ../packages
@@ -29,6 +34,19 @@ jobs:
 
     - name: Build
       run: cd bun && npm run build
+
+    - name: Bump patch version & tag
+      if: github.ref == 'refs/heads/prod'
+      run: |
+        git config user.name  "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        NEW_VERSION=$(node -p "const p=require('./bun/package.json');const [M,m,P]=p.version.split('.');\`\${M}.\${m}.\${+P+1}\`")
+        node -e "const fs=require('fs');const p=require('./bun/package.json');p.version='$NEW_VERSION';fs.writeFileSync('bun/package.json',JSON.stringify(p,null,2)+'\n');"
+        git add bun/package.json
+        git commit -m "Bump version to $NEW_VERSION"
+        git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
+        git push origin HEAD:prod
+        git push origin "v$NEW_VERSION"
 
     - name: Publish to npm
       run: cd bun && npm publish --access public --ignore-scripts
