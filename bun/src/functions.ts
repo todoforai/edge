@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { readFileContent } from "./files.js";
 import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "./path-utils.js";
-import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, isBlockAlive, sendInput, getPid, findBlockIdByPid, pendingToolApprovals, type SendFn } from "./shell.js";
+import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, isBlockAlive, sendInput, getPid, findBlockIdByPid, consumeExitedOutput, pendingToolApprovals, type SendFn } from "./shell.js";
 import { msg } from "./constants.js";
 import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
@@ -270,6 +270,17 @@ register("execute_shell_command", async (args, client) => {
 
   // ── Continue paused session by pid: send stdin to existing process, wait for new output ──
   const resumeBlockId = resumePid ? findBlockIdByPid(Number(resumePid)) : null;
+  // Caller asked to resume a specific pid that's no longer alive → don't silently
+  // fall through to a fresh exec (would run `cmd` as a brand-new shell command).
+  // First drain any residual output captured at exit; otherwise tell the LLM the
+  // session is gone so it starts a fresh command.
+  if (resumePid && !resumeBlockId) {
+    const residual = consumeExitedOutput(Number(resumePid));
+    if (residual) {
+      return { cmd, result: `${residual.output}\n[session pid=${resumePid} exited with code ${residual.returnCode}]` };
+    }
+    return { cmd, result: `[no live session for pid=${resumePid} — it already exited; start a fresh command]` };
+  }
   if (resumeBlockId) {
     await sendInput(resumeBlockId, cmd);  // resets buffer for interaction
     await waitForCompletion(resumeBlockId, timeout * 1000);
@@ -278,7 +289,10 @@ register("execute_shell_command", async (args, client) => {
     if (postFilter) output = postFilter(output);
     const stillAlive = isBlockAlive(resumeBlockId);
     if (!stillAlive) clearBlockOutput(resumeBlockId);
-    if (stillAlive) return { cmd, result: output, paused: true, pid: getPid(resumeBlockId) ?? 0 };
+    if (stillAlive) {
+      const livePid = getPid(resumeBlockId);
+      return { cmd, result: output, paused: true, ...(livePid ? { pid: livePid } : {}) };
+    }
     return rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
   }
 
@@ -297,7 +311,10 @@ register("execute_shell_command", async (args, client) => {
     let output = rawOutput ?? getBlockOutput(blockId);
     if (postFilter) output = postFilter(output);
     const stillAlive = isBlockAlive(blockId);
-    if (stillAlive) return { cmd, result: output, paused: true, pid: getPid(blockId) ?? 0 };
+    if (stillAlive) {
+      const livePid = getPid(blockId);
+      return { cmd, result: output, paused: true, ...(livePid ? { pid: livePid } : {}) };
+    }
     clearBlockOutput(blockId);
     return rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
   } catch (e: any) {

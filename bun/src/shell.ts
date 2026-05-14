@@ -59,7 +59,6 @@ class OutputBuffer {
   totalLen = 0;
   truncated = false;
   private truncMsgSent = false;
-  private savedSegments: string[] = [];
   constructor(private firstLimit = STREAM_FIRST, private lastLimit = STREAM_LAST) {}
 
   append(text: string): string {
@@ -90,15 +89,9 @@ class OutputBuffer {
     return "";
   }
 
+  /** Drop everything already returned to the caller; the next paused/exit response
+   *  shows only the delta produced after this point. */
   resetForInteraction() {
-    if (this.firstPart || this.lastPart) {
-      let segment = this.firstPart;
-      if (this.truncated) {
-        const dropped = this.totalLen - this.firstPart.length - this.lastPart.length;
-        segment += `\n... [truncated ${dropped} chars] ...\n${this.lastPart}`;
-      }
-      this.savedSegments.push(segment);
-    }
     this.firstPart = "";
     this.lastPart = "";
     this.totalLen = 0;
@@ -107,19 +100,13 @@ class OutputBuffer {
   }
 
   getOutput(): string {
-    let current = this.firstPart;
-    if (this.truncated) {
-      current += `\n\n... [truncated: showing first ${this.firstPart.length} and last ${this.lastPart.length} chars of ${this.totalLen} total] ...\n\n${this.lastPart}`;
-    }
-    const all = current ? [...this.savedSegments, current] : [...this.savedSegments];
-    return all.join("\n");
+    if (!this.truncated) return this.firstPart;
+    return this.firstPart + `\n\n... [truncated: showing first ${this.firstPart.length} and last ${this.lastPart.length} chars of ${this.totalLen} total] ...\n\n${this.lastPart}`;
   }
 
   /** Get raw output without truncation formatting. Returns null if truncated (incomplete data). */
   getRawIfComplete(): string | null {
-    if (this.truncated) return null;
-    const all = this.firstPart ? [...this.savedSegments, this.firstPart] : [...this.savedSegments];
-    return all.join("\n");
+    return this.truncated ? null : this.firstPart;
   }
 }
 
@@ -130,6 +117,9 @@ const processes = new Map<string, ProcHandle>();
 const outputBuffers = new Map<string, OutputBuffer>();
 const completionResolvers = new Map<string, () => void>();
 export const pendingToolApprovals = new Map<string, string[]>(); // blockId -> tool names
+// Output that arrived between the last paused/exit response and process exit,
+// keyed by the (now-dead) pid. Drained by the next resume call on that pid.
+const exitedOutputByPid = new Map<number, { output: string; returnCode: number }>();
 
 export interface SendFn {
   (message: WsMessage): Promise<void>;
@@ -254,6 +244,15 @@ export async function executeBlock(
       const notice = buf.getTruncationNotice();
       if (notice) await send(msg.shellBlockResult(todoId, blockId, notice, messageId));
       await send(msg.shellBlockDone(todoId, messageId, blockId, "execute", returnCode, effectiveRunMode));
+      // If the LLM has been resuming by pid and the process died between paused
+      // responses, stash the residual output so the next resume call can drain it
+      // instead of seeing only "no live session". No completion resolver means
+      // nobody is currently awaiting — that's exactly the orphan case.
+      const handle = processes.get(blockId);
+      if (handle && keepAliveOnTimeout && !completionResolvers.has(blockId)) {
+        const output = buf.getRawIfComplete() ?? buf.getOutput();
+        if (output) exitedOutputByPid.set(handle.pid, { output, returnCode });
+      }
       processes.delete(blockId);
       const resolver = completionResolvers.get(blockId);
       if (resolver) { resolver(); completionResolvers.delete(blockId); }
@@ -456,4 +455,12 @@ export function getPid(blockId: string): number | null {
 export function findBlockIdByPid(pid: number): string | null {
   for (const [bid, h] of processes) if (h.pid === pid) return bid;
   return null;
+}
+
+/** Drain residual output for a pid whose process exited between paused responses.
+ *  Returns null if nothing stashed. Consumes the entry — callers see it once. */
+export function consumeExitedOutput(pid: number): { output: string; returnCode: number } | null {
+  const v = exitedOutputByPid.get(pid);
+  if (v) exitedOutputByPid.delete(pid);
+  return v ?? null;
 }
