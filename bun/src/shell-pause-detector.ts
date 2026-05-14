@@ -6,13 +6,20 @@
 import os from "os";
 import { readFile } from "fs/promises";
 
+export interface PauseWatcher {
+  /** Stop watching entirely (e.g. on process exit). */
+  cancel: () => void;
+  /** Re-arm signalling so the next paused state fires onPaused again (call after sending stdin). */
+  reset: () => void;
+}
+
 export interface PauseDetector {
-  /** Start watching pid; calls onPaused() once when the process becomes stdin-blocked. Returns cancel fn. */
-  watch(pid: number, onPaused: () => void): () => void;
+  /** Start watching pid; calls onPaused() each time the process becomes stdin-blocked (after reset). */
+  watch(pid: number, onPaused: () => void): PauseWatcher;
 }
 
 class NullDetector implements PauseDetector {
-  watch(): () => void { return () => {}; }
+  watch(): PauseWatcher { return { cancel: () => {}, reset: () => {} }; }
 }
 
 // Linux syscall numbers that indicate "blocked on input" for the watched arch.
@@ -30,8 +37,9 @@ const POLL_MS = 250;
 const GRACE_TICKS = 2; // require N consecutive paused readings (~500ms) before firing
 
 class LinuxSyscallDetector implements PauseDetector {
-  watch(pid: number, onPaused: () => void): () => void {
+  watch(pid: number, onPaused: () => void): PauseWatcher {
     let pausedTicks = 0;
+    let signalled = false;
     let cancelled = false;
 
     const tick = async () => {
@@ -39,10 +47,9 @@ class LinuxSyscallDetector implements PauseDetector {
       const fgPid = await getForegroundPid(pid);
       const sc = fgPid != null ? await readSyscallNum(fgPid) : null;
       if (sc != null && READ_SYSCALLS.has(sc)) {
-        if (++pausedTicks >= GRACE_TICKS) {
-          cancelled = true;
+        if (!signalled && ++pausedTicks >= GRACE_TICKS) {
+          signalled = true;
           onPaused();
-          return;
         }
       } else {
         pausedTicks = 0;
@@ -51,7 +58,10 @@ class LinuxSyscallDetector implements PauseDetector {
     };
     setTimeout(tick, POLL_MS);
 
-    return () => { cancelled = true; };
+    return {
+      cancel: () => { cancelled = true; },
+      reset: () => { signalled = false; pausedTicks = 0; },
+    };
   }
 }
 

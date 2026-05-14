@@ -125,7 +125,7 @@ class OutputBuffer {
 
 // ── Global state ──
 
-type ProcHandle = { terminal?: any; proc?: any; pid: number };
+type ProcHandle = { terminal?: any; proc?: any; pid: number; resetPauseWatch?: () => void };
 const processes = new Map<string, ProcHandle>();
 const outputBuffers = new Map<string, OutputBuffer>();
 const completionResolvers = new Map<string, () => void>();
@@ -239,9 +239,12 @@ export async function executeBlock(
     let cancelPauseWatch: (() => void) | null = null;
     const startPauseWatch = (pid: number) => {
       if (!keepAliveOnTimeout) return;
-      cancelPauseWatch = pauseDetector.watch(pid, () => {
+      const watcher = pauseDetector.watch(pid, () => {
         if (processes.has(blockId)) resolveAlive();
       });
+      cancelPauseWatch = watcher.cancel;
+      const h = processes.get(blockId);
+      if (h) h.resetPauseWatch = watcher.reset;
     };
 
     // Exit handler
@@ -367,6 +370,8 @@ export async function sendInput(blockId: string, text: string): Promise<boolean>
 
   const buf = outputBuffers.get(blockId);
   if (buf) buf.resetForInteraction();
+  // Re-arm pause detector so the next paused state on this session fires again.
+  handle.resetPauseWatch?.();
 
   // Auto-append newline so callers (LLM, frontend) don't need to think about it.
   // Harmless for control bytes like \x03 (Ctrl+C) — the kernel reacts to them immediately.
