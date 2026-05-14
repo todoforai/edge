@@ -387,19 +387,20 @@ register("search_files", async (args) => {
       output = lines.slice(0, head).join("\n") + `\n... (${lines.length - head} more matches truncated)`;
     }
     // Make paths relative if close, truncate long lines for cleaner display
-    if (cwd && output) {
+    if ((cwd || searchPath) && output) {
+      // Use dir form of searchPath as base (so file paths relativize cleanly)
+      const searchBase = searchPath && fs.existsSync(searchPath) && fs.statSync(searchPath).isDirectory() ? searchPath : path.dirname(searchPath);
+      const bases = Array.from(new Set([cwd, searchBase].filter(Boolean))) as string[];
       const lines = output.split("\n").map(line => {
         if (line.includes(":")) {
           const colonIdx = line.indexOf(":");
           let filePart = line.slice(0, colonIdx);
           const rest = line.slice(colonIdx);
-          // Try to make relative if within 2 levels, otherwise keep absolute
+          // Pick the shortest candidate among absolute and all bases (within 2 up-levels)
           try {
-            const relPath = path.relative(cwd, filePart);
-            const upLevels = (relPath.match(/\.\.\//g) || []).length;
-            if (upLevels <= 2) {
-              filePart = relPath;
-            }
+            const candidates = [filePart, ...bases.map(b => path.relative(b, filePart))]
+              .filter(p => (p.match(/\.\.\//g) || []).length <= 2);
+            filePart = candidates.reduce((a, b) => a.length <= b.length ? a : b, filePart);
           } catch {
             // Keep absolute on error
           }
