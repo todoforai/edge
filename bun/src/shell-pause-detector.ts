@@ -1,6 +1,8 @@
 // Detects when a shell process is paused on stdin (interactive prompt, read, sudo password).
 // Linux: poll /proc/<pid>/syscall on the foreground (leaf) descendant — if it sits in the
-//   `read` syscall (or `poll`/`select` family) for several ticks, the process is stdin-blocked.
+//   `read` syscall on fd 0 (stdin) for several ticks, the process is stdin-blocked.
+// We deliberately do NOT watch poll/select/ppoll/pselect6: those fire on any socket/file
+//   wait (git push, curl, npm, ssh handshake), causing false-positive paused states.
 // Other platforms: NullDetector — paused state only via the wall-clock timeout.
 
 import os from "os";
@@ -22,16 +24,16 @@ class NullDetector implements PauseDetector {
   watch(): PauseWatcher { return { cancel: () => {}, reset: () => {} }; }
 }
 
-// Linux syscall numbers that indicate "blocked on input" for the watched arch.
+// Linux `read` syscall number per arch. Only `read` — poll/select wait on arbitrary fds
+// (sockets, pipes), so they're not reliable indicators of stdin-blocked.
 // Sources: include/uapi/asm-generic/unistd.h and arch-specific tables.
-// Keep the set conservative — only "read", "pselect6", "ppoll", "poll", "select".
-const SYSCALL_TABLES: Record<string, Set<number>> = {
-  x64:     new Set([0, 7, 23, 270, 271]),   // read, poll, select, pselect6, ppoll
-  arm64:   new Set([63, 72, 73]),           // read, pselect6, ppoll
-  arm:     new Set([3, 142, 168, 335, 336]),
-  ia32:    new Set([3, 142, 168, 308, 309]),
+const READ_SYSCALL_NR: Record<string, number> = {
+  x64:   0,
+  arm64: 63,
+  arm:   3,
+  ia32:  3,
 };
-const READ_SYSCALLS = SYSCALL_TABLES[process.arch] ?? new Set<number>();
+const READ_NR = READ_SYSCALL_NR[process.arch] ?? -1;
 
 const POLL_MS = 250;
 const GRACE_TICKS = 2; // require N consecutive paused readings (~500ms) before firing
@@ -45,8 +47,9 @@ class LinuxSyscallDetector implements PauseDetector {
     const tick = async () => {
       if (cancelled) return;
       const fgPid = await getForegroundPid(pid);
-      const sc = fgPid != null ? await readSyscallNum(fgPid) : null;
-      if (sc != null && READ_SYSCALLS.has(sc)) {
+      const sc = fgPid != null ? await readSyscall(fgPid) : null;
+      // Only treat as paused if blocked in read() on fd 0 (stdin).
+      if (sc && sc.nr === READ_NR && sc.fd === 0) {
         if (!signalled && ++pausedTicks >= GRACE_TICKS) {
           signalled = true;
           onPaused();
@@ -65,13 +68,17 @@ class LinuxSyscallDetector implements PauseDetector {
   }
 }
 
-/** First token of /proc/<pid>/syscall — the current syscall number (or "running"/"-1" if not in a syscall). */
-async function readSyscallNum(pid: number): Promise<number | null> {
+/** Parse /proc/<pid>/syscall — format: "<nr> <arg0> <arg1> ... <sp> <pc>".
+ *  For read(), arg0 is the fd. Returns null if not in a syscall ("running"/"-1"). */
+async function readSyscall(pid: number): Promise<{ nr: number; fd: number } | null> {
   try {
     const raw = (await readFile(`/proc/${pid}/syscall`, "utf-8")).trim();
-    const first = raw.split(/\s+/)[0];
-    const n = parseInt(first, 10);
-    return Number.isFinite(n) && n >= 0 ? n : null;
+    const parts = raw.split(/\s+/);
+    const nr = parseInt(parts[0], 10);
+    if (!Number.isFinite(nr) || nr < 0) return null;
+    // arg0 is hex (e.g. "0x0"); parseInt with base 16 after stripping "0x".
+    const fd = parts[1] ? parseInt(parts[1].replace(/^0x/, ""), 16) : -1;
+    return { nr, fd: Number.isFinite(fd) ? fd : -1 };
   } catch { return null; }
 }
 
@@ -94,6 +101,6 @@ async function readChildren(pid: number): Promise<number[]> {
 }
 
 export const pauseDetector: PauseDetector =
-  os.platform() === "linux" && READ_SYSCALLS.size > 0
+  os.platform() === "linux" && READ_NR >= 0
     ? new LinuxSyscallDetector()
     : new NullDetector();
