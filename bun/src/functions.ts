@@ -271,7 +271,18 @@ register("execute_shell_command", async (args, client) => {
   // ── Continue paused session by pid: send stdin to existing process, wait for new output ──
   const resumeBlockId = resumePid ? findBlockIdByPid(Number(resumePid)) : null;
   if (resumeBlockId) {
-    await sendInput(resumeBlockId, cmd);  // resets buffer for interaction
+    // If the entire cmd is one or more control-byte escapes (e.g. "\u0003" → Ctrl+C,
+    // "\u0003\u0003" → double interrupt, "\u0003\u0004" → SIGINT then EOF), decode them.
+    // Anything else — including text that happens to contain \uXXXX — is sent literally.
+    const isAllCtrl = /^(\\u[0-9a-fA-F]{4})+$/.test(cmd) &&
+      [...cmd.matchAll(/\\u([0-9a-fA-F]{4})/g)].every(m => {
+        const c = parseInt(m[1], 16);
+        return c <= 0x1f || c === 0x7f;
+      });
+    const decodedCmd = isAllCtrl
+      ? cmd.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+      : cmd;
+    await sendInput(resumeBlockId, decodedCmd);  // resets buffer for interaction
     await waitForCompletion(resumeBlockId, timeout * 1000);
     const rawOutput = getBlockRawOutput(resumeBlockId);
     let output = rawOutput ?? getBlockOutput(resumeBlockId);
