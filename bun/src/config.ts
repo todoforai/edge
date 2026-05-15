@@ -28,11 +28,20 @@ export interface Config {
   debug: boolean;
   kill: boolean;
   addWorkspacePath?: string;
+  subcommand?: "login" | "logout";
 }
 
+const SUBCOMMANDS = new Set(["login", "logout"]);
+
 export function loadConfig(): Config {
+  const argv = process.argv.slice(2);
+  let subcommand: Config["subcommand"];
+  if (argv[0] && SUBCOMMANDS.has(argv[0])) {
+    subcommand = argv.shift() as Config["subcommand"];
+  }
+
   const { values } = parseArgs({
-    args: process.argv.slice(2),
+    args: argv,
     options: {
       "api-key": { type: "string" },
       "api-url": { type: "string" },
@@ -61,7 +70,7 @@ export function loadConfig(): Config {
     addWorkspacePath = path.resolve(p.replace(/^~/, process.env.HOME || "~"));
   }
 
-  return { apiUrl, apiKey, debug, kill, addWorkspacePath };
+  return { apiUrl, apiKey, debug, kill, addWorkspacePath, subcommand };
 }
 
 // ── Credential persistence (~/.todoforai/credentials.json) ──

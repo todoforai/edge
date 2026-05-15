@@ -1,4 +1,4 @@
-import { loadConfig } from "./config.js";
+import { loadConfig, clearApiKey } from "./config.js";
 import { TODOforAIEdge, setGlobalEdgeInstance } from "./edge.js";
 import { unmountAllRclone } from "./tool-registry.js";
 import fs from "fs";
@@ -64,6 +64,22 @@ async function main() {
 
   if (config.debug) {
     console.log("[config]", { apiUrl: config.apiUrl, debug: config.debug, addWorkspacePath: config.addWorkspacePath });
+  }
+
+  if (config.subcommand === "logout") {
+    clearApiKey(config.apiUrl);
+    console.log(`\x1b[32m✅ Logged out from ${config.apiUrl}\x1b[0m`);
+    process.exit(0);
+  }
+
+  if (config.subcommand === "login") {
+    // Force re-login: discard any saved/explicit key and trigger device flow
+    clearApiKey(config.apiUrl);
+    config.apiKey = "";
+    const edge = new TODOforAIEdge(config);
+    setGlobalEdgeInstance(edge);
+    const ok = await edge.ensureApiKey(true);
+    process.exit(ok ? 0 : 1);
   }
 
   const edge = new TODOforAIEdge(config);
