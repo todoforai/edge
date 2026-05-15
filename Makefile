@@ -5,7 +5,7 @@ help:
 	@echo "  make run-dev    - Run edge (dev)"
 	@echo "  make build      - Build for Node"
 	@echo "  make compile    - Compile standalone binary"
-	@echo "  make deploy     - Push main -> prod (CI bumps version, tags, publishes to npm + GitHub release)"
+	@echo "  make deploy     - Fast-forward prod to main (CI publishes to npm + tags release)"
 
 run:
 	cd bun && bun run src/index.ts --api-url https://api.todofor.ai --kill

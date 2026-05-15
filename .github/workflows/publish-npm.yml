@@ -7,17 +7,10 @@ on:
 
 jobs:
   deploy-npm:
-    # Skip the self-triggered bump commits to avoid an infinite loop
-    if: ${{ !startsWith(github.event.head_commit.message, 'Bump version to ') }}
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write
 
     steps:
     - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        token: ${{ secrets.GH_PAT }}
 
     - name: Checkout shared packages
       run: git clone --depth 1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/todoforai/packages.git ../packages
@@ -37,20 +30,37 @@ jobs:
     - name: Build
       run: cd bun && npm run build
 
-    - name: Bump patch version & tag
-      if: github.ref == 'refs/heads/prod'
+    - name: Resolve version & publish
+      id: publish
+      working-directory: bun
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: |
+        PACKAGE_NAME=$(jq -r '.name' package.json)
+        LOCAL_VERSION=$(jq -r '.version' package.json)
+        NPM_VERSION=$(npm view "$PACKAGE_NAME" version 2>/dev/null || echo "0.0.0")
+
+        # Use local version if strictly higher than npm (manual major/minor bump); else auto-patch from npm
+        HIGHER=$(printf '%s\n%s\n' "$LOCAL_VERSION" "$NPM_VERSION" | sort -V | tail -1)
+        if [ "$LOCAL_VERSION" = "$HIGHER" ] && [ "$LOCAL_VERSION" != "$NPM_VERSION" ]; then
+          NEW_VERSION="$LOCAL_VERSION"
+        else
+          NEW_VERSION=$(echo "$NPM_VERSION" | awk -F. '{print $1"."$2"."($3+1)}')
+          jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp && mv package.json.tmp package.json
+        fi
+
+        echo "Publishing $PACKAGE_NAME@$NEW_VERSION (npm had $NPM_VERSION, local was $LOCAL_VERSION)"
+        npm publish --access public --ignore-scripts
+        echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+    - name: Push release tag (no branch commit)
+      if: success() && steps.publish.outputs.new_version
+      env:
+        NEW_VERSION: ${{ steps.publish.outputs.new_version }}
+        GH_PAT: ${{ secrets.GH_PAT }}
       run: |
         git config user.name  "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-        NEW_VERSION=$(node -p "const p=require('./bun/package.json');const [M,m,P]=p.version.split('.');\`\${M}.\${m}.\${+P+1}\`")
-        node -e "const fs=require('fs');const p=require('./bun/package.json');p.version='$NEW_VERSION';fs.writeFileSync('bun/package.json',JSON.stringify(p,null,2)+'\n');"
-        git add bun/package.json
-        git commit -m "Bump version to $NEW_VERSION [skip ci]"
         git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
-        git push origin HEAD:prod
+        git remote set-url origin "https://x-access-token:${GH_PAT}@github.com/${GITHUB_REPOSITORY}.git"
         git push origin "v$NEW_VERSION"
-
-    - name: Publish to npm
-      run: cd bun && npm publish --access public --ignore-scripts
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
