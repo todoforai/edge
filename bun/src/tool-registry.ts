@@ -187,6 +187,33 @@ export function installWithNpm(name: string, pkg: string) {
   }
 }
 
+/** Install an npm-registry package using `bun add` into TOOLS_DIR.
+ *  Bun writes the bin shim to <cwd>/node_modules/.bin, matching the
+ *  layout npm uses with `--prefix`, so npmBinDir() already covers
+ *  discovery via whichWithTools / buildEnvWithTools. */
+export function installWithBun(name: string, pkg: string) {
+  const TIMEOUT_MS = 120_000;
+  log("info", `Installing ${name} via bun (${pkg})`);
+  fs.mkdirSync(TOOLS_DIR, { recursive: true });
+  const result = spawnSync("bun", ["add", "--cwd", TOOLS_DIR, pkg], {
+    stdio: "pipe", timeout: TIMEOUT_MS, shell: true,
+  });
+  const stderr = result.stderr?.toString().trim() || "";
+  const stdout = result.stdout?.toString().trim() || "";
+  if (result.error) {
+    throw new Error(`bun add failed: ${result.error.message} | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
+  }
+  if (result.signal) {
+    throw new Error(`bun add killed by ${result.signal}${result.signal === 'SIGTERM' ? ` (likely timed out after ${TIMEOUT_MS / 1000}s)` : ''} | stderr: ${stderr || '(empty)'}`);
+  }
+  if (result.status === null) {
+    throw new Error(`bun add: null exit code (likely timed out after ${TIMEOUT_MS / 1000}s) | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
+  }
+  if (result.status !== 0) {
+    throw new Error(`bun add failed (exit ${result.status}) | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
+  }
+}
+
 function installWithPip(name: string, pkg: string) {
   const venvDir = path.join(TOOLS_DIR, "venv");
   const venvPython = os.platform() === "win32"
@@ -260,6 +287,7 @@ function installWithPip(name: string, pkg: string) {
 
 const INSTALLERS: Record<string, (name: string, pkg: string) => void | Promise<void>> = {
   npm: installWithNpm,
+  bun: installWithBun,
   pip: installWithPip,
   binary: async (name: string, _pkg: string) => { await installBinary(name); },
 };
@@ -307,6 +335,8 @@ export function uninstallTool(name: string): boolean {
       }
     } else if (installerType === "npm") {
       spawnSync("npm", ["uninstall", "--prefix", TOOLS_DIR, pkg], { stdio: "pipe", timeout: 30_000, shell: true });
+    } else if (installerType === "bun") {
+      spawnSync("bun", ["remove", "--cwd", TOOLS_DIR, pkg], { stdio: "pipe", timeout: 30_000, shell: true });
     } else if (installerType === "pip") {
       const venvPython = os.platform() === "win32"
         ? path.join(TOOLS_DIR, "venv", "Scripts", "python.exe")
