@@ -6,7 +6,7 @@
 // Other platforms: NullDetector — paused state only via the wall-clock timeout.
 
 import os from "os";
-import { readFile } from "fs/promises";
+import { readFile, readlink } from "fs/promises";
 
 export interface PauseWatcher {
   /** Stop watching entirely (e.g. on process exit). */
@@ -43,16 +43,27 @@ class LinuxSyscallDetector implements PauseDetector {
     let pausedTicks = 0;
     let signalled = false;
     let cancelled = false;
+    // Session stdin = the shell's own fd 0 (e.g. /dev/pts/N or a pipe to the
+    // edge). A descendant blocked on read(0) of a *different* fd 0 (an internal
+    // pipeline pipe like `find | head`) is NOT stdin-blocked.
+    let rootStdin: string | null = null;
+    readFdTarget(pid, 0).then((t) => { rootStdin = t; });
 
     const tick = async () => {
       if (cancelled) return;
       const fgPid = await getForegroundPid(pid);
       const sc = fgPid != null ? await readSyscall(fgPid) : null;
-      // Only treat as paused if blocked in read() on fd 0 (stdin).
-      if (sc && sc.nr === READ_NR && sc.fd === 0) {
-        if (!signalled && ++pausedTicks >= GRACE_TICKS) {
-          signalled = true;
-          onPaused();
+      // Only treat as paused if blocked in read() on fd 0 AND that fd 0 is the
+      // same underlying file as the shell's stdin (skips intra-pipeline reads).
+      if (sc && sc.nr === READ_NR && sc.fd === 0 && fgPid != null && rootStdin) {
+        const leafStdin = await readFdTarget(fgPid, 0);
+        if (leafStdin === rootStdin) {
+          if (!signalled && ++pausedTicks >= GRACE_TICKS) {
+            signalled = true;
+            onPaused();
+          }
+        } else {
+          pausedTicks = 0;
         }
       } else {
         pausedTicks = 0;
@@ -98,6 +109,11 @@ async function readChildren(pid: number): Promise<number[]> {
     const raw = await readFile(`/proc/${pid}/task/${pid}/children`, "utf-8");
     return raw.trim().split(/\s+/).filter(Boolean).map(Number);
   } catch { return []; }
+}
+
+/** Resolve /proc/<pid>/fd/<fd> to its target (e.g. "/dev/pts/13", "pipe:[12345]"). */
+async function readFdTarget(pid: number, fd: number): Promise<string | null> {
+  try { return await readlink(`/proc/${pid}/fd/${fd}`); } catch { return null; }
 }
 
 export const pauseDetector: PauseDetector =
