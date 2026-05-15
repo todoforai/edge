@@ -33,6 +33,26 @@ export interface Config {
 
 const SUBCOMMANDS = new Set(["login", "logout"]);
 
+const HELP_TEXT = `\
+todoforai-edge — connect this machine to TODOforAI
+
+Usage:
+  todoforai-edge [options]
+  todoforai-edge <command> [options]
+
+Commands:
+  login                Force device-login flow (clears saved key for --api-url)
+  logout               Clear saved key for --api-url
+
+Options:
+  --api-key <key>      API key (env: TODOFORAI_API_KEY)
+  --api-url <url>      API URL (env: TODOFORAI_API_URL, default: https://api.todofor.ai)
+  --add-path <path>    Add workspace path to this edge
+  --kill               Replace any existing edge instance for this user+server
+  --debug              Verbose logging (env: TODOFORAI_DEBUG=1)
+  -v, --version        Print version and exit
+  -h, --help           Show this help and exit`;
+
 export function loadConfig(): Config {
   const argv = process.argv.slice(2);
   let subcommand: Config["subcommand"];
@@ -49,10 +69,16 @@ export function loadConfig(): Config {
       kill: { type: "boolean", default: false },
       "add-path": { type: "string" },
       version: { type: "boolean", short: "v", default: false },
+      help: { type: "boolean", short: "h", default: false },
     },
     allowPositionals: false,
     strict: false,
   });
+
+  if (values.help) {
+    console.log(HELP_TEXT);
+    process.exit(0);
+  }
 
   if (values.version) {
     console.log("todoforai-edge-bun 0.1.0");
