@@ -290,6 +290,8 @@ const INSTALLERS: Record<string, (name: string, pkg: string) => void | Promise<v
   bun: installWithBun,
   pip: installWithPip,
   binary: async (name: string, _pkg: string) => { await installBinary(name); },
+  // "system" tools come from the OS package manager / rootfs preinstall — never auto-install.
+  system: () => { log("warn", "system-installer tools are not auto-installed; install via apt/brew"); },
 };
 
 // ── Public API ──
