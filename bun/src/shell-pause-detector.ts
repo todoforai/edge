@@ -1,6 +1,7 @@
 // Detects when a shell process is paused on stdin (interactive prompt, read, sudo password).
 // Linux: poll /proc/<pid>/syscall on the foreground (leaf) descendant — if it sits in the
-//   `read` syscall on fd 0 (stdin) for several ticks, the process is stdin-blocked.
+//   `read` syscall on a fd pointing at a terminal (the shell's own pts, or /dev/tty for
+//   sudo/ssh password prompts) for several ticks, the process is stdin-blocked.
 // We deliberately do NOT watch poll/select/ppoll/pselect6: those fire on any socket/file
 //   wait (git push, curl, npm, ssh handshake), causing false-positive paused states.
 // Other platforms: NullDetector — paused state only via the wall-clock timeout.
@@ -53,17 +54,12 @@ class LinuxSyscallDetector implements PauseDetector {
       if (cancelled) return;
       const fgPid = await getForegroundPid(pid);
       const sc = fgPid != null ? await readSyscall(fgPid) : null;
-      // Only treat as paused if blocked in read() on fd 0 AND that fd 0 is the
-      // same underlying file as the shell's stdin (skips intra-pipeline reads).
-      if (sc && sc.nr === READ_NR && sc.fd === 0 && fgPid != null && rootStdin) {
-        const leafStdin = await readFdTarget(fgPid, 0);
-        if (leafStdin === rootStdin) {
-          if (!signalled && ++pausedTicks >= GRACE_TICKS) {
-            signalled = true;
-            onPaused();
-          }
-        } else {
-          pausedTicks = 0;
+      const leafTarget = sc && sc.nr === READ_NR && sc.fd >= 0 && fgPid != null
+        ? await readFdTarget(fgPid, sc.fd) : null;
+      if (isTerminalReadPause(sc, leafTarget, rootStdin)) {
+        if (!signalled && ++pausedTicks >= GRACE_TICKS) {
+          signalled = true;
+          onPaused();
         }
       } else {
         pausedTicks = 0;
@@ -77,6 +73,28 @@ class LinuxSyscallDetector implements PauseDetector {
       reset: () => { signalled = false; pausedTicks = 0; },
     };
   }
+}
+
+/** Pure predicate: is the leaf process blocked in read() on a terminal fd?
+ *  Matches:
+ *    - leafTarget === rootStdin (shell's own pts; covers fd 0 prompts and any fd
+ *      explicitly opened to the same pts).
+ *    - leafTarget === "/dev/tty" when the shell runs in a pts (sudo/ssh open the
+ *      controlling terminal on a non-0 fd; the symlink resolves to "/dev/tty").
+ *  Skips:
+ *    - non-read syscalls, missing/negative fds.
+ *    - intra-pipeline reads where the fd points at a pipe (e.g. `find | head`).
+ *    - unreadable /proc (sc === null or leafTarget === null). */
+export function isTerminalReadPause(
+  sc: { nr: number; fd: number } | null,
+  leafTarget: string | null,
+  rootStdin: string | null,
+): boolean {
+  if (!sc || sc.nr !== READ_NR || sc.fd < 0) return false;
+  if (!leafTarget || !rootStdin) return false;
+  if (leafTarget === rootStdin) return true;
+  if (leafTarget === "/dev/tty" && rootStdin.startsWith("/dev/pts/")) return true;
+  return false;
 }
 
 /** Parse /proc/<pid>/syscall — format: "<nr> <arg0> <arg1> ... <sp> <pc>".
