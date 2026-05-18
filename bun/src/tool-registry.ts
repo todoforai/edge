@@ -26,12 +26,17 @@ function toolPathEntries(): string[] { return [npmBinDir(), venvBinDir(), binDir
 /** Return env with tool dirs prepended to PATH. */
 export function buildEnvWithTools(): Record<string, string> {
   const env = { ...process.env } as Record<string, string>;
-  env.PATH = toolPathEntries().join(path.delimiter) + path.delimiter + (env.PATH || "");
+  // Windows env vars are case-insensitive but JS objects aren't: process.env may
+  // expose `Path` (not `PATH`). Merge both and write back to a single canonical key.
+  const existingPath = env.PATH ?? env.Path ?? env.path ?? "";
+  if (os.platform() === "win32") { delete env.Path; delete env.path; }
+  env.PATH = toolPathEntries().join(path.delimiter) + path.delimiter + existingPath;
   return env;
 }
 
 function whichWithTools(name: string): string | null {
-  const dirs = [...toolPathEntries(), ...(process.env.PATH || "").split(path.delimiter)];
+  const rawPath = process.env.PATH ?? process.env.Path ?? process.env.path ?? "";
+  const dirs = [...toolPathEntries(), ...rawPath.split(path.delimiter)];
   const exts = os.platform() === "win32" ? [".exe", ".cmd", ".bat", ""] : [""];
   for (const dir of dirs) {
     for (const ext of exts) {
