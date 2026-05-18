@@ -14,7 +14,8 @@ let HAS_BUN_TERMINAL = HAS_BUN && typeof Bun.Terminal === "function";
 // ── Shell detection (Windows support) ──
 
 function whichSync(name: string): string | null {
-  const dirs = (process.env.PATH || "").split(path.delimiter);
+  const rawPath = process.env.PATH ?? process.env.Path ?? process.env.path ?? "";
+  const dirs = rawPath.split(path.delimiter);
   const exts = IS_WIN ? ["", ".exe", ".cmd", ".bat"] : [""];
   for (const dir of dirs) {
     for (const ext of exts) {
