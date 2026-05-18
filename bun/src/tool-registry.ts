@@ -384,16 +384,25 @@ export async function scanCatalogTools(): Promise<Record<string, ToolState>> {
   const result: Record<string, ToolState> = {};
   const env = buildEnvWithTools();
 
+  const rawPath = process.env.PATH ?? process.env.Path ?? process.env.path ?? "";
+  const pathDirs = rawPath.split(path.delimiter).filter(Boolean);
+  log("scan", `platform=${os.platform()} PATH dirs (${pathDirs.length}):`);
+  for (const d of pathDirs) log("scan", `  ${d}`);
+
   const entries = Object.entries(TOOL_CATALOG);
   // Check installation synchronously (fast which lookups), then run version/status checks in parallel
   const installed: [string, typeof TOOL_CATALOG[string]][] = [];
+  const missing: string[] = [];
   for (const [name, entry] of entries) {
     if (!isToolInstalled(name)) {
       result[name] = { installed: false };
+      missing.push(name);
     } else {
       installed.push([name, entry]);
     }
   }
+  log("scan", `installed: [${installed.map(([n]) => n).join(", ")}]`);
+  log("scan", `missing:   [${missing.join(", ")}]`);
 
   await Promise.all(installed.map(async ([name, entry]) => {
     const state: ToolState = { installed: true };
