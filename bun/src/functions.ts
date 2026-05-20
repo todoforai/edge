@@ -334,6 +334,33 @@ register("read_file", async (args) => {
   return rest;
 });
 
+const LIST_DIR_MAX_ENTRIES = 10_000;
+
+register("list_dir", async (args) => {
+  // readdir_plus: one round-trip returns name + size + mtime + mode + is_dir.
+  // Keeps FUSE/getattr storms down (see comment on rclone --attr-timeout).
+  const { path: p, rootPath = "", fallbackRootPaths = [] } = args;
+  const fullPath = resolveFilePath(p, rootPath, fallbackRootPaths);
+  const st = fs.statSync(fullPath);
+  if (!st.isDirectory()) throw new Error(`Not a directory: ${fullPath}`);
+  const dirents = fs.readdirSync(fullPath, { withFileTypes: true });
+  if (dirents.length > LIST_DIR_MAX_ENTRIES) {
+    throw new Error(`Directory too large: ${dirents.length} entries (max ${LIST_DIR_MAX_ENTRIES})`);
+  }
+  const entries = dirents.map((d) => {
+    let size = 0, mtime = 0, mode = 0, is_dir = d.isDirectory();
+    try {
+      const s = fs.lstatSync(path.join(fullPath, d.name));
+      size = Number(s.size);
+      mtime = s.mtimeMs / 1000;
+      mode = s.mode & 0o777;
+      is_dir = s.isDirectory();
+    } catch { /* unreadable entry → keep zeros */ }
+    return { name: d.name, is_dir, size, mtime, mode };
+  });
+  return { entries };
+});
+
 register("create_file", async (args) => {
   const { path: p, content, rootPath = "", fallbackRootPaths = [] } = args;
   const fullPath = resolveFilePath(p, rootPath, fallbackRootPaths);
