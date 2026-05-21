@@ -5,7 +5,7 @@ import { msg, EA, EF, type WsMessage } from "./constants.js";
 import { resolveFilePath, getPathOrDefault, WorkspacePathNotFoundError } from "./path-utils.js";
 import { readFileContent } from "./files.js";
 import { saveDocxContent, saveXlsxContent } from "./docx-handler.js";
-import { executeBlock, sendInput, interruptBlock, type SendFn } from "./shell.js";
+import { executeBlock, sendInput, interruptBlock, detachBlock, type SendFn } from "./shell.js";
 import { FUNCTION_REGISTRY } from "./functions.js";
 import type { EdgeConfigData } from "./types.js";
 
@@ -25,9 +25,13 @@ export async function handleBlockExecute(payload: Record<string, any>, send: Sen
 }
 
 // ── Block Signal ──
+// `detach:true` → release the in-flight execute_shell_command waiter so the
+// agent receives `{paused, pid}` (wire compat; rendered as "detached" in the
+// LLM footer) and the proc keeps running. Otherwise SIGINT.
 
 export async function handleBlockSignal(payload: Record<string, any>) {
-  interruptBlock(payload.blockId);
+  if (payload.detach) detachBlock(payload.blockId);
+  else interruptBlock(payload.blockId);
 }
 
 // ── Block Keyboard ──

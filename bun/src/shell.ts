@@ -387,6 +387,19 @@ export async function sendInput(blockId: string, text: string): Promise<boolean>
   return true;
 }
 
+// ── Detach ──
+// Reuse the keepAliveOnTimeout semantics: resolve the waiter so the in-flight
+// execute_shell_command returns `{ paused: true, pid }` to the agent (wire
+// field `paused` kept for older-agent compat; agent renders this as
+// "detached" in the LLM footer), while the proc keeps running and output
+// keeps streaming on the same blockId. No-op if nobody is currently awaiting
+// completion (manual user-Run blocks have no waiter — the UI guards this by
+// only surfacing the button on blocks with a live agent-managed pid).
+export function detachBlock(blockId: string) {
+  const resolver = completionResolvers.get(blockId);
+  if (resolver) { resolver(); completionResolvers.delete(blockId); }
+}
+
 // ── Interrupt ──
 
 export function interruptBlock(blockId: string) {

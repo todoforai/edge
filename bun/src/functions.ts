@@ -268,7 +268,7 @@ register("execute_shell_command", async (args, client) => {
 
   const send: SendFn = (m) => client.sendResponse(m);
 
-  // ── Continue paused session by pid: send stdin to existing process, wait for new output ──
+  // ── Continue detached session by pid: send stdin to existing process, wait for new output ──
   const resumeBlockId = resumePid ? findBlockIdByPid(Number(resumePid)) : null;
   // Caller asked to resume a specific pid that's no longer alive → don't silently
   // fall through to a fresh exec (would run `cmd` as a brand-new shell command).
@@ -291,7 +291,9 @@ register("execute_shell_command", async (args, client) => {
     if (!stillAlive) clearBlockOutput(resumeBlockId);
     if (stillAlive) {
       const livePid = getPid(resumeBlockId);
-      return { cmd, result: output, paused: true, ...(livePid ? { pid: livePid } : {}) };
+    // Wire field stays `paused` for older-agent compat; the agent's LLM
+    // footer says "detached" since agent upgrades atomically.
+    return { cmd, result: output, paused: true, ...(livePid ? { pid: livePid } : {}) };
     }
     return rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
   }
