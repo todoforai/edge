@@ -69,6 +69,7 @@ export class TODOforAIEdge {
   edgeId = "";
   userId = "";
   debug: boolean;
+  maxTimeout: number;
   private wsUrl: string;
   private fingerprint = "";
   private heartbeatTimer?: ReturnType<typeof setInterval>;
@@ -91,6 +92,7 @@ export class TODOforAIEdge {
   constructor(config: Config) {
     this.api = new ApiClient(normalizeApiUrl(config.apiUrl), config.apiKey);
     this.debug = config.debug;
+    this.maxTimeout = config.maxTimeout ?? 0;
     this.wsUrl = getWsUrl(this.api.apiUrl);
     this.addWorkspacePath = config.addWorkspacePath;
     this.browserExtensionBridge = new BrowserExtensionBridge(this.debug);
@@ -338,7 +340,7 @@ export class TODOforAIEdge {
         break;
 
       case FE.BLOCK_EXECUTE:
-        run(() => handleBlockExecute(payload, send, this.edgeId));
+        run(() => handleBlockExecute(payload, send, this.edgeId, this.maxTimeout));
         break;
 
       case FE.BLOCK_SAVE:

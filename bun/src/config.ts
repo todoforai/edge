@@ -28,6 +28,8 @@ export interface Config {
   debug: boolean;
   kill: boolean;
   addWorkspacePath?: string;
+  /** Floor for shell execution timeout (seconds). Effective timeout = max(requested, maxTimeout). */
+  maxTimeout?: number;
   subcommand?: "login" | "logout";
 }
 
@@ -48,6 +50,7 @@ Options:
   --api-key <key>      API key (env: TODOFORAI_API_KEY)
   --api-url <url>      API URL (env: TODOFORAI_API_URL, default: https://api.todofor.ai)
   --add-path <path>    Add workspace path to this edge
+  --max-timeout <sec>  Floor for shell execution timeout
   --kill               Replace any existing edge instance for this user+server
   --debug              Verbose logging (env: TODOFORAI_DEBUG=1)
   -v, --version        Print version and exit
@@ -68,6 +71,7 @@ export function loadConfig(): Config {
       debug: { type: "boolean", default: false },
       kill: { type: "boolean", default: false },
       "add-path": { type: "string" },
+      "max-timeout": { type: "string" },
       version: { type: "boolean", short: "v", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -96,7 +100,9 @@ export function loadConfig(): Config {
     addWorkspacePath = path.resolve(p.replace(/^~/, process.env.HOME || "~"));
   }
 
-  return { apiUrl, apiKey, debug, kill, addWorkspacePath, subcommand };
+  const maxTimeout = values["max-timeout"] ? Math.max(0, parseInt(values["max-timeout"] as string, 10) || 0) : undefined;
+
+  return { apiUrl, apiKey, debug, kill, addWorkspacePath, maxTimeout, subcommand };
 }
 
 // ── Credential persistence (~/.todoforai/credentials.json) ──
