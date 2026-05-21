@@ -156,8 +156,15 @@ export class TODOforAIEdge {
       console.log("\x1b[36mStarting device login...\x1b[0m");
       const { code, url, expiresIn } = await this.api.initDeviceLogin("edge");
 
+      // Extract user_code from URL and display it formatted like the web UI (XXXX-XXXX)
+      const userCode = new URL(url).searchParams.get("user_code") || "";
+      const formattedCode = userCode.length === 8 ? `${userCode.slice(0, 4)}-${userCode.slice(4)}` : userCode;
+
       console.log(`\n\x1b[1m🔑 Open this URL to authorize:\x1b[0m`);
       console.log(`\x1b[36m${url}\x1b[0m\n`);
+      if (formattedCode) {
+        console.log(`\x1b[1m   Your code: \x1b[33m${formattedCode}\x1b[0m\n`);
+      }
 
       // Best-effort open browser
       try {
