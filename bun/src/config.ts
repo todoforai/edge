@@ -105,16 +105,40 @@ export function loadConfig(): Config {
   return { apiUrl, apiKey, debug, kill, addWorkspacePath, maxTimeout, subcommand };
 }
 
-// ── Credential persistence (~/.todoforai/credentials.json) ──
+// ── Credential persistence ──
+// Path matches todoforai-c-core / bridge:
+//   Windows: %APPDATA%\todoforai\credentials.json
+//   macOS:   ~/Library/Application Support/todoforai/credentials.json
+//   Linux:   $XDG_CONFIG_HOME/todoforai/credentials.json (default ~/.config)
+// Reads fall back to the legacy ~/.todoforai/credentials.json; writes go to the new path.
 // JSON map: { "https://api.todofor.ai": "sk_xxx", "http://localhost:3000": "sk_yyy" }
 
-const CREDENTIALS_PATH = path.join(os.homedir(), ".todoforai", "credentials.json");
-
-function readCredentials(): Record<string, string> {
-  try { return JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf-8")); } catch { return {}; }
+function credentialsPath(): string {
+  const sys = os.platform();
+  if (sys === "win32") {
+    // Match todoforai-c-core: %HOME%\AppData\Roaming (not %APPDATA%).
+    return path.join(os.homedir(), "AppData", "Roaming", "todoforai", "credentials.json");
+  }
+  if (sys === "darwin") {
+    return path.join(os.homedir(), "Library", "Application Support", "todoforai", "credentials.json");
+  }
+  const xdg = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+  return path.join(xdg, "todoforai", "credentials.json");
 }
 
-function writeCredentials(creds: Record<string, string>) {
+const CREDENTIALS_PATH = credentialsPath();
+const LEGACY_CREDENTIALS_PATH = path.join(os.homedir(), ".todoforai", "credentials.json");
+
+function readFileMap(p: string): Record<string, string> {
+  try { return JSON.parse(fs.readFileSync(p, "utf-8")); } catch { return {}; }
+}
+
+// Merged read: new path wins; legacy entries fill gaps.
+function readCredentials(): Record<string, string> {
+  return { ...readFileMap(LEGACY_CREDENTIALS_PATH), ...readFileMap(CREDENTIALS_PATH) };
+}
+
+function writeNewFile(creds: Record<string, string>) {
   const dir = path.dirname(CREDENTIALS_PATH);
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(creds, null, 2), { mode: 0o600 });
@@ -125,14 +149,25 @@ export function loadSavedApiKey(apiUrl: string): string | null {
   return readCredentials()[apiUrl] || null;
 }
 
+// Writes modify only the new file (don't auto-migrate other legacy entries
+// into the new file; just touch the entry being changed). Legacy entries are
+// still readable via the merged read above.
 export function saveApiKey(apiUrl: string, apiKey: string): void {
-  const creds = readCredentials();
+  const creds = readFileMap(CREDENTIALS_PATH);
   creds[apiUrl] = apiKey;
-  writeCredentials(creds);
+  writeNewFile(creds);
 }
 
 export function clearApiKey(apiUrl: string): void {
-  const creds = readCredentials();
-  delete creds[apiUrl];
-  writeCredentials(creds);
+  const creds = readFileMap(CREDENTIALS_PATH);
+  if (apiUrl in creds) {
+    delete creds[apiUrl];
+    writeNewFile(creds);
+  }
+  // Also wipe from legacy if present so the merged read no longer returns it.
+  const legacy = readFileMap(LEGACY_CREDENTIALS_PATH);
+  if (apiUrl in legacy) {
+    delete legacy[apiUrl];
+    try { fs.writeFileSync(LEGACY_CREDENTIALS_PATH, JSON.stringify(legacy, null, 2), { mode: 0o600 }); } catch {}
+  }
 }

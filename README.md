@@ -11,7 +11,7 @@ npm install -g @todoforai/edge
 todoforai-edge
 ```
 
-First run opens your browser for device-flow login and saves the key to `~/.todoforai/credentials.json`. No flags needed.
+First run opens your browser for device-flow login and saves the key to the platform credentials store (`~/.config/todoforai/credentials.json` on Linux, `~/Library/Application Support/todoforai/credentials.json` on macOS, `%APPDATA%\todoforai\credentials.json` on Windows; legacy `~/.todoforai/credentials.json` still read). Shared with the bridge and CLI. No flags needed.
 
 <details>
 <summary>Other ways to authenticate</summary>
