@@ -1,10 +1,19 @@
 import { loadConfig, clearApiKey } from "./config.js";
 import { TODOforAIEdge, setGlobalEdgeInstance } from "./edge.js";
 import { unmountAllRclone } from "./tool-registry.js";
+import { checkForUpdates } from "./update-notifier.js";
+import { fileURLToPath } from "url";
 import fs from "fs";
 import path from "path";
 import os from "os";
 import crypto from "crypto";
+
+function readOwnPackage(): { name: string; version: string } | null {
+  try {
+    const pkgPath = path.resolve(fileURLToPath(import.meta.url), "../../package.json");
+    return JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+  } catch { return null; }
+}
 
 // ── Single-instance lock (per user+url) ──
 
@@ -60,6 +69,8 @@ function releaseLock(lp: string) {
 }
 
 async function main() {
+  const ownPkg = readOwnPackage();
+  if (ownPkg) checkForUpdates(ownPkg);
   const config = await loadConfig();
 
   if (config.debug) {
