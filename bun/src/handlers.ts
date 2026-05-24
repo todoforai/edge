@@ -185,8 +185,8 @@ export async function handleFileChunkRequest(
   send: SendFn,
   responseType = EA.FILE_CHUNK_RESULT as string,
 ) {
-  const { path: p = "", rootPath = "", fallbackRootPaths = [] } = payload;
-  const result = await readFileContent(p, rootPath, fallbackRootPaths);
+  const { path: p = "", rootPath = "", fallbackRootPaths = [], skipSizeLimit = false } = payload;
+  const result = await readFileContent(p, rootPath, fallbackRootPaths, skipSizeLimit);
   if (result.success) {
     await send(msg.fileChunkResult(responseType, { ...payload, full_path: result.fullPath, content: result.content, content_type: result.contentType }));
   } else {

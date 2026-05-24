@@ -73,4 +73,16 @@ describe("readFileContent", () => {
 
     fs.rmSync(tmp, { recursive: true });
   });
+
+  test("skipSizeLimit bypasses cap", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "files-test-"));
+    const fp = path.join(tmp, "big.txt");
+    fs.writeFileSync(fp, "x".repeat(200_000));
+
+    const result = await readFileContent(fp, tmp, [], true);
+    expect(result.success).toBe(true);
+    expect(result.content?.length).toBe(200_000);
+
+    fs.rmSync(tmp, { recursive: true });
+  });
 });

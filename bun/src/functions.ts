@@ -327,8 +327,8 @@ register("execute_shell_command", async (args, client) => {
 });
 
 register("read_file", async (args) => {
-  const { path: p, rootPath = "", fallbackRootPaths = [] } = args;
-  const result = await readFileContent(p, rootPath, fallbackRootPaths);
+  const { path: p, rootPath = "", fallbackRootPaths = [], skipSizeLimit = false } = args;
+  const result = await readFileContent(p, rootPath, fallbackRootPaths, skipSizeLimit);
   if (!result.success) throw new Error(result.error || "Unknown read error");
   const { success, ...rest } = result;
   return rest;

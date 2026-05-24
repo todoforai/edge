@@ -28,6 +28,7 @@ export async function readFileContent(
   filePath: string,
   rootPath: string,
   fallbackRootPaths: string[],
+  skipSizeLimit = false,
 ): Promise<ReadResult> {
   try {
     const fullPath = path.resolve(resolveFilePath(filePath, rootPath, fallbackRootPaths));
@@ -56,7 +57,7 @@ export async function readFileContent(
     const isOffice = OFFICE_EXTENSIONS.has(ext);
     const sizeLimit = isImage ? MAX_IMAGE_FILE_SIZE : isOffice ? MAX_OFFICE_FILE_SIZE : MAX_FILE_SIZE;
 
-    if (stat.size > sizeLimit) {
+    if (!skipSizeLimit && stat.size > sizeLimit) {
       return {
         success: false,
         error: `File too large: ${fullPath} (${stat.size.toLocaleString()} bytes, max ${sizeLimit.toLocaleString()})`,
