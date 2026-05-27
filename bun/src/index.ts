@@ -68,7 +68,20 @@ function releaseLock(lp: string) {
   try { if (fs.readFileSync(lp, "utf-8").trim() === String(process.pid)) fs.unlinkSync(lp); } catch {}
 }
 
+const MIN_BUN_VERSION = "1.3.14"; // older versions break WS upgrade after fetch (oven-sh/bun #4529-class regression)
+
+function cmpSemver(a: string, b: string): number {
+  const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) - (pb[i] ?? 0);
+  return 0;
+}
+
 async function main() {
+  if (typeof Bun !== "undefined" && cmpSemver(Bun.version, MIN_BUN_VERSION) < 0) {
+    console.error(`\x1b[31mBun ${Bun.version} is too old — WebSocket upgrade fails after fetch on the same host. Upgrade to >= ${MIN_BUN_VERSION} via \`bun upgrade\`.\x1b[0m`);
+    process.exit(1);
+  }
+
   const ownPkg = readOwnPackage();
   if (ownPkg) checkForUpdates(ownPkg);
   const config = await loadConfig();
