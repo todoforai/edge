@@ -1,7 +1,7 @@
 import { loadConfig, clearApiKey } from "./config.js";
 import { TODOforAIEdge, setGlobalEdgeInstance } from "./edge.js";
 import { unmountAllRclone } from "./tool-registry.js";
-import { checkForUpdates } from "./update-notifier.js";
+import { checkForUpdates } from "@todoforai/update-notifier";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import path from "path";

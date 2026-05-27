@@ -16,6 +16,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
+    "@todoforai/update-notifier": "^0.1.0",
     "fflate": "^0.8.2",
     "ignore": "^7.0.5",
     "unpdf": "^1.4.0",
