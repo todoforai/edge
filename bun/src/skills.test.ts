@@ -44,7 +44,7 @@ describe("discoverSkills", () => {
     const byName = Object.fromEntries(skills.map((s) => [s.name, s]));
     expect(byName.formatter.description).toBe("Formats code.");
     expect(byName.formatter.scope).toBe("repo");
-    expect(byName.formatter.path).toBe(path.join(".agents", "skills", "formatter", "SKILL.md"));
+    expect(byName.formatter.path).toBe(path.join(tmp, ".agents", "skills", "formatter", "SKILL.md"));
     expect(byName.linter.shortDescription).toBe("Lints.");
     fs.rmSync(tmp, { recursive: true });
   });
@@ -137,6 +137,24 @@ describe("discoverSkills", () => {
     expect(skills[0].name).toBe("commented");
     expect(skills[0].description).toBe("ok");
     fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("user-scope skill path is absolute (so read_file resolves it regardless of workspace roots)", async () => {
+    const home = os.homedir();
+    const skillDir = path.join(home, ".agents", "skills", "__test_user_scope__");
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, "SKILL.md"), validSkill("__test_user_scope__", "x"));
+    try {
+      const tmp = makeTmpDir();
+      const { skills } = await discoverSkills([tmp], { includeUserScope: true });
+      const s = skills.find((s) => s.name === "__test_user_scope__");
+      expect(s).toBeDefined();
+      expect(s!.scope).toBe("user");
+      expect(s!.path).toBe(path.join(skillDir, "SKILL.md"));
+      fs.rmSync(tmp, { recursive: true });
+    } finally {
+      fs.rmSync(skillDir, { recursive: true });
+    }
   });
 
   test("tolerates trailing whitespace on --- delimiters", async () => {
