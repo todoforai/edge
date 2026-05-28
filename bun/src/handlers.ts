@@ -238,8 +238,10 @@ export async function handleFunctionCall(payload: Record<string, any>, send: Sen
     }
 
     const result = await fn(args, client);
-    // If awaiting tool approval, suppress the response — server will re-invoke after approval
-    if (result && result.__awaiting_approval__) return;
+    // DEAD: tool-install approval gating — if the function returned the
+    // __awaiting_approval__ sentinel we suppressed the response and waited
+    // for the server to re-invoke after the user approved.
+    // if (result && result.__awaiting_approval__) return;
     await send(makeSuccess(result));
   } catch (e: any) {
     log("error", `Function call '${functionName}' failed:`, e.message);

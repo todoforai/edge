@@ -3,7 +3,8 @@ import fs from "fs";
 import path from "path";
 import { spawn as nodeSpawn } from "child_process";
 import { msg, type WsMessage } from "./constants.js";
-import { findMissingTools, ensureTool, buildEnvWithTools } from "./tool-registry.js";
+import { buildEnvWithTools } from "./tool-registry.js";
+// import { findMissingTools, ensureTool } from "./tool-registry.js"; // DEAD: tool-install approval gating (see executeBlock)
 import { getConnectionEnv } from "./connection-context.js";
 import { pauseDetector } from "./shell-pause-detector.js";
 
@@ -117,7 +118,8 @@ type ProcHandle = { terminal?: any; proc?: any; pid: number; resetPauseWatch?: (
 const processes = new Map<string, ProcHandle>();
 const outputBuffers = new Map<string, OutputBuffer>();
 const completionResolvers = new Map<string, () => void>();
-export const pendingToolApprovals = new Map<string, string[]>(); // blockId -> tool names
+// DEAD: previously held blockIds awaiting tool-install approval before re-exec.
+// export const pendingToolApprovals = new Map<string, string[]>(); // blockId -> tool names
 // Output that arrived between the last paused/exit response and process exit,
 // keyed by the (now-dead) pid. Drained by the next resume call on that pid.
 const exitedOutputByPid = new Map<number, { output: string; returnCode: number }>();
@@ -162,37 +164,42 @@ export async function executeBlock(
       cwd = tmpDir;
     }
 
-    // Check for missing tools — request approval before executing
-    const missing = findMissingTools(content);
-    if (missing.length && !pendingToolApprovals.has(blockId)) {
-      pendingToolApprovals.set(blockId, missing);
-      console.log(`[shell] Missing tools ${missing}, requesting approval for block ${blockId}`);
-      await send({
-        type: "BLOCK_UPDATE",
-        payload: {
-          todoId, blockId, messageId,
-          updates: {
-            status: "AWAITING_APPROVAL",
-            approvalContext: { source: "edge", toolInstalls: missing, workspace: cwd, edgeId },
-          },
-        },
-      });
-      return; // wait for re-execute after approval
-    }
-
-    // Re-execute after approval — install the approved tools
-    if (pendingToolApprovals.has(blockId)) {
-      const tools = pendingToolApprovals.get(blockId)!;
-      pendingToolApprovals.delete(blockId);
-      const installed: string[] = [];
-      for (const t of tools) {
-        if (await ensureTool(t)) installed.push(t);
-      }
-      if (installed.length) {
-        const notice = `[installed: ${installed.join(", ")}]\n`;
-        await send(msg.shellBlockResult(todoId, blockId, notice, messageId));
-      }
-    }
+    // DEAD: tool-install approval gating. Previously we scanned `content` for
+    // catalog tools, and if any were missing we sent BLOCK_UPDATE with status
+    // AWAITING_APPROVAL + approvalContext.toolInstalls and returned, waiting
+    // for the user to click "Install". On re-exec we'd run ensureTool() for
+    // each. Removed: bad UX — the agent should just run the command, see the
+    // failure, and decide what to do.
+    //
+    // const missing = findMissingTools(content);
+    // if (missing.length && !pendingToolApprovals.has(blockId)) {
+    //   pendingToolApprovals.set(blockId, missing);
+    //   console.log(`[shell] Missing tools ${missing}, requesting approval for block ${blockId}`);
+    //   await send({
+    //     type: "BLOCK_UPDATE",
+    //     payload: {
+    //       todoId, blockId, messageId,
+    //       updates: {
+    //         status: "AWAITING_APPROVAL",
+    //         approvalContext: { source: "edge", toolInstalls: missing, workspace: cwd, edgeId },
+    //       },
+    //     },
+    //   });
+    //   return; // wait for re-execute after approval
+    // }
+    //
+    // if (pendingToolApprovals.has(blockId)) {
+    //   const tools = pendingToolApprovals.get(blockId)!;
+    //   pendingToolApprovals.delete(blockId);
+    //   const installed: string[] = [];
+    //   for (const t of tools) {
+    //     if (await ensureTool(t)) installed.push(t);
+    //   }
+    //   if (installed.length) {
+    //     const notice = `[installed: ${installed.join(", ")}]\n`;
+    //     await send(msg.shellBlockResult(todoId, blockId, notice, messageId));
+    //   }
+    // }
 
     // Notify frontend that execution is starting
     await send({

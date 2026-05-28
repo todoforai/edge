@@ -3,7 +3,9 @@ import path from "path";
 import os from "os";
 import { readFileContent } from "./files.js";
 import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "./path-utils.js";
-import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, isBlockAlive, sendInput, getPid, findBlockIdByPid, consumeExitedOutput, pendingToolApprovals, type SendFn } from "./shell.js";
+import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, isBlockAlive, sendInput, getPid, findBlockIdByPid, consumeExitedOutput, type SendFn } from "./shell.js";
+// `pendingToolApprovals` was imported here to short-circuit the response when
+// executeBlock entered AWAITING_APPROVAL. DEAD with the install-gating removal.
 import { msg } from "./constants.js";
 import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
@@ -304,10 +306,12 @@ register("execute_shell_command", async (args, client) => {
     await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
     await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, cwd, false, "internal", undefined, agentSettingsId, true);
 
-    // If awaiting tool approval, signal caller to suppress response
-    if (pendingToolApprovals.has(blockId)) {
-      return { __awaiting_approval__: true };
-    }
+    // DEAD: tool-install approval short-circuit. If executeBlock parked the
+    // block in AWAITING_APPROVAL, we returned a sentinel so handlers.ts would
+    // suppress the function-call response and wait for the user to approve.
+    // if (pendingToolApprovals.has(blockId)) {
+    //   return { __awaiting_approval__: true };
+    // }
 
     await waitForCompletion(blockId, (timeout + 5) * 1000);
     const rawOutput = getBlockRawOutput(blockId);

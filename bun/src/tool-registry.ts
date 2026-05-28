@@ -87,9 +87,12 @@ export function findReferencedTools(content: string): string[] {
   });
 }
 
-export function findMissingTools(content: string): string[] {
-  return findReferencedTools(content).filter(name => !isToolInstalled(name));
-}
+// DEAD: previously used by edge shell pre-check to gate execution via an
+// "Install required" approval prompt. Removed in favor of letting commands
+// run and fail naturally — the agent decides what to do on error.
+// export function findMissingTools(content: string): string[] {
+//   return findReferencedTools(content).filter(name => !isToolInstalled(name));
+// }
 
 // ── Installers ──
 
@@ -359,15 +362,17 @@ export function uninstallTool(name: string): boolean {
   }
 }
 
-export async function ensureToolsForCommand(content: string): Promise<string[]> {
-  const missing = findMissingTools(content);
-  if (!missing.length) return [];
-  const installed: string[] = [];
-  for (const name of missing) {
-    if (await ensureTool(name)) installed.push(name);
-  }
-  return installed;
-}
+// DEAD: paired with findMissingTools above. Restore both together if the
+// pre-execution install gating is ever re-introduced.
+// export async function ensureToolsForCommand(content: string): Promise<string[]> {
+//   const missing = findMissingTools(content);
+//   if (!missing.length) return [];
+//   const installed: string[] = [];
+//   for (const name of missing) {
+//     if (await ensureTool(name)) installed.push(name);
+//   }
+//   return installed;
+// }
 
 /** Scan all catalog tools: check binary presence, version, and auth status. */
 type ToolState = { installed: boolean; version?: string; statusOutput?: string; authenticated?: boolean };
