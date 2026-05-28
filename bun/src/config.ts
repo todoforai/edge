@@ -127,15 +127,9 @@ function credentialsPath(): string {
 }
 
 const CREDENTIALS_PATH = credentialsPath();
-const LEGACY_CREDENTIALS_PATH = path.join(os.homedir(), ".todoforai", "credentials.json");
 
 function readFileMap(p: string): Record<string, string> {
   try { return JSON.parse(fs.readFileSync(p, "utf-8")); } catch { return {}; }
-}
-
-// Merged read: new path wins; legacy entries fill gaps.
-function readCredentials(): Record<string, string> {
-  return { ...readFileMap(LEGACY_CREDENTIALS_PATH), ...readFileMap(CREDENTIALS_PATH) };
 }
 
 function writeNewFile(creds: Record<string, string>) {
@@ -146,12 +140,9 @@ function writeNewFile(creds: Record<string, string>) {
 }
 
 export function loadSavedApiKey(apiUrl: string): string | null {
-  return readCredentials()[apiUrl] || null;
+  return readFileMap(CREDENTIALS_PATH)[apiUrl] || null;
 }
 
-// Writes modify only the new file (don't auto-migrate other legacy entries
-// into the new file; just touch the entry being changed). Legacy entries are
-// still readable via the merged read above.
 export function saveApiKey(apiUrl: string, apiKey: string): void {
   const creds = readFileMap(CREDENTIALS_PATH);
   creds[apiUrl] = apiKey;
@@ -163,11 +154,5 @@ export function clearApiKey(apiUrl: string): void {
   if (apiUrl in creds) {
     delete creds[apiUrl];
     writeNewFile(creds);
-  }
-  // Also wipe from legacy if present so the merged read no longer returns it.
-  const legacy = readFileMap(LEGACY_CREDENTIALS_PATH);
-  if (apiUrl in legacy) {
-    delete legacy[apiUrl];
-    try { fs.writeFileSync(LEGACY_CREDENTIALS_PATH, JSON.stringify(legacy, null, 2), { mode: 0o600 }); } catch {}
   }
 }
