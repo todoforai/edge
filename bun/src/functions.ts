@@ -12,6 +12,7 @@ import { getConnectionEnv } from "./connection-context.js";
 import { TOOL_CATALOG } from "./tool-catalog.js";
 import { getGlobalEdgeInstance } from "./edge.js";
 import { discoverSkills } from "./skills.js";
+import { discoverAgentMd } from "./agent-md.js";
 
 // ── Registry ──
 
@@ -202,6 +203,12 @@ register("get_skills", async (args) => {
   const paths: string[] = Array.isArray(args?.paths) ? args.paths : [];
   const includeUserScope = args?.includeUserScope ?? true;
   return await discoverSkills(paths, { includeUserScope });
+});
+
+register("get_agent_md", async (args) => {
+  const paths: string[] = Array.isArray(args?.paths) ? args.paths : [];
+  const includeUserScope = args?.includeUserScope ?? true;
+  return await discoverAgentMd(paths, { includeUserScope });
 });
 
 register("get_os_aware_default_path", async () => {
