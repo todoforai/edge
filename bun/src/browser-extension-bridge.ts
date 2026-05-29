@@ -15,10 +15,15 @@ type PendingRequest = {
 
 const isOpen = (ws: WebSocket | null | undefined) => !!ws && ws.readyState === WebSocket.OPEN;
 
+type ExtIdentity = { build?: string; version?: string; browser?: string };
+const describeExt = (ext?: ExtIdentity | null) =>
+  ext ? `${ext.build ?? "?"}@${ext.version ?? "?"} (${ext.browser ?? "?"})` : "unknown extension";
+
 export class BrowserExtensionBridge {
   private server?: http.Server;
   private wss?: WebSocketServer;
   private extensionWs: WebSocket | null = null;
+  private extIdentity: ExtIdentity | null = null;
   private pending = new Map<string, PendingRequest>();
 
   constructor(private debug = false) {}
@@ -98,7 +103,20 @@ export class BrowserExtensionBridge {
       // Only 'extension-control' is used for CLI command routing.
       // Per-tab channels ('extension-tab', or legacy 'extension') are side-channels and must not overwrite this.extensionWs.
       const isTabChannel = data.role === "extension-tab" || data.role === "extension";
-      if (data.role === "extension-control") this.extensionWs = ws;
+      if (data.role === "extension-control") {
+        const ident = describeExt(data.ext);
+        const prev = this.extensionWs;
+        if (isOpen(prev) && prev !== ws) {
+          // Another control extension is taking over the single CLI routing slot.
+          // Notify the previous owner so it can reflect the loss in its UI.
+          console.log(`[browser-bridge] control taken over by ${ident} (was ${describeExt(this.extIdentity)})`);
+          prev!.send(JSON.stringify({ type: "control_superseded", payload: { by: ident } }));
+        } else if (this.debug) {
+          console.log(`[browser-bridge] control acquired by ${ident}`);
+        }
+        this.extensionWs = ws;
+        this.extIdentity = data.ext ?? null;
+      }
       if (data.role === "extension-control" || isTabChannel) {
         if (isOpen(ws)) ws.send(JSON.stringify({ type: "connected_edge", payload: { edgeId: BRIDGE_EDGE_ID } }));
       }
@@ -124,7 +142,7 @@ export class BrowserExtensionBridge {
       }, REQUEST_TIMEOUT_MS);
 
       this.pending.set(requestId, { ws, timeout });
-      this.extensionWs.send(JSON.stringify({ type: "browser.command.request", requestId, cmd: String(data.cmd || ""), args: data.args, ...(data.tabId !== undefined && { tabId: data.tabId }) }));
+      this.extensionWs!.send(JSON.stringify({ type: "browser.command.request", requestId, cmd: String(data.cmd || ""), args: data.args, ...(data.tabId !== undefined && { tabId: data.tabId }) }));
       return;
     }
 
@@ -147,7 +165,11 @@ export class BrowserExtensionBridge {
   }
 
   private handleClose(ws: WebSocket) {
-    if (this.extensionWs === ws) this.extensionWs = null;
+    if (this.extensionWs === ws) {
+      if (this.debug) console.log(`[browser-bridge] control released by ${describeExt(this.extIdentity)}`);
+      this.extensionWs = null;
+      this.extIdentity = null;
+    }
     for (const [requestId, pending] of this.pending) {
       if (pending.ws !== ws) continue;
       clearTimeout(pending.timeout);
