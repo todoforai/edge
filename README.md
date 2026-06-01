@@ -7,9 +7,11 @@ For an overview, prebuilt binaries (Windows, macOS, Linux), and what the connect
 ## Quickstart
 
 ```bash
-npm install -g @todoforai/edge
+curl -fsSL https://todofor.ai/edge | sh   # standalone binary, no Node required
 todoforai-edge
 ```
+
+Already have Node? `npm install -g @todoforai/edge` works too. On Windows: `irm https://todofor.ai/edge.ps1 | iex`.
 
 First run opens your browser for device-flow login and saves the key to the platform credentials store (`~/.config/todoforai/credentials.json` on Linux, `~/Library/Application Support/todoforai/credentials.json` on macOS, `%APPDATA%\todoforai\credentials.json` on Windows; legacy `~/.todoforai/credentials.json` still read). Shared with the bridge and CLI. No flags needed.
 
