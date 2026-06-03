@@ -391,6 +391,95 @@ register("read_file_base64", async (args) => {
   return { path: fullPath, base64: data.toString("base64"), bytes: data.length };
 });
 
+register("search_files", async (args) => {
+  const { pattern, path: p = ".", cwd = (args as any).root_path ?? "", head = 100, max_count = 5, glob: globPattern = "", ignore_case = true } = args;
+  const { execSync: execWhich } = await import("child_process");
+  const whichCmd = process.platform === "win32" ? "where" : "which";
+  const which = (bin: string) => { try { return execWhich(`${whichCmd} ${bin}`, { encoding: "utf-8" }).trim().split("\n")[0].trim(); } catch { return null; } };
+  let rgPath = which("rg");
+  if (!rgPath) {
+    await ensureTool("rg");
+    rgPath = which("rg");
+  }
+
+  let searchPath = p.replace(/^~/, process.env.HOME || "~");
+  if (!path.isAbsolute(searchPath) && cwd) searchPath = path.join(cwd, searchPath);
+  searchPath = path.resolve(searchPath);
+  if (!fs.existsSync(searchPath)) throw new Error(`Search path does not exist: ${searchPath}`);
+
+  let cmd: string[];
+  if (rgPath) {
+    cmd = [rgPath, "--no-heading", "--line-number", "--color=never"];
+    if (ignore_case) cmd.push("--ignore-case");
+    if (max_count > 0) cmd.push(`--max-count=${max_count}`);
+    if (globPattern) cmd.push("--glob", globPattern);
+    cmd.push(pattern, searchPath);
+  } else {
+    // Fallback to grep when ripgrep is unavailable
+    console.warn("[search_files] ripgrep (rg) not found, falling back to grep");
+    const grepPath = which("grep") || "grep";
+    cmd = [grepPath, "-rn", "--color=never"];
+    if (ignore_case) cmd.push("-i");
+    if (max_count > 0) cmd.push(`--max-count=${max_count}`);
+    if (globPattern) {
+      // Convert rg glob to grep --include (e.g. "*.ts" or "*.{ts,tsx}")
+      cmd.push(`--include=${globPattern}`);
+    }
+    cmd.push(pattern, searchPath);
+  }
+
+  const { spawn: spawnChild } = await import("child_process");
+  const { stdout, stderr, code } = await new Promise<{ stdout: string; stderr: string; code: number }>((resolve) => {
+    const child = spawnChild(cmd[0], cmd.slice(1));
+    let out = "", err = "";
+    child.stdout?.on("data", (d: Buffer) => { out += d.toString(); });
+    child.stderr?.on("data", (d: Buffer) => { err += d.toString(); });
+    child.on("close", (exitCode) => resolve({ stdout: out, stderr: err, code: exitCode ?? 1 }));
+  });
+
+  if (code === 0) {
+    let output = stdout;
+    // Limit total number of result lines
+    const lines = output.split("\n").filter(l => l.trim());
+    if (lines.length > head) {
+      output = lines.slice(0, head).join("\n") + `\n... (${lines.length - head} more matches truncated)`;
+    }
+    // Make paths relative if close, truncate long lines for cleaner display
+    if ((cwd || searchPath) && output) {
+      // Use dir form of searchPath as base (so file paths relativize cleanly)
+      const searchBase = searchPath && fs.existsSync(searchPath) && fs.statSync(searchPath).isDirectory() ? searchPath : path.dirname(searchPath);
+      const bases = Array.from(new Set([cwd, searchBase].filter(Boolean))) as string[];
+      const lines = output.split("\n").map(line => {
+        if (line.includes(":")) {
+          const colonIdx = line.indexOf(":");
+          let filePart = line.slice(0, colonIdx);
+          const rest = line.slice(colonIdx);
+          // Pick the shortest candidate among absolute and all bases (within 2 up-levels)
+          try {
+            const candidates = [filePart, ...bases.map(b => path.relative(b, filePart))]
+              .filter(p => (p.match(/\.\.\//g) || []).length <= 2);
+            filePart = candidates.reduce((a, b) => a.length <= b.length ? a : b, filePart);
+          } catch {
+            // Keep absolute on error
+          }
+          let fullLine = filePart + rest;
+          // Truncate very long lines (keep file:line but limit content)
+          if (fullLine.length > 300) {
+            fullLine = fullLine.slice(0, 300) + "...";
+          }
+          return fullLine;
+        }
+        return line;
+      });
+      output = lines.join("\n");
+    }
+    if (output.length > 100_000) output = output.slice(0, 100_000) + "\n... (output truncated)";
+    return { result: output };
+  }
+  if (code === 1) return { result: "No matches found." };
+  throw new Error(`search error (exit ${code}): ${stderr}`);
+});
+
 register("download_attachment", async (args, client) => {
   if (!client) throw new Error("Client instance required");
   const { attachmentId, path: p = "", rootPath = "" } = args;
