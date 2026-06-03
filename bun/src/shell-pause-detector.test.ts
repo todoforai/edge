@@ -1,5 +1,10 @@
 import { describe, test, expect } from "bun:test";
-import { isTerminalReadPause } from "./shell-pause-detector.js";
+import { isTerminalReadPause, pauseDetector } from "./shell-pause-detector.js";
+
+const ECHO = 0o10;
+const ECHO_ON = 35387;   // termios c_lflag with ECHO set (observed Bun.Terminal default)
+const ECHO_OFF = ECHO_ON & ~ECHO;
+const tick = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // READ_NR per arch (mirrors the table in shell-pause-detector.ts).
 const READ_NR: Record<string, number> = { x64: 0, arm64: 63, arm: 3, ia32: 3 };
@@ -52,5 +57,40 @@ describe("isTerminalReadPause", () => {
 
   test("leaf reading a socket → not paused", () => {
     expect(isTerminalReadPause(sc(NR, 5), "socket:[7890]", "/dev/pts/3")).toBe(false);
+  });
+});
+
+// Watcher-level ECHO detection (cross-platform sudo/getpass path). Uses a fake
+// pid (no /proc match) so only the terminal ECHO signal can fire — same path on
+// macOS where the Linux syscall branch is inert.
+describe("pauseDetector ECHO-off (cross-platform)", () => {
+  test("ECHO off on the PTY → onPaused fires", async () => {
+    let fired = false;
+    const term = { localFlags: ECHO_OFF };
+    const w = pauseDetector.watch(2 ** 30, () => { fired = true; }, term);
+    await tick(900); // > GRACE_TICKS * POLL_MS
+    w.cancel();
+    expect(fired).toBe(true);
+  });
+
+  test("ECHO on → onPaused does not fire", async () => {
+    let fired = false;
+    const term = { localFlags: ECHO_ON };
+    const w = pauseDetector.watch(2 ** 30, () => { fired = true; }, term);
+    await tick(900);
+    w.cancel();
+    expect(fired).toBe(false);
+  });
+
+  test("reset() re-arms after a fire", async () => {
+    let count = 0;
+    const term = { localFlags: ECHO_OFF };
+    const w = pauseDetector.watch(2 ** 30, () => { count++; }, term);
+    await tick(900);
+    expect(count).toBe(1);
+    w.reset();
+    await tick(900);
+    w.cancel();
+    expect(count).toBe(2);
   });
 });

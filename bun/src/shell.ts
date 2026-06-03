@@ -233,13 +233,14 @@ export async function executeBlock(
       }
     }, timeout * 1000);
 
-    // Platform-specific paused-on-stdin detector (Linux: wchan polling; others: no-op).
+    // Paused-on-stdin detector. ECHO-off (sudo/ssh/getpass) works cross-platform via the
+    // PTY terminal; the Linux /proc syscall path additionally catches echo-ON line prompts.
     let cancelPauseWatch: (() => void) | null = null;
-    const startPauseWatch = (pid: number) => {
+    const startPauseWatch = (pid: number, terminal?: { localFlags: number }) => {
       if (!keepAliveOnTimeout) return;
       const watcher = pauseDetector.watch(pid, () => {
         if (processes.has(blockId)) resolveAlive();
-      });
+      }, terminal);
       cancelPauseWatch = watcher.cancel;
       const h = processes.get(blockId);
       if (h) h.resetPauseWatch = watcher.reset;
@@ -293,7 +294,7 @@ export async function executeBlock(
       const handle: ProcHandle = { terminal, proc, pid: proc.pid };
       processes.set(blockId, handle);
       const timer = startTimeout();
-      startPauseWatch(proc.pid);
+      startPauseWatch(proc.pid, terminal);
       proc.exited.then((code) => {
         terminal.close();
         onExit(code ?? -1, timer);

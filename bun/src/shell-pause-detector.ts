@@ -1,13 +1,22 @@
 // Detects when a shell process is paused on stdin (interactive prompt, read, sudo password).
-// Linux: poll /proc/<pid>/syscall on the foreground (leaf) descendant — if it sits in the
-//   `read` syscall on a fd pointing at a terminal (the shell's own pts, or /dev/tty for
-//   sudo/ssh password prompts) for several ticks, the process is stdin-blocked.
+// Two signals, either fires "paused":
+//   1. ECHO-off on the PTY (cross-platform, Linux + macOS): getpass(3)/sudo/ssh/su disable
+//      terminal echo before reading a password; raw-mode TUIs do the same while waiting for
+//      keystrokes. Read straight off Bun.Terminal.localFlags (the termios c_lflag) — no /proc.
+//   2. Linux only: /proc/<pid>/syscall on the foreground (leaf) descendant sitting in `read`
+//      on a terminal fd (the shell's own pts, or /dev/tty). Catches echo-ON line prompts
+//      (`read x`, a bare `cat`) that signal #1 misses.
 // We deliberately do NOT watch poll/select/ppoll/pselect6: those fire on any socket/file
 //   wait (git push, curl, npm, ssh handshake), causing false-positive paused states.
-// Other platforms: NullDetector — paused state only via the wall-clock timeout.
 
 import os from "os";
 import { readFile, readlink } from "fs/promises";
+
+// POSIX termios c_lflag ECHO bit — identical value on Linux and macOS.
+const ECHO = 0o10;
+
+/** Minimal view of Bun.Terminal needed for echo-state polling. */
+export interface PtyEchoState { localFlags: number }
 
 export interface PauseWatcher {
   /** Stop watching entirely (e.g. on process exit). */
@@ -17,12 +26,9 @@ export interface PauseWatcher {
 }
 
 export interface PauseDetector {
-  /** Start watching pid; calls onPaused() each time the process becomes stdin-blocked (after reset). */
-  watch(pid: number, onPaused: () => void): PauseWatcher;
-}
-
-class NullDetector implements PauseDetector {
-  watch(): PauseWatcher { return { cancel: () => {}, reset: () => {} }; }
+  /** Start watching pid; calls onPaused() each time the process becomes stdin-blocked (after reset).
+   *  Pass the PTY terminal (when spawned via Bun.Terminal) to enable cross-platform ECHO-off detection. */
+  watch(pid: number, onPaused: () => void, terminal?: PtyEchoState): PauseWatcher;
 }
 
 // Linux `read` syscall number per arch. Only `read` — poll/select wait on arbitrary fds
@@ -39,24 +45,35 @@ const READ_NR = READ_SYSCALL_NR[process.arch] ?? -1;
 const POLL_MS = 250;
 const GRACE_TICKS = 2; // require N consecutive paused readings (~500ms) before firing
 
-class LinuxSyscallDetector implements PauseDetector {
-  watch(pid: number, onPaused: () => void): PauseWatcher {
+const IS_LINUX = os.platform() === "linux" && READ_NR >= 0;
+
+class PtyPauseDetector implements PauseDetector {
+  watch(pid: number, onPaused: () => void, terminal?: PtyEchoState): PauseWatcher {
     let pausedTicks = 0;
     let signalled = false;
     let cancelled = false;
     // Session stdin = the shell's own fd 0 (e.g. /dev/pts/N or a pipe to the
     // edge). A descendant blocked on read(0) of a *different* fd 0 (an internal
-    // pipeline pipe like `find | head`) is NOT stdin-blocked.
+    // pipeline pipe like `find | head`) is NOT stdin-blocked. Linux-only (/proc).
     let rootStdin: string | null = null;
-    readFdTarget(pid, 0).then((t) => { rootStdin = t; });
+    if (IS_LINUX) readFdTarget(pid, 0).then((t) => { rootStdin = t; });
 
     const tick = async () => {
       if (cancelled) return;
-      const fgPid = await getForegroundPid(pid);
-      const sc = fgPid != null ? await readSyscall(fgPid) : null;
-      const leafTarget = sc && sc.nr === READ_NR && sc.fd >= 0 && fgPid != null
-        ? await readFdTarget(fgPid, sc.fd) : null;
-      if (isTerminalReadPause(sc, leafTarget, rootStdin)) {
+      // Signal 1 (cross-platform): ECHO disabled on the PTY ⇒ getpass/sudo/ssh
+      // password prompt, or a raw-mode TUI parked on a keystroke. Covers sudo on
+      // both Linux and macOS, where its setuid /proc is unreadable (EACCES).
+      let blocked = terminal != null && !(terminal.localFlags & ECHO);
+      // Signal 2 (Linux only): leaf descendant parked in read() on a terminal fd.
+      // Catches echo-ON line prompts (`read x`, bare `cat`) that signal 1 misses.
+      if (!blocked && IS_LINUX) {
+        const fgPid = await getForegroundPid(pid);
+        const sc = fgPid != null ? await readSyscall(fgPid) : null;
+        const leafTarget = sc && sc.nr === READ_NR && sc.fd >= 0 && fgPid != null
+          ? await readFdTarget(fgPid, sc.fd) : null;
+        blocked = isTerminalReadPause(sc, leafTarget, rootStdin);
+      }
+      if (blocked) {
         if (!signalled && ++pausedTicks >= GRACE_TICKS) {
           signalled = true;
           onPaused();
@@ -134,7 +151,4 @@ async function readFdTarget(pid: number, fd: number): Promise<string | null> {
   try { return await readlink(`/proc/${pid}/fd/${fd}`); } catch { return null; }
 }
 
-export const pauseDetector: PauseDetector =
-  os.platform() === "linux" && READ_NR >= 0
-    ? new LinuxSyscallDetector()
-    : new NullDetector();
+export const pauseDetector: PauseDetector = new PtyPauseDetector();
