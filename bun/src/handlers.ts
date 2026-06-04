@@ -30,6 +30,11 @@ export async function handleBlockExecute(payload: Record<string, any>, send: Sen
 // terminal alive; otherwise SIGINT + close the terminal. Honor both explicit
 // flags for version skew: `kill` always wins, `detach` alone detaches, and a
 // bare payload (legacy frontend interrupt) falls back to interrupt.
+//
+// COMPAT: the `detach` branch + the `&& !payload.kill` guard only exist to
+// understand old frontends (which sent `{}`=interrupt, `{detach:true}`=background).
+// Once every frontend sends the explicit `kill`/`detach` flags, simplify to:
+//   if (payload.kill) interruptBlock(...) else detachBlock(...)
 
 export async function handleBlockSignal(payload: Record<string, any>) {
   if (payload.detach && !payload.kill) detachBlock(payload.blockId);
