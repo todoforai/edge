@@ -96,7 +96,11 @@ export class ApiClient {
   }
 
   updateTodoStatus(todoId: string, status: string) {
-    return this.request("PUT", `/api/v1/todos/${todoId}`, { status });
+    return this.request("PATCH", `/api/v1/todos/${todoId}/status`, { status });
+  }
+
+  deleteTodo(todoId: string) {
+    return this.request("DELETE", `/api/v1/todos/${todoId}`);
   }
 
   listAgentSettings(filters?: { workspacePath?: string; name?: string }) {
