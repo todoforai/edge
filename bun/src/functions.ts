@@ -287,9 +287,9 @@ register("execute_shell_command", async (args, client) => {
   if (resumePid && !resumeBlockId) {
     const residual = consumeExitedOutput(Number(resumePid));
     if (residual) {
-      return { cmd, result: `${residual.output}\n[session pid=${resumePid} exited with code ${residual.returnCode}]` };
+      return { cmd, result: `${residual.output}\n[input not sent: session pid=${resumePid} exited (${residual.returnCode}); start new command]` };
     }
-    return { cmd, result: `[no live session for pid=${resumePid} — it already exited; start a fresh command]` };
+    return { cmd, result: `[input not sent: no active shell session for pid=${resumePid}; start new command]` };
   }
   if (resumeBlockId) {
     await sendInput(resumeBlockId, cmd);  // resets buffer for interaction
