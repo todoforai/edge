@@ -25,13 +25,14 @@ export async function handleBlockExecute(payload: Record<string, any>, send: Sen
 }
 
 // ── Block Signal ──
-// `detach:true` → release the in-flight execute_shell_command waiter so the
+// Default: detach — release the in-flight execute_shell_command waiter so the
 // agent receives `{paused, pid}` (wire compat; rendered as "detached" in the
-// LLM footer) and the proc keeps running. Otherwise SIGINT.
+// LLM footer) while the proc + terminal keep running. `kill:true` → SIGINT and
+// close the terminal.
 
 export async function handleBlockSignal(payload: Record<string, any>) {
-  if (payload.detach) detachBlock(payload.blockId);
-  else interruptBlock(payload.blockId);
+  if (payload.kill) interruptBlock(payload.blockId);
+  else detachBlock(payload.blockId);
 }
 
 // ── Block Keyboard ──
