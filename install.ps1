@@ -19,6 +19,31 @@ if (-not $Tag) { $Tag = $env:TODOFORAI_TAG }
 function Die($msg) { Write-Host "error: $msg" -ForegroundColor Red; exit 1 }
 function Info($msg) { Write-Host ":: $msg" -ForegroundColor Cyan }
 function Ok($msg) { Write-Host "✓ $msg" -ForegroundColor Green }
+# Streamed download with a clean one-line progress bar (native IWR bar is slow + sticky on PS 5.1).
+function Get-FileWithProgress($uri, $outFile) {
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+$req = [Net.HttpWebRequest]::Create($uri); $req.UserAgent = 'todoforai-edge-installer'
+$resp = $req.GetResponse(); $total = $resp.ContentLength
+$in = $resp.GetResponseStream(); $out = [IO.File]::Create($outFile)
+try {
+$buf = New-Object byte[] 1048576; [long]$done = 0; $w = 30
+$sw = [Diagnostics.Stopwatch]::StartNew()
+while (($n = $in.Read($buf, 0, $buf.Length)) -gt 0) {
+$out.Write($buf, 0, $n); $done += $n
+if ($sw.ElapsedMilliseconds -ge 100 -or $done -eq $total) {
+if ($total -gt 0) {
+$f = [int]($w * $done / $total)
+$bar = ('#' * $f) + ('-' * ($w - $f))
+Write-Host ("`r  [{0}] {1,3:N0}%  {2:N1}/{3:N1} MiB" -f $bar, ($done / $total * 100), ($done / 1MB), ($total / 1MB)) -NoNewline -ForegroundColor Cyan
+} else {
+Write-Host ("`r  {0:N1} MiB" -f ($done / 1MB)) -NoNewline -ForegroundColor Cyan
+}
+$sw.Restart()
+}
+}
+Write-Host ""
+} finally { $out.Close(); $in.Close(); $resp.Close() }
+}
 if ($Help) {
 @"
 TODOforAI Edge installer (Windows).
@@ -56,7 +81,7 @@ try {
 $bin = Join-Path $tmp 'todoforai-edge.exe'
 $shaTxt = Join-Path $tmp 'todoforai-edge.sha'
 Info "downloading $asset $Tag ..."
-try { Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $bin } catch { Die "download failed: $url" }
+try { Get-FileWithProgress $url $bin } catch { Die "download failed: $url" }
 try {
 Invoke-WebRequest -UseBasicParsing -Uri "$url.sha256" -OutFile $shaTxt
 $expected = ((Get-Content $shaTxt -Raw).Trim() -split '\s+')[0]

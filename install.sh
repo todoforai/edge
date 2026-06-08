@@ -48,8 +48,10 @@ asset="todoforai-edge-${os}-${arch}"
 # ── fetch tool ──────────────────────────────────────────────────────────────
 if command -v curl >/dev/null 2>&1; then
 fetch() { curl -fsSL "$1" -o "$2"; }
+fetch_progress() { curl -fL --progress-bar "$1" -o "$2"; }  # clean one-line bar for the big binary
 elif command -v wget >/dev/null 2>&1; then
 fetch() { wget -q "$1" -O "$2"; }
+fetch_progress() { wget --show-progress -q "$1" -O "$2"; }
 else
 die "need curl or wget"
 fi
@@ -65,7 +67,7 @@ mkdir -p "$PREFIX"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 info "downloading $asset $TAG ..."
-fetch "$url" "$tmp/todoforai-edge" || die "download failed: $url"
+fetch_progress "$url" "$tmp/todoforai-edge" || die "download failed: $url"
 if fetch "${url}.sha256" "$tmp/todoforai-edge.sha" 2>/dev/null; then
 expected=$(awk '{print $1}' "$tmp/todoforai-edge.sha")
 if command -v sha256sum >/dev/null 2>&1; then
