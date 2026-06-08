@@ -11,6 +11,7 @@ param(
 [switch]$Help
 )
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'  # native IWR progress bar is slow + sticky on Windows PowerShell 5.1
 $Repo = 'todoforai/edge'
 if (-not $Prefix) { $Prefix = $env:TODOFORAI_PREFIX }
 if (-not $Prefix) { $Prefix = Join-Path $env:USERPROFILE '.todoforai\bin' }
@@ -54,6 +55,7 @@ New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 try {
 $bin = Join-Path $tmp 'todoforai-edge.exe'
 $shaTxt = Join-Path $tmp 'todoforai-edge.sha'
+Info "downloading $asset $Tag ..."
 try { Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $bin } catch { Die "download failed: $url" }
 try {
 Invoke-WebRequest -UseBasicParsing -Uri "$url.sha256" -OutFile $shaTxt

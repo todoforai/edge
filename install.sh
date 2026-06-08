@@ -64,6 +64,7 @@ url="https://github.com/$REPO/releases/download/$TAG/$asset"
 mkdir -p "$PREFIX"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
+info "downloading $asset $TAG ..."
 fetch "$url" "$tmp/todoforai-edge" || die "download failed: $url"
 if fetch "${url}.sha256" "$tmp/todoforai-edge.sha" 2>/dev/null; then
 expected=$(awk '{print $1}' "$tmp/todoforai-edge.sha")
