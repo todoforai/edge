@@ -13,6 +13,7 @@ import { TOOL_CATALOG } from "./tool-catalog.js";
 import { getGlobalEdgeInstance } from "./edge.js";
 import { discoverSkills } from "./skills.js";
 import { discoverAgentMd } from "./agent-md.js";
+import { truncateLines, DEFAULT_OUTPUT_MODE } from "../../../packages/shared-fbe/src/outputLimits";
 
 // ── Registry ──
 
@@ -258,7 +259,7 @@ function detectContentType(output: string, cmd?: string): { result: string; cont
 }
 
 register("execute_shell_command", async (args, client) => {
-  const { cmd, cwd = (args as any).root_path ?? "", todoId = "", messageId = "", blockId = "", agentSettingsId = "", pid: resumePid = 0 } = args as Record<string, any>;
+  const { cmd, cwd = (args as any).root_path ?? "", todoId = "", messageId = "", blockId = "", agentSettingsId = "", pid: resumePid = 0, output: outputMode = DEFAULT_OUTPUT_MODE } = args as Record<string, any>;
   const timeout = Math.max((args as Record<string, any>).timeout ?? 120, client?.maxTimeout ?? 0);
   const canStream = !!(todoId && blockId && client);
 
@@ -311,7 +312,7 @@ register("execute_shell_command", async (args, client) => {
   // ── Fresh exec ──
   try {
     await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
-    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, cwd, false, "internal", undefined, agentSettingsId, true);
+    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, cwd, false, "internal", undefined, agentSettingsId, true, outputMode);
 
     // DEAD: tool-install approval short-circuit. If executeBlock parked the
     // block in AWAITING_APPROVAL, we returned a sentinel so handlers.ts would
@@ -439,12 +440,7 @@ register("search_files", async (args) => {
 
   if (code === 0) {
     let output = stdout;
-    // Limit total number of result lines
-    const lines = output.split("\n").filter(l => l.trim());
-    if (lines.length > head) {
-      output = lines.slice(0, head).join("\n") + `\n... (${lines.length - head} more matches truncated)`;
-    }
-    // Make paths relative if close, truncate long lines for cleaner display
+    // Make paths relative if close (cosmetic; truncation happens after).
     if ((cwd || searchPath) && output) {
       // Use dir form of searchPath as base (so file paths relativize cleanly)
       const searchBase = searchPath && fs.existsSync(searchPath) && fs.statSync(searchPath).isDirectory() ? searchPath : path.dirname(searchPath);
@@ -462,19 +458,13 @@ register("search_files", async (args) => {
           } catch {
             // Keep absolute on error
           }
-          let fullLine = filePart + rest;
-          // Truncate very long lines (keep file:line but limit content)
-          if (fullLine.length > 300) {
-            fullLine = fullLine.slice(0, 300) + "...";
-          }
-          return fullLine;
+          return filePart + rest;
         }
         return line;
       });
       output = lines.join("\n");
     }
-    if (output.length > 100_000) output = output.slice(0, 100_000) + "\n... (output truncated)";
-    return { result: output };
+    return { result: truncateLines(output, { maxLines: head }) };
   }
   if (code === 1) return { result: "No matches found." };
   throw new Error(`search error (exit ${code}): ${stderr}`);

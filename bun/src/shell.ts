@@ -7,6 +7,7 @@ import { buildEnvWithTools } from "./tool-registry.js";
 // import { findMissingTools, ensureTool } from "./tool-registry.js"; // DEAD: tool-install approval gating (see executeBlock)
 import { getConnectionEnv } from "./connection-context.js";
 import { pauseDetector } from "./shell-pause-detector.js";
+import { formatTruncationNotice, OUTPUT_POLICIES, DEFAULT_OUTPUT_MODE, resolveOutputPolicy, type OutputPolicy } from "../../../packages/shared-fbe/src/outputLimits";
 
 const IS_WIN = os.platform() === "win32";
 const HAS_BUN = typeof globalThis.Bun !== "undefined";
@@ -50,10 +51,7 @@ function getShellCommand(content: string): ShellCommand {
   return { shell: "cmd.exe", args: ["/c", "chcp 65001>nul && " + content] };
 }
 
-// ── Output buffer (first 10k stream, middle truncate, last 10k) ──
-
-const STREAM_FIRST = 10_000;
-const STREAM_LAST = 10_000;
+// ── Output buffer — head+tail cut driven by an OutputPolicy (see outputLimits.ts) ──
 
 class OutputBuffer {
   firstPart = "";
@@ -61,14 +59,22 @@ class OutputBuffer {
   totalLen = 0;
   truncated = false;
   private truncMsgSent = false;
-  constructor(private firstLimit = STREAM_FIRST, private lastLimit = STREAM_LAST) {}
+  // Head is capped at min(firstLimit, hardCap); the tail never pushes the kept
+  // total over hardCap. `full` (firstLimit ∞) ⇒ head-only up to hardCap;
+  // `safe` ⇒ 10k head + 10k tail; `raw` (hardCap ∞) ⇒ everything.
+  private headLimit: number;
+  private lastLimit: number;
+  constructor(policy: OutputPolicy = OUTPUT_POLICIES[DEFAULT_OUTPUT_MODE]) {
+    this.headLimit = Math.min(policy.firstLimit, policy.hardCap);
+    this.lastLimit = Math.min(policy.lastLimit, policy.hardCap - this.headLimit);
+  }
 
   append(text: string): string {
     this.totalLen += text.length;
     let toStream = "";
 
-    if (this.firstPart.length < this.firstLimit) {
-      const remaining = this.firstLimit - this.firstPart.length;
+    if (this.firstPart.length < this.headLimit) {
+      const remaining = this.headLimit - this.firstPart.length;
       toStream = text.slice(0, remaining);
       this.firstPart += toStream;
       text = text.slice(remaining);
@@ -76,7 +82,8 @@ class OutputBuffer {
 
     if (text) {
       if (!this.truncated) this.truncated = true;
-      this.lastPart = (this.lastPart + text).slice(-this.lastLimit);
+      // lastLimit 0 keeps nothing in the tail (head-only / capped modes).
+      this.lastPart = this.lastLimit > 0 ? (this.lastPart + text).slice(-this.lastLimit) : "";
     }
 
     return toStream;
@@ -85,8 +92,7 @@ class OutputBuffer {
   getTruncationNotice(): string {
     if (this.truncated && !this.truncMsgSent) {
       this.truncMsgSent = true;
-      const dropped = this.totalLen - this.firstLimit - this.lastPart.length;
-      return `\n\n... [truncated ${dropped} chars] ...\n\n${this.lastPart}`;
+      return formatTruncationNotice(this.totalLen, this.firstPart.length, this.lastPart);
     }
     return "";
   }
@@ -143,6 +149,7 @@ export async function executeBlock(
   edgeId?: string,
   agentSettingsId = "",
   keepAliveOnTimeout = false,
+  outputMode = DEFAULT_OUTPUT_MODE,
 ) {
   // Kill any existing process with the same blockId (re-run scenario)
   if (processes.has(blockId)) {
@@ -150,7 +157,7 @@ export async function executeBlock(
     interruptBlock(blockId);
   }
 
-  const buf = new OutputBuffer();
+  const buf = new OutputBuffer(resolveOutputPolicy(outputMode));
   outputBuffers.set(blockId, buf);
 
   try {
