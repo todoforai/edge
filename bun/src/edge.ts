@@ -68,6 +68,8 @@ export class TODOforAIEdge {
   connected = false;
   edgeId = "";
   userId = "";
+  /** Short-lived dst_ token pushed by the server; exported to shell children. */
+  private sessionToken = "";
   debug: boolean;
   maxTimeout: number;
   private wsUrl: string;
@@ -96,7 +98,7 @@ export class TODOforAIEdge {
     this.wsUrl = getWsUrl(this.api.apiUrl);
     this.addWorkspacePath = config.addWorkspacePath;
     this.browserExtensionBridge = new BrowserExtensionBridge(this.debug);
-    setConnectionContext(() => ({ apiUrl: this.api.apiUrl, apiKey: this.api.apiKey }));
+    setConnectionContext(() => ({ apiUrl: this.api.apiUrl, sessionToken: this.sessionToken }));
   }
 
   // Convenience accessors for functions that need client context
@@ -333,6 +335,13 @@ export class TODOforAIEdge {
 
       case S2E.EDGE_CONFIG_UPDATE:
         run(async () => this.handleEdgeConfigUpdate(payload));
+        break;
+
+      case S2E.SESSION_TOKEN:
+        if (typeof payload.token === "string" && payload.token.startsWith("dst_")) {
+          this.sessionToken = payload.token;
+          if (this.debug) console.log(`[recv] session token (expires in ${payload.expiresIn}s)`);
+        }
         break;
 
       case FE.EDGE_CD:

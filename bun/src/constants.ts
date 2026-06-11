@@ -70,6 +70,7 @@ export const EFA = {} as const;
 // Server to Edge
 export const S2E = {
   EDGE_CONFIG_UPDATE: "edge:config_update",
+  SESSION_TOKEN: "edge:session_token",
 } as const;
 
 // ── Message builders ──
