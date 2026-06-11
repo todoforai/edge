@@ -3,8 +3,7 @@ import fs from "fs";
 import path from "path";
 import { spawn as nodeSpawn } from "child_process";
 import { msg, type WsMessage } from "./constants.js";
-import { buildEnvWithTools } from "./tool-registry.js";
-// import { findMissingTools, ensureTool } from "./tool-registry.js"; // DEAD: tool-install approval gating (see executeBlock)
+import { buildEnvWithTools, autoInstallMissingTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
 import { pauseDetector } from "./shell-pause-detector.js";
 import { formatTruncationNotice, OUTPUT_POLICIES, DEFAULT_OUTPUT_MODE, resolveOutputPolicy, type OutputPolicy } from "../../../packages/shared-fbe/src/outputLimits";
@@ -29,6 +28,16 @@ function whichSync(name: string): string | null {
     }
   }
   return null;
+}
+
+/** Directory exists and is searchable (chdir-able) by this process. */
+function isAccessibleDir(p: string): boolean {
+  try {
+    fs.accessSync(p, fs.constants.X_OK);
+    return fs.statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 interface ShellCommand { shell: string; args: string[] }
@@ -161,52 +170,25 @@ export async function executeBlock(
   outputBuffers.set(blockId, buf);
 
   try {
-    // Resolve cwd: expand ~ and validate, fall back to tmp dir
+    // Resolve cwd: expand ~ and validate, fall back to tmp dir.
+    // X_OK matters: a stat-able dir without search permission makes posix_spawn's
+    // chdir fail with a misleading "EACCES ... posix_spawn '/bin/bash'".
     const tmpDir = path.join(os.tmpdir(), "todoforai");
     if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
     if (cwd) {
       const expanded = cwd.replace(/^~/, process.env.HOME || "~");
-      cwd = fs.existsSync(expanded) && fs.statSync(expanded).isDirectory() ? expanded : tmpDir;
+      cwd = isAccessibleDir(expanded) ? expanded : tmpDir;
     } else {
       cwd = tmpDir;
     }
 
-    // DEAD: tool-install approval gating. Previously we scanned `content` for
-    // catalog tools, and if any were missing we sent BLOCK_UPDATE with status
-    // AWAITING_APPROVAL + approvalContext.toolInstalls and returned, waiting
-    // for the user to click "Install". On re-exec we'd run ensureTool() for
-    // each. Removed: bad UX — the agent should just run the command, see the
-    // failure, and decide what to do.
-    //
-    // const missing = findMissingTools(content);
-    // if (missing.length && !pendingToolApprovals.has(blockId)) {
-    //   pendingToolApprovals.set(blockId, missing);
-    //   console.log(`[shell] Missing tools ${missing}, requesting approval for block ${blockId}`);
-    //   await send({
-    //     type: "BLOCK_UPDATE",
-    //     payload: {
-    //       todoId, blockId, messageId,
-    //       updates: {
-    //         status: "AWAITING_APPROVAL",
-    //         approvalContext: { source: "edge", toolInstalls: missing, workspace: cwd, edgeId },
-    //       },
-    //     },
-    //   });
-    //   return; // wait for re-execute after approval
-    // }
-    //
-    // if (pendingToolApprovals.has(blockId)) {
-    //   const tools = pendingToolApprovals.get(blockId)!;
-    //   pendingToolApprovals.delete(blockId);
-    //   const installed: string[] = [];
-    //   for (const t of tools) {
-    //     if (await ensureTool(t)) installed.push(t);
-    //   }
-    //   if (installed.length) {
-    //     const notice = `[installed: ${installed.join(", ")}]\n`;
-    //     await send(msg.shellBlockResult(todoId, blockId, notice, messageId));
-    //   }
-    // }
+    // Auto-install missing catalog tools; the notice goes through the normal
+    // output buffer so it lands in both the stream and the final shell result.
+    const installNotice = await autoInstallMissingTools(content);
+    if (installNotice) {
+      const toStream = buf.append(installNotice);
+      if (toStream) await send(msg.shellBlockResult(todoId, blockId, toStream, messageId));
+    }
 
     // Notify frontend that execution is starting
     await send({
@@ -368,7 +350,7 @@ export async function executeBlock(
       spawnWithPipes();
     }
   } catch (e: any) {
-    await send(msg.shellBlockResult(todoId, blockId, `Error creating process: ${e.message}`, messageId));
+    await send(msg.shellBlockResult(todoId, blockId, `Error creating process: ${e.message} (cwd: ${cwd})`, messageId));
     const resolver = completionResolvers.get(blockId);
     if (resolver) {
       resolver();

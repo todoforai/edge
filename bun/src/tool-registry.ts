@@ -87,12 +87,10 @@ export function findReferencedTools(content: string): string[] {
   });
 }
 
-// DEAD: previously used by edge shell pre-check to gate execution via an
-// "Install required" approval prompt. Removed in favor of letting commands
-// run and fail naturally — the agent decides what to do on error.
-// export function findMissingTools(content: string): string[] {
-//   return findReferencedTools(content).filter(name => !isToolInstalled(name));
-// }
+export function findMissingTools(content: string): string[] {
+  // `system` tools (curl, grep, rclone, …) come from the OS — never auto-installable.
+  return findReferencedTools(content).filter(name => TOOL_CATALOG[name].installer !== "system" && !isToolInstalled(name));
+}
 
 // ── Installers ──
 
@@ -170,6 +168,17 @@ function findFileRecursive(dir: string, names: Set<string>): string | null {
     }
   }
   return null;
+}
+
+/** Display-only install command for the shell transcript notice. */
+function getInstallCommand(name: string): string {
+  const e = TOOL_CATALOG[name];
+  return e.installCmd || {
+    npm: `npm install --prefix ~/.todoforai/tools ${e.pkg}`,
+    bun: `bun add --cwd ~/.todoforai/tools ${e.pkg}`,
+    pip: `pip install ${e.pkg}`,
+    binary: `download ${e.pkg}`,
+  }[e.installer as string] || `install ${e.pkg}`;
 }
 
 export function installWithNpm(name: string, pkg: string) {
@@ -284,13 +293,9 @@ function installWithPip(name: string, pkg: string) {
     ? ["-m", "pip", "install", pkg]
     : ["-m", "pip", "install", "--user", pkg];
   const result = spawnSync(python, args, { stdio: "pipe", timeout: 120_000 });
-  
-  if (result.signal) {
-    log("error", `Failed to install ${name}: killed by ${result.signal}${result.signal === 'SIGTERM' ? ' (likely timed out after 120s)' : ''}`);
-  } else if (result.status !== 0) {
-    log("error", `Failed to install ${name}: ${result.stderr?.toString() || result.stdout?.toString()}`);
-  }
-
+  const stderr = result.stderr?.toString().trim() || "";
+  if (result.signal) throw new Error(`pip install killed by ${result.signal}${result.signal === 'SIGTERM' ? ' (likely timed out after 120s)' : ''}`);
+  if (result.status !== 0) throw new Error(`pip install failed (exit ${result.status}): ${stderr || result.stdout?.toString().trim() || '(empty)'}`);
 }
 
 const INSTALLERS: Record<string, (name: string, pkg: string) => void | Promise<void>> = {
@@ -362,17 +367,16 @@ export function uninstallTool(name: string): boolean {
   }
 }
 
-// DEAD: paired with findMissingTools above. Restore both together if the
-// pre-execution install gating is ever re-introduced.
-// export async function ensureToolsForCommand(content: string): Promise<string[]> {
-//   const missing = findMissingTools(content);
-//   if (!missing.length) return [];
-//   const installed: string[] = [];
-//   for (const name of missing) {
-//     if (await ensureTool(name)) installed.push(name);
-//   }
-//   return installed;
-// }
+/** Auto-install catalog tools referenced by `content`. Returns a shell-transcript
+ *  notice for the block result ("" when nothing was missing). */
+export async function autoInstallMissingTools(content: string): Promise<string> {
+  const lines = [];
+  for (const name of findMissingTools(content)) {
+    const ok = await ensureTool(name) && isToolInstalled(name);
+    lines.push(`$ ${getInstallCommand(name)}\n[${ok ? "installed" : "install failed"}: ${name}]`);
+  }
+  return lines.length ? lines.join("\n") + "\n" : "";
+}
 
 /** Scan all catalog tools: check binary presence, version, and auth status. */
 type ToolState = { installed: boolean; version?: string; statusOutput?: string; authenticated?: boolean };
