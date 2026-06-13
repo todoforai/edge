@@ -6,7 +6,7 @@ import { msg, type WsMessage } from "./constants.js";
 import { buildEnvWithTools, autoInstallMissingTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
 import { pauseDetector } from "./shell-pause-detector.js";
-import { formatTruncationNotice, OUTPUT_POLICIES, DEFAULT_OUTPUT_MODE, resolveOutputPolicy, type OutputPolicy } from "../../../packages/shared-fbe/src/outputLimits";
+import { capLineWidth, formatTruncationNotice, OUTPUT_POLICIES, DEFAULT_OUTPUT_MODE, resolveOutputPolicy, type OutputPolicy } from "../../../packages/shared-fbe/src/outputLimits";
 
 const IS_WIN = os.platform() === "win32";
 const HAS_BUN = typeof globalThis.Bun !== "undefined";
@@ -73,9 +73,11 @@ class OutputBuffer {
   // `safe` ⇒ 10k head + 10k tail; `raw` (hardCap ∞) ⇒ everything.
   private headLimit: number;
   private lastLimit: number;
+  private lineLimit: number;
   constructor(policy: OutputPolicy = OUTPUT_POLICIES[DEFAULT_OUTPUT_MODE]) {
     this.headLimit = Math.min(policy.firstLimit, policy.hardCap);
     this.lastLimit = Math.min(policy.lastLimit, policy.hardCap - this.headLimit);
+    this.lineLimit = policy.lineLimit;
   }
 
   append(text: string): string {
@@ -117,13 +119,13 @@ class OutputBuffer {
   }
 
   getOutput(): string {
-    if (!this.truncated) return this.firstPart;
-    return this.firstPart + `\n\n... [truncated: showing first ${this.firstPart.length} and last ${this.lastPart.length} chars of ${this.totalLen} total] ...\n\n${this.lastPart}`;
+    if (!this.truncated) return capLineWidth(this.firstPart, this.lineLimit);
+    return capLineWidth(this.firstPart, this.lineLimit) + `\n\n... [truncated: showing first ${this.firstPart.length} and last ${this.lastPart.length} chars of ${this.totalLen} total] ...\n\n${capLineWidth(this.lastPart, this.lineLimit)}`;
   }
 
   /** Get raw output without truncation formatting. Returns null if truncated (incomplete data). */
   getRawIfComplete(): string | null {
-    return this.truncated ? null : this.firstPart;
+    return this.truncated ? null : capLineWidth(this.firstPart, this.lineLimit);
   }
 }
 
