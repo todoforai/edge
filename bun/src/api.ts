@@ -40,7 +40,7 @@ export class ApiClient {
 
   private async request(method: string, endpoint: string, body?: any) {
     const url = `${this.apiUrl}${endpoint}`;
-    const opts: RequestInit = { method, headers: this.headers };
+    const opts: RequestInit = { method, headers: this.headers, signal: AbortSignal.timeout(30_000) };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(url, opts);
     if (!res.ok) throw new Error(`API ${method} ${endpoint} failed: ${res.status} ${await res.text()}`);

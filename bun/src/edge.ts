@@ -80,6 +80,8 @@ export class TODOforAIEdge {
   private browserExtensionBridge: BrowserExtensionBridge;
   private stopping = false;
   private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private wakeReconnect?: () => void;
+  private connectedAt = 0;
 
   edgeConfig: EdgeConfigData = {
     id: "",
@@ -409,20 +411,19 @@ export class TODOforAIEdge {
 
   // ── Connection ──
 
-  private startHeartbeat(onStale: () => void) {
+  private startHeartbeat(ws: WebSocket, onStale: () => void) {
     this.stopHeartbeat();
     let pongReceived = true;
-    this.ws?.on("pong", () => { pongReceived = true; });
+    ws.on("pong", () => { pongReceived = true; });
     this.heartbeatTimer = setInterval(() => {
       if (!pongReceived) {
         console.log("[warn] No pong received, terminating stale connection");
-        this.stopHeartbeat();
-        this.ws?.terminate();
+        ws.terminate();
         onStale();
         return;
       }
       pongReceived = false;
-      try { this.ws?.ping(); } catch {}
+      try { ws.ping(); } catch {}
     }, 30_000);
   }
 
@@ -433,27 +434,41 @@ export class TODOforAIEdge {
     }
   }
 
-  private connect(): Promise<void> {
+  /** Resolves with the close code (or 0 on a network error) for a clean handover
+   *  to the reconnect loop; rejects only for non-recoverable server errors. */
+  private connect(): Promise<number> {
     return new Promise((resolve, reject) => {
       const url = `${this.wsUrl}?fingerprint=${encodeURIComponent(this.fingerprint)}`;
       if (this.debug) console.log(`[info] Connecting to ${url}`);
 
-      this.ws = new WebSocket(url, [this.api.apiKey], {
+      const ws = new WebSocket(url, [this.api.apiKey], {
         maxPayload: 5 * 1024 * 1024,
         rejectUnauthorized: false,
       });
+      this.ws = ws;
 
-      this.ws.on("open", () => {
-        this.connected = true;
-        console.log("[info] WebSocket connected");
-        this.startHeartbeat(() => {
+      // Ensure the promise settles once and stale state is cleared only if `ws`
+      // is still the active socket (guards against late events from old sockets).
+      let settled = false;
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        if (this.ws === ws) {
+          this.stopHeartbeat();
           this.connected = false;
           this.ws = null;
-          resolve();
-        });
+        }
+        fn();
+      };
+
+      ws.on("open", () => {
+        this.connected = true;
+        this.connectedAt = Date.now();
+        console.log("[info] WebSocket connected");
+        this.startHeartbeat(ws, () => settle(() => resolve(0)));
       });
 
-      this.ws.on("message", (data, isBinary) => {
+      ws.on("message", (data, isBinary) => {
         if (isBinary) {
           const frame = data instanceof Buffer ? new Uint8Array(data) : new Uint8Array(data as ArrayBuffer);
           this.storeBinaryFrame(frame);
@@ -461,38 +476,32 @@ export class TODOforAIEdge {
         }
         this.handleMessage(data.toString()).catch(e => {
           if (e instanceof AuthenticationError || e instanceof ServerError) {
-            this.ws?.close();
-            reject(e);
+            ws.close();
+            settle(() => reject(e));
           } else {
             console.error("[handler error]", e);
           }
         });
       });
 
-      this.ws.on("close", (code, reason) => {
-        this.stopHeartbeat();
-        this.connected = false;
-        this.ws = null;
+      ws.on("close", (code, reason) => {
         const reasonText = reason?.toString() || "<empty>";
-        const clean = code === 1000;
-        console.log(`[info] WebSocket closed code=${code} clean=${clean} reason=${reasonText}`);
+        console.log(`[info] WebSocket closed code=${code} clean=${code === 1000} reason=${reasonText}`);
         if (code === 4001) {
           console.log(`\x1b[33m[info] ${reasonText}. Not reconnecting.\x1b[0m`);
           console.log(`\x1b[33m[info] To replace the existing connection, restart with: todoforai-edge --kill\x1b[0m`);
-          reject(new ServerError(reasonText));
+          settle(() => reject(new ServerError(reasonText)));
         } else if (code === 4002) {
           console.log(`\x1b[33m[info] ${reasonText}. This instance was replaced by a new connection.\x1b[0m`);
-          reject(new ServerError(reasonText));
+          settle(() => reject(new ServerError(reasonText)));
         } else {
-          resolve();
+          settle(() => resolve(code));
         }
       });
 
-      this.ws.on("error", (err) => {
-        this.stopHeartbeat();
-        this.connected = false;
-        this.ws = null;
-        reject(err);
+      ws.on("error", (err) => {
+        console.error(`[error] WebSocket error: ${err.message}`);
+        settle(() => resolve(0));
       });
     });
   }
@@ -504,43 +513,34 @@ export class TODOforAIEdge {
     this.fingerprint = generateFingerprint();
     console.log(`\x1b[36m\x1b[1m👆 Fingerprint:\x1b[0m ${this.fingerprint}`);
 
-    const maxAttempts = 20;
     let attempt = 0;
 
-    while (attempt < maxAttempts && !this.stopping) {
-      console.log(`[info] Connecting (attempt ${attempt + 1}/${maxAttempts})`);
+    while (!this.stopping) {
+      console.log(`[info] Connecting${attempt > 0 ? ` (retry ${attempt})` : ""}`);
 
+      this.connectedAt = 0;
       try {
         await this.connect();
-        if (this.stopping) break;
-        attempt = 0; // reset on clean close
       } catch (e: any) {
-        if (e instanceof AuthenticationError) {
-          console.error(`\x1b[31mAuthentication failed: ${e.message}\x1b[0m`);
-          break;
-        }
-        if (e instanceof ServerError) {
-          console.error(`\x1b[31mServer error: ${e.message}\x1b[0m`);
-          break;
-        }
-        attempt++;
-        console.error(`[error] Connection error: ${e.message}`);
-      } finally {
-        this.connected = false;
-        this.ws = null;
+        // Non-recoverable: auth rejected or server told us not to reconnect.
+        const label = e instanceof AuthenticationError ? "Authentication failed" : "Server error";
+        console.error(`\x1b[31m${label}: ${e.message}\x1b[0m`);
+        break;
       }
 
-      if (attempt > 0 && attempt < maxAttempts && !this.stopping) {
-        const delay = Math.min(4 + attempt, 20);
-        console.log(`[info] Reconnecting in ${delay}s...`);
-        await new Promise<void>(r => {
-          this.reconnectTimer = setTimeout(r, delay * 1000);
-        });
-      }
-    }
+      if (this.stopping) break;
 
-    if (attempt >= maxAttempts) {
-      console.error("\x1b[31mMax reconnection attempts reached.\x1b[0m");
+      // Reset backoff if the socket had been *open* for a while (a real drop,
+      // not a flapping/unreachable server).
+      if (this.connectedAt && Date.now() - this.connectedAt > 60_000) attempt = 0;
+      attempt++;
+
+      const delay = Math.min(2 * 2 ** Math.min(attempt - 1, 4), 30); // 2,4,8,16,30,30…
+      console.log(`[info] Reconnecting in ${delay}s...`);
+      await new Promise<void>(r => {
+        this.wakeReconnect = r;
+        this.reconnectTimer = setTimeout(r, delay * 1000);
+      });
     }
   }
 
@@ -549,6 +549,7 @@ export class TODOforAIEdge {
   stop() {
     this.stopping = true;
     clearTimeout(this.reconnectTimer);
+    this.wakeReconnect?.();   // unblock start()'s reconnect sleep
     this.stopHeartbeat();
     this.browserExtensionBridge.stop();
     this.frontendWs?.close();
