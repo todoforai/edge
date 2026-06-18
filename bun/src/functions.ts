@@ -13,7 +13,7 @@ import { TOOL_CATALOG } from "./tool-catalog.js";
 import { getGlobalEdgeInstance } from "./edge.js";
 import { discoverSkills } from "./skills.js";
 import { discoverAgentMd } from "./agent-md.js";
-import { truncateLines, DEFAULT_OUTPUT_MODE, resolveOutputPolicy } from "../../../packages/shared-fbe/src/outputLimits";
+import { truncateLines, resolveOutputPolicy, DEFAULT_OUTPUT_MODE } from "../../../packages/shared-fbe/src/outputLimits";
 
 // ── Registry ──
 
