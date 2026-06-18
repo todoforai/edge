@@ -13,7 +13,7 @@ import { TOOL_CATALOG } from "./tool-catalog.js";
 import { getGlobalEdgeInstance } from "./edge.js";
 import { discoverSkills } from "./skills.js";
 import { discoverAgentMd } from "./agent-md.js";
-import { truncateLines, DEFAULT_OUTPUT_MODE } from "../../../packages/shared-fbe/src/outputLimits";
+import { truncateLines, DEFAULT_OUTPUT_MODE, resolveOutputPolicy } from "../../../packages/shared-fbe/src/outputLimits";
 
 // ── Registry ──
 
@@ -393,7 +393,7 @@ register("read_file_base64", async (args) => {
 });
 
 register("search_files", async (args) => {
-  const { pattern, path: p = ".", cwd = (args as any).root_path ?? "", head = 100, max_count = 5, glob: globPattern = "", ignore_case = true } = args;
+  const { pattern, path: p = ".", cwd = (args as any).root_path ?? "", head = 100, max_count = 5, glob: globPattern = "", ignore_case = true, output: outputMode = DEFAULT_OUTPUT_MODE } = args;
   const { execSync: execWhich } = await import("child_process");
   const whichCmd = process.platform === "win32" ? "where" : "which";
   const which = (bin: string) => { try { return execWhich(`${whichCmd} ${bin}`, { encoding: "utf-8" }).trim().split("\n")[0].trim(); } catch { return null; } };
@@ -464,7 +464,7 @@ register("search_files", async (args) => {
       });
       output = lines.join("\n");
     }
-    return { result: truncateLines(output, { maxLines: head }) };
+    return { result: truncateLines(output, { maxLines: head, maxLineLen: resolveOutputPolicy(outputMode).lineLimit }) };
   }
   if (code === 1) return { result: "No matches found." };
   throw new Error(`search error (exit ${code}): ${stderr}`);
