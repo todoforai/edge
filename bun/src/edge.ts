@@ -413,18 +413,38 @@ export class TODOforAIEdge {
 
   private startHeartbeat(ws: WebSocket, onStale: () => void) {
     this.stopHeartbeat();
+
+    const intervalMs = 30_000;
+    // If the laptop sleeps, JS timers pause while the backend heartbeat keeps
+    // running and may mark the edge offline. On resume the local TCP socket can
+    // still look OPEN for a while, so don't wait another ping interval: detect
+    // the timer gap and force a fresh WS registration immediately.
+    const resumeGapMs = 60_000;
+    let lastTick = Date.now();
     let pongReceived = true;
+
     ws.on("pong", () => { pongReceived = true; });
     this.heartbeatTimer = setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - lastTick;
+      lastTick = now;
+
+      if (elapsed > resumeGapMs) {
+        console.log(`[warn] Heartbeat delayed ${Math.round(elapsed / 1000)}s (sleep/resume likely), reconnecting`);
+        try { ws.terminate(); } catch {}
+        onStale();
+        return;
+      }
+
       if (!pongReceived) {
         console.log("[warn] No pong received, terminating stale connection");
-        ws.terminate();
+        try { ws.terminate(); } catch {}
         onStale();
         return;
       }
       pongReceived = false;
       try { ws.ping(); } catch {}
-    }, 30_000);
+    }, intervalMs);
   }
 
   private stopHeartbeat() {
