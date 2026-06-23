@@ -6,7 +6,7 @@ import { msg, type WsMessage } from "./constants.js";
 import { buildEnvWithTools, autoInstallMissingTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
 import { pauseDetector } from "./shell-pause-detector.js";
-import { capLineWidth, formatTruncationNotice, OUTPUT_POLICIES, DEFAULT_OUTPUT_MODE, resolveOutputPolicy, type OutputPolicy } from "../../../packages/shared-fbe/src/outputLimits";
+import { capLineWidth, collapseCarriageReturns, formatTruncationNotice, OUTPUT_POLICIES, DEFAULT_OUTPUT_MODE, resolveOutputPolicy, type OutputPolicy } from "../../../packages/shared-fbe/src/outputLimits";
 
 const IS_WIN = os.platform() === "win32";
 const HAS_BUN = typeof globalThis.Bun !== "undefined";
@@ -119,13 +119,17 @@ class OutputBuffer {
   }
 
   getOutput(): string {
-    if (!this.truncated) return capLineWidth(this.firstPart, this.lineLimit);
-    return capLineWidth(this.firstPart, this.lineLimit) + `\n\n... [truncated: showing first ${this.firstPart.length} and last ${this.lastPart.length} chars of ${this.totalLen} total] ...\n\n${capLineWidth(this.lastPart, this.lineLimit)}`;
+    if (!this.truncated) return this.format(this.firstPart);
+    return this.format(this.firstPart) + `\n\n... [truncated: showing first ${this.firstPart.length} and last ${this.lastPart.length} chars of ${this.totalLen} total] ...\n\n${this.format(this.lastPart)}`;
   }
 
   /** Get raw output without truncation formatting. Returns null if truncated (incomplete data). */
   getRawIfComplete(): string | null {
-    return this.truncated ? null : capLineWidth(this.firstPart, this.lineLimit);
+    return this.truncated ? null : this.format(this.firstPart);
+  }
+
+  private format(part: string): string {
+    return capLineWidth(collapseCarriageReturns(part), this.lineLimit);
   }
 }
 
