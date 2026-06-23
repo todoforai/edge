@@ -50,6 +50,11 @@ function whichWithTools(name: string): string | null {
   return null;
 }
 
+/** Resolve a catalog key to the actual binary filename on disk (e.g. slack → slack-cli). */
+function binFileName(name: string): string {
+  return TOOL_CATALOG[name]?.binName ?? name;
+}
+
 /** Check if a tool is installed (installer-aware). */
 function isToolInstalled(name: string): boolean {
   const entry = TOOL_CATALOG[name];
@@ -61,7 +66,7 @@ function isToolInstalled(name: string): boolean {
     return r.status === 0;
   }
   
-  return whichWithTools(name) !== null;
+  return whichWithTools(binFileName(name)) !== null;
 }
 
 // ── Find missing tools ──
@@ -101,7 +106,8 @@ async function installBinary(name: string): Promise<boolean> {
   const dir = binDir();
   fs.mkdirSync(dir, { recursive: true });
   const [url, isArchive] = await urlFunc();
-  const destName = os.platform() === "win32" ? `${name}.exe` : name;
+  const fileName = binFileName(name);
+  const destName = os.platform() === "win32" ? `${fileName}.exe` : fileName;
   const dest = path.join(dir, destName);
   const tmpPath = dest + ".tmp";
 
@@ -113,7 +119,7 @@ async function installBinary(name: string): Promise<boolean> {
   fs.writeFileSync(tmpPath, data);
 
   if (isArchive) {
-    const expectedNames = new Set([name, `${name}.exe`]);
+    const expectedNames = new Set([name, `${name}.exe`, fileName, `${fileName}.exe`]);
     if (url.endsWith(".tar.gz") || url.endsWith(".tgz")) {
       await extractTarBinary(tmpPath, dest, expectedNames);
     } else if (url.endsWith(".zip")) {
