@@ -79,16 +79,23 @@ export function findReferencedTools(content: string): string[] {
     .replace(/'(?:[^'\\]|\\.)*'/g, "''");
 
   return Object.keys(TOOL_CATALOG).filter(name => {
-    const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    // Reject hyphenated tokens like stripe-setup-dunning while still allowing args like jq .foo.
-    const re = new RegExp(
-      String.raw`(?:^|[|;&\n]|&&|\|\||` +
-      String.raw`\$\(|` + "`" +
-      String.raw`|xargs\s+|sudo\s+|env\s+)\s*` +
-      esc + String.raw`\b(?!-)`,
-      "m"
-    );
-    return re.test(stripped);
+    // Tools may be invoked under a different binary name than their catalog key
+    // (e.g. todoai → todoforai-cli, slack-cli). Match either token.
+    const tokens = [name, TOOL_CATALOG[name].binName].filter((t): t is string => !!t);
+    return tokens.some(tok => {
+      const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // Reject trailing hyphenated tokens like stripe-setup-dunning while still
+      // allowing args like jq .foo. and known hyphenated bin names (slack-cli,
+      // todoforai-cli) which are matched verbatim above.
+      const re = new RegExp(
+        String.raw`(?:^|[|;&\n]|&&|\|\||` +
+        String.raw`\$\(|` + "`" +
+        String.raw`|xargs\s+|sudo\s+|env\s+)\s*` +
+        esc + String.raw`\b(?!-)`,
+        "m"
+      );
+      return re.test(stripped);
+    });
   });
 }
 
