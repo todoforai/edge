@@ -47,6 +47,26 @@ export class ApiClient {
     return res.json();
   }
 
+  private async trpcQuery(path: string, input: any) {
+    const base = this.apiUrl.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
+    const params = new URLSearchParams({
+      batch: "1",
+      input: JSON.stringify({ 0: input }),
+    });
+    const res = await fetch(`${base}/trpc/api/${path}?${params}`, {
+      method: "GET",
+      headers: this.headers,
+      signal: AbortSignal.timeout(30_000),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`API tRPC ${path} failed: ${res.status} ${text}`);
+    const payload = JSON.parse(text);
+    const item = Array.isArray(payload) ? payload[0] : payload;
+    if (item?.error) throw new Error(`API tRPC ${path} failed: ${item.error.message || JSON.stringify(item.error)}`);
+    const data = item?.result?.data;
+    return data?.json !== undefined ? data.json : data;
+  }
+
   async validateApiKey(): Promise<{ valid: boolean; userId?: string; error?: string; connectionError?: boolean }> {
     if (!this.apiKey) return { valid: false, error: "No API key provided" };
     try {
@@ -86,9 +106,9 @@ export class ApiClient {
     return this.request("POST", `/api/v1/projects/${projectId}/todos`, { content, agentSettings });
   }
 
-  listTodos(projectId?: string) {
-    const endpoint = projectId ? `/api/v1/projects/${projectId}/todos` : "/api/v1/todos";
-    return this.request("GET", endpoint);
+  listTodos(projectId?: string, opts?: { limit?: number; cursor?: number; search?: string }) {
+    if (!projectId) return this.request("GET", "/api/v1/todos");
+    return this.trpcQuery("todo.list", { projectId, ...opts });
   }
 
   getTodo(todoId: string) {
