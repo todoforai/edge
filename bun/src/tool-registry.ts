@@ -56,7 +56,7 @@ function binFileName(name: string): string {
 }
 
 /** Check if a tool is installed (installer-aware). */
-function isToolInstalled(name: string): boolean {
+export function isToolInstalled(name: string): boolean {
   const entry = TOOL_CATALOG[name];
   if (!entry) return false;
   
