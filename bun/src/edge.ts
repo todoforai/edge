@@ -21,6 +21,7 @@ import {
   handleCtxJuliaRequest,
   handleFunctionCall,
 } from "./handlers.js";
+import { handleBrowserInput } from "./browserStream.js";
 import { scanCatalogTools, autoMountRcloneRemotes } from "./tool-registry.js";
 import type { SendFn } from "./shell.js";
 
@@ -396,6 +397,10 @@ export class TODOforAIEdge {
 
       case FE.EDGE_WRITE_FILE:
         run(() => handleWriteFile(payload, send, this.pendingBinaries));
+        break;
+
+      case FE.BROWSER_INPUT:
+        run(() => handleBrowserInput(payload));
         break;
 
       case AE.FUNCTION_CALL_REQUEST_AGENT:
