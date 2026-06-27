@@ -14,7 +14,7 @@ import { getGlobalEdgeInstance } from "./edge.js";
 import { discoverSkills } from "./skills.js";
 import { discoverAgentMd } from "./agent-md.js";
 import { startScreencast, stopScreencast } from "./browserStream.js";
-import { truncateLines, resolveOutputPolicy, DEFAULT_OUTPUT_MODE } from "../../../packages/shared-fbe/src/outputLimits";
+import { truncateLines, resolveOutputPolicy, applyOutputPolicy, DEFAULT_OUTPUT_MODE } from "../../../packages/shared-fbe/src/outputLimits";
 
 // ── Registry ──
 
@@ -277,7 +277,10 @@ register("execute_shell_command", async (args, client) => {
         resolve((stdout || "") + (stderr || ""));
       });
     });
-    return { cmd, ...detectContentType(result, cmd) };
+    const detected = detectContentType(result, cmd);
+    // Don't truncate image data URLs; cap plain text to the output policy.
+    if (detected.contentType) return { cmd, ...detected };
+    return { cmd, result: applyOutputPolicy(detected.result, resolveOutputPolicy(outputMode)) };
   }
 
   // Strip trailing | tail so the raw command streams, then filter the result
