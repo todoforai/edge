@@ -170,6 +170,14 @@ export class ApiClient {
     return this.request("GET", "/api/v1/edges");
   }
 
+  setAgentDeviceConfig(agentId: string, agentSettingsId: string, deviceId: string, config: Record<string, any>) {
+    return this.request("PUT", `/api/v1/agents/${agentId}/device-config`, { agentSettingsId, deviceId, config });
+  }
+
+  listDevices() {
+    return this.request("GET", "/api/v1/devices");
+  }
+
   startFromTemplate(projectId: string, templateId: string, opts?: { inputValues?: Record<string, string | number | boolean>; scheduledTimestamp?: number; businessContextId?: string }) {
     return this.request("POST", `/api/v1/projects/${projectId}/todos/from-template`, {
       templateId,
