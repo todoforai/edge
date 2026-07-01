@@ -25,7 +25,6 @@ export const FE = {
   BLOCK_SAVE: "block:save",
   BLOCK_KEYBOARD: "block:keyboard",
   BLOCK_SIGNAL: "block:signal",
-  BROWSER_INPUT: "browser:input",
   FRONTEND_FILE_CHUNK_REQUEST: "frontend:file_chunk_request",
   FUNCTION_CALL_REQUEST_FRONT: "FUNCTION_CALL_REQUEST_FRONT",
 } as const;
@@ -62,7 +61,6 @@ export const EF = {
   BLOCK_SH_MSG_RESULT: "block:sh_msg_result",
   BLOCK_SH_MSG_START: "block:sh_msg_start",
   BLOCK_SH_DONE: "block:sh_done",
-  BROWSER_FRAME: "browser:frame",
   FRONTEND_FILE_CHUNK_RESULT: "frontend:file_chunk_result",
 } as const;
 
@@ -96,10 +94,6 @@ export const msg = {
     const payload: Record<string, any> = { todoId, messageId, blockId, mode, return_code: returnCode };
     if (runMode) payload.runMode = runMode;
     return { type: EF.BLOCK_SH_DONE, payload };
-  },
-
-  browserFrame(sessionId: string, data: string, w: number, h: number, n: number): WsMessage {
-    return { type: EF.BROWSER_FRAME, payload: { sessionId, data, w, h, n } };
   },
 
   blockSaveResult(blockId: string, todoId: string, result: string, requestId?: string): WsMessage {

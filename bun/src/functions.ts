@@ -13,7 +13,6 @@ import { TOOL_CATALOG } from "./tool-catalog.js";
 import { getGlobalEdgeInstance } from "./edge.js";
 import { discoverSkills } from "./skills.js";
 import { discoverAgentMd } from "./agent-md.js";
-import { startScreencast, stopScreencast } from "./browserStream.js";
 import { truncateLines, resolveOutputPolicy, applyOutputPolicy, DEFAULT_OUTPUT_MODE } from "../../../packages/shared-fbe/src/outputLimits";
 
 // ── Registry ──
@@ -33,11 +32,6 @@ register("list_available_functions", async () => {
 });
 
 register("get_current_directory", async () => ({ current_directory: process.cwd() }));
-
-// Remote browser stream (OAuth consent etc.): start/stop a CDP screencast of a
-// host Chrome. Frames stream via BROWSER_FRAME; input arrives via BROWSER_INPUT.
-register("browser_stream_start", async (args, client) => startScreencast(args, (m) => client.sendResponse(m)));
-register("browser_stream_stop", async (args) => stopScreencast(args));
 
 register("get_environment_variable", async (args) => ({
   variable: args.var_name,
