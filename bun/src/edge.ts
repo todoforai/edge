@@ -331,7 +331,7 @@ export class TODOforAIEdge {
         console.log(`\x1b[32m\x1b[1m🔗 Connected edge=${this.edgeId} user=${this.userId}\x1b[0m`);
         run(async () => {
           this.updateConfig({ installedTools: await scanCatalogTools() });
-          autoMountRcloneRemotes();
+          await autoMountRcloneRemotes();
         });
         break;
 

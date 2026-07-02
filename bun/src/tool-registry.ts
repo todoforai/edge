@@ -55,17 +55,35 @@ function binFileName(name: string): string {
   return TOOL_CATALOG[name]?.binName ?? name;
 }
 
-/** Check if a tool is installed (installer-aware). */
+/** Shell command that checks whether a pip tool is importable/present. */
+function pipCheckCmd(entry: typeof TOOL_CATALOG[string]): string {
+  return entry.statusCmd || `python3 -c 'import ${entry.pkg.replace(/-/g, "_")}' 2>/dev/null`;
+}
+
+/** Check if a tool is installed (installer-aware). Sync — spawnSync for pip tools
+ *  blocks the event loop, so only use off the reconnect path (user-triggered
+ *  install flows). Reconnect scanning uses isToolInstalledAsync. */
 export function isToolInstalled(name: string): boolean {
   const entry = TOOL_CATALOG[name];
   if (!entry) return false;
-  
+
   if (entry.installer === "pip") {
-    const checkCmd = entry.statusCmd || `python3 -c 'import ${entry.pkg.replace(/-/g, "_")}' 2>/dev/null`;
-    const r = spawnSync("sh", ["-c", checkCmd], { stdio: "pipe", timeout: 5_000 });
+    const r = spawnSync("sh", ["-c", pipCheckCmd(entry)], { stdio: "pipe", timeout: 5_000, env: buildEnvWithTools() });
     return r.status === 0;
   }
-  
+
+  return whichWithTools(binFileName(name)) !== null;
+}
+
+/** Async isToolInstalled — non-blocking pip check for the reconnect scan path. */
+async function isToolInstalledAsync(name: string): Promise<boolean> {
+  const entry = TOOL_CATALOG[name];
+  if (!entry) return false;
+
+  if (entry.installer === "pip") {
+    return (await execShellAsync(pipCheckCmd(entry), buildEnvWithTools(), 5_000)).status === 0;
+  }
+
   return whichWithTools(binFileName(name)) !== null;
 }
 
@@ -394,6 +412,15 @@ export async function autoInstallMissingTools(content: string): Promise<string> 
 /** Scan all catalog tools: check binary presence, version, and auth status. */
 type ToolState = { installed: boolean; version?: string; statusOutput?: string; authenticated?: boolean };
 
+/** Async execFile that never rejects: resolves {status, stdout, stderr}. Non-blocking spawnSync replacement. */
+function execFileAsync(file: string, args: string[], timeout: number, env?: NodeJS.ProcessEnv): Promise<{ status: number; stdout: string; stderr: string }> {
+  return new Promise(resolve => {
+    execFile(file, args, { env, timeout, encoding: "utf-8", maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => {
+      resolve({ status: err ? 1 : 0, stdout: (stdout || "").toString(), stderr: (stderr || "").toString() });
+    });
+  });
+}
+
 function execShellAsync(cmd: string, env: NodeJS.ProcessEnv, timeout: number): Promise<{ status: number; stdout: string; stderr: string }> {
   return new Promise(resolve => {
     execFile("sh", ["-c", cmd], { env, timeout, encoding: "utf-8", maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => {
@@ -407,17 +434,16 @@ export async function scanCatalogTools(): Promise<Record<string, ToolState>> {
   const env = buildEnvWithTools();
 
   const entries = Object.entries(TOOL_CATALOG);
-  // Check installation synchronously (fast which lookups), then run version/status checks in parallel
+  // Installed-check in parallel (pip tools shell out — must not block the loop),
+  // then run version/status checks in parallel.
   const installed: [string, typeof TOOL_CATALOG[string]][] = [];
-  const missing: string[] = [];
-  for (const [name, entry] of entries) {
-    if (!isToolInstalled(name)) {
-      result[name] = { installed: false };
-      missing.push(name);
-    } else {
+  await Promise.all(entries.map(async ([name, entry]) => {
+    if (await isToolInstalledAsync(name)) {
       installed.push([name, entry]);
+    } else {
+      result[name] = { installed: false };
     }
-  }
+  }));
 
   await Promise.all(installed.map(async ([name, entry]) => {
     const state: ToolState = { installed: true };
@@ -463,18 +489,15 @@ const IS_LINUX = os.platform() === "linux";
 const IS_MAC   = os.platform() === "darwin";
 const HAS_FUSE = IS_LINUX || IS_MAC;
 
-function isMounted(mountPoint: string): boolean {
+// Async only — spawnSync here would freeze Bun's single-threaded event loop
+// and stall all edge RPCs (file reads time out while shell survives).
+async function isMounted(mountPoint: string): Promise<boolean> {
   if (!HAS_FUSE) return false;
-  try {
-    if (IS_LINUX) {
-      return spawnSync("mountpoint", ["-q", mountPoint], { stdio: "pipe", timeout: 3_000 }).status === 0;
-    }
-    // macOS: check /sbin/mount output
-    const r = spawnSync("mount", [], { stdio: "pipe", timeout: 3_000, encoding: "utf-8" });
-    return (r.stdout || "").includes(mountPoint);
-  } catch {
-    return false;
+  if (IS_LINUX) {
+    return (await execFileAsync("mountpoint", ["-q", mountPoint], 3_000)).status === 0;
   }
+  const r = await execFileAsync("mount", [], 3_000);
+  return r.stdout.includes(mountPoint);
 }
 
 function unmountPoint(mountPoint: string): void {
@@ -521,7 +544,7 @@ export async function refreshMountPath(absPath: string): Promise<void> {
   }
 }
 
-function mountRemote(remote: string, mountPoint: string): boolean {
+async function mountRemote(remote: string, mountPoint: string): Promise<boolean> {
   const rclone = whichWithTools("rclone");
   if (!rclone) return false;
 
@@ -531,7 +554,7 @@ function mountRemote(remote: string, mountPoint: string): boolean {
   // Always register before the isMounted check — needed even if already mounted (e.g. after edge restart)
   rcPortMap.set(remote, port);
 
-  if (isMounted(mountPoint)) {
+  if (await isMounted(mountPoint)) {
     log("info", `Already mounted: ${remote}: → ${mountPoint}`);
     return true;
   }
@@ -541,20 +564,20 @@ function mountRemote(remote: string, mountPoint: string): boolean {
     "--rc", "--rc-addr", `localhost:${port}`,
     "--log-file", logFile];
   log("info", `Mounting ${remote}: → ${mountPoint}`);
-  const r = spawnSync(rclone, args, { stdio: "pipe", timeout: 10_000, env: buildEnvWithTools() });
+  const r = await execFileAsync(rclone, args, 10_000, buildEnvWithTools());
   if (r.status !== 0) {
     rcPortMap.delete(remote);
-    log("warn", `Failed to mount ${remote}: ${r.stderr?.toString().trim()}`);
+    log("warn", `Failed to mount ${remote}: ${r.stderr.trim()}`);
     return false;
   }
 
   // Verify the daemon actually mounted (poll up to 3s)
   for (let i = 0; i < 6; i++) {
-    if (isMounted(mountPoint)) {
+    if (await isMounted(mountPoint)) {
       log("info", `Mounted ${remote}: → ${mountPoint}`);
       return true;
     }
-    spawnSync("sleep", ["0.5"], { stdio: "pipe" });
+    await new Promise(res => setTimeout(res, 500));
   }
   // Read rclone log for the actual error
   let logTail = "";
@@ -567,46 +590,46 @@ function mountRemote(remote: string, mountPoint: string): boolean {
   return false;
 }
 
+// CONNECTED_EDGE fires on every reconnect (sleep/resume churn); probing all
+// remotes each time (up to 10s per unreachable remote) is wasteful — throttle
+// to one probe pass per interval.
+let lastProbe = 0;
+const AUTO_MOUNT_INTERVAL_MS = 10 * 60_000;
+
 /** Mount all configured rclone remotes that aren't already mounted. */
-export function autoMountRcloneRemotes(): void {
+export async function autoMountRcloneRemotes(): Promise<void> {
   if (!HAS_FUSE) return;
+  if (Date.now() - lastProbe < AUTO_MOUNT_INTERVAL_MS) return;
+  lastProbe = Date.now();
 
   const rclone = whichWithTools("rclone");
   if (!rclone) return;
 
-  let remotes: string[];
-  try {
-    const r = spawnSync(rclone, ["listremotes"], { stdio: "pipe", timeout: 5_000, env: buildEnvWithTools() });
-    if (r.status !== 0) return;
-    remotes = (r.stdout?.toString() || "").trim().split("\n").map(s => s.replace(/:$/, "")).filter(Boolean);
-  } catch { return; }
+  const r = await execFileAsync(rclone, ["listremotes"], 5_000, buildEnvWithTools());
+  if (r.status !== 0) return;
+  const remotes = r.stdout.trim().split("\n").map(s => s.replace(/:$/, "")).filter(Boolean);
 
   for (const remote of remotes) {
     const safeName = sanitizeRemoteName(remote);
     const mountPoint = path.join(MNT_DIR, safeName);
 
     // Generic health check: can we reach the remote at all?
-    const check = spawnSync(rclone, ["lsd", `${remote}:`, "--max-depth", "0"], {
-      stdio: "pipe", timeout: 10_000, env: buildEnvWithTools(),
-    });
+    const check = await execFileAsync(rclone, ["lsd", `${remote}:`, "--max-depth", "0"], 10_000, buildEnvWithTools());
     if (check.status !== 0) {
       log("info", `Skipping mount for ${remote} (not reachable)`);
       continue;
     }
 
-    mountRemote(remote, mountPoint);
+    await mountRemote(remote, mountPoint);
   }
 }
 
-/** Unmount all rclone FUSE mounts under ~/.todoforai/mnt/. */
+/** Unmount all rclone FUSE mounts under ~/.todoforai/mnt/.
+ *  Sync (process-exit path). Unmounting a non-mounted dir fails silently. */
 export function unmountAllRclone(): void {
   if (!HAS_FUSE || !fs.existsSync(MNT_DIR)) return;
   for (const entry of fs.readdirSync(MNT_DIR, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    const mountPoint = path.join(MNT_DIR, entry.name);
-    if (isMounted(mountPoint)) {
-      log("info", `Unmounting ${mountPoint}`);
-      unmountPoint(mountPoint);
-    }
+    unmountPoint(path.join(MNT_DIR, entry.name));
   }
 }
