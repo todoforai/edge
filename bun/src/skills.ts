@@ -1,9 +1,12 @@
-// Discover SKILL.md files under .agents/skills/ for given workspace roots and $HOME.
+// Discover SKILL.md files under .agents/skills/ and .claude/skills/ for given workspace roots and $HOME.
 // Reads only YAML frontmatter — body is loaded later via existing read_file when mentioned.
 
 import fs from "fs";
 import path from "path";
 import os from "os";
+
+// Directories (relative to a root) that may contain a skills tree.
+const SKILL_DIRS = [".agents", ".claude"];
 
 const MAX_DEPTH = 6;
 const MAX_DIRS_PER_ROOT = 2000;
@@ -28,10 +31,14 @@ export async function discoverSkills(
 ): Promise<{ skills: SkillMeta[]; errors: SkillError[] }> {
   const includeUserScope = opts.includeUserScope ?? true;
   const roots: { path: string; scope: SkillScope }[] = [
-    ...rootPaths.map((p) => ({ path: path.join(p, ".agents", "skills"), scope: "repo" as const })),
+    ...rootPaths.flatMap((p) =>
+      SKILL_DIRS.map((d) => ({ path: path.join(p, d, "skills"), scope: "repo" as const })),
+    ),
   ];
   if (includeUserScope) {
-    roots.push({ path: path.join(os.homedir(), ".agents", "skills"), scope: "user" });
+    for (const d of SKILL_DIRS) {
+      roots.push({ path: path.join(os.homedir(), d, "skills"), scope: "user" });
+    }
   }
 
   const skills: SkillMeta[] = [];
@@ -50,7 +57,11 @@ export async function discoverSkills(
     walkRoot(root.path, root.scope, skills, errors, seenSkillPaths);
   }
 
-  return { skills, errors };
+  // First-wins name dedupe: roots are priority-ordered (repo .agents → repo .claude → user).
+  const seenNames = new Set<string>();
+  const unique = skills.filter((s) => !seenNames.has(s.name) && seenNames.add(s.name));
+
+  return { skills: unique, errors };
 }
 
 function walkRoot(root: string, scope: SkillScope, skills: SkillMeta[], errors: SkillError[], seen: Set<string>) {

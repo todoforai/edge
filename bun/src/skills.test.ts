@@ -49,6 +49,41 @@ describe("discoverSkills", () => {
     fs.rmSync(tmp, { recursive: true });
   });
 
+  test("finds SKILL.md under .claude/skills too", async () => {
+    const tmp = makeTmpDir();
+    makeStructure(tmp, {
+      ".claude": { skills: { fmt: { "SKILL.md": validSkill("fmt", "Formats.") } } },
+    });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    expect(errors).toEqual([]);
+    expect(skills.map((s) => s.name)).toEqual(["fmt"]);
+    expect(skills[0].path).toBe(path.join(tmp, ".claude", "skills", "fmt", "SKILL.md"));
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("dedupes by name: repo .agents wins over .claude", async () => {
+    const tmp = makeTmpDir();
+    makeStructure(tmp, {
+      ".agents": { skills: { dup: { "SKILL.md": validSkill("dup", "from agents") } } },
+      ".claude": { skills: { dup: { "SKILL.md": validSkill("dup", "from claude") } } },
+    });
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
+    expect(skills.length).toBe(1);
+    expect(skills[0].description).toBe("from agents");
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("merges skills from .agents and .claude in the same root", async () => {
+    const tmp = makeTmpDir();
+    makeStructure(tmp, {
+      ".agents": { skills: { a: { "SKILL.md": validSkill("a", "x") } } },
+      ".claude": { skills: { b: { "SKILL.md": validSkill("b", "y") } } },
+    });
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
+    expect(skills.map((s) => s.name).sort()).toEqual(["a", "b"]);
+    fs.rmSync(tmp, { recursive: true });
+  });
+
   test("returns empty when .agents/skills missing", async () => {
     const tmp = makeTmpDir();
     const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
