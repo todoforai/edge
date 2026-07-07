@@ -403,7 +403,10 @@ export function uninstallTool(name: string): boolean {
 export async function autoInstallMissingTools(content: string): Promise<string> {
   const lines = [];
   for (const name of findMissingTools(content)) {
-    const ok = await ensureTool(name) && isToolInstalled(name);
+    // `isToolInstalled` alone judges success: catalog aliases sharing one binary
+    // (zele/zele-calendar) make the second ensureTool a no-op returning false.
+    await ensureTool(name);
+    const ok = isToolInstalled(name);
     lines.push(`$ ${getInstallCommand(name)}\n[${ok ? "installed" : "install failed"}: ${name}]`);
   }
   return lines.length ? lines.join("\n") + "\n" : "";
