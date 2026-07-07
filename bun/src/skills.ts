@@ -1,4 +1,9 @@
 // Discover SKILL.md files under .agents/skills/ and .claude/skills/ for given workspace roots and $HOME.
+// Also discovers Claude Code-style plugins under .agents/plugins/ and .claude/plugins/:
+// each <plugins>/<dir>/ may carry a `.claude-plugin/plugin.json` manifest (name; falls back
+// to the directory name) plus `skills/**/SKILL.md` and `commands/**/*.md`. Commands are
+// surfaced as SkillMeta with kind="command" so they ride the existing skills pipeline
+// (skill tool name→path resolution, @mention autocomplete) with no new wire format.
 // Reads only YAML frontmatter — body is loaded later via existing read_file when mentioned.
 
 import fs from "fs";
@@ -15,13 +20,18 @@ const MAX_NAME_LEN = 64;
 const MAX_DESC_LEN = 1024;
 
 export type SkillScope = "repo" | "user";
+export type SkillKind = "skill" | "command";
 export type SkillMeta = {
   name: string;
   description: string;
   shortDescription?: string;
-  /** Absolute path to the SKILL.md (used internally by SkillTool, not shown to the LLM). */
+  /** Absolute path to the SKILL.md / command .md (used internally by SkillTool, not shown to the LLM). */
   path: string;
   scope: SkillScope;
+  /** Omitted for plain skills (wire compat); "command" for plugin commands/*.md. */
+  kind?: SkillKind;
+  /** Plugin name when discovered inside a plugin directory. */
+  plugin?: string;
 };
 export type SkillError = { path: string; message: string };
 
@@ -30,31 +40,37 @@ export async function discoverSkills(
   opts: { includeUserScope?: boolean } = {},
 ): Promise<{ skills: SkillMeta[]; errors: SkillError[] }> {
   const includeUserScope = opts.includeUserScope ?? true;
-  const roots: { path: string; scope: SkillScope }[] = [
+  const bases: { base: string; scope: SkillScope }[] = [
     ...rootPaths.flatMap((p) =>
-      SKILL_DIRS.map((d) => ({ path: path.join(p, d, "skills"), scope: "repo" as const })),
+      SKILL_DIRS.map((d) => ({ base: path.join(p, d), scope: "repo" as const })),
     ),
   ];
   if (includeUserScope) {
     for (const d of SKILL_DIRS) {
-      roots.push({ path: path.join(os.homedir(), d, "skills"), scope: "user" });
+      bases.push({ base: path.join(os.homedir(), d), scope: "user" });
     }
   }
 
   const skills: SkillMeta[] = [];
   const errors: SkillError[] = [];
   const seenSkillPaths = new Set<string>();
-  const seenRoots = new Set<string>();
+  const seenBases = new Set<string>();
 
-  for (const root of roots) {
-    if (seenRoots.has(root.path)) continue;
-    seenRoots.add(root.path);
+  for (const { base, scope } of bases) {
+    if (seenBases.has(base)) continue;
+    seenBases.add(base);
 
-    let stat: fs.Stats;
-    try { stat = fs.statSync(root.path); } catch { continue; }
-    if (!stat.isDirectory()) continue;
-
-    walkRoot(root.path, root.scope, skills, errors, seenSkillPaths);
+    if (isDir(path.join(base, "skills"))) {
+      walkRoot(path.join(base, "skills"), scope, skills, errors, seenSkillPaths);
+    }
+    for (const plugin of listPluginDirs(path.join(base, "plugins"))) {
+      if (isDir(path.join(plugin.dir, "skills"))) {
+        walkRoot(path.join(plugin.dir, "skills"), scope, skills, errors, seenSkillPaths, plugin.name);
+      }
+      if (isDir(path.join(plugin.dir, "commands"))) {
+        walkCommands(path.join(plugin.dir, "commands"), scope, plugin.name, skills, errors, seenSkillPaths);
+      }
+    }
   }
 
   // First-wins name dedupe: roots are priority-ordered (repo .agents → repo .claude → user).
@@ -64,7 +80,29 @@ export async function discoverSkills(
   return { skills: unique, errors };
 }
 
-function walkRoot(root: string, scope: SkillScope, skills: SkillMeta[], errors: SkillError[], seen: Set<string>) {
+function isDir(p: string): boolean {
+  try { return fs.statSync(p).isDirectory(); } catch { return false; }
+}
+
+/** List plugin dirs under <base>/plugins. Name from `.claude-plugin/plugin.json`, falling back to the dir name. */
+function listPluginDirs(pluginsRoot: string): { dir: string; name: string }[] {
+  let entries: fs.Dirent[];
+  try { entries = fs.readdirSync(pluginsRoot, { withFileTypes: true }); } catch { return []; }
+  const out: { dir: string; name: string }[] = [];
+  for (const e of entries) {
+    if (e.name.startsWith(".") || !e.isDirectory()) continue;
+    const dir = path.join(pluginsRoot, e.name);
+    let name = e.name;
+    try {
+      const manifest = JSON.parse(fs.readFileSync(path.join(dir, ".claude-plugin", "plugin.json"), "utf-8"));
+      if (typeof manifest?.name === "string" && manifest.name.trim()) name = sanitize(manifest.name);
+    } catch { /* manifest optional — dir name is the fallback */ }
+    out.push({ dir, name });
+  }
+  return out;
+}
+
+function walkRoot(root: string, scope: SkillScope, skills: SkillMeta[], errors: SkillError[], seen: Set<string>, plugin?: string) {
   const queue: { dir: string; depth: number }[] = [{ dir: root, depth: 0 }];
   let dirsVisited = 0;
 
@@ -100,20 +138,93 @@ function walkRoot(root: string, scope: SkillScope, skills: SkillMeta[], errors: 
         if (seen.has(full)) continue;
         seen.add(full);
         const skill = parseSkillFile(full, scope, errors);
-        if (skill) skills.push(skill);
+        if (skill) skills.push(plugin ? { ...skill, plugin } : skill);
       }
     }
   }
 }
 
+/** Walk a plugin's commands/ dir for *.md prompt templates. Frontmatter is optional
+ *  (name falls back to the file stem, description to ""). */
+function walkCommands(root: string, scope: SkillScope, plugin: string, skills: SkillMeta[], errors: SkillError[], seen: Set<string>) {
+  const queue: { dir: string; depth: number }[] = [{ dir: root, depth: 0 }];
+  let dirsVisited = 0;
+
+  for (let i = 0; i < queue.length; i++) {
+    const { dir, depth } = queue[i];
+    if (depth > MAX_DEPTH) continue;
+    if (dirsVisited++ >= MAX_DIRS_PER_ROOT) break;
+
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (e: any) {
+      errors.push({ path: dir, message: `read dir failed: ${e?.message ?? e}` });
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (entry.name.startsWith(".")) continue;
+      const full = path.join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        queue.push({ dir: full, depth: depth + 1 });
+        continue;
+      }
+
+      let isFile = entry.isFile();
+      if (entry.isSymbolicLink()) {
+        try { isFile = fs.statSync(full).isFile(); } catch { continue; }
+      }
+
+      if (isFile && entry.name.endsWith(".md")) {
+        if (seen.has(full)) continue;
+        seen.add(full);
+        const cmd = parseCommandFile(full, scope, plugin, errors);
+        if (cmd) skills.push(cmd);
+      }
+    }
+  }
+}
+
+function parseCommandFile(filePath: string, scope: SkillScope, plugin: string, errors: SkillError[]): SkillMeta | null {
+  let head: string;
+  try {
+    head = readHead(filePath);
+  } catch (e: any) {
+    errors.push({ path: filePath, message: `read failed: ${e?.message ?? e}` });
+    return null;
+  }
+
+  const frontmatter = extractFrontmatter(head);
+  const fm = frontmatter ? parseSimpleYaml(frontmatter) : {};
+  const name = sanitize(fm.name) || path.basename(filePath, ".md");
+  const description = sanitize(fm.description) || "";
+
+  if (!name || name.length > MAX_NAME_LEN) {
+    errors.push({ path: filePath, message: `invalid name (empty or > ${MAX_NAME_LEN} chars)` });
+    return null;
+  }
+  if (description.length > MAX_DESC_LEN) {
+    errors.push({ path: filePath, message: `description > ${MAX_DESC_LEN} chars` });
+    return null;
+  }
+
+  return { name, description, path: filePath, scope, kind: "command", plugin };
+}
+
+function readHead(filePath: string): string {
+  const fd = fs.openSync(filePath, "r");
+  const buf = Buffer.alloc(FRONTMATTER_BYTES);
+  const bytes = fs.readSync(fd, buf, 0, FRONTMATTER_BYTES, 0);
+  fs.closeSync(fd);
+  return buf.subarray(0, bytes).toString("utf-8");
+}
+
 function parseSkillFile(filePath: string, scope: SkillScope, errors: SkillError[]): SkillMeta | null {
   let head: string;
   try {
-    const fd = fs.openSync(filePath, "r");
-    const buf = Buffer.alloc(FRONTMATTER_BYTES);
-    const bytes = fs.readSync(fd, buf, 0, FRONTMATTER_BYTES, 0);
-    fs.closeSync(fd);
-    head = buf.subarray(0, bytes).toString("utf-8");
+    head = readHead(filePath);
   } catch (e: any) {
     errors.push({ path: filePath, message: `read failed: ${e?.message ?? e}` });
     return null;

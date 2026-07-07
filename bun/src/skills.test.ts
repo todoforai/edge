@@ -192,6 +192,95 @@ describe("discoverSkills", () => {
     }
   });
 
+  test("discovers plugin skills and commands under .agents/plugins", async () => {
+    const tmp = makeTmpDir();
+    makeStructure(tmp, {
+      ".agents": {
+        plugins: {
+          "my-plugin": {
+            ".claude-plugin": { "plugin.json": JSON.stringify({ name: "my-plugin", version: "1.0.0" }) },
+            skills: { fmt: { "SKILL.md": validSkill("fmt", "Formats.") } },
+            commands: { "code-review.md": "---\ndescription: Review the current diff.\n---\nReview the diff: $ARGUMENTS\n" },
+          },
+        },
+      },
+    });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    expect(errors).toEqual([]);
+    const byName = Object.fromEntries(skills.map((s) => [s.name, s]));
+    expect(byName.fmt.plugin).toBe("my-plugin");
+    expect(byName.fmt.kind).toBeUndefined();
+    expect(byName["code-review"].kind).toBe("command");
+    expect(byName["code-review"].plugin).toBe("my-plugin");
+    expect(byName["code-review"].description).toBe("Review the current diff.");
+    expect(byName["code-review"].path).toBe(path.join(tmp, ".agents", "plugins", "my-plugin", "commands", "code-review.md"));
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("plugin command without frontmatter falls back to file stem", async () => {
+    const tmp = makeTmpDir();
+    makeStructure(tmp, {
+      ".claude": { plugins: { p: { commands: { "fix-issue.md": "Fix the issue: $ARGUMENTS\n" } } } },
+    });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    expect(errors).toEqual([]);
+    expect(skills.length).toBe(1);
+    expect(skills[0].name).toBe("fix-issue");
+    expect(skills[0].kind).toBe("command");
+    expect(skills[0].plugin).toBe("p"); // no manifest → dir name
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("plugin manifest name overrides dir name; non-md files ignored", async () => {
+    const tmp = makeTmpDir();
+    makeStructure(tmp, {
+      ".agents": {
+        plugins: {
+          "dir-name": {
+            ".claude-plugin": { "plugin.json": JSON.stringify({ name: "real-name" }) },
+            commands: { "cmd.md": "body\n", "README.txt": "not a command\n" },
+          },
+        },
+      },
+    });
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
+    expect(skills.length).toBe(1);
+    expect(skills[0].plugin).toBe("real-name");
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("plugin skill/command names dedupe first-wins against plain skills", async () => {
+    const tmp = makeTmpDir();
+    makeStructure(tmp, {
+      ".agents": {
+        skills: { dup: { "SKILL.md": validSkill("dup", "plain skill") } },
+        plugins: { p: { commands: { "dup.md": "---\ndescription: plugin command\n---\nbody\n" } } },
+      },
+    });
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
+    expect(skills.length).toBe(1);
+    expect(skills[0].description).toBe("plain skill");
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("malformed plugin.json falls back to dir name, keeps scanning", async () => {
+    const tmp = makeTmpDir();
+    makeStructure(tmp, {
+      ".agents": {
+        plugins: {
+          broken: {
+            ".claude-plugin": { "plugin.json": "{not json" },
+            commands: { "go.md": "body\n" },
+          },
+        },
+      },
+    });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    expect(errors).toEqual([]);
+    expect(skills[0].plugin).toBe("broken");
+    fs.rmSync(tmp, { recursive: true });
+  });
+
   test("tolerates trailing whitespace on --- delimiters", async () => {
     const tmp = makeTmpDir();
     const content = "---  \nname: tol\ndescription: ok\n--- \n# body\n";
