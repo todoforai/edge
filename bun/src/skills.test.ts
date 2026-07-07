@@ -174,6 +174,30 @@ describe("discoverSkills", () => {
     fs.rmSync(tmp, { recursive: true });
   });
 
+  test("parses folded (>) and literal (|) block scalar descriptions", async () => {
+    const tmp = makeTmpDir();
+    const folded =
+      "---\nname: folded\ndescription: >\n  line one\n  line two\n\n  after blank\nmetadata:\n  short-description: short\n---\n# body\n";
+    const literal = "---\nname: literal\ndescription: |\n  line one\n  line two\n---\n# body\n";
+    makeStructure(tmp, {
+      ".agents": {
+        skills: {
+          folded: { "SKILL.md": folded },
+          literal: { "SKILL.md": literal },
+        },
+      },
+    });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    expect(errors).toEqual([]);
+    const f = skills.find((s) => s.name === "folded")!;
+    // sanitize() collapses whitespace, so folded/literal both end up space-joined
+    expect(f.description).toBe("line one line two after blank");
+    expect(f.shortDescription).toBe("short");
+    const l = skills.find((s) => s.name === "literal")!;
+    expect(l.description).toBe("line one line two");
+    fs.rmSync(tmp, { recursive: true });
+  });
+
   test("user-scope skill path is absolute (so read_file resolves it regardless of workspace roots)", async () => {
     const home = os.homedir();
     const skillDir = path.join(home, ".agents", "skills", "__test_user_scope__");

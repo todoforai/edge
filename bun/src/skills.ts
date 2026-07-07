@@ -278,8 +278,8 @@ function parseSimpleYaml(text: string): Record<string, string> {
   const lines = text.split(/\r?\n/);
   let inMetadata = false;
 
-  for (const raw of lines) {
-    const line = raw.replace(/\s+$/, "");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].replace(/\s+$/, "");
     if (!line || line.trimStart().startsWith("#")) continue;
 
     const indent = line.length - line.trimStart().length;
@@ -291,7 +291,13 @@ function parseSimpleYaml(text: string): Record<string, string> {
       if (!m) continue;
       const [, key, val] = m;
       if (val === "" && key === "metadata") { inMetadata = true; continue; }
-      out[key] = unquote(val);
+      if (/^[>|][+-]?$/.test(val)) {
+        const [block, next] = readBlockScalar(lines, i + 1, indent, val[0] === ">");
+        out[key] = block;
+        i = next - 1;
+      } else {
+        out[key] = unquote(val);
+      }
     } else if (inMetadata) {
       const m = trimmed.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*)$/);
       if (!m) continue;
@@ -300,6 +306,25 @@ function parseSimpleYaml(text: string): Record<string, string> {
     }
   }
   return out;
+}
+
+/** Reads a YAML block scalar (`>` folded / `|` literal) body. Returns [value, index of first line after the block]. */
+function readBlockScalar(lines: string[], start: number, parentIndent: number, folded: boolean): [string, number] {
+  const body: string[] = [];
+  let i = start;
+  for (; i < lines.length; i++) {
+    const line = lines[i].replace(/\s+$/, "");
+    if (!line) { body.push(""); continue; }
+    const indent = line.length - line.trimStart().length;
+    if (indent <= parentIndent) break;
+    body.push(line.trimStart());
+  }
+  // drop trailing blank lines
+  while (body.length && !body[body.length - 1]) body.pop();
+  const value = folded
+    ? body.map(l => l || "\n").join(" ").replace(/ ?\n ?/g, "\n")
+    : body.join("\n");
+  return [value, i];
 }
 
 function unquote(s: string): string {
