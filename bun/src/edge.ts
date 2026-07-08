@@ -464,6 +464,11 @@ export class TODOforAIEdge {
       const ws = new WebSocket(url, [this.api.apiKey], {
         maxPayload: 5 * 1024 * 1024,
         rejectUnauthorized: false,
+        // Without this, a hung handshake (common right after a network drop:
+        // SYN sent, socket stuck half-open) never emits open/close/error, so
+        // connect() blocks forever and the reconnect loop stalls. On timeout
+        // ws emits `error`, which our handler turns into resolve(0) → retry.
+        handshakeTimeout: 15_000,
       });
       this.ws = ws;
 
