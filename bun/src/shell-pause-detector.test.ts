@@ -95,25 +95,38 @@ describe("pauseDetector ECHO-off (cross-platform)", () => {
   });
 });
 
-// Multi-leaf pipeline: `inner | head` has two foreground leaves — the
-// interactive `inner` parked on the tty read, and `head` on the pipe. The
-// detector must inspect BOTH and fire on the terminal-read leaf. Linux only
+// Whole-tree scan (like the C bridge's process-group probe): the detector must
+// find the terminal-read anywhere in the tree, not just at a leaf. Linux only
 // (uses the /proc syscall signal). Regression for `./server ... | head -40`.
 const isLinux = process.platform === "linux";
-describe.if(isLinux)("pauseDetector pipeline leaf (real process)", () => {
-  test("read behind a pipe (`inner | head`) fires paused", async () => {
-    const proc = Bun.spawn(
-      ["/bin/bash", "-c", "bash -c 'echo X; read t; echo got=$t' 2>&1 | head -40"],
+describe.if(isLinux)("pauseDetector whole-tree scan (real process)", () => {
+  // Fires iff SOME process in `cmd`'s tree parks on a terminal read within ~1.2s.
+  const fires = async (cmd: string) => {
+    const proc = Bun.spawn(["/bin/bash", "-c", cmd],
       { stdin: "pipe", stdout: "pipe", stderr: "pipe" });
     (async () => { for await (const _ of proc.stdout as any) { /* drain */ } })();
-
     let fired = false;
     const w = pauseDetector.watch(proc.pid, () => { fired = true; });
-    await tick(1200); // > GRACE_TICKS * POLL_MS, enough for tree walk
-    expect(fired).toBe(true);
+    await tick(1200); // > GRACE_TICKS * POLL_MS, enough for the tree walk
+    proc.stdin!.write("x\n"); proc.stdin!.flush?.();
+    proc.kill(); await proc.exited.catch(() => {}); w.cancel();
+    return fired;
+  };
 
-    proc.stdin!.write("hi\n"); proc.stdin!.flush?.();
-    await proc.exited;
-    w.cancel();
+  // The bug: interactive `inner` blocks on the tty while `head` sits on the pipe
+  // (a non-leaf-only walk would inspect only `head` and miss it).
+  test("read behind a pipe (`inner | head`)", async () => {
+    expect(await fires("bash -c 'echo X; read t' 2>&1 | head -40")).toBe(true);
+  }, 15000);
+
+  // The shell itself blocks on `read` with a live background child — the shell
+  // is NOT a leaf, so a leaf-only walk would skip it.
+  test("`sleep 100 & read x` (shell blocks with a live child)", async () => {
+    expect(await fires("sleep 100 & read x")).toBe(true);
+  }, 15000);
+
+  // Nothing parked on a tty read → must NOT fire (grep sits on a pipe).
+  test("negative: pipe with no terminal read does not fire", async () => {
+    expect(await fires("yes | head -100000000 | grep zzz")).toBe(false);
   }, 15000);
 });

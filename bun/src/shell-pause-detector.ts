@@ -3,9 +3,12 @@
 //   1. ECHO-off on the PTY (cross-platform, Linux + macOS): getpass(3)/sudo/ssh/su disable
 //      terminal echo before reading a password; raw-mode TUIs do the same while waiting for
 //      keystrokes. Read straight off Bun.Terminal.localFlags (the termios c_lflag) — no /proc.
-//   2. Linux only: /proc/<pid>/syscall on the foreground (leaf) descendant sitting in `read`
-//      on a terminal fd (the shell's own pts, or /dev/tty). Catches echo-ON line prompts
-//      (`read x`, a bare `cat`) that signal #1 misses.
+//   2. Linux only: /proc/<pid>/syscall on ANY process in the tree (the shell or any
+//      descendant) sitting in `read` on a terminal fd (the shell's own pts, or /dev/tty).
+//      Scanning the whole tree — like the C bridge's foreground process-group scan —
+//      catches echo-ON line prompts (`read x`, a bare `cat`) that signal #1 misses,
+//      including a prompt behind a pipe (`inner | head`) or a shell blocked on `read`
+//      while a background child stays alive.
 // We deliberately do NOT watch poll/select/ppoll/pselect6: those fire on any socket/file
 //   wait (git push, curl, npm, ssh handshake), causing false-positive paused states.
 
@@ -64,17 +67,21 @@ class PtyPauseDetector implements PauseDetector {
       // password prompt, or a raw-mode TUI parked on a keystroke. Covers sudo on
       // both Linux and macOS, where its setuid /proc is unreadable (EACCES).
       let blocked = terminal != null && !(terminal.localFlags & ECHO);
-      // Signal 2 (Linux only): ANY leaf descendant parked in read() on a terminal
-      // fd. Catches echo-ON line prompts (`read x`, bare `cat`) that signal 1
-      // misses. Checks every pipeline branch: `inner | head` has two leaves — the
-      // interactive `inner` is terminal-read-blocked while `head` sits on the
-      // pipe; the predicate rejects the pipe leaf and accepts the terminal one.
+      // Signal 2 (Linux only): ANY process in the tree (the shell itself or any
+      // descendant) parked in read() on a terminal fd. Catches echo-ON line
+      // prompts (`read x`, bare `cat`) that signal 1 misses. Checking the WHOLE
+      // tree — not just leaves — covers three shapes at once, like the C bridge's
+      // process-group scan: `inner | head` (interactive `inner` blocks, `head`
+      // sits on the pipe → predicate accepts the tty leaf, rejects the pipe one);
+      // a shell builtin `read` (the shell blocks with no children); and
+      // `sleep 100 & read x` (the shell blocks while a child stays alive — not a
+      // leaf, so a leaf-only walk would miss it).
       if (!blocked && IS_LINUX) {
-        for (const leaf of await getLeafPids(pid)) {
-          const sc = await readSyscall(leaf);
-          const leafTarget = sc && sc.nr === READ_NR && sc.fd >= 0
-            ? await readFdTarget(leaf, sc.fd) : null;
-          if (isTerminalReadPause(sc, leafTarget, rootStdin)) { blocked = true; break; }
+        for (const proc of await collectTree(pid)) {
+          const sc = await readSyscall(proc);
+          const target = sc && sc.nr === READ_NR && sc.fd >= 0
+            ? await readFdTarget(proc, sc.fd) : null;
+          if (isTerminalReadPause(sc, target, rootStdin)) { blocked = true; break; }
         }
       }
       if (blocked) {
@@ -132,22 +139,19 @@ async function readSyscall(pid: number): Promise<{ nr: number; fd: number } | nu
   } catch { return null; }
 }
 
-/** Collect all leaf pids in the descendant tree — every foreground branch of a
- *  pipeline (`inner | head` has two). BFS, depth-capped to bound the walk. */
-async function getLeafPids(rootPid: number): Promise<number[]> {
-  const leaves: number[] = [];
+/** Collect the whole process tree — the root shell and every descendant. Any of
+ *  them may be the one parked on the terminal read (see the Signal 2 comment).
+ *  BFS, depth-capped to bound the walk. */
+async function collectTree(rootPid: number): Promise<number[]> {
+  const all: number[] = [];
   let frontier = [rootPid];
   for (let depth = 0; depth < 16 && frontier.length; depth++) {
+    all.push(...frontier);
     const next: number[] = [];
-    for (const pid of frontier) {
-      const children = await readChildren(pid);
-      if (children.length === 0) leaves.push(pid);
-      else next.push(...children);
-    }
+    for (const pid of frontier) next.push(...await readChildren(pid));
     frontier = next;
   }
-  // Depth cap hit with pids still pending: treat them as leaves rather than drop.
-  return leaves.length ? leaves.concat(frontier) : frontier;
+  return all;
 }
 
 async function readChildren(pid: number): Promise<number[]> {
