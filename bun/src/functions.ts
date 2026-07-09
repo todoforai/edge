@@ -248,14 +248,15 @@ function extractTrailingTail(cmd: string): { execCmd: string; postFilter?: (s: s
 // Detect data URL image in shell output (same pattern as readFileContent uses)
 const DATA_URL_IMAGE_REGEX = /^data:(image\/[^;]+);base64,[A-Za-z0-9+/]+=*$/;
 
-/** Human-readable tail note when a finished process exited abnormally, so the LLM
- *  isn't handed partial output as if the command succeeded. 124 = timeout(1) kill;
- *  128+N = killed by signal N (137=SIGKILL/OOM, 143=SIGTERM). Empty for 0/null. */
+/** Tail note ONLY for a killed process — so partial output isn't reported as a
+ *  clean finish. 124 = timeout(1) kill; 128+N = killed by signal N (137=SIGKILL/
+ *  OOM, 143=SIGTERM). Ordinary non-zero exits (grep=1, diff=1, test) get nothing:
+ *  they're normal command signalling, not a death, and the code already streams
+ *  to the frontend via shellBlockDone. */
 function exitNotice(code: number | null): string {
-  if (code == null || code === 0) return "";
   if (code === 124) return "\n[command timed out and was killed (exit 124)]";
-  if (code > 128) return `\n[command killed by signal ${code - 128} (exit ${code})]`;
-  return `\n[command exited with code ${code}]`;
+  if (code != null && code > 128) return `\n[command killed by signal ${code - 128} (exit ${code})]`;
+  return "";
 }
 
 function detectContentType(output: string, cmd?: string): { result: string; contentType?: string } {

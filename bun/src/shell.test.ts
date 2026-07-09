@@ -73,26 +73,32 @@ describe.if(linux)("execute_shell_command resume-by-pid", () => {
   }, 30000);
 
   // A finished command that exited non-zero must tell the LLM it failed instead
-  // of returning partial output as if it succeeded.
-  test("non-zero exit appends a notice; success does not", async () => {
+  // of returning partial output as if it succeeded. Only kills get a notice;
+  // ordinary non-zero exits (grep=1, diff=1) must stay clean.
+  test("timeout-kill gets a notice; plain non-zero and success do not", async () => {
     const base = { todoId: "t", messageId: "m", timeout: 20 };
-    const fail: any = await fn({ ...base, blockId: "b-exit3", cmd: "echo oops; exit 3" }, client);
-    expect(fail.result).toContain("oops");
-    expect(fail.result).toMatch(/exited with code 3/);
+    const killed: any = await fn(
+      { ...base, blockId: "b-timeout", cmd: "echo starting; timeout 1 sleep 5" }, client);
+    expect(killed.result).toContain("starting");
+    expect(killed.result).toMatch(/timed out and was killed/);
+
+    const nonzero: any = await fn({ ...base, blockId: "b-nonzero", cmd: "echo hi; exit 1" }, client);
+    expect(nonzero.result.trim()).toBe("hi"); // exit 1, but no death → no notice
 
     const ok: any = await fn({ ...base, blockId: "b-ok", cmd: "echo all good" }, client);
     expect(ok.result.trim()).toBe("all good");
   }, 30000);
 
-  // Resuming a session that then exits non-zero must also carry the exit notice.
-  test("resume that exits non-zero appends a notice", async () => {
-    const base = { todoId: "t", messageId: "m", blockId: "b-resume-fail", timeout: 20 };
-    const r1: any = await fn({ ...base, cmd: "read x; echo partial; exit 5" }, client);
+  // Resuming a session that gets killed after input must carry the kill notice.
+  test("resume that gets killed appends a notice", async () => {
+    const base = { todoId: "t", messageId: "m", blockId: "b-resume-kill", timeout: 20 };
+    const r1: any = await fn(
+      { ...base, cmd: "read x; echo partial; timeout 1 sleep 5" }, client);
     expect(r1.paused).toBe(true);
     const r2: any = await fn({ ...base, cmd: "go", pid: r1.pid }, client);
     expect(r2.paused).toBeUndefined();
     expect(r2.result).toContain("partial");
-    expect(r2.result).toMatch(/exited with code 5/);
+    expect(r2.result).toMatch(/timed out and was killed/);
   }, 30000);
 });
 
