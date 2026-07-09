@@ -114,9 +114,10 @@ export const msg = {
     return { type: EF.TASK_ACTION_UPDATE, payload };
   },
 
-  cdResponse(edgeId: string, path: string, requestId: string, success = true, error?: string): WsMessage {
+  cdResponse(edgeId: string, path: string, requestId: string, success = true, error?: string, branch?: string): WsMessage {
     const payload: Record<string, any> = { edgeId, path, success, requestId };
     if (error) payload.error = error;
+    if (branch) payload.branch = branch;
     return { type: EF.EDGE_CD_RESPONSE, payload };
   },
 

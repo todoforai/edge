@@ -159,6 +159,32 @@ export async function handleWriteFile(payload: Record<string, any>, send: SendFn
 
 const FORBIDDEN_PATHS = new Set(["/", "/tmp", "C:\\", "C:/"]);
 
+// Read the current git branch for a directory by walking up to the .git dir and
+// parsing HEAD. Returns undefined when the path isn't inside a git repo.
+function getGitBranch(dir: string): string | undefined {
+  let cur = dir;
+  while (true) {
+    const gitPath = path.join(cur, ".git");
+    if (fs.existsSync(gitPath)) {
+      try {
+        const stat = fs.statSync(gitPath);
+        // Worktrees/submodules use a `.git` file pointing at the real git dir.
+        const gitDir = stat.isDirectory()
+          ? gitPath
+          : path.resolve(cur, fs.readFileSync(gitPath, "utf-8").replace(/^gitdir:\s*/, "").trim());
+        const head = fs.readFileSync(path.join(gitDir, "HEAD"), "utf-8").trim();
+        const match = head.match(/^ref:\s*refs\/heads\/(.+)$/);
+        return match ? match[1] : head.slice(0, 7); // detached HEAD -> short sha
+      } catch {
+        return undefined;
+      }
+    }
+    const parent = path.dirname(cur);
+    if (parent === cur) return undefined;
+    cur = parent;
+  }
+}
+
 export async function handleCd(
   payload: Record<string, any>,
   send: SendFn,
@@ -179,7 +205,7 @@ export async function handleCd(
       onConfigChange({ workspacepaths: newPaths });
     }
 
-    await send(msg.cdResponse(edgeId, resolved, requestId, true));
+    await send(msg.cdResponse(edgeId, resolved, requestId, true, undefined, getGitBranch(resolved)));
   } catch (e: any) {
     await send(msg.cdResponse(edgeId, rawPath, requestId, false, e.message));
   }
