@@ -254,8 +254,8 @@ const DATA_URL_IMAGE_REGEX = /^data:(image\/[^;]+);base64,[A-Za-z0-9+/]+=*$/;
  *  they're normal command signalling, not a death, and the code already streams
  *  to the frontend via shellBlockDone. */
 function exitNotice(code: number | null): string {
-  if (code === 124) return "\n[command timed out and was killed (exit 124)]";
-  if (code != null && code > 128) return `\n[command killed by signal ${code - 128} (exit ${code})]`;
+  if (code === 124) return "\n[timed out — exit 124]";
+  if (code != null && code > 128) return `\n[killed by signal ${code - 128} — exit ${code}]`;
   return "";
 }
 

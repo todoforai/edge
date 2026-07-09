@@ -80,7 +80,7 @@ describe.if(linux)("execute_shell_command resume-by-pid", () => {
     const killed: any = await fn(
       { ...base, blockId: "b-timeout", cmd: "echo starting; timeout 1 sleep 5" }, client);
     expect(killed.result).toContain("starting");
-    expect(killed.result).toMatch(/timed out and was killed/);
+    expect(killed.result).toMatch(/timed out — exit 124/);
 
     const nonzero: any = await fn({ ...base, blockId: "b-nonzero", cmd: "echo hi; exit 1" }, client);
     expect(nonzero.result.trim()).toBe("hi"); // exit 1, but no death → no notice
@@ -98,7 +98,7 @@ describe.if(linux)("execute_shell_command resume-by-pid", () => {
     const r2: any = await fn({ ...base, cmd: "go", pid: r1.pid }, client);
     expect(r2.paused).toBeUndefined();
     expect(r2.result).toContain("partial");
-    expect(r2.result).toMatch(/timed out and was killed/);
+    expect(r2.result).toMatch(/timed out — exit 124/);
   }, 30000);
 });
 
