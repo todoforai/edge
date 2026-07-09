@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { readFileContent } from "./files.js";
 import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "./path-utils.js";
-import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, isBlockAlive, sendInput, getPid, findBlockIdByPid, consumeExitedOutput, type SendFn } from "./shell.js";
+import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, isBlockAlive, sendInput, getPid, findBlockIdByPid, consumeExitedOutput, getReturnCode, type SendFn } from "./shell.js";
 // `pendingToolApprovals` was imported here to short-circuit the response when
 // executeBlock entered AWAITING_APPROVAL. DEAD with the install-gating removal.
 import { msg } from "./constants.js";
@@ -248,6 +248,16 @@ function extractTrailingTail(cmd: string): { execCmd: string; postFilter?: (s: s
 // Detect data URL image in shell output (same pattern as readFileContent uses)
 const DATA_URL_IMAGE_REGEX = /^data:(image\/[^;]+);base64,[A-Za-z0-9+/]+=*$/;
 
+/** Human-readable tail note when a finished process exited abnormally, so the LLM
+ *  isn't handed partial output as if the command succeeded. 124 = timeout(1) kill;
+ *  128+N = killed by signal N (137=SIGKILL/OOM, 143=SIGTERM). Empty for 0/null. */
+function exitNotice(code: number | null): string {
+  if (code == null || code === 0) return "";
+  if (code === 124) return "\n[command timed out and was killed (exit 124)]";
+  if (code > 128) return `\n[command killed by signal ${code - 128} (exit ${code})]`;
+  return `\n[command exited with code ${code}]`;
+}
+
 function detectContentType(output: string, cmd?: string): { result: string; contentType?: string } {
   const trimmed = output.trim();
   const match = trimmed.match(DATA_URL_IMAGE_REGEX);
@@ -302,14 +312,21 @@ register("execute_shell_command", async (args, client) => {
     let output = rawOutput ?? getBlockOutput(resumeBlockId);
     if (postFilter) output = postFilter(output);
     const stillAlive = isBlockAlive(resumeBlockId);
-    if (!stillAlive) clearBlockOutput(resumeBlockId);
     if (stillAlive) {
       const livePid = getPid(resumeBlockId);
-    // Wire field stays `paused` for older-agent compat; the agent's LLM
-    // footer says "detached" since agent upgrades atomically.
-    return { cmd, result: output, paused: true, ...(livePid ? { pid: livePid } : {}) };
+      // Wire field stays `paused` for older-agent compat; the agent's LLM
+      // footer says "detached" since agent upgrades atomically.
+      return { cmd, result: output, paused: true, ...(livePid ? { pid: livePid } : {}) };
     }
-    return rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
+    // Resumed process finished: surface an abnormal exit like the fresh path.
+    const notice = exitNotice(getReturnCode(resumeBlockId));
+    clearBlockOutput(resumeBlockId);
+    if (rawOutput !== null) {
+      const detected = detectContentType(output, cmd);
+      if (detected.contentType) return { cmd, ...detected };
+      return { cmd, result: detected.result + notice };
+    }
+    return { cmd, result: output + notice };
   }
 
   // ── Fresh exec ──
@@ -333,8 +350,16 @@ register("execute_shell_command", async (args, client) => {
       const livePid = getPid(blockId);
       return { cmd, result: output, paused: true, ...(livePid ? { pid: livePid } : {}) };
     }
+    const notice = exitNotice(getReturnCode(blockId));
     clearBlockOutput(blockId);
-    return rawOutput !== null ? { cmd, ...detectContentType(output, cmd) } : { cmd, result: output };
+    // Image data-URLs stay verbatim (detectContentType); otherwise append the
+    // exit notice so a timed-out/killed command isn't reported as success.
+    if (rawOutput !== null) {
+      const detected = detectContentType(output, cmd);
+      if (detected.contentType) return { cmd, ...detected };
+      return { cmd, result: detected.result + notice };
+    }
+    return { cmd, result: output + notice };
   } catch (e: any) {
     clearBlockOutput(blockId);
     throw e;

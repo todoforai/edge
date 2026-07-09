@@ -139,6 +139,10 @@ type ProcHandle = { terminal?: any; proc?: any; pid: number; resetPauseWatch?: (
 const processes = new Map<string, ProcHandle>();
 const outputBuffers = new Map<string, OutputBuffer>();
 const completionResolvers = new Map<string, () => void>();
+// Last exit code per blockId, set on process exit. Lets the caller tell the LLM
+// the command died (non-zero / timeout-kill 124 / signal) instead of silently
+// returning partial output as if it succeeded. Cleared with the output buffer.
+const returnCodes = new Map<string, number>();
 // DEAD: previously held blockIds awaiting tool-install approval before re-exec.
 // export const pendingToolApprovals = new Map<string, string[]>(); // blockId -> tool names
 // Output that arrived between the last paused/exit response and process exit,
@@ -245,6 +249,7 @@ export async function executeBlock(
     const onExit = async (returnCode: number, timer: ReturnType<typeof setTimeout>) => {
       clearTimeout(timer);
       cancelPauseWatch?.();
+      returnCodes.set(blockId, returnCode);
       const notice = buf.getTruncationNotice();
       if (notice) await send(msg.shellBlockResult(todoId, blockId, notice, messageId));
       await send(msg.shellBlockDone(todoId, messageId, blockId, "execute", returnCode, effectiveRunMode));
@@ -256,6 +261,9 @@ export async function executeBlock(
       if (handle && keepAliveOnTimeout && !completionResolvers.has(blockId)) {
         const output = buf.getRawIfComplete() ?? buf.getOutput();
         if (output) exitedOutputByPid.set(handle.pid, { output, returnCode });
+        // Nobody will resume by blockId (resume is pid→exitedOutputByPid); the
+        // code now lives there, so drop the per-block entry to avoid a leak.
+        returnCodes.delete(blockId);
       }
       processes.delete(blockId);
       const resolver = completionResolvers.get(blockId);
@@ -456,6 +464,13 @@ export function getBlockRawOutput(blockId: string): string | null {
 
 export function clearBlockOutput(blockId: string) {
   outputBuffers.delete(blockId);
+  returnCodes.delete(blockId);
+}
+
+/** Exit code of the last finished process for this blockId (null if never set /
+ *  still running). 124 = timeout(1) kill; 128+N = killed by signal N. */
+export function getReturnCode(blockId: string): number | null {
+  return returnCodes.get(blockId) ?? null;
 }
 
 /** Returns true if a process is still running for the given blockId. */

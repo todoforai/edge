@@ -94,3 +94,26 @@ describe("pauseDetector ECHO-off (cross-platform)", () => {
     expect(count).toBe(2);
   });
 });
+
+// Multi-leaf pipeline: `inner | head` has two foreground leaves — the
+// interactive `inner` parked on the tty read, and `head` on the pipe. The
+// detector must inspect BOTH and fire on the terminal-read leaf. Linux only
+// (uses the /proc syscall signal). Regression for `./server ... | head -40`.
+const isLinux = process.platform === "linux";
+describe.if(isLinux)("pauseDetector pipeline leaf (real process)", () => {
+  test("read behind a pipe (`inner | head`) fires paused", async () => {
+    const proc = Bun.spawn(
+      ["/bin/bash", "-c", "bash -c 'echo X; read t; echo got=$t' 2>&1 | head -40"],
+      { stdin: "pipe", stdout: "pipe", stderr: "pipe" });
+    (async () => { for await (const _ of proc.stdout as any) { /* drain */ } })();
+
+    let fired = false;
+    const w = pauseDetector.watch(proc.pid, () => { fired = true; });
+    await tick(1200); // > GRACE_TICKS * POLL_MS, enough for tree walk
+    expect(fired).toBe(true);
+
+    proc.stdin!.write("hi\n"); proc.stdin!.flush?.();
+    await proc.exited;
+    w.cancel();
+  }, 15000);
+});

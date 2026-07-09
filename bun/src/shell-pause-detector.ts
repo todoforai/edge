@@ -64,14 +64,18 @@ class PtyPauseDetector implements PauseDetector {
       // password prompt, or a raw-mode TUI parked on a keystroke. Covers sudo on
       // both Linux and macOS, where its setuid /proc is unreadable (EACCES).
       let blocked = terminal != null && !(terminal.localFlags & ECHO);
-      // Signal 2 (Linux only): leaf descendant parked in read() on a terminal fd.
-      // Catches echo-ON line prompts (`read x`, bare `cat`) that signal 1 misses.
+      // Signal 2 (Linux only): ANY leaf descendant parked in read() on a terminal
+      // fd. Catches echo-ON line prompts (`read x`, bare `cat`) that signal 1
+      // misses. Checks every pipeline branch: `inner | head` has two leaves — the
+      // interactive `inner` is terminal-read-blocked while `head` sits on the
+      // pipe; the predicate rejects the pipe leaf and accepts the terminal one.
       if (!blocked && IS_LINUX) {
-        const fgPid = await getForegroundPid(pid);
-        const sc = fgPid != null ? await readSyscall(fgPid) : null;
-        const leafTarget = sc && sc.nr === READ_NR && sc.fd >= 0 && fgPid != null
-          ? await readFdTarget(fgPid, sc.fd) : null;
-        blocked = isTerminalReadPause(sc, leafTarget, rootStdin);
+        for (const leaf of await getLeafPids(pid)) {
+          const sc = await readSyscall(leaf);
+          const leafTarget = sc && sc.nr === READ_NR && sc.fd >= 0
+            ? await readFdTarget(leaf, sc.fd) : null;
+          if (isTerminalReadPause(sc, leafTarget, rootStdin)) { blocked = true; break; }
+        }
       }
       if (blocked) {
         if (!signalled && ++pausedTicks >= GRACE_TICKS) {
@@ -128,15 +132,22 @@ async function readSyscall(pid: number): Promise<{ nr: number; fd: number } | nu
   } catch { return null; }
 }
 
-/** Walk the descendant tree, return the deepest (leaf) pid — the actual foreground process. */
-async function getForegroundPid(rootPid: number): Promise<number | null> {
-  let current = rootPid;
-  for (let depth = 0; depth < 16; depth++) {
-    const children = await readChildren(current);
-    if (children.length === 0) return current;
-    current = children[children.length - 1]; // last spawned child
+/** Collect all leaf pids in the descendant tree — every foreground branch of a
+ *  pipeline (`inner | head` has two). BFS, depth-capped to bound the walk. */
+async function getLeafPids(rootPid: number): Promise<number[]> {
+  const leaves: number[] = [];
+  let frontier = [rootPid];
+  for (let depth = 0; depth < 16 && frontier.length; depth++) {
+    const next: number[] = [];
+    for (const pid of frontier) {
+      const children = await readChildren(pid);
+      if (children.length === 0) leaves.push(pid);
+      else next.push(...children);
+    }
+    frontier = next;
   }
-  return current;
+  // Depth cap hit with pids still pending: treat them as leaves rather than drop.
+  return leaves.length ? leaves.concat(frontier) : frontier;
 }
 
 async function readChildren(pid: number): Promise<number[]> {
