@@ -544,8 +544,9 @@ export class TODOforAIEdge {
       console.log(`[info] Connecting${attempt > 0 ? ` (retry ${attempt})` : ""}`);
 
       this.connectedAt = 0;
+      let closeCode = 0;
       try {
-        await this.connect();
+        closeCode = await this.connect();
       } catch (e: any) {
         // Non-recoverable: auth rejected or server told us not to reconnect.
         const label = e instanceof AuthenticationError ? "Authentication failed" : "Server error";
@@ -560,7 +561,11 @@ export class TODOforAIEdge {
       if (this.connectedAt && Date.now() - this.connectedAt > 60_000) attempt = 0;
       attempt++;
 
-      const delay = Math.min(2 * 2 ** Math.min(attempt - 1, 4), 30); // 2,4,8,16,30,30…
+      // 1012 (Service Restart) is a planned zero-downtime deploy signal, not a
+      // failure: nginx has already switched to the new instance, so reconnect
+      // near-instantly instead of the backoff (shrinks the offline gap that
+      // otherwise drops the device from the agent's tool list mid-turn).
+      const delay = closeCode === 1012 ? 0.2 : Math.min(2 * 2 ** Math.min(attempt - 1, 4), 30); // 2,4,8,16,30,30…
       console.log(`[info] Reconnecting in ${delay}s...`);
       await new Promise<void>(r => {
         this.wakeReconnect = r;
