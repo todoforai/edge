@@ -14,8 +14,21 @@ import { EF, type WsMessage } from "./constants.js";
 const MAX_RESPONSE_BODY = 3.5 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 25_000; // < backend's 30s relay timeout
 
-/** Ports registered by the live_preview tool for this process's lifetime. */
-export const allowedPreviewPorts = new Set<number>();
+/** Ports registered by the live_preview tool → expiry timestamp (ms). Matches
+ *  the backend session TTL so a stale registration can't outlive its sessions
+ *  and expose whatever service later reuses the port. */
+const PORT_TTL_MS = 24 * 60 * 60 * 1000;
+const registeredPorts = new Map<number, number>();
+
+export const allowedPreviewPorts = {
+  add(port: number) { registeredPorts.set(port, Date.now() + PORT_TTL_MS); },
+  has(port: number) {
+    const expiry = registeredPorts.get(port);
+    if (expiry === undefined) return false;
+    if (Date.now() > expiry) { registeredPorts.delete(port); return false; }
+    return true;
+  },
+};
 
 // Hop-by-hop / re-framing headers that must not be echoed back through the relay.
 const STRIP_RESPONSE_HEADERS = new Set([
