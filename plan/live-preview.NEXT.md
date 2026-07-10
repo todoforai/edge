@@ -27,4 +27,4 @@ session (Redis, 24h TTL) → `https://<128-bit-hex>.preview.todofor.ai` → ngin
 
 ## To investigate
 - [ ] Check bridge whether it could have some support — bridge devices (Noise, C client) have no FUNCTION_REGISTRY; relay would need `preview:http_request` handling in BridgeHandler + bridge-side fetch. Sessions already carry `edgeId` generically, so backend side is mostly reusable.
-- [ ] Tauri edge supports it? — verify the Tauri-bundled edge runs the same bun edge code path (`preview.ts`, `preview_register_port`) and that `fetch` to `127.0.0.1` works from within the Tauri sidecar context.
+- [x] Tauri edge supports it? — the in-app edge (`frontend/src/services/inAppEdge/preview.ts`) mirrors the bun edge (`preview_register_port` + `preview:http_request`), routing the localhost fetch through a Rust `preview_http_fetch` command (webview can't hit http://127.0.0.1 from https); backend needed no changes (channel is edge-generic).
