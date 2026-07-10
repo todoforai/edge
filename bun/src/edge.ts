@@ -22,6 +22,7 @@ import {
   handleFunctionCall,
 } from "./handlers.js";
 import { scanCatalogTools, autoMountRcloneRemotes } from "./tool-registry.js";
+import { handlePreviewHttpRequest } from "./preview.js";
 import type { SendFn } from "./shell.js";
 
 // ── Fingerprint ──
@@ -337,6 +338,10 @@ export class TODOforAIEdge {
 
       case S2E.EDGE_CONFIG_UPDATE:
         run(async () => this.handleEdgeConfigUpdate(payload));
+        break;
+
+      case S2E.PREVIEW_HTTP_REQUEST:
+        run(() => handlePreviewHttpRequest(payload, send));
         break;
 
       case S2E.SESSION_TOKEN:

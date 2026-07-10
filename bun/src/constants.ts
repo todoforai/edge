@@ -62,6 +62,7 @@ export const EF = {
   BLOCK_SH_MSG_START: "block:sh_msg_start",
   BLOCK_SH_DONE: "block:sh_done",
   FRONTEND_FILE_CHUNK_RESULT: "frontend:file_chunk_result",
+  PREVIEW_HTTP_RESPONSE: "preview:http_response",
 } as const;
 
 // Edge to Frontend+Agent
@@ -71,6 +72,7 @@ export const EFA = {} as const;
 export const S2E = {
   EDGE_CONFIG_UPDATE: "edge:config_update",
   SESSION_TOKEN: "edge:session_token",
+  PREVIEW_HTTP_REQUEST: "preview:http_request",
 } as const;
 
 // ── Message builders ──

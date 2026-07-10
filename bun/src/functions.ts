@@ -9,6 +9,7 @@ import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, cle
 import { msg } from "./constants.js";
 import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
+import { allowedPreviewPorts } from "./preview.js";
 import { TOOL_CATALOG } from "./tool-catalog.js";
 import { getGlobalEdgeInstance } from "./edge.js";
 import { discoverSkills } from "./skills.js";
@@ -564,4 +565,21 @@ register("register_attachment", async (args, client) => {
   if (!res.ok) throw new Error(`Backend responded with ${res.status}: ${await res.text()}`);
   const payload = await res.json().catch(() => ({}));
   return { attachmentId: payload.attachmentId, response: payload };
+});
+
+register("preview_register_port", async (args) => {
+  // live_preview: allow the relay to serve this local port (see preview.ts).
+  // Probes the port first so the agent gets an immediate "nothing listening" error.
+  const port = Number(args.port);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`Invalid port: ${args.port}`);
+  try {
+    await fetch(`http://127.0.0.1:${port}/`, { method: "HEAD", signal: AbortSignal.timeout(3000) });
+  } catch (e: any) {
+    const code = e.code ?? e.cause?.code;
+    if (code === "ECONNREFUSED" || code === "ConnectionRefused") // node | Bun
+      throw new Error(`Nothing is listening on 127.0.0.1:${port}`);
+    // Other errors (404, timeout on slow dev servers, HEAD unsupported) are fine — something answered.
+  }
+  allowedPreviewPorts.add(port);
+  return { port, registered: true };
 });
