@@ -70,7 +70,7 @@ Commands:
   update               Update to the latest npm release and exit
 
 Options:
-  --api-key <key>      API key (env: TODOFORAI_API_KEY)
+  --api-key <key>      Explicit API key (overrides saved login; e.g. --api-key=$MY_API_KEY)
   --api-url <url>      API URL (env: TODOFORAI_API_URL, default: https://api.todofor.ai)
   --add-path <path>    Add workspace path to this edge
   --max-timeout <sec>  Floor for shell execution timeout
@@ -117,7 +117,8 @@ export function loadConfig(): Config {
   }
 
   const apiUrl = normalizeApiUrl((values["api-url"] as string) || getEnv("API_URL") || DEFAULT_API_URL);
-  const apiKey = (values["api-key"] as string) || getEnv("API_KEY") || "";
+  // Explicit key only via --api-key flag; managed credentials.json is the normal path.
+  const apiKey = (values["api-key"] as string) || "";
   const debug = !!(values.debug || getEnv("DEBUG").toLowerCase().match(/^(true|1|yes)$/));
   const kill = !!values.kill;
   const noAutoUpdate = !!(values["no-auto-update"] || getEnv("NO_AUTO_UPDATE").toLowerCase().match(/^(true|1|yes)$/));

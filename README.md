@@ -19,8 +19,7 @@ First run opens your browser for device-flow login and saves the key to the plat
 <summary>Other ways to authenticate</summary>
 
 ```bash
-todoforai-edge --api-key sk_...          # one-shot, not persisted
-export TODOFORAI_API_KEY=sk_...          # env var
+todoforai-edge --api-key sk_...          # one-shot, not persisted (also: --api-key=$MY_API_KEY)
 ```
 Get a key at [todofor.ai/apikey](https://todofor.ai/apikey).
 </details>

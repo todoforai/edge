@@ -145,11 +145,20 @@ export class TODOforAIEdge {
   }
 
   async ensureApiKey(promptIfMissing = true): Promise<boolean> {
-    // 1. --api-key / env var (don't persist — explicit keys are ephemeral)
-    if (this.api.apiKey && await this.tryValidateKey()) return true;
+    const saved = loadSavedApiKey(this.api.apiUrl);
+
+    // 1. --api-key (don't persist — explicit keys are ephemeral)
+    if (this.api.apiKey) {
+      const overridesSaved = !!saved && saved !== this.api.apiKey;
+      if (await this.tryValidateKey()) {
+        if (overridesSaved) {
+          console.log(`\x1b[33m⚠️  Using explicit --api-key, which overrides your saved login for ${this.api.apiUrl}.\x1b[0m`);
+        }
+        return true;
+      }
+    }
 
     // 2. Saved credentials
-    const saved = loadSavedApiKey(this.api.apiUrl);
     if (saved) {
       this.api.apiKey = saved;
       if (await this.tryValidateKey()) return true;
@@ -211,7 +220,7 @@ export class TODOforAIEdge {
 
     // 4. Fallback: manual API key entry (TTY only)
     if (!process.stdin.isTTY) {
-      console.error("No API key provided and stdin is not interactive. Set TODOFORAI_API_KEY or pass --api-key.");
+      console.error("No API key provided and stdin is not interactive. Run 'todoforai-edge login' or pass --api-key.");
       process.exit(0);
     }
 
