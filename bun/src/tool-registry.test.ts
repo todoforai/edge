@@ -59,6 +59,11 @@ describe("findReferencedTools - command position detection", () => {
     expect(findReferencedTools("cloudflared version")).toContain("cloudflared");
   });
 
+  test("maps the legacy imagegen CLI name to the current catalog tool", () => {
+    const tools = findReferencedTools("codex-imagegen-api generate 'prompt'");
+    expect(tools).toContain("todoforai-imagegen");
+  });
+
   test("matches tool after pipe", () => {
     expect(findReferencedTools("echo foo | stripe listen")).toContain("stripe");
     expect(findReferencedTools("cat hosts.txt | xargs cloudflared access ssh --hostname example.com")).toContain("cloudflared");

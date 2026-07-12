@@ -11,6 +11,14 @@ const MNT_DIR  = path.join(os.homedir(), ".todoforai", "mnt");
 
 const log = (level: string, ...args: any[]) => console.log(`[tool-registry:${level}]`, ...args);
 
+// Temporary migration aliases. Remove after codex-imagegen-api users have moved.
+const LEGACY_TOOL_NAMES: Record<string, string[]> = {
+  "todoforai-imagegen": ["codex-imagegen-api"],
+};
+const LEGACY_NPM_PACKAGES: Record<string, string[]> = {
+  "todoforai-imagegen": ["@todoforai/codex-imagegen-api"],
+};
+
 // ── Path helpers ──
 
 function binDir(): string { return path.join(TOOLS_DIR, "bin"); }
@@ -99,7 +107,8 @@ export function findReferencedTools(content: string): string[] {
   return Object.keys(TOOL_CATALOG).filter(name => {
     // Tools may be invoked under a different binary name than their catalog key
     // (e.g. todoai → todoforai-cli, slack-cli). Match either token.
-    const tokens = [name, TOOL_CATALOG[name].binName].filter((t): t is string => !!t);
+    const tokens = [name, TOOL_CATALOG[name].binName, ...(LEGACY_TOOL_NAMES[name] ?? [])]
+      .filter((t): t is string => !!t);
     return tokens.some(tok => {
       const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       // Reject trailing hyphenated tokens like stripe-setup-dunning while still
@@ -214,25 +223,35 @@ function getInstallCommand(name: string): string {
 
 export function installWithNpm(name: string, pkg: string) {
   const TIMEOUT_MS = 120_000;
+  const legacyPkgs = LEGACY_NPM_PACKAGES[name] ?? [];
+
+  const install = (force = false) => {
+    const args = ["install", ...(force ? ["--force"] : []), "--prefix", TOOLS_DIR, pkg];
+    const result = spawnSync("npm", args, {
+      stdio: "pipe", timeout: TIMEOUT_MS, shell: true,
+    });
+    const stderr = result.stderr?.toString().trim() || "";
+    const stdout = result.stdout?.toString().trim() || "";
+    if (result.error) {
+      throw new Error(`npm install failed: ${result.error.message} | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
+    }
+    if (result.signal) {
+      throw new Error(`npm install killed by ${result.signal}${result.signal === 'SIGTERM' ? ` (likely timed out after ${TIMEOUT_MS / 1000}s)` : ''} | stderr: ${stderr || '(empty)'}`);
+    }
+    // On Windows with shell:true, timeout-kills can yield status:null AND signal:null.
+    if (result.status === null) {
+      throw new Error(`npm install: null exit code (likely timed out after ${TIMEOUT_MS / 1000}s on Windows, signal not propagated through cmd.exe) | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
+    }
+    if (result.status !== 0) {
+      throw new Error(`npm install failed (exit ${result.status}) | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
+    }
+  };
+
   log("info", `Installing ${name} via npm (${pkg})`);
-  const result = spawnSync("npm", ["install", "--prefix", TOOLS_DIR, pkg], {
-    stdio: "pipe", timeout: TIMEOUT_MS, shell: true,
-  });
-  const stderr = result.stderr?.toString().trim() || "";
-  const stdout = result.stdout?.toString().trim() || "";
-  if (result.error) {
-    throw new Error(`npm install failed: ${result.error.message} | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
-  }
-  if (result.signal) {
-    throw new Error(`npm install killed by ${result.signal}${result.signal === 'SIGTERM' ? ` (likely timed out after ${TIMEOUT_MS / 1000}s)` : ''} | stderr: ${stderr || '(empty)'}`);
-  }
-  // On Windows with shell:true, timeout-kills can yield status:null AND signal:null.
-  if (result.status === null) {
-    throw new Error(`npm install: null exit code (likely timed out after ${TIMEOUT_MS / 1000}s on Windows, signal not propagated through cmd.exe) | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
-  }
-  if (result.status !== 0) {
-    throw new Error(`npm install failed (exit ${result.status}) | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
-  }
+  // --force lets the replacement take ownership of the temporary shared bin
+  // alias. Keep the deprecated package installed during the migration window:
+  // removing it would also remove that shared shim and create a failure window.
+  install(legacyPkgs.length > 0);
 }
 
 /** Install an npm-registry package using `bun add` into TOOLS_DIR.
