@@ -10,6 +10,7 @@ import { msg } from "./constants.js";
 import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
 import { allowedPreviewPorts } from "./preview.js";
+import { serveStaticDir } from "./static-server.js";
 import { TOOL_CATALOG } from "./tool-catalog.js";
 import { getGlobalEdgeInstance } from "./edge.js";
 import { discoverSkills } from "./skills.js";
@@ -582,4 +583,19 @@ register("preview_register_port", async (args) => {
   }
   allowedPreviewPorts.add(port);
   return { port, registered: true };
+});
+
+register("preview_serve_static", async (args) => {
+  // live_preview file/dir target: spin up (or reuse) a static server for the
+  // path, allowlist its port, and hand back port + entry path for the iframe.
+  const resolved = resolveFilePath(String(args.path ?? ""), args.rootPath, args.fallbackRootPaths ?? []);
+  const st = fs.statSync(resolved, { throwIfNoEntry: false });
+  if (!st) throw new Error(`Path not found: ${resolved}`);
+  const isFile = st.isFile();
+  const rootDir = isFile ? path.dirname(resolved) : resolved;
+  const port = await serveStaticDir(rootDir);
+  allowedPreviewPorts.add(port);
+  // Non-index entry files need an explicit path in the URL.
+  const entry = isFile && path.basename(resolved) !== "index.html" ? `/${path.basename(resolved)}` : "/";
+  return { port, entryPath: entry, rootDir, registered: true };
 });
