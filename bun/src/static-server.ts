@@ -20,29 +20,38 @@ const MIME: Record<string, string> = {
   ".woff": "font/woff", ".woff2": "font/woff2", ".ttf": "font/ttf",
 };
 
-const servers = new Map<string, number>(); // rootDir → port
+const servers = new Map<string, Promise<number>>(); // canonical rootDir → port (promise dedupes concurrent starts)
 
 /** Serve `rootDir` on a random free localhost port (reused per dir). */
-export async function serveStaticDir(rootDir: string): Promise<number> {
-  const existing = servers.get(rootDir);
+export function serveStaticDir(rootDir: string): Promise<number> {
+  const root = fs.realpathSync(rootDir); // canonical — symlinked roots compare correctly below
+  const existing = servers.get(root);
   if (existing !== undefined) return existing;
 
+  const starting = startServer(root);
+  servers.set(root, starting);
+  starting.catch(() => servers.delete(root));
+  return starting;
+}
+
+async function startServer(root: string): Promise<number> {
   const server = http.createServer((req, res) => {
     try {
       const urlPath = decodeURIComponent((req.url ?? "/").split("?")[0]);
-      let fp = path.normalize(path.join(rootDir, urlPath));
-      // Path traversal guard: resolved path must stay inside rootDir.
-      if (fp !== rootDir && !fp.startsWith(rootDir + path.sep)) {
-        res.writeHead(403); res.end("Forbidden"); return;
-      }
+      let fp = path.normalize(path.join(root, urlPath));
       let st = fs.statSync(fp, { throwIfNoEntry: false });
       if (st?.isDirectory()) {
         fp = path.join(fp, "index.html");
         st = fs.statSync(fp, { throwIfNoEntry: false });
       }
       if (!st?.isFile()) { res.writeHead(404); res.end("Not found"); return; }
+      // Traversal guard on the canonical path — catches both `../` and symlinks escaping root.
+      const real = fs.realpathSync(fp);
+      if (real !== root && !real.startsWith(root + path.sep)) {
+        res.writeHead(403); res.end("Forbidden"); return;
+      }
       res.writeHead(200, { "content-type": MIME[path.extname(fp).toLowerCase()] ?? "application/octet-stream" });
-      fs.createReadStream(fp).pipe(res);
+      fs.createReadStream(real).pipe(res);
     } catch (e: any) {
       res.writeHead(500); res.end(e?.message ?? "Internal error");
     }
@@ -53,7 +62,5 @@ export async function serveStaticDir(rootDir: string): Promise<number> {
     server.listen(0, "127.0.0.1", resolve);
   });
   server.unref(); // don't keep the edge process alive for this
-  const port = (server.address() as http.AddressInfo).port;
-  servers.set(rootDir, port);
-  return port;
+  return (server.address() as http.AddressInfo).port;
 }

@@ -591,11 +591,14 @@ register("preview_serve_static", async (args) => {
   const resolved = resolveFilePath(String(args.path ?? ""), args.rootPath, args.fallbackRootPaths ?? []);
   const st = fs.statSync(resolved, { throwIfNoEntry: false });
   if (!st) throw new Error(`Path not found: ${resolved}`);
+  if (!st.isFile() && !st.isDirectory()) throw new Error(`Not a file or directory: ${resolved}`);
   const isFile = st.isFile();
   const rootDir = isFile ? path.dirname(resolved) : resolved;
+  if (!isFile && !fs.existsSync(path.join(rootDir, "index.html")))
+    throw new Error(`No index.html in ${rootDir} — pass the entry file path instead`);
   const port = await serveStaticDir(rootDir);
   allowedPreviewPorts.add(port);
-  // Non-index entry files need an explicit path in the URL.
-  const entry = isFile && path.basename(resolved) !== "index.html" ? `/${path.basename(resolved)}` : "/";
+  // Non-index entry files need an explicit (encoded) path in the URL.
+  const entry = isFile && path.basename(resolved) !== "index.html" ? `/${encodeURIComponent(path.basename(resolved))}` : "/";
   return { port, entryPath: entry, rootDir, registered: true };
 });
