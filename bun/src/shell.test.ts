@@ -102,6 +102,42 @@ describe.if(linux)("execute_shell_command resume-by-pid", () => {
   }, 30000);
 });
 
+describe.if(linux)("detached-session output integrity", () => {
+  const fn = FUNCTION_REGISTRY.get("execute_shell_command")!;
+  const client = { maxTimeout: 0, sendResponse: noop } as any;
+
+  // Regression: output produced between polls must be neither lost (the old
+  // sendInput reset dropped it) nor re-returned (the old non-draining reads
+  // repeated it). Poll a live ticker twice and check the concatenation.
+  test("polling a live session loses nothing and repeats nothing", async () => {
+    const base = { todoId: "t", messageId: "m", blockId: "b-integrity", timeout: 2 };
+    const cmd = `for i in $(seq 1 8); do echo "TICK $i"; sleep 0.5; done`;
+
+    const r1: any = await fn({ ...base, cmd }, client);
+    expect(r1.paused).toBe(true);
+    const r2: any = await fn({ ...base, cmd: "", pid: r1.pid }, client);
+    const r3: any = await fn({ ...base, cmd: "", pid: r2.pid ?? r1.pid, timeout: 6 }, client);
+
+    const all = (r1.result + r2.result + (r3.result ?? ""))
+      .match(/TICK \d+/g) ?? [];
+    expect(all).toEqual([1, 2, 3, 4, 5, 6, 7, 8].map((i) => `TICK ${i}`));
+  }, 30000);
+
+  // Regression: `pid` + empty cmd is a pure peek — it must NOT write a newline
+  // to the process's stdin (the old path fed `read` an empty line).
+  test("empty-cmd poll does not feed stdin", async () => {
+    const base = { todoId: "t", messageId: "m", blockId: "b-peek", timeout: 5 };
+    const r1: any = await fn({ ...base, cmd: "echo ready; read x; echo got=[$x]" }, client);
+    expect(r1.paused).toBe(true);
+
+    const r2: any = await fn({ ...base, cmd: "", pid: r1.pid, timeout: 2 }, client);
+    expect(r2.paused).toBe(true); // still parked on read — no empty line was sent
+
+    const r3: any = await fn({ ...base, cmd: "hi", pid: r1.pid }, client);
+    expect(r3.result).toContain("got=[hi]");
+  }, 30000);
+});
+
 describe.if(linux)("consumeExitedOutput dead-pid drain", () => {
   const fn = FUNCTION_REGISTRY.get("execute_shell_command")!;
   const client = { maxTimeout: 0, sendResponse: noop } as any;

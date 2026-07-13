@@ -3,7 +3,7 @@ import path from "path";
 import os from "os";
 import { readFileContent } from "./files.js";
 import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "./path-utils.js";
-import { executeBlock, waitForCompletion, getBlockOutput, getBlockRawOutput, clearBlockOutput, isBlockAlive, sendInput, getPid, findBlockIdByPid, consumeExitedOutput, getReturnCode, type SendFn } from "./shell.js";
+import { executeBlock, waitForCompletion, drainBlockOutput, clearBlockOutput, isBlockAlive, sendInput, rearmPauseWatch, getPid, findBlockIdByPid, consumeExitedOutput, getReturnCode, type SendFn } from "./shell.js";
 // `pendingToolApprovals` was imported here to short-circuit the response when
 // executeBlock entered AWAITING_APPROVAL. DEAD with the install-gating removal.
 import { msg } from "./constants.js";
@@ -309,10 +309,13 @@ register("execute_shell_command", async (args, client) => {
     return { cmd, result: `[input not sent: no active shell session for pid=${resumePid}; start new command]` };
   }
   if (resumeBlockId) {
-    await sendInput(resumeBlockId, cmd);  // resets buffer for interaction
+    // Empty cmd = pure peek: don't write a newline to the process's stdin,
+    // just re-arm the pause detector and wait for new output / exit.
+    if (cmd) await sendInput(resumeBlockId, cmd);
+    else rearmPauseWatch(resumeBlockId);
     await waitForCompletion(resumeBlockId, timeout * 1000);
-    const rawOutput = getBlockRawOutput(resumeBlockId);
-    let output = rawOutput ?? getBlockOutput(resumeBlockId);
+    const { output: drained, raw: rawOutput } = drainBlockOutput(resumeBlockId);
+    let output = drained;
     if (postFilter) output = postFilter(output);
     const stillAlive = isBlockAlive(resumeBlockId);
     if (stillAlive) {
@@ -345,8 +348,8 @@ register("execute_shell_command", async (args, client) => {
     // }
 
     await waitForCompletion(blockId, (timeout + 5) * 1000);
-    const rawOutput = getBlockRawOutput(blockId);
-    let output = rawOutput ?? getBlockOutput(blockId);
+    const { output: drained, raw: rawOutput } = drainBlockOutput(blockId);
+    let output = drained;
     if (postFilter) output = postFilter(output);
     const stillAlive = isBlockAlive(blockId);
     if (stillAlive) {

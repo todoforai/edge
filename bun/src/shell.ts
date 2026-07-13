@@ -379,8 +379,6 @@ export async function sendInput(blockId: string, text: string): Promise<boolean>
   const handle = processes.get(blockId);
   if (!handle) return false;
 
-  const buf = outputBuffers.get(blockId);
-  if (buf) buf.resetForInteraction();
   // Re-arm pause detector so the next paused state on this session fires again.
   handle.resetPauseWatch?.();
 
@@ -457,10 +455,20 @@ export function getBlockOutput(blockId: string): string {
   return outputBuffers.get(blockId)?.getOutput() ?? "";
 }
 
-/** Get raw output if not truncated, otherwise null. Used for typed output detection (e.g., images). */
-export function getBlockRawOutput(blockId: string): string | null {
-  return outputBuffers.get(blockId)?.getRawIfComplete() ?? null;
+/** Read the not-yet-returned output and mark it consumed: the next paused/exit
+ *  response shows only the delta produced after this point. `raw` is null when
+ *  the drained chunk was truncated (incomplete data). Draining at response time
+ *  (instead of resetting on stdin) is what prevents both losing output written
+ *  between polls and re-returning output the caller already saw. */
+export function drainBlockOutput(blockId: string): { output: string; raw: string | null } {
+  const buf = outputBuffers.get(blockId);
+  if (!buf) return { output: "", raw: null };
+  const raw = buf.getRawIfComplete();
+  const output = raw ?? buf.getOutput();
+  buf.resetForInteraction();
+  return { output, raw };
 }
+
 
 export function clearBlockOutput(blockId: string) {
   outputBuffers.delete(blockId);
@@ -481,6 +489,12 @@ export function isBlockAlive(blockId: string): boolean {
 /** Get the OS pid for a live blockId (null if no live process). */
 export function getPid(blockId: string): number | null {
   return processes.get(blockId)?.pid ?? null;
+}
+
+/** Re-arm the pause detector without writing stdin (used by empty-cmd peek so a
+ *  still-paused prompt resolves the poll quickly instead of waiting out the timeout). */
+export function rearmPauseWatch(blockId: string) {
+  processes.get(blockId)?.resetPauseWatch?.();
 }
 
 /** Resolve a live OS pid back to its blockId (null if no live process). */
