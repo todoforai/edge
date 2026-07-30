@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { readFileContent } from "./files.js";
+import { saveDocxContent, saveXlsxContent } from "./docx-handler.js";
 import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "./path-utils.js";
 import { executeBlock, waitForCompletion, drainBlockOutput, clearBlockOutput, isBlockAlive, sendInput, rearmPauseWatch, getPid, findBlockIdByPid, consumeExitedOutput, getReturnCode, type SendFn } from "./shell.js";
 // `pendingToolApprovals` was imported here to short-circuit the response when
@@ -410,6 +411,21 @@ register("list_dir", async (args) => {
 register("create_file", async (args) => {
   const { path: p, content, rootPath = "", fallbackRootPaths = [] } = args;
   const fullPath = resolveFilePath(p, rootPath, fallbackRootPaths);
+  const ext = path.extname(fullPath).toLowerCase();
+
+  // read_file returns extracted XML for docx/xlsx (they're zip containers), so a
+  // string write here is edited XML that must be repacked into the original
+  // container, not written on top of it (which would corrupt the zip). Mirrors
+  // handleBlockSave / the bridge & in-app edge write paths.
+  if (ext === ".docx" || ext === ".xlsx") {
+    if (!fs.existsSync(fullPath)) {
+      throw new Error(`Cannot create new ${ext} file from XML — file must already exist: ${p}`);
+    }
+    if (ext === ".docx") saveDocxContent(fullPath, content);
+    else saveXlsxContent(fullPath, content);
+    return { path: fullPath, bytes: fs.statSync(fullPath).size };
+  }
+
   const dir = path.dirname(fullPath);
   if (dir) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(fullPath, content, "utf-8");
