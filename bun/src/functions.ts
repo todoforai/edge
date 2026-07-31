@@ -67,6 +67,16 @@ register("get_available_tools", async () => {
   return { tools };
 });
 
+// Re-scan installed catalog tools and push the fresh state to the edge config
+// (which persists to the backend and broadcasts EDGE_CONFIG_UPDATE). Returns
+// the fresh map so callers can also use it directly.
+async function syncInstalledTools() {
+  const installedTools = await scanCatalogTools();
+  const edge = getGlobalEdgeInstance();
+  if (edge) await edge.updateConfig({ installedTools });
+  return installedTools;
+}
+
 register("install_tool", async (args) => {
   const { name } = args;
   if (!name || !(name in TOOL_CATALOG)) {
@@ -80,14 +90,17 @@ register("install_tool", async (args) => {
   if (!installed) {
     return { success: false, error: `Failed to install ${name}` };
   }
-  
-  // Update edge config with new tool state
-  const edge = getGlobalEdgeInstance();
-  if (edge) {
-    await edge.updateConfig({ installedTools: await scanCatalogTools() });
-  }
-  
+  await syncInstalledTools();
   return { success: true, tool: name, label: TOOL_CATALOG[name].label };
+});
+
+// Probe installed catalog tools and push the fresh state to the edge config.
+// Named `scan_tools` for parity with the C bridge's `scan_tools` (shared-fbe
+// `ScanToolsResult`): both return the tool-state dict directly as the call
+// result. The bridge is a dumb prober fed `args.entries` by the backend; the
+// native edge owns its bundled TOOL_CATALOG and ignores `entries`.
+register("scan_tools", async () => {
+  return await syncInstalledTools();
 });
 
 register("uninstall_tool", async (args) => {
@@ -96,10 +109,7 @@ register("uninstall_tool", async (args) => {
     return { success: false, error: `Unknown tool: ${name}` };
   }
   const success = uninstallTool(name);
-  if (success) {
-    const edge = getGlobalEdgeInstance();
-    if (edge) await edge.updateConfig({ installedTools: await scanCatalogTools() });
-  }
+  if (success) await syncInstalledTools();
   return { success, tool: name };
 });
 
