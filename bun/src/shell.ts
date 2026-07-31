@@ -212,6 +212,8 @@ export async function executeBlock(
       PAGER: "", GIT_PAGER: "", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "color.ui", GIT_CONFIG_VALUE_0: "false",
       TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId,
       TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId,
+      // Per-todo agent-browser session so parallel todos get isolated daemons/tabs.
+      AGENT_BROWSER_SESSION: todoId,
     };
 
     // Resolve waiter early without killing the process (used by paused-detection and keep-alive timeout).
