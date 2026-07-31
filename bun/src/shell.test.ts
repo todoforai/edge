@@ -164,3 +164,43 @@ describe.if(linux)("consumeExitedOutput dead-pid drain", () => {
     expect(consumeExitedOutput(pid)).toBeNull(); // consumed exactly once
   }, 40000);
 });
+
+describe.if(linux)("stream coalescing", () => {
+  test("verbose output ships in few frames, in order, losing nothing", async () => {
+    const blockId = "test-coalesce";
+    const N = 3000;
+    let frames = 0;
+    let streamed = "";
+    let doneAt = -1;
+    const send = async (m: any) => {
+      if (m.type === "block:sh_msg_result") { frames++; streamed += m.payload.content; }
+      if (m.type === "block:sh_done") doneAt = frames;
+    };
+    // Unbatched this is thousands of frames; `raw` keeps the whole output streaming.
+    await executeBlock(blockId, `for i in $(seq 1 ${N}); do echo line$i; done`, send,
+      "todo", "msg", 30, "", false, "internal", undefined, "", false, "raw");
+    await waitForCompletion(blockId, 30000);
+
+    // Nothing lost, nothing reordered (the PTY echoes \r\n).
+    const expected = Array.from({ length: N }, (_, i) => `line${i + 1}\r\n`).join("");
+    expect(streamed).toBe(expected);
+    expect(frames).toBeLessThan(100);
+    expect(doneAt).toBe(frames); // tail flushed before BLOCK_SH_DONE
+    clearBlockOutput(blockId);
+  }, 40000);
+
+  test("small output still flushes on the timer, before exit", async () => {
+    const blockId = "test-coalesce-timer";
+    let streamed = "";
+    const send = async (m: any) => {
+      if (m.type === "block:sh_msg_result") streamed += m.payload.content;
+    };
+    await executeBlock(blockId, "echo early; sleep 1.5; echo late", send,
+      "todo", "msg", 30, "", false, "internal", undefined, "", false, "raw");
+    await new Promise((r) => setTimeout(r, 700)); // < sleep: only the timer can have flushed
+    expect(streamed).toContain("early");
+    await waitForCompletion(blockId, 30000);
+    expect(streamed).toContain("late");
+    clearBlockOutput(blockId);
+  }, 40000);
+});

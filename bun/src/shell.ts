@@ -153,6 +153,45 @@ export interface SendFn {
   (message: WsMessage): Promise<void>;
 }
 
+// ── Stream coalescing ──
+// A verbose command (build/log) emits thousands of tiny PTY chunks; one WS frame
+// each floods the backend edge-socket, which processes frames serially → head-of-line
+// blocking and agent-side response timeouts. Coalesce frames per blockId: flush on a
+// ~100ms timer or when the pending chunk gets big. Only the *send* is batched —
+// buf.append() still runs per chunk, so head/tail cut semantics are unchanged.
+const STREAM_FLUSH_MS = 100;
+const STREAM_FLUSH_CHARS = 16 * 1024;
+type PendingStream = { text: string; timer: ReturnType<typeof setTimeout> | null; send: SendFn; todoId: string; messageId: string };
+const pendingStreams = new Map<string, PendingStream>();
+
+/** Send whatever is queued for this blockId now. Safe to call when nothing is pending. */
+async function flushStream(blockId: string): Promise<void> {
+  const p = pendingStreams.get(blockId);
+  if (!p) return;
+  if (p.timer) clearTimeout(p.timer);
+  pendingStreams.delete(blockId);
+  if (p.text) await p.send(msg.shellBlockResult(p.todoId, blockId, p.text, p.messageId));
+}
+
+/** Drop queued output without sending it (stale entry from a previous run). */
+function discardStream(blockId: string) {
+  const p = pendingStreams.get(blockId);
+  if (p?.timer) clearTimeout(p.timer);
+  pendingStreams.delete(blockId);
+}
+
+function queueStream(blockId: string, text: string, send: SendFn, todoId: string, messageId: string) {
+  if (!text) return;
+  let p = pendingStreams.get(blockId);
+  if (!p) {
+    p = { text: "", timer: null, send, todoId, messageId };
+    pendingStreams.set(blockId, p);
+  }
+  p.text += text;
+  if (p.text.length >= STREAM_FLUSH_CHARS) { void flushStream(blockId); return; }
+  if (!p.timer) p.timer = setTimeout(() => { void flushStream(blockId); }, STREAM_FLUSH_MS);
+}
+
 // ── Execute block ──
 
 export async function executeBlock(
@@ -175,6 +214,9 @@ export async function executeBlock(
     console.log(`[shell] killing existing process for blockId=${blockId}`);
     interruptBlock(blockId);
   }
+  // A late chunk from the previous run must not be appended to this run's frame
+  // (it still carries the old send/messageId).
+  discardStream(blockId);
 
   const buf = new OutputBuffer(resolveOutputPolicy(outputMode));
   outputBuffers.set(blockId, buf);
@@ -218,6 +260,7 @@ export async function executeBlock(
 
     // Resolve waiter early without killing the process (used by paused-detection and keep-alive timeout).
     const resolveAlive = () => {
+      void flushStream(blockId); // process stays alive, so nothing else would push the tail
       const resolver = completionResolvers.get(blockId);
       if (resolver) { resolver(); completionResolvers.delete(blockId); }
     };
@@ -229,7 +272,7 @@ export async function executeBlock(
       if (keepAliveOnTimeout) {
         resolveAlive();
       } else {
-        interruptBlock(blockId);
+        interruptBlock(blockId); // flushes the pending tail before we append the notice
         send(msg.shellBlockResult(todoId, blockId, `Execution timed out after ${timeout} seconds`, messageId));
       }
     }, timeout * 1000);
@@ -252,6 +295,7 @@ export async function executeBlock(
       clearTimeout(timer);
       cancelPauseWatch?.();
       returnCodes.set(blockId, returnCode);
+      await flushStream(blockId); // don't lose the tail before DONE
       const notice = buf.getTruncationNotice();
       if (notice) await send(msg.shellBlockResult(todoId, blockId, notice, messageId));
       await send(msg.shellBlockDone(todoId, messageId, blockId, "execute", returnCode, effectiveRunMode));
@@ -274,8 +318,7 @@ export async function executeBlock(
 
     // Data handler
     const onData = async (data: string) => {
-      const toStream = buf.append(data);
-      if (toStream) await send(msg.shellBlockResult(todoId, blockId, toStream, messageId));
+      queueStream(blockId, buf.append(data), send, todoId, messageId);
     };
 
     const sc = getShellCommand(content);
@@ -407,6 +450,7 @@ export async function sendInput(blockId: string, text: string): Promise<boolean>
 // completion (manual user-Run blocks have no waiter — the UI guards this by
 // only surfacing the button on blocks with a live agent-managed pid).
 export function detachBlock(blockId: string) {
+  void flushStream(blockId);
   const resolver = completionResolvers.get(blockId);
   if (resolver) { resolver(); completionResolvers.delete(blockId); }
 }
@@ -432,6 +476,7 @@ export function interruptBlock(blockId: string) {
   }
   // Close terminal after process is killed
   try { handle.terminal?.close(); } catch {}
+  void flushStream(blockId);
   processes.delete(blockId);
   // Release any waiter (e.g. execute_shell_command) so it doesn't hang until its own timeout.
   const resolver = completionResolvers.get(blockId);
@@ -465,6 +510,9 @@ export function getBlockOutput(blockId: string): string {
 export function drainBlockOutput(blockId: string): { output: string; raw: string | null } {
   const buf = outputBuffers.get(blockId);
   if (!buf) return { output: "", raw: null };
+  // The buffer is about to be reset — push the pending frame so the UI stream
+  // doesn't drop output the caller is receiving right now.
+  void flushStream(blockId);
   const raw = buf.getRawIfComplete();
   const output = raw ?? buf.getOutput();
   buf.resetForInteraction();
@@ -473,6 +521,7 @@ export function drainBlockOutput(blockId: string): { output: string; raw: string
 
 
 export function clearBlockOutput(blockId: string) {
+  discardStream(blockId);
   outputBuffers.delete(blockId);
   returnCodes.delete(blockId);
 }
