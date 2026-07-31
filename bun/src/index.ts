@@ -1,7 +1,7 @@
 import { loadConfig, clearApiKey, readOwnPackage } from "./config.js";
 import { TODOforAIEdge, setGlobalEdgeInstance } from "./edge.js";
 import { unmountAllRclone } from "./tool-registry.js";
-import { checkForUpdates } from "@todoforai/update-notifier";
+import { selfUpdate, autoUpdate } from "@todoforai/update-notifier";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -75,8 +75,20 @@ async function main() {
   }
 
   const ownPkg = readOwnPackage();
-  if (ownPkg) checkForUpdates(ownPkg);
   const config = await loadConfig();
+
+  if (config.subcommand === "update") {
+    // No package.json next to us ⇒ standalone binary: point at the installer.
+    if (!ownPkg) {
+      console.log("\x1b[33mStandalone binary — re-run the installer: curl -fsSL https://todofor.ai/edge | sh\x1b[0m");
+      process.exit(1);
+    }
+    const result = await selfUpdate(ownPkg);
+    process.exit(result === "updated" || result === "current" ? 0 : 1);
+  }
+
+  // Install a newer version at startup; it takes effect on the next start.
+  if (ownPkg && !config.noAutoUpdate) autoUpdate(ownPkg);
 
   if (config.debug) {
     console.log("[config]", { apiUrl: config.apiUrl, debug: config.debug, addWorkspacePath: config.addWorkspacePath });

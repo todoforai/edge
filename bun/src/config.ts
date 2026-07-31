@@ -40,10 +40,12 @@ export interface Config {
   addWorkspacePath?: string;
   /** Floor for shell execution timeout (seconds). Effective timeout = max(requested, maxTimeout). */
   maxTimeout?: number;
-  subcommand?: "login" | "logout";
+  /** Skip the startup self-update check (env: TODOFORAI_NO_AUTO_UPDATE=1) */
+  noAutoUpdate: boolean;
+  subcommand?: "login" | "logout" | "update";
 }
 
-const SUBCOMMANDS = new Set(["login", "logout"]);
+const SUBCOMMANDS = new Set(["login", "logout", "update"]);
 
 const HELP_TEXT = `\
 todoforai-edge — connect this machine to TODOforAI
@@ -55,6 +57,7 @@ Usage:
 Commands:
   login                Force device-login flow (clears saved key for --api-url)
   logout               Clear saved key for --api-url
+  update               Update to the latest npm release and exit
 
 Options:
   --api-key <key>      API key (env: TODOFORAI_API_KEY)
@@ -62,6 +65,7 @@ Options:
   --add-path <path>    Add workspace path to this edge
   --max-timeout <sec>  Floor for shell execution timeout
   --kill               Replace any existing edge instance for this user+server
+  --no-auto-update     Skip the startup update check (env: TODOFORAI_NO_AUTO_UPDATE=1)
   --debug              Verbose logging (env: TODOFORAI_DEBUG=1)
   -v, --version        Print version and exit
   -h, --help           Show this help and exit`;
@@ -80,6 +84,7 @@ export function loadConfig(): Config {
       "api-url": { type: "string" },
       debug: { type: "boolean", default: false },
       kill: { type: "boolean", default: false },
+      "no-auto-update": { type: "boolean", default: false },
       "add-path": { type: "string" },
       "max-timeout": { type: "string" },
       version: { type: "boolean", short: "v", default: false },
@@ -103,6 +108,7 @@ export function loadConfig(): Config {
   const apiKey = (values["api-key"] as string) || getEnv("API_KEY") || "";
   const debug = !!(values.debug || getEnv("DEBUG").toLowerCase().match(/^(true|1|yes)$/));
   const kill = !!values.kill;
+  const noAutoUpdate = !!(values["no-auto-update"] || getEnv("NO_AUTO_UPDATE").toLowerCase().match(/^(true|1|yes)$/));
 
   let addWorkspacePath: string | undefined;
   if (values["add-path"]) {
@@ -112,7 +118,7 @@ export function loadConfig(): Config {
 
   const maxTimeout = values["max-timeout"] ? Math.max(0, parseInt(values["max-timeout"] as string, 10) || 0) : undefined;
 
-  return { apiUrl, apiKey, debug, kill, addWorkspacePath, maxTimeout, subcommand };
+  return { apiUrl, apiKey, debug, kill, noAutoUpdate, addWorkspacePath, maxTimeout, subcommand };
 }
 
 // ── Credential persistence ──
