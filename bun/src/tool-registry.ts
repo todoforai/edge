@@ -432,7 +432,26 @@ export async function autoInstallMissingTools(content: string): Promise<string> 
 }
 
 /** Scan all catalog tools: check binary presence, version, and auth status. */
-type ToolState = { installed: boolean; version?: string; statusOutput?: string; authenticated?: boolean };
+type ToolState = { installed: boolean; version?: string; statusOutput?: string; authenticated?: boolean; description?: string; label?: string };
+
+// ── User CLI-tool overrides ──
+// ~/.todoforai/custom_tools.json lets the user shape the tool list this edge
+// advertises to the agent: hide a catalog tool (`"xurl": {"enabled": false}`)
+// or add a non-catalog binary with a description the agent sees on its bash
+// tool (`"bird": {"description": "Fast X CLI: tweet, read, search."}`).
+// Non-catalog binaries are only reported when actually found on PATH.
+// Future: per-project overrides from a workspace-local .todoforai/ dir.
+type CustomToolConfig = { enabled?: boolean; description?: string; label?: string };
+
+const CUSTOM_TOOLS_PATH = path.join(os.homedir(), ".todoforai", "custom_tools.json");
+
+function loadCustomTools(): Record<string, CustomToolConfig> {
+  try {
+    return JSON.parse(fs.readFileSync(CUSTOM_TOOLS_PATH, "utf-8"));
+  } catch {
+    return {};
+  }
+}
 
 /** Async execFile that never rejects: resolves {status, stdout, stderr}. Non-blocking spawnSync replacement. */
 function execFileAsync(file: string, args: string[], timeout: number, env?: NodeJS.ProcessEnv): Promise<{ status: number; stdout: string; stderr: string }> {
@@ -492,7 +511,24 @@ export async function scanCatalogTools(): Promise<Record<string, ToolState>> {
     result[name] = state;
   }));
 
+  applyCustomTools(result);
   return result;
+}
+
+/** Overlay ~/.todoforai/custom_tools.json onto a scan result (in place). */
+function applyCustomTools(result: Record<string, ToolState>): void {
+  for (const [name, conf] of Object.entries(loadCustomTools())) {
+    if (conf.enabled === false) { delete result[name]; continue; }
+    const overlay = {
+      ...(conf.description ? { description: conf.description } : {}),
+      ...(conf.label ? { label: conf.label } : {}),
+    };
+    if (result[name]?.installed) {
+      result[name] = { ...result[name], ...overlay };
+    } else if (!(name in TOOL_CATALOG) && whichWithTools(name)) {
+      result[name] = { installed: true, authenticated: true, ...overlay };
+    }
+  }
 }
 
 // ── Auto-mount rclone remotes as FUSE ──
