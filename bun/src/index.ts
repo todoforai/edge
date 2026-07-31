@@ -88,7 +88,7 @@ async function main() {
   }
 
   // Install a newer version at startup; it takes effect on the next start.
-  if (ownPkg && !config.noAutoUpdate) autoUpdate(ownPkg);
+  if (ownPkg && !config.noAutoUpdate) await autoUpdate(ownPkg);
 
   if (config.debug) {
     console.log("[config]", { apiUrl: config.apiUrl, debug: config.debug, addWorkspacePath: config.addWorkspacePath });

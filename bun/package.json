@@ -1,6 +1,6 @@
 {
   "name": "@todoforai/edge",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "type": "module",
   "bin": {
     "todoforai-edge": "dist/index.js"
@@ -16,7 +16,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@todoforai/update-notifier": "^0.2.0",
+    "@todoforai/update-notifier": "^0.3.1",
     "fflate": "^0.8.2",
     "ignore": "^7.0.5",
     "ws": "^8.18.0"
