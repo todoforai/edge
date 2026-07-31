@@ -1,4 +1,5 @@
 import { parseArgs } from "util";
+import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -7,6 +8,15 @@ const DEFAULT_API_URL = "https://api.todofor.ai";
 
 function getEnv(name: string): string {
   return process.env[`TODOFORAI_${name}`] || process.env[`TODO4AI_${name}`] || "";
+}
+
+// Read at runtime (not a bundled JSON import): CI bumps package.json *after* the
+// build, so only a runtime read reflects the published version.
+export function readOwnPackage(): { name: string; version: string } | null {
+  try {
+    const pkgPath = path.resolve(fileURLToPath(import.meta.url), "../../package.json");
+    return JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+  } catch { return null; }
 }
 
 export function getWsUrl(apiUrl: string): string {
@@ -85,7 +95,7 @@ export function loadConfig(): Config {
   }
 
   if (values.version) {
-    console.log("todoforai-edge-bun 0.1.0");
+    console.log(readOwnPackage()?.version ?? "unknown");
     process.exit(0);
   }
 
