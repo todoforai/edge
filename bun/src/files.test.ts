@@ -37,13 +37,12 @@ describe("readFileContent", () => {
     fs.rmSync(tmp, { recursive: true });
   });
 
-  test("read .pdf extracts text", async () => {
+  test("read .pdf returns base64 data URL", async () => {
     const root = path.dirname(INPUT_PDF);
     const result = await readFileContent(INPUT_PDF, root, []);
     expect(result.success).toBe(true);
-    expect(result.contentType).toBe("text");
-    expect(result.content).toContain("Dummy PDF file");
-    expect(result.content).toContain("PAGE 1");
+    expect(result.contentType).toBe("application/pdf");
+    expect(result.content?.startsWith("data:application/pdf;base64,")).toBe(true);
   });
 
   test("read .docx returns docx-xml", async () => {

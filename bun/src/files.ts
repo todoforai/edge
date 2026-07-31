@@ -3,13 +3,13 @@ import path from "path";
 import { resolveFilePath, WorkspacePathNotFoundError } from "./path-utils.js";
 import { refreshMountPath } from "./tool-registry.js";
 import { extractDocxContent, extractXlsxContent } from "./docx-handler.js";
-import { extractPdfContent } from "./pdf-handler.js";
 import mimetypesJson from "../../../packages/shared-fbe/src/mimetypes.json";
 
 const MAX_FILE_SIZE = 100_000; // 100KB
 const MAX_OFFICE_FILE_SIZE = 500_000; // 500KB
 const MAX_IMAGE_FILE_SIZE = 5_000_000; // 5MB
-const OFFICE_EXTENSIONS = new Set([".docx", ".xlsx", ".pdf"]);
+const MAX_PDF_FILE_SIZE = 20_000_000; // 20MB — PDFs are sent whole as native document blocks
+const OFFICE_EXTENSIONS = new Set([".docx", ".xlsx"]);
 
 // Derive from mimetypes.json (single source of truth)
 const EXT_TO_MIME = new Map(Object.entries(mimetypesJson.extensions).map(([ext, e]) => [`.${ext}`, (e as any).mime as string]));
@@ -54,8 +54,9 @@ export async function readFileContent(
     const ext = path.extname(fullPath).toLowerCase();
     const fileType = EXT_TO_TYPE.get(ext);
     const isImage = fileType === "image";
+    const isPdf = ext === ".pdf";
     const isOffice = OFFICE_EXTENSIONS.has(ext);
-    const sizeLimit = isImage ? MAX_IMAGE_FILE_SIZE : isOffice ? MAX_OFFICE_FILE_SIZE : MAX_FILE_SIZE;
+    const sizeLimit = isImage ? MAX_IMAGE_FILE_SIZE : isPdf ? MAX_PDF_FILE_SIZE : isOffice ? MAX_OFFICE_FILE_SIZE : MAX_FILE_SIZE;
 
     if (!skipSizeLimit && stat.size > sizeLimit) {
       return {
@@ -65,8 +66,13 @@ export async function readFileContent(
     }
 
     if (ext === ".pdf") {
-      const content = await extractPdfContent(fullPath);
-      return { success: true, content, fullPath, contentType: "text" };
+      // Return the raw PDF as a base64 data URL so the LLM gets it as a native
+      // document block (Anthropic/OpenAI/Gemini all support this) instead of
+      // lossy extracted text. Symmetric with the image branch below.
+      const data = fs.readFileSync(fullPath);
+      const mimeType = EXT_TO_MIME.get(ext) ?? "application/pdf";
+      const content = `data:${mimeType};base64,${data.toString("base64")}`;
+      return { success: true, content, fullPath, contentType: mimeType };
     }
     if (ext === ".docx") {
       const content = extractDocxContent(fullPath);
