@@ -123,6 +123,10 @@ export class ApiClient {
     return this.request("DELETE", `/api/v1/todos/${todoId}`);
   }
 
+  listModels() {
+    return this.request("GET", "/api/v1/models");
+  }
+
   listAgentSettings(filters?: { workspacePath?: string; name?: string }) {
     const params = new URLSearchParams();
     if (filters?.workspacePath) params.set("workspacePath", filters.workspacePath);
