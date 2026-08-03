@@ -1,27 +1,18 @@
 /** Thin REST client for the TODOforAI API */
 
-// ── Registry types (canonical source: @shared/fbe/REST_types) ────────
+// ── Registry types (canonical source: @shared/fbe TodoSpecPublic) ────
 
-export interface RegistryTemplateInput {
-  label: string;
-  type: "text" | "textarea" | "number" | "password";
-  placeholder?: string;
-  helpText?: string;
-  required?: boolean;
-  default?: string | number | boolean;
-}
-
-export interface RegistryTemplate {
+export interface RegistrySpec {
   id: string;
-  todoname: string;
+  name: string;
+  short?: string;
   description: string;
-  targetUrls?: string[];
   categories: string[];
-  featured?: boolean;
-  creator: { name: string; avatar?: string };
-  requirements?: { anyOf: string[][]; optional?: boolean }[];
-  inputs?: RegistryTemplateInput[];
-  agentSettings: { systemMessage: string };
+  requirements?: string[];
+  /** The agent prompt body (markdown). */
+  body: string;
+  source: "builtin" | "authored" | "generated" | "forked";
+  forkedFrom?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -182,18 +173,24 @@ export class ApiClient {
     return this.request("GET", "/api/v1/devices");
   }
 
-  startFromTemplate(projectId: string, templateId: string, opts?: { inputValues?: Record<string, string | number | boolean>; scheduledTimestamp?: number; businessContextId?: string }) {
+  startFromSpec(projectId: string, specId: string, opts?: { placementId?: string; scheduledTimestamp?: number; businessContextId?: string }) {
     return this.request("POST", `/api/v1/projects/${projectId}/todos/from-template`, {
-      templateId,
+      specId,
       ...opts,
     });
   }
 
-  /** Fetch a single template from the public registry (no auth required). */
-  async getRegistryTemplate(templateId: string): Promise<RegistryTemplate> {
+  /** Surface a spec as a NEXT-column recommendation placement on a project. */
+  recommend(input: { projectId: string; specId: string; title?: string; note?: string; priority?: "high" | "medium" | "low"; businessContextId?: string }) {
+    const { projectId, ...body } = input;
+    return this.request("POST", `/api/v1/projects/${projectId}/recommendations`, body);
+  }
+
+  /** Fetch a single spec from the public registry (no auth required). */
+  async getRegistrySpec(specId: string): Promise<RegistrySpec> {
     const base = this.apiUrl.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
-    const res = await fetch(`${base}/cookie/v1/registry/templates/${templateId}`);
-    if (!res.ok) throw new Error(`Template '${templateId}' not found (${res.status})`);
+    const res = await fetch(`${base}/cookie/v1/registry/templates/${specId}`);
+    if (!res.ok) throw new Error(`Spec '${specId}' not found (${res.status})`);
     return res.json();
   }
 
@@ -216,7 +213,7 @@ export class ApiClient {
   }
 
   /** List all templates from the public registry (no auth required). */
-  async listRegistryTemplates(category = "all"): Promise<RegistryTemplate[]> {
+  async listRegistrySpecs(category = "all"): Promise<RegistrySpec[]> {
     const base = this.apiUrl.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "");
     const res = await fetch(`${base}/cookie/v1/registry/templates?category=${category}`);
     if (!res.ok) throw new Error(`Failed to list templates (${res.status})`);
