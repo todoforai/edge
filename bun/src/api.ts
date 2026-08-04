@@ -11,7 +11,7 @@ export interface RegistrySpec {
   requirements?: string[];
   /** The agent prompt body (markdown). */
   body: string;
-  source: "builtin" | "authored" | "generated" | "forked";
+  source: "builtin" | "authored";
   forkedFrom?: string;
   createdAt: number;
   updatedAt: number;
