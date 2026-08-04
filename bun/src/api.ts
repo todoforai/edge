@@ -180,7 +180,7 @@ export class ApiClient {
     });
   }
 
-  /** Surface a spec as a NEXT-column recommendation placement on a project. */
+  /** Surface a spec as a recommendation placement on a project. */
   recommend(input: { projectId: string; specId: string; title?: string; note?: string; priority?: "high" | "medium" | "low"; businessContextId?: string }) {
     const { projectId, ...body } = input;
     return this.request("POST", `/api/v1/projects/${projectId}/recommendations`, body);
