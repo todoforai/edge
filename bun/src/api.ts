@@ -19,6 +19,14 @@ export interface RegistrySpec {
 
 // ── Client ───────────────────────────────────────────────────────────
 
+/** REST mount for a given token. dst_… device-session tokens (minted by the
+ *  bridge, exported as TODOFORAI_API_TOKEN into sandbox shells) only
+ *  authenticate on "/dst/v1" — the same routes, mounted under a separate URL
+ *  space so real API keys and dst tokens can't be confused. */
+export function restBasePath(apiKey: string): string {
+  return apiKey.startsWith("dst_") ? "/dst/v1" : "/api/v1";
+}
+
 export class ApiClient {
   constructor(
     public apiUrl: string,
@@ -30,7 +38,7 @@ export class ApiClient {
   }
 
   private async request(method: string, endpoint: string, body?: any) {
-    const url = `${this.apiUrl}${endpoint}`;
+    const url = `${this.apiUrl}${endpoint.replace(/^\/api\/v1/, restBasePath(this.apiKey))}`;
     const opts: RequestInit = { method, headers: this.headers, signal: AbortSignal.timeout(30_000) };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(url, opts);
@@ -61,7 +69,7 @@ export class ApiClient {
   async validateApiKey(): Promise<{ valid: boolean; userId?: string; error?: string; connectionError?: boolean }> {
     if (!this.apiKey) return { valid: false, error: "No API key provided" };
     try {
-      const res = await fetch(`${this.apiUrl}/api/v1/apikey/validate`, {
+      const res = await fetch(`${this.apiUrl}${restBasePath(this.apiKey)}/apikey/validate`, {
         headers: { "x-api-key": this.apiKey },
         signal: AbortSignal.timeout(10_000),
       });
@@ -99,6 +107,12 @@ export class ApiClient {
 
   listTodos(projectId?: string, opts?: { limit?: number; cursor?: number; search?: string }) {
     if (!projectId) return this.request("GET", "/api/v1/todos");
+    // /trpc/api only accepts real API keys; dst tokens use the same procedure's REST mount.
+    if (this.apiKey.startsWith("dst_")) {
+      const qs = new URLSearchParams();
+      for (const [k, v] of Object.entries(opts ?? {})) if (v !== undefined) qs.set(k, String(v));
+      return this.request("GET", `/api/v1/projects/${projectId}/todos${qs.size ? `?${qs}` : ""}`);
+    }
     return this.trpcQuery("todo.list", { projectId, ...opts });
   }
 
