@@ -10,10 +10,9 @@
 import fs from "fs";
 import path from "path";
 import { execFile } from "child_process";
-import { msg } from "./constants.js";
 import type { SendFn } from "./shell.js";
 
-const MAX_FILE_SIZE = 1_000_000; // per-file content cap (bytes)
+const MAX_FILE_SIZE = 100_000;   // per-file content cap (bytes) — also bounds what gets persisted on the block
 const MAX_PRE_FILES = 50;        // dirty files whose content we snapshot pre-command
 const MAX_REPORT_FILES = 20;     // per-command reported changes cap
 
@@ -112,14 +111,17 @@ async function snapshot(cwd: string): Promise<PreState> {
 }
 
 async function report(cwd: string, pre: PreState, send: SendFn, ids: { todoId: string; blockId: string; messageId: string }) {
+  // The existing BLOCK_UPDATE pipeline does the rest: backend persists the
+  // updates onto the block and republishes to the frontend's block cache.
+  const sendUpdates = (updates: Record<string, any>) =>
+    send({ type: "BLOCK_UPDATE", payload: { ...ids, updates } });
+
   const postHead = (await git(cwd, ["rev-parse", "HEAD"])).trim();
 
   // checkout / rebase / reset / pull → summary only, no content spam
   if (postHead !== pre.head) {
     const files = (await git(cwd, ["diff", "--name-only", "-z", pre.head, postHead])).split("\0").filter(Boolean);
-    await send(msg.blockFileChanged(ids.todoId, ids.blockId, ids.messageId, {
-      headMoved: true, headBefore: pre.head, headAfter: postHead, changedFiles: files.length,
-    }));
+    await sendUpdates({ headMove: { headBefore: pre.head, headAfter: postHead, changedFiles: files.length } });
     return;
   }
 
@@ -147,9 +149,7 @@ async function report(cwd: string, pre: PreState, send: SendFn, ids: { todoId: s
     changes.push({ path: p, originalContent, modifiedContent });
   }
 
-  if (changes.length) {
-    await send(msg.blockFileChanged(ids.todoId, ids.blockId, ids.messageId, { headMoved: false, changes }));
-  }
+  if (changes.length) await sendUpdates({ fileChanges: changes });
 }
 
 /** Kick off a pre-snapshot (fire-and-forget, not awaited by the caller). Returns null when disabled. */

@@ -98,10 +98,6 @@ export const msg = {
     return { type: EF.BLOCK_SH_DONE, payload };
   },
 
-  blockFileChanged(todoId: string, blockId: string, messageId: string, extra: Record<string, any>): WsMessage {
-    return { type: EF.BLOCK_FILE_CHANGED, payload: { todoId, blockId, messageId, ...extra } };
-  },
-
   blockSaveResult(blockId: string, todoId: string, result: string, requestId?: string): WsMessage {
     return { type: EF.BLOCK_SAVE_RESULT, payload: { blockId, todoId, result, requestId } };
   },
