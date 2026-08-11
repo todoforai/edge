@@ -453,6 +453,21 @@ function loadCustomTools(): Record<string, CustomToolConfig> {
   }
 }
 
+/** Upsert (conf=null → delete) one entry in ~/.todoforai/custom_tools.json. */
+export function setCustomTool(name: string, conf: CustomToolConfig | null): void {
+  const all = loadCustomTools();
+  if (conf) all[name] = { ...all[name], ...conf };
+  else delete all[name];
+  fs.mkdirSync(path.dirname(CUSTOM_TOOLS_PATH), { recursive: true });
+  fs.writeFileSync(CUSTOM_TOOLS_PATH, JSON.stringify(all, null, 2) + "\n");
+}
+
+/** Is `name` an executable on the tool-augmented PATH? Used by the UI to
+ *  reject registering a custom tool that isn't actually installed here. */
+export function probeBinary(name: string): boolean {
+  return whichWithTools(name) !== null;
+}
+
 /** Async execFile that never rejects: resolves {status, stdout, stderr}. Non-blocking spawnSync replacement. */
 function execFileAsync(file: string, args: string[], timeout: number, env?: NodeJS.ProcessEnv): Promise<{ status: number; stdout: string; stderr: string }> {
   return new Promise(resolve => {

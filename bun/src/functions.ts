@@ -8,7 +8,7 @@ import { executeBlock, waitForCompletion, drainBlockOutput, clearBlockOutput, is
 // `pendingToolApprovals` was imported here to short-circuit the response when
 // executeBlock entered AWAITING_APPROVAL. DEAD with the install-gating removal.
 import { msg } from "./constants.js";
-import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools } from "./tool-registry.js";
+import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools, setCustomTool, probeBinary } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
 import { allowedPreviewPorts } from "./preview.js";
 import { serveStaticDir } from "./static-server.js";
@@ -111,6 +111,27 @@ register("uninstall_tool", async (args) => {
   const success = uninstallTool(name);
   if (success) await syncInstalledTools();
   return { success, tool: name };
+});
+
+// Register/update/remove a user custom tool in ~/.todoforai/custom_tools.json.
+// Adding requires the binary to already exist on PATH — this is *registration*,
+// not installation. Returns the fresh installedTools map so the frontend can
+// patch its cache without a second scan_tools roundtrip.
+register("set_custom_tool", async (args) => {
+  const name = String(args.name ?? "").trim();
+  if (!/^[\w.@-]{1,64}$/.test(name)) return { success: false, error: "Invalid tool name" };
+  if (name in TOOL_CATALOG) return { success: false, error: `${name} is a catalog tool` };
+  if (args.remove) {
+    setCustomTool(name, null);
+    return { success: true, tools: await syncInstalledTools() };
+  }
+  if (!probeBinary(name)) return { success: false, error: `\`${name}\` not found on PATH on this machine` };
+  setCustomTool(name, {
+    enabled: true,
+    ...(args.label ? { label: String(args.label) } : {}),
+    ...(args.description ? { description: String(args.description) } : {}),
+  });
+  return { success: true, tools: await syncInstalledTools() };
 });
 
 register("get_workspace_tree", async (args) => {
