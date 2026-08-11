@@ -6,6 +6,7 @@ import { msg, type WsMessage } from "./constants.js";
 import { buildEnvWithTools, autoInstallMissingTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
 import { pauseDetector } from "./shell-pause-detector.js";
+import { startTracking } from "./file-change-tracker.js";
 import { capLineWidth, collapseCarriageReturns, formatTruncationNotice, OUTPUT_POLICIES, DEFAULT_OUTPUT_MODE, resolveOutputPolicy, type OutputPolicy } from "../../../packages/shared-fbe/src/outputLimits";
 
 const IS_WIN = os.platform() === "win32";
@@ -234,6 +235,10 @@ export async function executeBlock(
       cwd = tmpDir;
     }
 
+    // File-change tracking: pre-snapshot is kicked off but never awaited here —
+    // the git work runs concurrently, only the child-process setup (~sub-ms) is paid.
+    const fileTracker = startTracking(cwd);
+
     // Auto-install missing catalog tools; the notice goes through the normal
     // output buffer so it lands in both the stream and the final shell result.
     const installNotice = await autoInstallMissingTools(content);
@@ -299,6 +304,8 @@ export async function executeBlock(
       const notice = buf.getTruncationNotice();
       if (notice) await send(msg.shellBlockResult(todoId, blockId, notice, messageId));
       await send(msg.shellBlockDone(todoId, messageId, blockId, "execute", returnCode, effectiveRunMode));
+      // Post-diff + BLOCK_FILE_CHANGED push happens off the critical path (done already sent).
+      void fileTracker?.finish(send, { todoId, blockId, messageId });
       // If the LLM has been resuming by pid and the process died between paused
       // responses, stash the residual output so the next resume call can drain it
       // instead of seeing only "no live session". No completion resolver means

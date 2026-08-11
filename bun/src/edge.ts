@@ -24,6 +24,7 @@ import {
 import { scanCatalogTools, autoMountRcloneRemotes } from "./tool-registry.js";
 import { handlePreviewHttpRequest } from "./preview.js";
 import type { SendFn } from "./shell.js";
+import { setFileTrackingEnabled } from "./file-change-tracker.js";
 
 // ── Fingerprint ──
 
@@ -96,6 +97,7 @@ export class TODOforAIEdge {
 
   constructor(config: Config) {
     this.api = new ApiClient(normalizeApiUrl(config.apiUrl), config.apiKey);
+    setFileTrackingEnabled(config.trackFileChanges);
     this.debug = config.debug;
     this.maxTimeout = config.maxTimeout ?? 0;
     this.wsUrl = getWsUrl(this.api.apiUrl);
