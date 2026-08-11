@@ -20,6 +20,7 @@ async function run(mutate: () => void): Promise<WsMessage[]> {
   return sent;
 }
 
+
 beforeEach(() => {
   repo = fs.mkdtempSync(path.join(os.tmpdir(), "fct-"));
   sh("git init -q && git config user.email t@t && git config user.name t");
@@ -42,8 +43,7 @@ describe("file-change-tracker", () => {
   test("sed-style edit reports original + modified", async () => {
     const sent = await run(() => fs.writeFileSync(path.join(repo, "a.txt"), "hi\nworld\n"));
     expect(sent.length).toBe(1);
-    const { fileChanges: changes, headMove } = sent[0]!.payload.updates;
-    expect(headMove).toBeUndefined();
+    const changes = sent[0]!.payload.updates.fileChanges;
     expect(changes).toEqual([{ path: "a.txt", originalContent: "hello\nworld\n", modifiedContent: "hi\nworld\n" }]);
   });
 
@@ -73,13 +73,10 @@ describe("file-change-tracker", () => {
     expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: "b.txt", originalContent: null, modifiedContent: "other\n" }]);
   });
 
-  test("git checkout (HEAD move) → summary, no content", async () => {
+  test("git checkout (HEAD move) → nothing reported", async () => {
     fs.writeFileSync(path.join(repo, "a.txt"), "v2\n");
     sh("git commit -qam v2");
-    const sent = await run(() => sh("git checkout -q HEAD~1"));
-    const u = sent[0]!.payload.updates;
-    expect(u.headMove.changedFiles).toBe(1);
-    expect(u.fileChanges).toBeUndefined();
+    expect(await run(() => sh("git checkout -q HEAD~1"))).toEqual([]);
   });
 
   test("non-git dir → inert, no throw", async () => {

@@ -111,19 +111,10 @@ async function snapshot(cwd: string): Promise<PreState> {
 }
 
 async function report(cwd: string, pre: PreState, send: SendFn, ids: { todoId: string; blockId: string; messageId: string }) {
-  // The existing BLOCK_UPDATE pipeline does the rest: backend persists the
-  // updates onto the block and republishes to the frontend's block cache.
-  const sendUpdates = (updates: Record<string, any>) =>
-    send({ type: "BLOCK_UPDATE", payload: { ...ids, updates } });
-
+  // checkout / rebase / reset / pull moved HEAD → the working tree diff is git's
+  // doing, not the command editing files. Nothing worth reporting.
   const postHead = (await git(cwd, ["rev-parse", "HEAD"])).trim();
-
-  // checkout / rebase / reset / pull → summary only, no content spam
-  if (postHead !== pre.head) {
-    const files = (await git(cwd, ["diff", "--name-only", "-z", pre.head, postHead])).split("\0").filter(Boolean);
-    await sendUpdates({ headMove: { headBefore: pre.head, headAfter: postHead, changedFiles: files.length } });
-    return;
-  }
+  if (postHead !== pre.head) return;
 
   const postDirty = new Set(parseStatusZ(await gitStatus(cwd)));
   const changes: FileChange[] = [];
@@ -149,7 +140,11 @@ async function report(cwd: string, pre: PreState, send: SendFn, ids: { todoId: s
     changes.push({ path: p, originalContent, modifiedContent });
   }
 
-  if (changes.length) await sendUpdates({ fileChanges: changes });
+  // The existing BLOCK_UPDATE pipeline does the rest: backend persists the
+  // updates onto the block and republishes to the frontend's block cache.
+  if (changes.length) {
+    await send({ type: "BLOCK_UPDATE", payload: { ...ids, updates: { fileChanges: changes } } });
+  }
 }
 
 /** Kick off a pre-snapshot (fire-and-forget, not awaited by the caller). Returns null when disabled. */
