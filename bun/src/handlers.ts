@@ -14,11 +14,11 @@ const log = (level: string, ...args: any[]) => console.log(`[${level}]`, ...args
 // ── Block Execute ──
 
 export async function handleBlockExecute(payload: Record<string, any>, send: SendFn, edgeId?: string, maxTimeout = 0) {
-  const { blockId, messageId = "", content = "", todoId = "", rootPath = "", manual = false } = payload;
+  const { blockId, messageId = "", content = "", todoId = "", groupTag = "", rootPath = "", manual = false } = payload;
   await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
   try {
     const timeout = Math.max(payload.timeout ?? 120, maxTimeout);
-    await executeBlock(blockId, content, send, todoId, messageId, timeout, rootPath, manual, undefined, edgeId);
+    await executeBlock(blockId, content, send, todoId, messageId, timeout, rootPath, manual, undefined, edgeId, "", false, undefined, "", "", groupTag);
   } catch (e: any) {
     await send(msg.blockError(blockId, todoId, e.message));
   }

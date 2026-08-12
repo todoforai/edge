@@ -306,7 +306,7 @@ function detectContentType(output: string, cmd?: string): { result: string; cont
 }
 
 register("execute_shell_command", async (args, client) => {
-  const { cmd, cwd = (args as any).root_path ?? "", todoId = "", messageId = "", blockId = "", agentSettingsId = "", frontendId = "", frontendKind = "", pid: resumePid = 0, output: outputMode = DEFAULT_OUTPUT_MODE } = args as Record<string, any>;
+  const { cmd, cwd = (args as any).root_path ?? "", todoId = "", groupTag = "", messageId = "", blockId = "", agentSettingsId = "", frontendId = "", frontendKind = "", pid: resumePid = 0, output: outputMode = DEFAULT_OUTPUT_MODE } = args as Record<string, any>;
   const timeout = Math.max((args as Record<string, any>).timeout ?? 120, client?.maxTimeout ?? 0);
   const canStream = !!(todoId && blockId && client);
 
@@ -314,7 +314,7 @@ register("execute_shell_command", async (args, client) => {
     // Simple fallback (no session support without streaming context)
     const { exec } = await import("child_process");
     const result = await new Promise<string>((resolve) => {
-      exec(cmd, { cwd: cwd || os.tmpdir(), encoding: "utf-8", timeout: timeout * 1000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, AGENT_BROWSER_SESSION: todoId } }, (_err, stdout, stderr) => {
+      exec(cmd, { cwd: cwd || os.tmpdir(), encoding: "utf-8", timeout: timeout * 1000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_GROUP_ID: groupTag, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, AGENT_BROWSER_SESSION: todoId } }, (_err, stdout, stderr) => {
         resolve((stdout || "") + (stderr || ""));
       });
     });
@@ -372,7 +372,7 @@ register("execute_shell_command", async (args, client) => {
   // ── Fresh exec ──
   try {
     await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
-    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, cwd, false, "internal", undefined, agentSettingsId, true, outputMode, frontendId, frontendKind);
+    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, cwd, false, "internal", undefined, agentSettingsId, true, outputMode, frontendId, frontendKind, groupTag);
 
     // DEAD: tool-install approval short-circuit. If executeBlock parked the
     // block in AWAITING_APPROVAL, we returned a sentinel so handlers.ts would
