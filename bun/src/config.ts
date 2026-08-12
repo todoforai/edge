@@ -42,7 +42,8 @@ export interface Config {
   maxTimeout?: number;
   /** Skip the startup self-update check (env: TODOFORAI_NO_AUTO_UPDATE=1) */
   noAutoUpdate: boolean;
-  /** Report file changes (original/modified content) after each shell command (env: TODOFORAI_TRACK_FILE_CHANGES=1) */
+  /** Report file changes (original/modified content) after each shell command.
+   *  On by default; opt out with --no-track-file-changes or TODOFORAI_TRACK_FILE_CHANGES=0. */
   trackFileChanges: boolean;
   subcommand?: "login" | "logout" | "update";
 }
@@ -67,7 +68,7 @@ Options:
   --add-path <path>    Add workspace path to this edge
   --max-timeout <sec>  Floor for shell execution timeout
   --kill               Replace any existing edge instance for this user+server
-  --track-file-changes Report file changes after shell commands (env: TODOFORAI_TRACK_FILE_CHANGES=1)
+  --no-track-file-changes  Stop reporting file changes after shell commands (env: TODOFORAI_TRACK_FILE_CHANGES=0)
   --no-auto-update     Skip the startup update check (env: TODOFORAI_NO_AUTO_UPDATE=1)
   --debug              Verbose logging (env: TODOFORAI_DEBUG=1)
   -v, --version        Print version and exit
@@ -88,7 +89,7 @@ export function loadConfig(): Config {
       debug: { type: "boolean", default: false },
       kill: { type: "boolean", default: false },
       "no-auto-update": { type: "boolean", default: false },
-      "track-file-changes": { type: "boolean", default: false },
+      "no-track-file-changes": { type: "boolean", default: false },
       "add-path": { type: "string" },
       "max-timeout": { type: "string" },
       version: { type: "boolean", short: "v", default: false },
@@ -113,7 +114,7 @@ export function loadConfig(): Config {
   const debug = !!(values.debug || getEnv("DEBUG").toLowerCase().match(/^(true|1|yes)$/));
   const kill = !!values.kill;
   const noAutoUpdate = !!(values["no-auto-update"] || getEnv("NO_AUTO_UPDATE").toLowerCase().match(/^(true|1|yes)$/));
-  const trackFileChanges = !!(values["track-file-changes"] || getEnv("TRACK_FILE_CHANGES").toLowerCase().match(/^(true|1|yes)$/));
+  const trackFileChanges = !(values["no-track-file-changes"] || getEnv("TRACK_FILE_CHANGES").toLowerCase().match(/^(false|0|no)$/));
 
   let addWorkspacePath: string | undefined;
   if (values["add-path"]) {
