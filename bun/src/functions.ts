@@ -119,7 +119,9 @@ register("uninstall_tool", async (args) => {
 // patch its cache without a second scan_tools roundtrip.
 register("set_custom_tool", async (args) => {
   const name = String(args.name ?? "").trim();
-  if (!/^[\w.@-]{1,64}$/.test(name)) return { success: false, error: "Invalid tool name" };
+  // Must also satisfy the C bridge prober's `custom_name_safe` (alnum start,
+  // then alnum/_/./-) so the same file works on either runtime.
+  if (!/^[a-zA-Z0-9][\w.-]{0,63}$/.test(name)) return { success: false, error: "Invalid tool name" };
   if (name in TOOL_CATALOG) return { success: false, error: `${name} is a catalog tool` };
   if (args.remove) {
     setCustomTool(name, null);
