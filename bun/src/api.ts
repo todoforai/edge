@@ -2,6 +2,14 @@
 
 // ── Registry types (canonical source: @shared/fbe TodoSpecPublic) ────
 
+/** Result of surfacing something into a todo chat: the block's stable address. */
+export interface ShowResult {
+  messageId: string;
+  blockId: string;
+  ref: string;
+  attachmentId?: string;
+}
+
 export interface RegistrySpec {
   id: string;
   name: string;
@@ -149,6 +157,41 @@ export class ApiClient {
     if (todoId) payload.todoId = todoId;
     if (scheduledTimestamp) payload.scheduledTimestamp = scheduledTimestamp;
     return this.request("POST", `/api/v1/projects/${projectId}/todos`, payload);
+  }
+
+  /** Upload a file and surface it in a todo chat as a `show` block. */
+  async showFile(
+    todoId: string, file: Blob, filename: string,
+    opts: { title?: string; alias?: string; mime?: string } = {},
+  ): Promise<ShowResult> {
+    const form = new FormData();
+    form.append("file", file, filename);
+    form.append("todoId", todoId);
+    for (const [k, v] of Object.entries(opts)) if (v) form.append(k, v);
+    const url = `${this.apiUrl}${restBasePath(this.apiKey)}/resources/show`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "x-api-key": this.apiKey },
+      body: form,
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (!res.ok) throw new Error(`API POST /resources/show failed: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  /** Surface a live url in a todo chat as a `show` block (rendered as a live preview). */
+  async showUrl(
+    todoId: string, url: string, opts: { title?: string; alias?: string } = {},
+  ): Promise<ShowResult> {
+    const endpoint = `${this.apiUrl}${restBasePath(this.apiKey)}/resources/open`;
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "x-api-key": this.apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ todoId, url, ...opts }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) throw new Error(`API POST /resources/open failed: ${res.status} ${await res.text()}`);
+    return res.json();
   }
 
   patchEdgeConfig(edgeId: string, updates: Record<string, any>) {
