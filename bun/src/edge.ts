@@ -2,8 +2,7 @@ import WebSocket from "ws";
 import { getWsUrl, normalizeApiUrl, loadSavedApiKey, saveApiKey, clearApiKey, type Config } from "./config.js";
 import { setConnectionContext } from "./connection-context.js";
 import { SR, FE, AE, EF, S2E, msg, type WsMessage } from "./constants.js";
-import { ApiClient } from "./api.js";
-import { FrontendWebSocket } from "./frontend-ws.js";
+import { ApiClient, FrontendWebSocket } from "@shared/api";
 import { BrowserExtensionBridge } from "./browser-extension-bridge.js";
 import type { EdgeConfigData } from "./types.js";
 import {

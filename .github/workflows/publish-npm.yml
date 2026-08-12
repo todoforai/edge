@@ -49,6 +49,11 @@ jobs:
           jq --arg v "$NEW_VERSION" '.version = $v' package.json > package.json.tmp && mv package.json.tmp package.json
         fi
 
+        # Drop the @shared/* file: deps — they are bundled into dist/ by the build above
+        # and would be unresolvable for npm consumers. Fail loudly if that is not true.
+        ! grep -qE '(from|require\()["'"'"']@shared/' dist/index.js
+        jq 'del(.dependencies["@shared/api"])' package.json > package.json.tmp && mv package.json.tmp package.json
+
         echo "Publishing $PACKAGE_NAME@$NEW_VERSION (npm had $NPM_VERSION, local was $LOCAL_VERSION)"
         npm publish --access public --ignore-scripts
         echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
