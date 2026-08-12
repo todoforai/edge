@@ -209,6 +209,8 @@ export async function executeBlock(
   agentSettingsId = "",
   keepAliveOnTimeout = false,
   outputMode = DEFAULT_OUTPUT_MODE,
+  frontendId = "",
+  frontendKind = "",
 ) {
   // Kill any existing process with the same blockId (re-run scenario)
   if (processes.has(blockId)) {
@@ -259,6 +261,8 @@ export async function executeBlock(
       PAGER: "", GIT_PAGER: "", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "color.ui", GIT_CONFIG_VALUE_0: "false",
       TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId,
       TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId,
+      // The tab that started this run — tfa-surface's default target (§4).
+      TODOFORAI_FRONTEND_ID: frontendId, TODOFORAI_FRONTEND_KIND: frontendKind,
       // Per-todo agent-browser session so parallel todos get isolated daemons/tabs.
       AGENT_BROWSER_SESSION: todoId,
     };

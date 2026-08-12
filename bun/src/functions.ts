@@ -306,7 +306,7 @@ function detectContentType(output: string, cmd?: string): { result: string; cont
 }
 
 register("execute_shell_command", async (args, client) => {
-  const { cmd, cwd = (args as any).root_path ?? "", todoId = "", messageId = "", blockId = "", agentSettingsId = "", pid: resumePid = 0, output: outputMode = DEFAULT_OUTPUT_MODE } = args as Record<string, any>;
+  const { cmd, cwd = (args as any).root_path ?? "", todoId = "", messageId = "", blockId = "", agentSettingsId = "", frontendId = "", frontendKind = "", pid: resumePid = 0, output: outputMode = DEFAULT_OUTPUT_MODE } = args as Record<string, any>;
   const timeout = Math.max((args as Record<string, any>).timeout ?? 120, client?.maxTimeout ?? 0);
   const canStream = !!(todoId && blockId && client);
 
@@ -372,7 +372,7 @@ register("execute_shell_command", async (args, client) => {
   // ── Fresh exec ──
   try {
     await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
-    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, cwd, false, "internal", undefined, agentSettingsId, true, outputMode);
+    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, cwd, false, "internal", undefined, agentSettingsId, true, outputMode, frontendId, frontendKind);
 
     // DEAD: tool-install approval short-circuit. If executeBlock parked the
     // block in AWAITING_APPROVAL, we returned a sentinel so handlers.ts would
