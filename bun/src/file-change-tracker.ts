@@ -20,7 +20,7 @@ let enabled = false;
 export function setFileTrackingEnabled(v: boolean) { enabled = v; }
 
 export interface FileChange {
-  path: string;                    // repo-root-relative
+  path: string;                    // absolute (repo root + relative)
   originalContent: string | null;  // null = didn't exist / binary / too large
   modifiedContent: string | null;  // null = deleted / binary / too large
 }
@@ -137,7 +137,7 @@ async function report(cwd: string, pre: PreState, send: SendFn, ids: { todoId: s
       const unchangedOpaque = originalContent === null && modifiedContent === null && statSig(abs) === pre.sig.get(p);
       if (unchangedText || unchangedOpaque) continue;
     }
-    changes.push({ path: p, originalContent, modifiedContent });
+    changes.push({ path: abs, originalContent, modifiedContent });
   }
 
   // The existing BLOCK_UPDATE pipeline does the rest: backend persists the
