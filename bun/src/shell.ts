@@ -7,7 +7,7 @@ import { buildEnvWithTools, autoInstallMissingTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
 import { pauseDetector } from "./shell-pause-detector.js";
 import { startTracking } from "./file-change-tracker.js";
-import { capLineWidth, collapseCarriageReturns, formatTruncationNotice, OUTPUT_POLICIES, DEFAULT_OUTPUT_MODE, resolveOutputPolicy, type OutputPolicy } from "../../../packages/shared-fbe/src/outputLimits";
+import { capLineWidth, collapseCarriageReturns, formatTruncationNotice, OUTPUT_POLICIES, DEFAULT_OUTPUT_MODE, resolveOutputPolicy, type OutputMode, type OutputPolicy } from "../../../packages/shared-fbe/src/outputLimits";
 
 const IS_WIN = os.platform() === "win32";
 const HAS_BUN = typeof globalThis.Bun !== "undefined";
@@ -154,6 +154,21 @@ export interface SendFn {
   (message: WsMessage): Promise<void>;
 }
 
+export interface ExecuteBlockOptions {
+  todoId: string;
+  messageId: string;
+  timeout: number;
+  cwd: string;
+  manual?: boolean;
+  runMode?: string;
+  agentSettingsId?: string;
+  keepAliveOnTimeout?: boolean;
+  outputMode?: OutputMode;
+  frontendId?: string;
+  frontendKind?: string;
+  groupTag?: string;
+}
+
 // ── Stream coalescing ──
 // A verbose command (build/log) emits thousands of tiny PTY chunks; one WS frame
 // each floods the backend edge-socket, which processes frames serially → head-of-line
@@ -199,20 +214,22 @@ export async function executeBlock(
   blockId: string,
   content: string,
   send: SendFn,
-  todoId: string,
-  messageId: string,
-  timeout: number,
-  cwd: string,
-  manual = false,
-  runMode?: string,
-  edgeId?: string,
-  agentSettingsId = "",
-  keepAliveOnTimeout = false,
-  outputMode = DEFAULT_OUTPUT_MODE,
-  frontendId = "",
-  frontendKind = "",
-  groupTag = "",
+  {
+    todoId,
+    messageId,
+    timeout,
+    cwd: requestedCwd,
+    manual = false,
+    runMode,
+    agentSettingsId = "",
+    keepAliveOnTimeout = false,
+    outputMode = DEFAULT_OUTPUT_MODE,
+    frontendId = "",
+    frontendKind = "",
+    groupTag = "",
+  }: ExecuteBlockOptions,
 ) {
+  let cwd = requestedCwd;
   // Kill any existing process with the same blockId (re-run scenario)
   if (processes.has(blockId)) {
     console.log(`[shell] killing existing process for blockId=${blockId}`);

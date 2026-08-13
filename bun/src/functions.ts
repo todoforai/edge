@@ -372,7 +372,19 @@ register("execute_shell_command", async (args, client) => {
   // ── Fresh exec ──
   try {
     await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
-    await executeBlock(blockId, execCmd, send, todoId, messageId, timeout, cwd, false, "internal", undefined, agentSettingsId, true, outputMode, frontendId, frontendKind, groupTag);
+    await executeBlock(blockId, execCmd, send, {
+      todoId,
+      messageId,
+      timeout,
+      cwd,
+      runMode: "internal",
+      agentSettingsId,
+      keepAliveOnTimeout: true,
+      outputMode,
+      frontendId,
+      frontendKind,
+      groupTag,
+    });
 
     // DEAD: tool-install approval short-circuit. If executeBlock parked the
     // block in AWAITING_APPROVAL, we returned a sentinel so handlers.ts would

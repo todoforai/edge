@@ -14,8 +14,10 @@ const noop = async () => {};
 describe.if(linux)("executeBlock detach + resume (real process)", () => {
   test("blocks on read → detaches alive, resume feeds stdin, exits", async () => {
     const blockId = "test-detach-1";
-    await executeBlock(blockId, "echo ready; read x; echo got=$x", noop,
-      "todo", "msg", 30, "", false, "internal", undefined, "", true);
+    await executeBlock(blockId, "echo ready; read x; echo got=$x", noop, {
+      todoId: "todo", messageId: "msg", timeout: 30, cwd: "",
+      runMode: "internal", keepAliveOnTimeout: true,
+    });
     await waitForCompletion(blockId, 30000);
 
     // Detached while the process is still parked on `read`.
@@ -177,8 +179,10 @@ describe.if(linux)("stream coalescing", () => {
       if (m.type === "block:sh_done") doneAt = frames;
     };
     // Unbatched this is thousands of frames; `raw` keeps the whole output streaming.
-    await executeBlock(blockId, `for i in $(seq 1 ${N}); do echo line$i; done`, send,
-      "todo", "msg", 30, "", false, "internal", undefined, "", false, "raw");
+    await executeBlock(blockId, `for i in $(seq 1 ${N}); do echo line$i; done`, send, {
+      todoId: "todo", messageId: "msg", timeout: 30, cwd: "",
+      runMode: "internal", outputMode: "raw",
+    });
     await waitForCompletion(blockId, 30000);
 
     // Nothing lost, nothing reordered (the PTY echoes \r\n).
@@ -195,8 +199,10 @@ describe.if(linux)("stream coalescing", () => {
     const send = async (m: any) => {
       if (m.type === "block:sh_msg_result") streamed += m.payload.content;
     };
-    await executeBlock(blockId, "echo early; sleep 1.5; echo late", send,
-      "todo", "msg", 30, "", false, "internal", undefined, "", false, "raw");
+    await executeBlock(blockId, "echo early; sleep 1.5; echo late", send, {
+      todoId: "todo", messageId: "msg", timeout: 30, cwd: "",
+      runMode: "internal", outputMode: "raw",
+    });
     await new Promise((r) => setTimeout(r, 700)); // < sleep: only the timer can have flushed
     expect(streamed).toContain("early");
     await waitForCompletion(blockId, 30000);

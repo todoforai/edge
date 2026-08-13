@@ -357,7 +357,7 @@ export class TODOforAIEdge {
         break;
 
       case FE.BLOCK_EXECUTE:
-        run(() => handleBlockExecute(payload, send, this.edgeId, this.maxTimeout));
+        run(() => handleBlockExecute(payload, send, this.maxTimeout));
         break;
 
       case FE.BLOCK_SAVE:
