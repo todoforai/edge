@@ -257,7 +257,7 @@ export async function executeBlock(
 
     // File-change tracking: pre-snapshot is kicked off but never awaited here —
     // the git work runs concurrently, only the child-process setup (~sub-ms) is paid.
-    const fileTracker = startTracking(cwd);
+    const fileTracker = startTracking(cwd, content);
 
     // Auto-install missing catalog tools; the notice goes through the normal
     // output buffer so it lands in both the stream and the final shell result.

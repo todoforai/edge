@@ -16,6 +16,7 @@ import { TOOL_CATALOG } from "./tool-catalog.js";
 import { getGlobalEdgeInstance } from "./edge.js";
 import { discoverSkills } from "./skills.js";
 import { discoverAgentMd } from "./agent-md.js";
+import { noteFileToolWrite } from "./file-change-tracker.js";
 import { truncateLines, resolveOutputPolicy, applyOutputPolicy, DEFAULT_OUTPUT_MODE } from "../../../packages/shared-fbe/src/outputLimits";
 
 // ── Registry ──
@@ -468,12 +469,14 @@ register("create_file", async (args) => {
     }
     if (ext === ".docx") saveDocxContent(fullPath, content);
     else saveXlsxContent(fullPath, content);
+    noteFileToolWrite(fullPath);
     return { path: fullPath, bytes: fs.statSync(fullPath).size };
   }
 
   const dir = path.dirname(fullPath);
   if (dir) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(fullPath, content, "utf-8");
+  noteFileToolWrite(fullPath);
   return { path: fullPath, bytes: Buffer.byteLength(content, "utf-8") };
 });
 
@@ -585,6 +588,7 @@ register("download_attachment", async (args, client) => {
   try {
     const data = Buffer.from(await res.arrayBuffer());
     fs.writeFileSync(target, data);
+    noteFileToolWrite(target);
     return { path: target, bytes: data.length };
   } catch (e: any) {
     throw new Error(`Download failed: ${e.message}`);

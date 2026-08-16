@@ -3,7 +3,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { execSync } from "child_process";
-import { startTracking, setFileTrackingEnabled } from "./file-change-tracker.js";
+import { startTracking, setFileTrackingEnabled, noteFileToolWrite } from "./file-change-tracker.js";
 import type { WsMessage } from "./constants.js";
 
 let repo: string;
@@ -47,23 +47,23 @@ describe("file-change-tracker", () => {
     const sent = await run(() => fs.writeFileSync(path.join(repo, "a.txt"), "hi\nworld\n"));
     expect(sent.length).toBe(1);
     const changes = sent[0]!.payload.updates.fileChanges;
-    expect(changes).toEqual([{ path: abs("a.txt"), originalContent: "hello\nworld\n", modifiedContent: "hi\nworld\n" }]);
+    expect(changes).toEqual([{ path: abs("a.txt"), originalContent: "hello\nworld\n", modifiedContent: "hi\nworld\n", status: "modified", size: 9 }]);
   });
 
-  test("new untracked file: original=null", async () => {
+  test("new untracked file: original=null, status=created", async () => {
     const sent = await run(() => fs.writeFileSync(path.join(repo, "new.txt"), "fresh\n"));
-    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("new.txt"), originalContent: null, modifiedContent: "fresh\n" }]);
+    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("new.txt"), originalContent: null, modifiedContent: "fresh\n", status: "created", size: 6 }]);
   });
 
-  test("deleted file: modified=null", async () => {
+  test("deleted file: modified=null, status=deleted", async () => {
     const sent = await run(() => fs.unlinkSync(path.join(repo, "a.txt")));
-    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("a.txt"), originalContent: "hello\nworld\n", modifiedContent: null }]);
+    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("a.txt"), originalContent: "hello\nworld\n", modifiedContent: null, status: "deleted", size: 12 }]);
   });
 
   test("pre-dirty file: original = pre-command dirty content, not HEAD", async () => {
     fs.writeFileSync(path.join(repo, "a.txt"), "dirty\n"); // dirty before command
     const sent = await run(() => fs.writeFileSync(path.join(repo, "a.txt"), "dirtier\n"));
-    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("a.txt"), originalContent: "dirty\n", modifiedContent: "dirtier\n" }]);
+    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("a.txt"), originalContent: "dirty\n", modifiedContent: "dirtier\n", status: "modified", size: 8 }]);
   });
 
   test("no changes → no message", async () => {
@@ -73,7 +73,7 @@ describe("file-change-tracker", () => {
   test("dirty but untouched file → not reported", async () => {
     fs.writeFileSync(path.join(repo, "a.txt"), "dirty\n");
     const sent = await run(() => fs.writeFileSync(path.join(repo, "b.txt"), "other\n"));
-    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("b.txt"), originalContent: null, modifiedContent: "other\n" }]);
+    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("b.txt"), originalContent: null, modifiedContent: "other\n", status: "created", size: 6 }]);
   });
 
   test("git checkout (HEAD move) → nothing reported", async () => {
@@ -91,42 +91,60 @@ describe("file-change-tracker", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  test("binary file → null contents", async () => {
+  test("new binary file → null contents, created + binary + size", async () => {
     const sent = await run(() => fs.writeFileSync(path.join(repo, "bin.dat"), Buffer.from([1, 0, 2, 0])));
-    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("bin.dat"), originalContent: null, modifiedContent: null }]);
+    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("bin.dat"), originalContent: null, modifiedContent: null, status: "created", omitted: "binary", size: 4 }]);
   });
 
   test("staged rename reports destination + source deletion", async () => {
     const sent = await run(() => sh("git mv a.txt b.txt"));
     const changes = sent[0]!.payload.updates.fileChanges;
-    expect(changes).toContainEqual({ path: abs("b.txt"), originalContent: null, modifiedContent: "hello\nworld\n" });
-    expect(changes).toContainEqual({ path: abs("a.txt"), originalContent: "hello\nworld\n", modifiedContent: null });
+    expect(changes).toContainEqual({ path: abs("b.txt"), originalContent: null, modifiedContent: "hello\nworld\n", status: "created", size: 12 });
+    expect(changes).toContainEqual({ path: abs("a.txt"), originalContent: "hello\nworld\n", modifiedContent: null, status: "deleted", size: 12 });
   });
 
   test("paths with spaces and quotes", async () => {
     const name = `we ird "quoted".txt`;
     const sent = await run(() => fs.writeFileSync(path.join(repo, name), "x\n"));
-    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs(name), originalContent: null, modifiedContent: "x\n" }]);
+    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs(name), originalContent: null, modifiedContent: "x\n", status: "created", size: 2 }]);
   });
 
   test("pre-dirty binary changed → reported (via stat signature)", async () => {
     const p = path.join(repo, "bin.dat");
     fs.writeFileSync(p, Buffer.from([1, 0]));
     const sent = await run(() => fs.writeFileSync(p, Buffer.from([9, 0, 9])));
-    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("bin.dat"), originalContent: null, modifiedContent: null }]);
+    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("bin.dat"), originalContent: null, modifiedContent: null, status: "modified", omitted: "binary", size: 3 }]);
   });
 
   test("pre-dirty binary untouched → not reported", async () => {
     fs.writeFileSync(path.join(repo, "bin.dat"), Buffer.from([1, 0]));
     const sent = await run(() => fs.writeFileSync(path.join(repo, "b.txt"), "y\n"));
-    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("b.txt"), originalContent: null, modifiedContent: "y\n" }]);
+    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("b.txt"), originalContent: null, modifiedContent: "y\n", status: "created", size: 2 }]);
   });
 
   test("symlink is not followed", async () => {
     const secret = path.join(os.tmpdir(), `fct-secret-${Date.now()}`);
     fs.writeFileSync(secret, "SECRET\n");
     const sent = await run(() => fs.symlinkSync(secret, path.join(repo, "link")));
-    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("link"), originalContent: null, modifiedContent: null }]);
+    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("link"), originalContent: null, modifiedContent: null, status: "created", omitted: "binary" }]);
     fs.rmSync(secret, { force: true });
+  });
+
+  test("read-only command → no tracker", () => {
+    expect(startTracking(repo, "ls -la | grep foo && git status")).toBeNull();
+  });
+
+  test("writing command → tracker", () => {
+    expect(startTracking(repo, "sed -i s/a/b/ file.txt")).not.toBeNull();
+    expect(startTracking(repo, "cat a.txt > b.txt")).not.toBeNull();
+  });
+
+  test("file-tool write during command is not attributed to the command", async () => {
+    const sent = await run(() => {
+      const p = path.join(repo, "tool-written.txt");
+      fs.writeFileSync(p, "from edit tool\n");
+      noteFileToolWrite(p);
+    });
+    expect(sent).toEqual([]);
   });
 });

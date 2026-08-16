@@ -11,6 +11,7 @@ import fs from "fs";
 import path from "path";
 import { execFile } from "child_process";
 import type { SendFn } from "./shell.js";
+import { commandMightWriteFiles } from "../../../packages/shared-fbe/src/shellReadOnly";
 
 const MAX_FILE_SIZE = 100_000;   // per-file content cap (bytes) — also bounds what gets persisted on the block
 const MAX_PRE_FILES = 50;        // dirty files whose content we snapshot pre-command
@@ -23,6 +24,26 @@ export interface FileChange {
   path: string;                    // absolute (repo root + relative)
   originalContent: string | null;  // null = didn't exist / binary / too large
   modifiedContent: string | null;  // null = deleted / binary / too large
+  status: "created" | "modified" | "deleted";
+  omitted?: "binary" | "too-large"; // why the shown side has null content
+  size?: number;                   // bytes after the command (before it, when deleted)
+}
+
+// ── Cross-todo write attribution ─────────────────────────────────────
+// The edge serves every todo from one process, so a concurrent agent's
+// Edit/Create tool can write into a repo while another todo's shell command
+// runs — git tracking would then blame that write on the command. File-tool
+// handlers report their writes here and trackers exclude them.
+const recentToolWrites = new Map<string, number>(); // resolved abs path → ts
+const TOOL_WRITE_TTL = 10 * 60_000;
+
+export function noteFileToolWrite(absPath: string) {
+  if (recentToolWrites.size > 500) {
+    const cutoff = Date.now() - TOOL_WRITE_TTL;
+    for (const [p, t] of recentToolWrites) if (t < cutoff) recentToolWrites.delete(p);
+  }
+  try { recentToolWrites.set(fs.realpathSync(absPath), Date.now()); }
+  catch { recentToolWrites.set(path.resolve(absPath), Date.now()); }
 }
 
 export interface FileTracker {
@@ -89,6 +110,12 @@ async function readCapped(abs: string): Promise<string | null> {
   } catch { return null; }
 }
 
+/** Did `p` exist at `rev`? (`git cat-file -e` exits non-zero when absent.) */
+async function gitPathExistsAt(cwd: string, rev: string, p: string): Promise<boolean> {
+  try { await git(cwd, ["cat-file", "-e", `${rev}:${p}`]); return true; }
+  catch { return false; }
+}
+
 async function gitShow(cwd: string, rev: string, p: string): Promise<string | null> {
   try {
     const s = await git(cwd, ["show", `${rev}:${p}`], MAX_FILE_SIZE * 2);
@@ -110,7 +137,23 @@ async function snapshot(cwd: string): Promise<PreState> {
   return { root, head, dirty: new Set(dirty), contents, sig };
 }
 
-async function report(cwd: string, pre: PreState, send: SendFn, ids: { todoId: string; blockId: string; messageId: string }) {
+/** Size + why-content-is-null for the side of the change the user would see. */
+function annotate(abs: string, c: Omit<FileChange, "size" | "omitted">): FileChange {
+  const out: FileChange = { ...c };
+  try {
+    const st = fs.lstatSync(abs);
+    if (st.isFile()) out.size = st.size;
+  } catch { /* deleted — size unknown (pre-content may carry it below) */ }
+  if (c.status === "deleted") {
+    if (c.originalContent !== null) out.size = Buffer.byteLength(c.originalContent);
+    else out.omitted = "binary"; // original was binary/large; size unknowable now
+  } else if (c.modifiedContent === null) {
+    out.omitted = out.size !== undefined && out.size > MAX_FILE_SIZE ? "too-large" : "binary";
+  }
+  return out;
+}
+
+async function report(cwd: string, pre: PreState, startedAt: number, send: SendFn, ids: { todoId: string; blockId: string; messageId: string }) {
   // checkout / rebase / reset / pull moved HEAD → the working tree diff is git's
   // doing, not the command editing files. Nothing worth reporting.
   const postHead = (await git(cwd, ["rev-parse", "HEAD"])).trim();
@@ -137,7 +180,17 @@ async function report(cwd: string, pre: PreState, send: SendFn, ids: { todoId: s
       const unchangedOpaque = originalContent === null && modifiedContent === null && statSig(abs) === pre.sig.get(p);
       if (unchangedText || unchangedOpaque) continue;
     }
-    changes.push({ path: abs, originalContent, modifiedContent });
+    // A file-tool (Edit/Create) wrote this path during the command — that
+    // write belongs to its own block (possibly another todo's), not this one.
+    const toolWriteTs = recentToolWrites.get(abs);
+    if (toolWriteTs !== undefined && toolWriteTs >= startedAt) continue;
+
+    const existsNow = statSig(abs) !== null;
+    const existedBefore = wasDirty
+      ? pre.sig.get(p) !== null                       // dirty pre-command → lstat snapshot decides
+      : await gitPathExistsAt(cwd, pre.head, p);      // clean pre-command → HEAD decides
+    const status: FileChange["status"] = !existsNow ? "deleted" : !existedBefore ? "created" : "modified";
+    changes.push(annotate(abs, { path: abs, originalContent, modifiedContent, status }));
   }
 
   // The existing BLOCK_UPDATE pipeline does the rest: backend persists the
@@ -147,16 +200,21 @@ async function report(cwd: string, pre: PreState, send: SendFn, ids: { todoId: s
   }
 }
 
-/** Kick off a pre-snapshot (fire-and-forget, not awaited by the caller). Returns null when disabled. */
-export function startTracking(cwd: string): FileTracker | null {
+/** Kick off a pre-snapshot (fire-and-forget, not awaited by the caller).
+ *  Returns null when disabled or when `cmd` is provably read-only — tracking a
+ *  command that cannot write files only opens a window for concurrent writers
+ *  (other todos, editors, HMR) to be misattributed to it. */
+export function startTracking(cwd: string, cmd?: string): FileTracker | null {
   if (!enabled) return null;
+  if (cmd !== undefined && !commandMightWriteFiles(cmd)) return null;
+  const startedAt = Date.now();
   const pre = snapshot(cwd).catch(() => null); // not a git repo → tracker stays inert
   return {
     ready: pre,
     async finish(send, ids) {
       try {
         const p = await pre;
-        if (p) await report(cwd, p, send, ids);
+        if (p) await report(cwd, p, startedAt, send, ids);
       } catch { /* best-effort: never disturb the shell flow */ }
     },
   };

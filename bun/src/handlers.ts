@@ -6,6 +6,7 @@ import { resolveFilePath, getPathOrDefault, WorkspacePathNotFoundError } from ".
 import { readFileContent } from "./files.js";
 import { saveDocxContent, saveXlsxContent } from "./docx-handler.js";
 import { executeBlock, sendInput, interruptBlock, detachBlock, type SendFn } from "./shell.js";
+import { noteFileToolWrite } from "./file-change-tracker.js";
 import { FUNCTION_REGISTRY } from "./functions.js";
 import type { EdgeConfigData } from "./types.js";
 
@@ -73,6 +74,7 @@ export async function handleBlockSave(payload: Record<string, any>, send: SendFn
       if (dir) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(resolved, content, "utf-8");
     }
+    noteFileToolWrite(resolved); // shell git-tracking must not blame this write on a concurrent command
     await send(msg.blockSaveResult(blockId, todoId, "SUCCESS", requestId));
   } catch (e: any) {
     await send(msg.blockSaveResult(blockId, todoId, `ERROR: ${e.message}`, requestId));
@@ -156,6 +158,7 @@ export async function handleWriteFile(payload: Record<string, any>, send: SendFn
       throw new Error("No file data provided (neither binaryId nor dataBase64)");
     }
     await writeFile(filePath, buffer);
+    noteFileToolWrite(filePath);
     await send(msg.writeFileResponse(requestId, edgeId, true));
   } catch (e: any) {
     await send(msg.writeFileResponse(requestId, edgeId, false, e.message));
