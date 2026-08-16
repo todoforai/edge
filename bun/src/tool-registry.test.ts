@@ -59,6 +59,11 @@ describe("findReferencedTools - command position detection", () => {
     expect(findReferencedTools("cloudflared version")).toContain("cloudflared");
   });
 
+  test("maps a catalog alias (tfa-cli) to its tool entry", () => {
+    expect(findReferencedTools('tfa-cli "delegate this"')).toContain("todoai");
+    expect(findReferencedTools('todoforai-cli "delegate this"')).toContain("todoai");
+  });
+
   test("maps the legacy imagegen CLI name to the current catalog tool", () => {
     const tools = findReferencedTools("codex-imagegen-api generate 'prompt'");
     expect(tools).toContain("todoforai-imagegen");
