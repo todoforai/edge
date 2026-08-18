@@ -43,7 +43,12 @@ function isAccessibleDir(p: string): boolean {
 
 interface ShellCommand { shell: string; args: string[] }
 
-function getShellCommand(content: string): ShellCommand {
+/** Pick the shell for a command. Windows order: Git Bash → any bash →
+ *  PowerShell → cmd.exe. Exported so the non-streaming exec fallback
+ *  (functions.ts) runs commands under the SAME shell as the streaming PTY —
+ *  otherwise POSIX one-liners (e.g. shared-fbe buildInstallCommand) work
+ *  when streamed but break via cmd.exe on the fallback path. */
+export function getShellCommand(content: string): ShellCommand {
   if (!IS_WIN) return { shell: "/bin/bash", args: ["-c", content] };
 
   const gitBash = "C:\\Program Files\\Git\\bin\\bash.exe";

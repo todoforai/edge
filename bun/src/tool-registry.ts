@@ -21,7 +21,18 @@ function venvBinDir(): string {
     : path.join(TOOLS_DIR, "venv", "bin");
 }
 
-function toolPathEntries(): string[] { return [npmBinDir(), venvBinDir(), binDir()]; }
+/** Where shell-based installs land (shared-fbe buildInstallCommand: npm/bun
+ *  `--prefix ~/.local`, pip `--user`). The C bridge already prepends these
+ *  (env_path.c) — mirror them here so a tool installed via either transport's
+ *  shell path is visible to the edge's scan and exec env too. */
+function localBinDirs(): string[] {
+  const home = os.homedir();
+  return os.platform() === "win32"
+    ? [path.join(home, ".local"), path.join(home, ".local", "bin")] // npm on Windows puts bins in the prefix itself
+    : [path.join(home, ".local", "bin")];
+}
+
+function toolPathEntries(): string[] { return [npmBinDir(), venvBinDir(), binDir(), ...localBinDirs()]; }
 
 /** Return env with tool dirs prepended to PATH. */
 export function buildEnvWithTools(): Record<string, string> {

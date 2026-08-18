@@ -4,7 +4,7 @@ import os from "os";
 import { readFileContent } from "./files.js";
 import { saveDocxContent, saveXlsxContent } from "./docx-handler.js";
 import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "./path-utils.js";
-import { executeBlock, waitForCompletion, drainBlockOutput, clearBlockOutput, isBlockAlive, sendInput, rearmPauseWatch, getPid, findBlockIdByPid, consumeExitedOutput, getReturnCode, type SendFn } from "./shell.js";
+import { executeBlock, waitForCompletion, drainBlockOutput, clearBlockOutput, isBlockAlive, sendInput, rearmPauseWatch, getPid, findBlockIdByPid, consumeExitedOutput, getReturnCode, getShellCommand, type SendFn } from "./shell.js";
 // `pendingToolApprovals` was imported here to short-circuit the response when
 // executeBlock entered AWAITING_APPROVAL. DEAD with the install-gating removal.
 import { msg } from "./constants.js";
@@ -318,9 +318,13 @@ register("execute_shell_command", async (args, client) => {
     // tool installs) can tell "ran and failed" apart from "ran fine"
     // regardless of which transport answered. exec()'s error object is the
     // only place the exit code lives on this path — don't drop it.
-    const { exec } = await import("child_process");
+    // Runs under the SAME shell as the streaming PTY (getShellCommand:
+    // bash, Git Bash on Windows) — node's exec() default would be cmd.exe
+    // there, breaking every POSIX one-liner that works when streamed.
+    const { execFile } = await import("child_process");
+    const { shell, args: shellArgs } = getShellCommand(cmd);
     const { result, exitCode, timedOut } = await new Promise<{ result: string; exitCode: number | null; timedOut: boolean }>((resolve) => {
-      exec(cmd, { cwd: cwd || os.tmpdir(), encoding: "utf-8", timeout: timeout * 1000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_GROUP_ID: groupTag, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, AGENT_BROWSER_SESSION: todoId } }, (err: any, stdout, stderr) => {
+      execFile(shell, shellArgs, { cwd: cwd || os.tmpdir(), encoding: "utf-8", timeout: timeout * 1000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_GROUP_ID: groupTag, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, AGENT_BROWSER_SESSION: todoId } }, (err: any, stdout, stderr) => {
         // Non-zero exit → err.code (number). Killed by our timeout → err.killed
         // with no numeric code. No error → clean exit 0.
         resolve({
