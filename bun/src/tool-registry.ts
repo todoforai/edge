@@ -341,9 +341,15 @@ const INSTALLERS: Record<string, (name: string, pkg: string) => void | Promise<v
   npm: installWithNpm,
   bun: installWithBun,
   pip: installWithPip,
-  binary: async (name: string, _pkg: string) => { await installBinary(name); },
-  // "system" tools come from the OS package manager / rootfs preinstall — never auto-install.
-  system: () => { log("warn", "system-installer tools are not auto-installed; install via apt/brew"); },
+  // installBinary returns false (no URL resolver / download failed) without
+  // throwing — convert to a throw so ensureToolDetailed reports failure
+  // instead of a false success.
+  binary: async (name: string, _pkg: string) => {
+    if (!(await installBinary(name))) throw new Error(`No binary download available for ${name} on this platform`);
+  },
+  // "system" tools come from the OS package manager / rootfs preinstall — never
+  // auto-install. Throw so install_tool doesn't report success for a no-op.
+  system: (name: string) => { throw new Error(`${name} is OS-managed — install it via apt/brew/winget`); },
 };
 
 // ── Public API ──
@@ -384,10 +390,6 @@ export async function ensureToolDetailed(name: string): Promise<{ ok: boolean; e
   }
 }
 
-export function uninstallTool(name: string): boolean {
-  return uninstallToolDetailed(name).ok;
-}
-
 /** spawnSync doesn't throw on non-zero exit or timeout — check status/signal
  *  explicitly, otherwise a failed `npm uninstall` would be reported as
  *  success and the tile would flip to "not installed" while the binary is
@@ -407,9 +409,13 @@ export function uninstallToolDetailed(name: string): { ok: boolean; error?: stri
 
   try {
     if (installerType === "binary") {
+      // binFileName, not the catalog key: aliased entries (ripgrep→rg,
+      // todoai→todoforai-cli) install under their binName — deleting `name`
+      // would remove nothing and still report success.
+      const bin = binFileName(name);
       const exts = os.platform() === "win32" ? ["", ".exe"] : [""];
       for (const ext of exts) {
-        const p = path.join(binDir(), name + ext);
+        const p = path.join(binDir(), bin + ext);
         if (fs.existsSync(p)) fs.unlinkSync(p);
       }
     } else if (installerType === "npm") {
