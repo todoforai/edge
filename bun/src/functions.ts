@@ -78,6 +78,10 @@ async function syncInstalledTools() {
   return installedTools;
 }
 
+// LEGACY: the frontend now installs via a catalog-built shell one-liner over
+// execute_shell_command (shared with bridge devices — see frontend
+// shellOnEdge.toolShellOp). Kept registered for older frontends and for
+// internal callers; new UI code should not add call sites.
 register("install_tool", async (args) => {
   const { name } = args;
   if (!name || !(name in TOOL_CATALOG)) {
@@ -308,8 +312,13 @@ function detectContentType(output: string, cmd?: string): { result: string; cont
 
 register("execute_shell_command", async (args, client) => {
   const { cmd, cwd = (args as any).root_path ?? "", todoId = "", groupTag = "", messageId = "", blockId = "", agentSettingsId = "", frontendId = "", frontendKind = "", pid: resumePid = 0, output: outputMode = DEFAULT_OUTPUT_MODE } = args as Record<string, any>;
-  const timeout = Math.max((args as Record<string, any>).timeout ?? 120, client?.maxTimeout ?? 0);
   const canStream = !!(todoId && blockId && client);
+  // The maxTimeout floor is for agent runs (always streaming). The
+  // non-streaming path serves frontend RPCs whose caller waits exactly
+  // `timeout + margin` — silently extending it here would leave the UI
+  // timing out while the command still runs.
+  const requestedTimeout = (args as Record<string, any>).timeout ?? 120;
+  const timeout = canStream ? Math.max(requestedTimeout, client?.maxTimeout ?? 0) : requestedTimeout;
 
   if (!canStream) {
     // Simple fallback (no session support without streaming context).
