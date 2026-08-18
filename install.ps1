@@ -98,6 +98,8 @@ $dest = Join-Path $Prefix 'todoforai-edge.exe'
 # stop existing task if present so we can overwrite a running exe
 Get-ScheduledTask -TaskName 'TODOforAI Edge' -ErrorAction SilentlyContinue | Stop-ScheduledTask -ErrorAction SilentlyContinue
 Move-Item -Force $bin $dest
+# `tfa-edge` alias alongside `todoforai-edge` (no symlink privilege needed).
+Copy-Item -Force $dest (Join-Path $Prefix 'tfa-edge.exe')
 } finally {
 Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 }

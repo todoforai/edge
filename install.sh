@@ -82,6 +82,7 @@ human=$(awk -v b="$size" 'BEGIN{ s="BKMGT"; for(i=1; b>=1024 && i<5; i++) b/=102
 ok "downloaded $asset $TAG ($human)"
 chmod +x "$tmp/todoforai-edge"
 mv "$tmp/todoforai-edge" "$PREFIX/todoforai-edge"
+ln -sf todoforai-edge "$PREFIX/tfa-edge"
 EDGE="$PREFIX/todoforai-edge"
 CMD="$EDGE" # what to suggest in user-facing messages
 WHERE="$PREFIX/todoforai-edge"
@@ -99,6 +100,7 @@ case ":$PATH:" in
 *":$HOME/.local/bin:"*)
 mkdir -p "$HOME/.local/bin"
 ln -sf "$PREFIX/todoforai-edge" "$HOME/.local/bin/todoforai-edge"
+ln -sf "$PREFIX/todoforai-edge" "$HOME/.local/bin/tfa-edge"
 CMD=todoforai-edge
 WHERE="$WHERE, linked into ~/.local/bin"
 ;;
