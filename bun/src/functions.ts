@@ -8,7 +8,7 @@ import { executeBlock, waitForCompletion, drainBlockOutput, clearBlockOutput, is
 // `pendingToolApprovals` was imported here to short-circuit the response when
 // executeBlock entered AWAITING_APPROVAL. DEAD with the install-gating removal.
 import { msg } from "./constants.js";
-import { ensureTool, uninstallTool, buildEnvWithTools, scanCatalogTools, setCustomTool, probeBinary } from "./tool-registry.js";
+import { ensureTool, ensureToolDetailed, uninstallTool, buildEnvWithTools, scanCatalogTools, setCustomTool, probeBinary } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
 import { allowedPreviewPorts } from "./preview.js";
 import { serveStaticDir } from "./static-server.js";
@@ -87,9 +87,9 @@ register("install_tool", async (args) => {
   if (scan[name]?.installed) {
     return { success: true, alreadyInstalled: true, tool: name };
   }
-  const installed = await ensureTool(name);
-  if (!installed) {
-    return { success: false, error: `Failed to install ${name}` };
+  const r = await ensureToolDetailed(name);
+  if (!r.ok) {
+    return { success: false, error: r.error || `Failed to install ${name}` };
   }
   await syncInstalledTools();
   return { success: true, tool: name, label: TOOL_CATALOG[name].label };
@@ -111,7 +111,7 @@ register("uninstall_tool", async (args) => {
   }
   const success = uninstallTool(name);
   if (success) await syncInstalledTools();
-  return { success, tool: name };
+  return success ? { success, tool: name } : { success, tool: name, error: `Failed to uninstall ${name}` };
 });
 
 // Register/update/remove a user custom tool in ~/.todoforai/custom_tools.json.

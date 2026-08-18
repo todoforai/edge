@@ -352,25 +352,33 @@ const INSTALLERS: Record<string, (name: string, pkg: string) => void | Promise<v
 const installing = new Set<string>();
 
 export async function ensureTool(name: string): Promise<boolean> {
-  if (!(name in TOOL_CATALOG)) return false;
-  if (installing.has(name)) return false;
+  return (await ensureToolDetailed(name)).ok;
+}
+
+/** Like `ensureTool`, but keeps the installer's failure reason (pip/npm
+ *  stderr, download error) so RPC callers can surface it instead of a
+ *  generic "Failed to install X". `ok:false` without `error` = no-op
+ *  (unknown tool / already installed / install already in flight). */
+export async function ensureToolDetailed(name: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(name in TOOL_CATALOG)) return { ok: false, error: `Unknown tool: ${name}` };
+  if (installing.has(name)) return { ok: false, error: `${name} install already in progress` };
 
   installing.add(name);
   try {
-    if (isToolInstalled(name)) return false; // already installed
+    if (isToolInstalled(name)) return { ok: false }; // already installed
 
     const { pkg, installer: installerType } = TOOL_CATALOG[name];
     const installFn = INSTALLERS[installerType];
-    if (!installFn) { log("warn", `Unknown installer: ${installerType}`); return false; }
+    if (!installFn) { log("warn", `Unknown installer: ${installerType}`); return { ok: false, error: `Unknown installer: ${installerType}` }; }
 
     log("info", `Installing tool: ${name} (${pkg})`);
     fs.mkdirSync(TOOLS_DIR, { recursive: true });
     await installFn(name, pkg);
     log("info", `Successfully installed ${name}`);
-    return true;
+    return { ok: true };
   } catch (e: any) {
     log("warn", `Failed to install ${name}: ${e.message}`);
-    return false;
+    return { ok: false, error: e?.message || `Failed to install ${name}` };
   } finally {
     installing.delete(name);
   }
