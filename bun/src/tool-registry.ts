@@ -11,14 +11,6 @@ const MNT_DIR  = path.join(os.homedir(), ".todoforai", "mnt");
 
 const log = (level: string, ...args: any[]) => console.log(`[tool-registry:${level}]`, ...args);
 
-// Temporary migration aliases. Remove after the old imagegen users have moved.
-const LEGACY_TOOL_NAMES: Record<string, string[]> = {
-  "image-api": ["todoforai-imagegen", "codex-imagegen-api"],
-};
-const LEGACY_NPM_PACKAGES: Record<string, string[]> = {
-  "image-api": ["@todoforai/imagegen", "@todoforai/codex-imagegen-api"],
-};
-
 // ── Path helpers ──
 
 function binDir(): string { return path.join(TOOLS_DIR, "bin"); }
@@ -108,7 +100,7 @@ export function findReferencedTools(content: string): string[] {
     // Tools may be invoked under a different binary name than their catalog key
     // (e.g. todoai → todoforai-cli, slack-cli) or under a package alias
     // (todoai → tfa-cli). Match any of those tokens.
-    const tokens = [name, TOOL_CATALOG[name].binName, ...(TOOL_CATALOG[name].aliases ?? []), ...(LEGACY_TOOL_NAMES[name] ?? [])]
+    const tokens = [name, TOOL_CATALOG[name].binName, ...(TOOL_CATALOG[name].aliases ?? [])]
       .filter((t): t is string => !!t);
     return tokens.some(tok => {
       const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -224,10 +216,9 @@ function getInstallCommand(name: string): string {
 
 export function installWithNpm(name: string, pkg: string) {
   const TIMEOUT_MS = 120_000;
-  const legacyPkgs = LEGACY_NPM_PACKAGES[name] ?? [];
 
-  const install = (force = false) => {
-    const args = ["install", ...(force ? ["--force"] : []), "--prefix", TOOLS_DIR, pkg];
+  const install = () => {
+    const args = ["install", "--prefix", TOOLS_DIR, pkg];
     const result = spawnSync("npm", args, {
       stdio: "pipe", timeout: TIMEOUT_MS, shell: true,
     });
@@ -249,10 +240,7 @@ export function installWithNpm(name: string, pkg: string) {
   };
 
   log("info", `Installing ${name} via npm (${pkg})`);
-  // --force lets the replacement take ownership of the temporary shared bin
-  // alias. Keep the deprecated package installed during the migration window:
-  // removing it would also remove that shared shim and create a failure window.
-  install(legacyPkgs.length > 0);
+  install();
 }
 
 /** Install an npm-registry package using `bun add` into TOOLS_DIR.

@@ -64,11 +64,6 @@ describe("findReferencedTools - command position detection", () => {
     expect(findReferencedTools('todoforai-cli "delegate this"')).toContain("todoai");
   });
 
-  test("maps the legacy imagegen CLI names to the current catalog tool", () => {
-    expect(findReferencedTools("codex-imagegen-api generate 'prompt'")).toContain("image-api");
-    expect(findReferencedTools("todoforai-imagegen generate 'prompt'")).toContain("image-api");
-  });
-
   test("matches tool after pipe", () => {
     expect(findReferencedTools("echo foo | stripe listen")).toContain("stripe");
     expect(findReferencedTools("cat hosts.txt | xargs cloudflared access ssh --hostname example.com")).toContain("cloudflared");
