@@ -177,8 +177,10 @@ export class TODOforAIEdge {
       // Best-effort open browser
       try {
         const { exec } = require("child_process");
-        const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
-        exec(`${cmd} "${url}"`);
+        // Note: Windows `start` treats the first quoted arg as the window title,
+        // so an empty "" title is required — otherwise it just opens a terminal.
+        const cmd = process.platform === "darwin" ? `open "${url}"` : process.platform === "win32" ? `start "" "${url}"` : `xdg-open "${url}"`;
+        exec(cmd);
       } catch {}
 
       console.log(`Waiting for approval (expires in ${Math.round(expiresIn / 60)}min)...`);
