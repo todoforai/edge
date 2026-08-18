@@ -64,9 +64,9 @@ describe("findReferencedTools - command position detection", () => {
     expect(findReferencedTools('todoforai-cli "delegate this"')).toContain("todoai");
   });
 
-  test("maps the legacy imagegen CLI name to the current catalog tool", () => {
-    const tools = findReferencedTools("codex-imagegen-api generate 'prompt'");
-    expect(tools).toContain("todoforai-imagegen");
+  test("maps the legacy imagegen CLI names to the current catalog tool", () => {
+    expect(findReferencedTools("codex-imagegen-api generate 'prompt'")).toContain("image-api");
+    expect(findReferencedTools("todoforai-imagegen generate 'prompt'")).toContain("image-api");
   });
 
   test("matches tool after pipe", () => {

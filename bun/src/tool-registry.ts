@@ -11,12 +11,12 @@ const MNT_DIR  = path.join(os.homedir(), ".todoforai", "mnt");
 
 const log = (level: string, ...args: any[]) => console.log(`[tool-registry:${level}]`, ...args);
 
-// Temporary migration aliases. Remove after codex-imagegen-api users have moved.
+// Temporary migration aliases. Remove after the old imagegen users have moved.
 const LEGACY_TOOL_NAMES: Record<string, string[]> = {
-  "todoforai-imagegen": ["codex-imagegen-api"],
+  "image-api": ["todoforai-imagegen", "codex-imagegen-api"],
 };
 const LEGACY_NPM_PACKAGES: Record<string, string[]> = {
-  "todoforai-imagegen": ["@todoforai/codex-imagegen-api"],
+  "image-api": ["@todoforai/imagegen", "@todoforai/codex-imagegen-api"],
 };
 
 // ── Path helpers ──
