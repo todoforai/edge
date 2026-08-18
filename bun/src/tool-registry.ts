@@ -385,7 +385,24 @@ export async function ensureToolDetailed(name: string): Promise<{ ok: boolean; e
 }
 
 export function uninstallTool(name: string): boolean {
-  if (!(name in TOOL_CATALOG)) return false;
+  return uninstallToolDetailed(name).ok;
+}
+
+/** spawnSync doesn't throw on non-zero exit or timeout — check status/signal
+ *  explicitly, otherwise a failed `npm uninstall` would be reported as
+ *  success and the tile would flip to "not installed" while the binary is
+ *  still there. */
+function checkSpawn(what: string, r: ReturnType<typeof spawnSync>): void {
+  if (r.error) throw r.error;
+  if (r.signal) throw new Error(`${what} killed by ${r.signal}${r.signal === "SIGTERM" ? " (likely timed out)" : ""}`);
+  if (r.status !== 0) {
+    const detail = r.stderr?.toString().trim() || r.stdout?.toString().trim() || "(no output)";
+    throw new Error(`${what} failed (exit ${r.status}): ${detail}`);
+  }
+}
+
+export function uninstallToolDetailed(name: string): { ok: boolean; error?: string } {
+  if (!(name in TOOL_CATALOG)) return { ok: false, error: `Unknown tool: ${name}` };
   const { pkg, installer: installerType } = TOOL_CATALOG[name];
 
   try {
@@ -396,21 +413,23 @@ export function uninstallTool(name: string): boolean {
         if (fs.existsSync(p)) fs.unlinkSync(p);
       }
     } else if (installerType === "npm") {
-      spawnSync("npm", ["uninstall", "--prefix", TOOLS_DIR, pkg], { stdio: "pipe", timeout: 30_000, shell: true });
+      checkSpawn("npm uninstall", spawnSync("npm", ["uninstall", "--prefix", TOOLS_DIR, pkg], { stdio: "pipe", timeout: 30_000, shell: true }));
     } else if (installerType === "bun") {
-      spawnSync("bun", ["remove", "--cwd", TOOLS_DIR, pkg], { stdio: "pipe", timeout: 30_000, shell: true });
+      checkSpawn("bun remove", spawnSync("bun", ["remove", "--cwd", TOOLS_DIR, pkg], { stdio: "pipe", timeout: 30_000, shell: true }));
     } else if (installerType === "pip") {
       const venvPython = os.platform() === "win32"
         ? path.join(TOOLS_DIR, "venv", "Scripts", "python.exe")
         : path.join(TOOLS_DIR, "venv", "bin", "python");
       const python = fs.existsSync(venvPython) ? venvPython : "python3";
-      spawnSync(python, ["-m", "pip", "uninstall", "-y", pkg], { stdio: "pipe", timeout: 30_000 });
+      checkSpawn("pip uninstall", spawnSync(python, ["-m", "pip", "uninstall", "-y", pkg], { stdio: "pipe", timeout: 30_000 }));
+    } else {
+      return { ok: false, error: `system-installer tools are managed by the OS package manager` };
     }
     log("info", `Uninstalled tool: ${name}`);
-    return true;
+    return { ok: true };
   } catch (e: any) {
     log("warn", `Failed to uninstall ${name}: ${e.message}`);
-    return false;
+    return { ok: false, error: e?.message || `Failed to uninstall ${name}` };
   }
 }
 

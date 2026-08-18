@@ -8,7 +8,7 @@ import { executeBlock, waitForCompletion, drainBlockOutput, clearBlockOutput, is
 // `pendingToolApprovals` was imported here to short-circuit the response when
 // executeBlock entered AWAITING_APPROVAL. DEAD with the install-gating removal.
 import { msg } from "./constants.js";
-import { ensureTool, ensureToolDetailed, uninstallTool, buildEnvWithTools, scanCatalogTools, setCustomTool, probeBinary } from "./tool-registry.js";
+import { ensureTool, ensureToolDetailed, uninstallToolDetailed, buildEnvWithTools, scanCatalogTools, setCustomTool, probeBinary } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
 import { allowedPreviewPorts } from "./preview.js";
 import { serveStaticDir } from "./static-server.js";
@@ -109,9 +109,9 @@ register("uninstall_tool", async (args) => {
   if (!name || !(name in TOOL_CATALOG)) {
     return { success: false, error: `Unknown tool: ${name}` };
   }
-  const success = uninstallTool(name);
-  if (success) await syncInstalledTools();
-  return success ? { success, tool: name } : { success, tool: name, error: `Failed to uninstall ${name}` };
+  const r = uninstallToolDetailed(name);
+  if (r.ok) await syncInstalledTools();
+  return r.ok ? { success: true, tool: name } : { success: false, tool: name, error: r.error || `Failed to uninstall ${name}` };
 });
 
 // Register/update/remove a user custom tool in ~/.todoforai/custom_tools.json.
@@ -312,17 +312,28 @@ register("execute_shell_command", async (args, client) => {
   const canStream = !!(todoId && blockId && client);
 
   if (!canStream) {
-    // Simple fallback (no session support without streaming context)
+    // Simple fallback (no session support without streaming context).
+    // Shape-matches the backend's bridge exec adapter ({ cmd, result,
+    // exitCode, timedOut? }) so frontend callers (deviceExec-style probes,
+    // tool installs) can tell "ran and failed" apart from "ran fine"
+    // regardless of which transport answered. exec()'s error object is the
+    // only place the exit code lives on this path — don't drop it.
     const { exec } = await import("child_process");
-    const result = await new Promise<string>((resolve) => {
-      exec(cmd, { cwd: cwd || os.tmpdir(), encoding: "utf-8", timeout: timeout * 1000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_GROUP_ID: groupTag, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, AGENT_BROWSER_SESSION: todoId } }, (_err, stdout, stderr) => {
-        resolve((stdout || "") + (stderr || ""));
+    const { result, exitCode, timedOut } = await new Promise<{ result: string; exitCode: number | null; timedOut: boolean }>((resolve) => {
+      exec(cmd, { cwd: cwd || os.tmpdir(), encoding: "utf-8", timeout: timeout * 1000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_GROUP_ID: groupTag, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, AGENT_BROWSER_SESSION: todoId } }, (err: any, stdout, stderr) => {
+        // Non-zero exit → err.code (number). Killed by our timeout → err.killed
+        // with no numeric code. No error → clean exit 0.
+        resolve({
+          result: (stdout || "") + (stderr || ""),
+          exitCode: err ? (typeof err.code === "number" ? err.code : null) : 0,
+          timedOut: !!err && typeof err.code !== "number" && (err.killed === true || err.signal != null),
+        });
       });
     });
     const detected = detectContentType(result, cmd);
     // Don't truncate image data URLs; cap plain text to the output policy.
-    if (detected.contentType) return { cmd, ...detected };
-    return { cmd, result: applyOutputPolicy(detected.result, resolveOutputPolicy(outputMode)) };
+    if (detected.contentType) return { cmd, ...detected, exitCode };
+    return { cmd, result: applyOutputPolicy(detected.result, resolveOutputPolicy(outputMode)), exitCode, ...(timedOut ? { timedOut: true } : {}) };
   }
 
   // Strip trailing | tail so the raw command streams, then filter the result
@@ -360,14 +371,15 @@ register("execute_shell_command", async (args, client) => {
       return { cmd, result: output, paused: true, ...(livePid ? { pid: livePid } : {}) };
     }
     // Resumed process finished: surface an abnormal exit like the fresh path.
-    const notice = exitNotice(getReturnCode(resumeBlockId));
+    const exitCode = getReturnCode(resumeBlockId);
+    const notice = exitNotice(exitCode);
     clearBlockOutput(resumeBlockId);
     if (rawOutput !== null) {
       const detected = detectContentType(output, cmd);
-      if (detected.contentType) return { cmd, ...detected };
-      return { cmd, result: detected.result + notice };
+      if (detected.contentType) return { cmd, ...detected, exitCode };
+      return { cmd, result: detected.result + notice, exitCode };
     }
-    return { cmd, result: output + notice };
+    return { cmd, result: output + notice, exitCode };
   }
 
   // ── Fresh exec ──
@@ -403,16 +415,19 @@ register("execute_shell_command", async (args, client) => {
       const livePid = getPid(blockId);
       return { cmd, result: output, paused: true, ...(livePid ? { pid: livePid } : {}) };
     }
-    const notice = exitNotice(getReturnCode(blockId));
+    // exitCode rides along for parity with the non-streaming fallback and the
+    // backend bridge adapter; the notice stays for LLM-facing output.
+    const exitCode = getReturnCode(blockId);
+    const notice = exitNotice(exitCode);
     clearBlockOutput(blockId);
     // Image data-URLs stay verbatim (detectContentType); otherwise append the
     // exit notice so a timed-out/killed command isn't reported as success.
     if (rawOutput !== null) {
       const detected = detectContentType(output, cmd);
-      if (detected.contentType) return { cmd, ...detected };
-      return { cmd, result: detected.result + notice };
+      if (detected.contentType) return { cmd, ...detected, exitCode };
+      return { cmd, result: detected.result + notice, exitCode };
     }
-    return { cmd, result: output + notice };
+    return { cmd, result: output + notice, exitCode };
   } catch (e: any) {
     clearBlockOutput(blockId);
     throw e;
