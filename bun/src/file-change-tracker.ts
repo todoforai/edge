@@ -200,13 +200,28 @@ async function report(cwd: string, pre: PreState, startedAt: number, send: SendF
   }
 }
 
+/** Commands very often start with `cd <path>` and then write there, while the
+ *  block's cwd is some unrelated workspace root. Track the directory the command
+ *  actually runs in: follow a leading `cd` (only at the very start, before any
+ *  other command) and fall back to `cwd` when it doesn't resolve to a directory. */
+export function resolveTrackingCwd(cwd: string, cmd?: string): string {
+  if (!cmd) return cwd;
+  const m = /^[\s;\n]*cd\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|<>\n]+))\s*(?:&&|;|\n|$)/.exec(cmd);
+  const raw = m && (m[1] ?? m[2] ?? m[3]);
+  if (!raw) return cwd;
+  const expanded = raw.replace(/^~(?=$|\/)/, process.env.HOME || "~");
+  const target = path.resolve(cwd, expanded);
+  try { return fs.statSync(target).isDirectory() ? target : cwd; } catch { return cwd; }
+}
+
 /** Kick off a pre-snapshot (fire-and-forget, not awaited by the caller).
  *  Returns null when disabled or when `cmd` is provably read-only — tracking a
  *  command that cannot write files only opens a window for concurrent writers
  *  (other todos, editors, HMR) to be misattributed to it. */
-export function startTracking(cwd: string, cmd?: string): FileTracker | null {
+export function startTracking(cwdIn: string, cmd?: string): FileTracker | null {
   if (!enabled) return null;
   if (cmd !== undefined && !commandMightWriteFiles(cmd)) return null;
+  const cwd = resolveTrackingCwd(cwdIn, cmd);
   const startedAt = Date.now();
   const pre = snapshot(cwd).catch(() => null); // not a git repo → tracker stays inert
   return {

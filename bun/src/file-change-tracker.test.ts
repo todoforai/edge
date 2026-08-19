@@ -3,7 +3,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { execSync } from "child_process";
-import { startTracking, setFileTrackingEnabled, noteFileToolWrite } from "./file-change-tracker.js";
+import { startTracking, setFileTrackingEnabled, noteFileToolWrite, resolveTrackingCwd } from "./file-change-tracker.js";
 import type { WsMessage } from "./constants.js";
 
 let repo: string;
@@ -146,5 +146,28 @@ describe("file-change-tracker", () => {
       noteFileToolWrite(p);
     });
     expect(sent).toEqual([]);
+  });
+
+  test("leading `cd` retargets tracking at the directory the command runs in", async () => {
+    const outer = fs.mkdtempSync(path.join(os.tmpdir(), "fct-outer-"));
+    const tracker = startTracking(outer, `cd ${repo}\necho hi > new.txt`)!;
+    await tracker.ready;
+    fs.writeFileSync(path.join(repo, "new.txt"), "hi\n");
+    const sent: WsMessage[] = [];
+    await tracker.finish(async (m) => { sent.push(m); }, ids);
+    expect(sent[0]!.payload.updates.fileChanges).toEqual([{ path: abs("new.txt"), originalContent: null, modifiedContent: "hi\n", status: "created", size: 3 }]);
+    fs.rmSync(outer, { recursive: true, force: true });
+  });
+
+  test("resolveTrackingCwd", () => {
+    const sub = path.join(repo, "sub");
+    fs.mkdirSync(sub);
+    expect(resolveTrackingCwd(repo, `cd ${sub} && ls`)).toBe(sub);
+    expect(resolveTrackingCwd(repo, `cd "${sub}"\nls`)).toBe(sub);
+    expect(resolveTrackingCwd(repo, "cd sub; ls")).toBe(sub);          // relative to cwd
+    expect(resolveTrackingCwd(repo, "cd nope && ls")).toBe(repo);      // missing dir
+    expect(resolveTrackingCwd(repo, "ls && cd sub")).toBe(repo);       // not leading
+    expect(resolveTrackingCwd(repo, "echo cd sub")).toBe(repo);
+    expect(resolveTrackingCwd(repo, undefined)).toBe(repo);
   });
 });
