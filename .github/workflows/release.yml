@@ -41,7 +41,13 @@ jobs:
       uses: oven-sh/setup-bun@v2
 
     - name: Install dependencies
-      run: cd bun && bun install
+      # The shared packages are cloned OUTSIDE this checkout, so the hoist into
+      # bun/node_modules is invisible to them — their own file: deps must be installed
+      # in place or the bundler can't resolve @shared/* / ws from their sources.
+      shell: bash
+      run: |
+        cd bun && bun install
+        (cd ../../packages/shared-api && bun install)
 
     - name: Compile standalone binary
       shell: bash

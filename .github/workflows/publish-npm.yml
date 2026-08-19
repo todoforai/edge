@@ -25,7 +25,12 @@ jobs:
         registry-url: 'https://registry.npmjs.org'
 
     - name: Install dependencies
-      run: cd bun && npm install
+      # The shared packages are cloned OUTSIDE this checkout, so the hoist into
+      # bun/node_modules is invisible to them — their own file: deps must be installed
+      # in place or the bundler can't resolve @shared/* / ws from their sources.
+      run: |
+        cd bun && npm install
+        (cd ../../packages/shared-api && npm install)
 
     - name: Build
       run: cd bun && npm run build
