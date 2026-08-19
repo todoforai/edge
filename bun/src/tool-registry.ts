@@ -21,6 +21,26 @@ function venvBinDir(): string {
     : path.join(TOOLS_DIR, "venv", "bin");
 }
 
+/** System python for pip installs/checks. Windows has no bare `python3` unless
+ *  installed from python.org — `python3.exe` there is usually the Microsoft
+ *  Store alias stub, which prints an install-from-Store nag and exits nonzero.
+ *  `py` is the official launcher and resolves whatever CPython is installed. */
+function systemPython(): string {
+  if (os.platform() === "win32") return "py";
+  for (const p of ["/usr/bin/python3", "/usr/bin/python"]) {
+    if (fs.existsSync(p)) return p;
+  }
+  // Fall back to PATH, but skip our own venv.
+  const pathDirs = (process.env.PATH || "").split(path.delimiter).filter(d => !d.includes(".todoforai"));
+  for (const dir of pathDirs) {
+    for (const exe of ["python3", "python"]) {
+      const p = path.join(dir, exe);
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  return "python3";
+}
+
 /** Where shell-based installs land (shared-fbe buildInstallCommand: npm/bun
  *  `--prefix ~/.local`, pip `--user`). The C bridge already prepends these
  *  (env_path.c) — mirror them here so a tool installed via either transport's
@@ -68,7 +88,7 @@ function binFileName(name: string): string {
 
 /** Shell command that checks whether a pip tool is importable/present. */
 function pipCheckCmd(entry: typeof TOOL_CATALOG[string]): string {
-  return entry.statusCmd || `python3 -c 'import ${entry.pkg.replace(/-/g, "_")}' 2>/dev/null`;
+  return entry.statusCmd || `${systemPython()} -c 'import ${entry.pkg.replace(/-/g, "_")}' 2>/dev/null`;
 }
 
 /** Check if a tool is installed (installer-aware). Sync — spawnSync for pip tools
@@ -287,21 +307,8 @@ function installWithPip(name: string, pkg: string) {
     ? path.join(venvDir, "Scripts", "python.exe")
     : path.join(venvDir, "bin", "python");
 
-  // Use system python directly (find absolute path, not from venv)
-  let sysPy = "/usr/bin/python3";
-  if (!fs.existsSync(sysPy)) {
-    sysPy = "/usr/bin/python";
-  }
-  if (!fs.existsSync(sysPy)) {
-    // Fallback to PATH, but filter out venv
-    const pathDirs = (process.env.PATH || "").split(path.delimiter).filter(d => !d.includes(".todoforai"));
-    for (const dir of pathDirs) {
-      const p3 = path.join(dir, "python3");
-      const p = path.join(dir, "python");
-      if (fs.existsSync(p3)) { sysPy = p3; break; }
-      if (fs.existsSync(p)) { sysPy = p; break; }
-    }
-  }
+  // Use system python directly (absolute path where possible, never the venv)
+  const sysPy = systemPython();
 
   let python: string = sysPy;
   let useVenv = false;
@@ -437,7 +444,7 @@ export function uninstallToolDetailed(name: string): { ok: boolean; error?: stri
       const venvPython = os.platform() === "win32"
         ? path.join(TOOLS_DIR, "venv", "Scripts", "python.exe")
         : path.join(TOOLS_DIR, "venv", "bin", "python");
-      const python = fs.existsSync(venvPython) ? venvPython : "python3";
+      const python = fs.existsSync(venvPython) ? venvPython : systemPython();
       checkSpawn("pip uninstall", spawnSync(python, ["-m", "pip", "uninstall", "-y", pkg], { stdio: "pipe", timeout: 30_000 }));
     } else {
       return { ok: false, error: `system-installer tools are managed by the OS package manager` };
