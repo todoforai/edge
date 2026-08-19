@@ -17,7 +17,7 @@ build:
 	cd bun && bun run build
 
 compile:
-	cd bun && bun build src/index.ts --compile --outfile dist/todoforai-edge
+	cd bun && bun build src/index.ts --compile --define BUILD_VERSION="\"$$(jq -r .version package.json)\"" --outfile dist/todoforai-edge
 
 deploy:
 	git push origin main:prod

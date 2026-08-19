@@ -12,11 +12,18 @@ function getEnv(name: string): string {
 
 // Read at runtime (not a bundled JSON import): CI bumps package.json *after* the
 // build, so only a runtime read reflects the published version.
+// NOTE: null ⇒ standalone binary (no package.json next to us) — update logic relies on this.
 export function readOwnPackage(): { name: string; version: string } | null {
   try {
     const pkgPath = path.resolve(fileURLToPath(import.meta.url), "../../package.json");
     return JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
   } catch { return null; }
+}
+
+// Burned in via `bun build --compile --define BUILD_VERSION='"x.y.z"'` for standalone binaries.
+declare const BUILD_VERSION: string;
+export function ownVersion(): string {
+  return readOwnPackage()?.version ?? (typeof BUILD_VERSION === "string" ? BUILD_VERSION : "unknown");
 }
 
 export function getWsUrl(apiUrl: string): string {
@@ -105,7 +112,7 @@ export function loadConfig(): Config {
   }
 
   if (values.version) {
-    console.log(readOwnPackage()?.version ?? "unknown");
+    console.log(ownVersion());
     process.exit(0);
   }
 

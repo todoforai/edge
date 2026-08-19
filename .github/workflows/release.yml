@@ -53,10 +53,17 @@ jobs:
       shell: bash
       run: |
         cd bun
-        if [[ "${{ matrix.target }}" == windows-* ]]; then
-          bun build src/index.ts --compile ${{ matrix.bun_target }} --outfile dist/todoforai-edge.exe
+        # Burn the released version into the binary (tag vXX.YY.ZZ → XX.YY.ZZ; fallback: package.json)
+        if [[ "${GITHUB_REF_NAME}" == v* ]]; then
+          VERSION="${GITHUB_REF_NAME#v}"
         else
-          bun build src/index.ts --compile ${{ matrix.bun_target }} --outfile dist/todoforai-edge
+          VERSION=$(jq -r .version package.json)
+        fi
+        DEFINE=(--define "BUILD_VERSION=\"$VERSION\"")
+        if [[ "${{ matrix.target }}" == windows-* ]]; then
+          bun build src/index.ts --compile ${{ matrix.bun_target }} "${DEFINE[@]}" --outfile dist/todoforai-edge.exe
+        else
+          bun build src/index.ts --compile ${{ matrix.bun_target }} "${DEFINE[@]}" --outfile dist/todoforai-edge
         fi
 
     - name: Package artifact
