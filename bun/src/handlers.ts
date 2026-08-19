@@ -15,7 +15,7 @@ const log = (level: string, ...args: any[]) => console.log(`[${level}]`, ...args
 // ── Block Execute ──
 
 export async function handleBlockExecute(payload: Record<string, any>, send: SendFn, maxTimeout = 0) {
-  const { blockId, messageId = "", content = "", todoId = "", groupTag = "", rootPath = "", manual = false } = payload;
+  const { blockId, messageId = "", content = "", todoId = "", groupTag = "", projectId = "", rootPath = "", manual = false } = payload;
   await send(msg.shellBlockStart(todoId, blockId, "execute", messageId));
   try {
     const timeout = Math.max(payload.timeout ?? 120, maxTimeout);
@@ -26,6 +26,7 @@ export async function handleBlockExecute(payload: Record<string, any>, send: Sen
       cwd: rootPath,
       manual,
       groupTag,
+      projectId,
     });
   } catch (e: any) {
     await send(msg.blockError(blockId, todoId, e.message));

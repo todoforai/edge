@@ -311,7 +311,7 @@ function detectContentType(output: string, cmd?: string): { result: string; cont
 }
 
 register("execute_shell_command", async (args, client) => {
-  const { cmd, cwd = (args as any).root_path ?? "", todoId = "", groupTag = "", messageId = "", blockId = "", agentSettingsId = "", frontendId = "", frontendKind = "", pid: resumePid = 0, output: outputMode = DEFAULT_OUTPUT_MODE } = args as Record<string, any>;
+  const { cmd, cwd = (args as any).root_path ?? "", todoId = "", groupTag = "", projectId = "", messageId = "", blockId = "", agentSettingsId = "", frontendId = "", frontendKind = "", pid: resumePid = 0, output: outputMode = DEFAULT_OUTPUT_MODE } = args as Record<string, any>;
   const canStream = !!(todoId && blockId && client);
   // The maxTimeout floor is for agent runs (always streaming). The
   // non-streaming path serves frontend RPCs whose caller waits exactly
@@ -333,7 +333,7 @@ register("execute_shell_command", async (args, client) => {
     const { execFile } = await import("child_process");
     const { shell, args: shellArgs } = getShellCommand(cmd);
     const { result, exitCode, timedOut } = await new Promise<{ result: string; exitCode: number | null; timedOut: boolean }>((resolve) => {
-      execFile(shell, shellArgs, { cwd: cwd || os.tmpdir(), encoding: "utf-8", timeout: timeout * 1000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_GROUP_ID: groupTag, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, AGENT_BROWSER_SESSION: todoId } }, (err: any, stdout, stderr) => {
+      execFile(shell, shellArgs, { cwd: cwd || os.tmpdir(), encoding: "utf-8", timeout: timeout * 1000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_GROUP_ID: groupTag, TODOFORAI_PROJECT_ID: projectId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, AGENT_BROWSER_SESSION: todoId } }, (err: any, stdout, stderr) => {
         // Non-zero exit → err.code (number). Killed by our timeout → err.killed
         // with no numeric code. No error → clean exit 0.
         resolve({
@@ -410,6 +410,7 @@ register("execute_shell_command", async (args, client) => {
       frontendId,
       frontendKind,
       groupTag,
+      projectId,
     });
 
     // DEAD: tool-install approval short-circuit. If executeBlock parked the

@@ -172,6 +172,7 @@ export interface ExecuteBlockOptions {
   frontendId?: string;
   frontendKind?: string;
   groupTag?: string;
+  projectId?: string;
 }
 
 // ── Stream coalescing ──
@@ -232,6 +233,7 @@ export async function executeBlock(
     frontendId = "",
     frontendKind = "",
     groupTag = "",
+    projectId = "",
   }: ExecuteBlockOptions,
 ) {
   let cwd = requestedCwd;
@@ -287,6 +289,7 @@ export async function executeBlock(
       // The tab that started this run — tfa-surface's default target (§4).
       TODOFORAI_FRONTEND_ID: frontendId, TODOFORAI_FRONTEND_KIND: frontendKind,
       TODOFORAI_GROUP_ID: groupTag,
+      TODOFORAI_PROJECT_ID: projectId,
       // Per-todo agent-browser session so parallel todos get isolated daemons/tabs.
       AGENT_BROWSER_SESSION: todoId,
     };
