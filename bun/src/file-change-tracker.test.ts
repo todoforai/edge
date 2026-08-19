@@ -3,7 +3,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { execSync } from "child_process";
-import { startTracking, setFileTrackingEnabled, noteFileToolWrite, resolveTrackingCwd } from "./file-change-tracker.js";
+import { startTracking, setFileTrackingEnabled, noteFileToolWrite } from "./file-change-tracker.js";
 import type { WsMessage } from "./constants.js";
 
 let repo: string;
@@ -159,15 +159,20 @@ describe("file-change-tracker", () => {
     fs.rmSync(outer, { recursive: true, force: true });
   });
 
-  test("resolveTrackingCwd", () => {
-    const sub = path.join(repo, "sub");
-    fs.mkdirSync(sub);
-    expect(resolveTrackingCwd(repo, `cd ${sub} && ls`)).toBe(sub);
-    expect(resolveTrackingCwd(repo, `cd "${sub}"\nls`)).toBe(sub);
-    expect(resolveTrackingCwd(repo, "cd sub; ls")).toBe(sub);          // relative to cwd
-    expect(resolveTrackingCwd(repo, "cd nope && ls")).toBe(repo);      // missing dir
-    expect(resolveTrackingCwd(repo, "ls && cd sub")).toBe(repo);       // not leading
-    expect(resolveTrackingCwd(repo, "echo cd sub")).toBe(repo);
-    expect(resolveTrackingCwd(repo, undefined)).toBe(repo);
+  test("two repos in one command → both reported", async () => {
+    const repo2 = fs.mkdtempSync(path.join(os.tmpdir(), "fct2-"));
+    execSync("git init -q && git config user.email t@t && git config user.name t", { cwd: repo2, stdio: "pipe" });
+    fs.writeFileSync(path.join(repo2, "b.txt"), "b\n");
+    execSync("git add . && git commit -qm init", { cwd: repo2, stdio: "pipe" });
+    const tracker = startTracking(repo, `touch x && cd ${repo2} && touch y`)!;
+    await tracker.ready;
+    fs.writeFileSync(path.join(repo, "x"), "");
+    fs.writeFileSync(path.join(repo2, "y"), "");
+    const sent: WsMessage[] = [];
+    await tracker.finish(async (m) => { sent.push(m); }, ids);
+    const paths = sent[0]!.payload.updates.fileChanges.map((c: { path: string }) => c.path).sort();
+    expect(paths).toEqual([path.join(fs.realpathSync(repo), "x"), path.join(fs.realpathSync(repo2), "y")].sort());
+    fs.rmSync(repo2, { recursive: true, force: true });
   });
+
 });

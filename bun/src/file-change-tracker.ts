@@ -12,6 +12,7 @@ import path from "path";
 import { execFile } from "child_process";
 import type { SendFn } from "./shell.js";
 import { commandMightWriteFiles } from "../../../packages/shared-fbe/src/shellReadOnly";
+import { trackingDirs } from "../../../packages/shared-fbe/src/shellCwd";
 
 const MAX_FILE_SIZE = 100_000;   // per-file content cap (bytes) — also bounds what gets persisted on the block
 const MAX_PRE_FILES = 50;        // dirty files whose content we snapshot pre-command
@@ -91,6 +92,11 @@ function gitStatus(cwd: string): Promise<string> {
   return git(cwd, ["status", "--porcelain=v2", "-z", "-uall"]);
 }
 
+/** Directory that exists locally (the edge runs on the same host as the command). */
+function isDir(p: string): boolean {
+  try { return fs.statSync(p).isDirectory(); } catch { return false; }
+}
+
 /** lstat signature for cheap change detection; null = missing. */
 function statSig(abs: string): string | null {
   try {
@@ -153,11 +159,13 @@ function annotate(abs: string, c: Omit<FileChange, "size" | "omitted">): FileCha
   return out;
 }
 
-async function report(cwd: string, pre: PreState, startedAt: number, send: SendFn, ids: { todoId: string; blockId: string; messageId: string }) {
+/** Files the command changed in one repo. Absolute paths, anchored at its root. */
+async function report(pre: PreState, startedAt: number): Promise<FileChange[]> {
+  const cwd = pre.root;
   // checkout / rebase / reset / pull moved HEAD → the working tree diff is git's
   // doing, not the command editing files. Nothing worth reporting.
   const postHead = (await git(cwd, ["rev-parse", "HEAD"])).trim();
-  if (postHead !== pre.head) return;
+  if (postHead !== pre.head) return [];
 
   const postDirty = new Set(parseStatusZ(await gitStatus(cwd)));
   const changes: FileChange[] = [];
@@ -193,43 +201,36 @@ async function report(cwd: string, pre: PreState, startedAt: number, send: SendF
     changes.push(annotate(abs, { path: abs, originalContent, modifiedContent, status }));
   }
 
-  // The existing BLOCK_UPDATE pipeline does the rest: backend persists the
-  // updates onto the block and republishes to the frontend's block cache.
-  if (changes.length) {
-    await send({ type: "BLOCK_UPDATE", payload: { ...ids, updates: { fileChanges: changes } } });
-  }
+  return changes;
 }
 
-/** Commands very often start with `cd <path>` and then write there, while the
- *  block's cwd is some unrelated workspace root. Track the directory the command
- *  actually runs in: follow a leading `cd` (only at the very start, before any
- *  other command) and fall back to `cwd` when it doesn't resolve to a directory. */
-export function resolveTrackingCwd(cwd: string, cmd?: string): string {
-  if (!cmd) return cwd;
-  const m = /^[\s;\n]*cd\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|<>\n]+))\s*(?:&&|;|\n|$)/.exec(cmd);
-  const raw = m && (m[1] ?? m[2] ?? m[3]);
-  if (!raw) return cwd;
-  const expanded = raw.replace(/^~(?=$|\/)/, process.env.HOME || "~");
-  const target = path.resolve(cwd, expanded);
-  try { return fs.statSync(target).isDirectory() ? target : cwd; } catch { return cwd; }
-}
-
-/** Kick off a pre-snapshot (fire-and-forget, not awaited by the caller).
+/** Kick off pre-snapshots (fire-and-forget, not awaited by the caller).
  *  Returns null when disabled or when `cmd` is provably read-only — tracking a
  *  command that cannot write files only opens a window for concurrent writers
  *  (other todos, editors, HMR) to be misattributed to it. */
-export function startTracking(cwdIn: string, cmd?: string): FileTracker | null {
+export function startTracking(cwd: string, cmd?: string): FileTracker | null {
   if (!enabled) return null;
   if (cmd !== undefined && !commandMightWriteFiles(cmd)) return null;
-  const cwd = resolveTrackingCwd(cwdIn, cmd);
   const startedAt = Date.now();
-  const pre = snapshot(cwd).catch(() => null); // not a git repo → tracker stays inert
+  // One snapshot per directory the command plausibly writes in — the cwd plus
+  // every `cd` target, since `cd /other/repo && …` is a staple of agent output
+  // and the cwd's repo would show none of it. A dir outside a git repo yields
+  // no snapshot; several dirs of one repo collapse into a single one.
+  const dirs = trackingDirs(cwd, cmd, { isDir, resolve: path.resolve, home: process.env.HOME });
+  const pre = Promise.all(dirs.map((d) => snapshot(d).catch(() => null)))
+    .then((snaps) => snaps.filter((s): s is PreState => !!s)
+      .filter((s, i, all) => all.findIndex((o) => o.root === s.root) === i));
   return {
     ready: pre,
     async finish(send, ids) {
       try {
-        const p = await pre;
-        if (p) await report(cwd, p, startedAt, send, ids);
+        const changes: FileChange[] = [];
+        for (const p of await pre) changes.push(...await report(p, startedAt));
+        // The existing BLOCK_UPDATE pipeline does the rest: backend persists the
+        // updates onto the block and republishes to the frontend's block cache.
+        if (changes.length) {
+          await send({ type: "BLOCK_UPDATE", payload: { ...ids, updates: { fileChanges: changes.slice(0, MAX_REPORT_FILES) } } });
+        }
       } catch { /* best-effort: never disturb the shell flow */ }
     },
   };
