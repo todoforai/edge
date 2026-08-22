@@ -52,7 +52,17 @@ function localBinDirs(): string[] {
     : [path.join(home, ".local", "bin")];
 }
 
-function toolPathEntries(): string[] { return [npmBinDir(), venvBinDir(), binDir(), ...localBinDirs()]; }
+/** Bootstrapped Node tree (toolInstallCommand.ts ensureNodeSnippet). POSIX
+ *  symlinks node/npm into tools/bin, but Windows keeps the whole extracted
+ *  tree — npm.cmd needs its sibling node_modules\npm — so the dir itself
+ *  must be on PATH. */
+function nodeDir(): string { return path.join(TOOLS_DIR, "node"); }
+
+function toolPathEntries(): string[] {
+  const entries = [npmBinDir(), venvBinDir(), binDir(), ...localBinDirs()];
+  if (os.platform() === "win32") entries.push(nodeDir());
+  return entries;
+}
 
 /** Return env with tool dirs prepended to PATH. */
 export function buildEnvWithTools(): Record<string, string> {
