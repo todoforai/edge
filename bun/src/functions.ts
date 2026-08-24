@@ -113,7 +113,7 @@ register("uninstall_tool", async (args) => {
   if (!name || !(name in TOOL_CATALOG)) {
     return { success: false, error: `Unknown tool: ${name}` };
   }
-  const r = uninstallToolDetailed(name);
+  const r = await uninstallToolDetailed(name);
   if (r.ok) await syncInstalledTools();
   return r.ok ? { success: true, tool: name } : { success: false, tool: name, error: r.error || `Failed to uninstall ${name}` };
 });
@@ -525,7 +525,8 @@ register("search_files", async (args) => {
   const which = (bin: string) => { try { return execWhich(`${whichCmd} ${bin}`, { encoding: "utf-8" }).trim().split("\n")[0].trim(); } catch { return null; } };
   let rgPath = which("rg");
   if (!rgPath) {
-    await ensureTool("rg");
+    // Catalog key is `ripgrep` (binName rg) — `ensureTool("rg")` was a no-op.
+    await ensureTool("ripgrep");
     rgPath = which("rg");
   }
 

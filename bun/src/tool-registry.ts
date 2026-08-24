@@ -1,10 +1,14 @@
-/** Auto-install missing tools into ~/.todoforai/tools/ */
+/** Tool auto-install + scan. Install/uninstall commands come from the shared
+ *  catalog builder (shared-fbe toolInstallCommand) — the SAME one-liners the
+ *  frontend sends over execute_shell_command — so the edge, like the bridge,
+ *  is just a shell runner with no install logic of its own. */
 
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { execSync, spawnSync, execFile } from "child_process";
-import { TOOL_CATALOG, BINARY_URL_FUNCS } from "./tool-catalog.js";
+import { spawnSync, execFile } from "child_process";
+import { TOOL_CATALOG } from "./tool-catalog.js";
+import { buildInstallCommand, uninstallCommand } from "../../../packages/shared-fbe/src/toolInstallCommand";
 
 const TOOLS_DIR = path.join(os.homedir(), ".todoforai", "tools");
 const MNT_DIR  = path.join(os.homedir(), ".todoforai", "mnt");
@@ -42,9 +46,9 @@ function systemPython(): string {
 }
 
 /** Where shell-based installs land (shared-fbe buildInstallCommand: npm/bun
- *  `--prefix ~/.local`, pip `--user`). The C bridge already prepends these
- *  (env_path.c) — mirror them here so a tool installed via either transport's
- *  shell path is visible to the edge's scan and exec env too. */
+ *  `--prefix ~/.local`; pip goes to the managed venv). The C bridge already
+ *  prepends these (env_path.c) — mirror them here so a tool installed via
+ *  either transport's shell path is visible to the edge's scan and exec env. */
 function localBinDirs(): string[] {
   const home = os.homedir();
   return os.platform() === "win32"
@@ -165,219 +169,67 @@ export function findMissingTools(content: string): string[] {
   return findReferencedTools(content).filter(name => TOOL_CATALOG[name].installer !== "system" && !isToolInstalled(name));
 }
 
-// ── Installers ──
-
-async function installBinary(name: string): Promise<boolean> {
-  const urlFunc = BINARY_URL_FUNCS[name];
-  if (!urlFunc) { log("warn", `No download URL for binary: ${name}`); return false; }
-
-  const dir = binDir();
-  fs.mkdirSync(dir, { recursive: true });
-  const [url, isArchive] = await urlFunc();
-  const fileName = binFileName(name);
-  const destName = os.platform() === "win32" ? `${fileName}.exe` : fileName;
-  const dest = path.join(dir, destName);
-  const tmpPath = dest + ".tmp";
-
-  log("info", `Downloading ${name} from ${url}`);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
-
-  const data = Buffer.from(await res.arrayBuffer());
-  fs.writeFileSync(tmpPath, data);
-
-  if (isArchive) {
-    const expectedNames = new Set([name, `${name}.exe`, fileName, `${fileName}.exe`]);
-    if (url.endsWith(".tar.gz") || url.endsWith(".tgz")) {
-      await extractTarBinary(tmpPath, dest, expectedNames);
-    } else if (url.endsWith(".zip")) {
-      await extractZipBinary(tmpPath, dest, expectedNames);
-    } else {
-      throw new Error(`Unsupported archive: ${url}`);
-    }
-    fs.unlinkSync(tmpPath);
-  } else {
-    fs.renameSync(tmpPath, dest);
-  }
-
-  fs.chmodSync(dest, 0o755);
-  return true;
-}
-
-async function extractTarBinary(archivePath: string, dest: string, expectedNames: Set<string>) {
-  // Use system tar
-  const tmpDir = dest + ".extract";
-  fs.mkdirSync(tmpDir, { recursive: true });
-  try {
-    execSync(`tar xzf "${archivePath}" -C "${tmpDir}"`, { stdio: "pipe" });
-    const found = findFileRecursive(tmpDir, expectedNames);
-    if (!found) throw new Error(`Binary not found in tar archive`);
-    fs.copyFileSync(found, dest);
-  } finally {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  }
-}
-
-async function extractZipBinary(archivePath: string, dest: string, expectedNames: Set<string>) {
-  const tmpDir = dest + ".extract";
-  fs.mkdirSync(tmpDir, { recursive: true });
-  try {
-    execSync(`unzip -o "${archivePath}" -d "${tmpDir}"`, { stdio: "pipe" });
-    const found = findFileRecursive(tmpDir, expectedNames);
-    if (!found) throw new Error(`Binary not found in zip archive`);
-    fs.copyFileSync(found, dest);
-  } finally {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  }
-}
-
-function findFileRecursive(dir: string, names: Set<string>): string | null {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      const found = findFileRecursive(full, names);
-      if (found) return found;
-    } else if (names.has(entry.name)) {
-      return full;
-    }
-  }
-  return null;
-}
+// ── Installers — shared catalog one-liners, run under the edge's shell ──
 
 /** Display-only install command for the shell transcript notice. */
 function getInstallCommand(name: string): string {
   const e = TOOL_CATALOG[name];
   return e.installCmd || {
-    npm: `npm install --prefix ~/.todoforai/tools ${e.pkg}`,
-    bun: `bun add --cwd ~/.todoforai/tools ${e.pkg}`,
+    npm: `npm install -g --prefix ~/.local ${e.pkg}`,
+    bun: `npm install -g --prefix ~/.local ${e.pkg}`,
     pip: `pip install ${e.pkg}`,
     binary: `download ${e.pkg}`,
   }[e.installer as string] || `install ${e.pkg}`;
 }
 
-export function installWithNpm(name: string, pkg: string) {
-  const TIMEOUT_MS = 120_000;
-
-  const install = () => {
-    const args = ["install", "--prefix", TOOLS_DIR, pkg];
-    const result = spawnSync("npm", args, {
-      stdio: "pipe", timeout: TIMEOUT_MS, shell: true,
-    });
-    const stderr = result.stderr?.toString().trim() || "";
-    const stdout = result.stdout?.toString().trim() || "";
-    if (result.error) {
-      throw new Error(`npm install failed: ${result.error.message} | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
-    }
-    if (result.signal) {
-      throw new Error(`npm install killed by ${result.signal}${result.signal === 'SIGTERM' ? ` (likely timed out after ${TIMEOUT_MS / 1000}s)` : ''} | stderr: ${stderr || '(empty)'}`);
-    }
-    // On Windows with shell:true, timeout-kills can yield status:null AND signal:null.
-    if (result.status === null) {
-      throw new Error(`npm install: null exit code (likely timed out after ${TIMEOUT_MS / 1000}s on Windows, signal not propagated through cmd.exe) | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
-    }
-    if (result.status !== 0) {
-      throw new Error(`npm install failed (exit ${result.status}) | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
-    }
+/** shared-fbe platform identity for this host (os: linux/darwin/windows,
+ *  arch: x86_64/aarch64 — platformKey() normalizes both). */
+function hostIdentity(): { os: string; arch: string } {
+  const p = os.platform();
+  return {
+    os: p === "win32" ? "windows" : p === "darwin" ? "darwin" : "linux",
+    arch: (os.machine?.() || os.arch()),
   };
-
-  log("info", `Installing ${name} via npm (${pkg})`);
-  install();
 }
 
-/** Install an npm-registry package using `bun add` into TOOLS_DIR.
- *  Bun writes the bin shim to <cwd>/node_modules/.bin, matching the
- *  layout npm uses with `--prefix`, so npmBinDir() already covers
- *  discovery via whichWithTools / buildEnvWithTools. */
-export function installWithBun(name: string, pkg: string) {
-  const TIMEOUT_MS = 120_000;
-  log("info", `Installing ${name} via bun (${pkg})`);
-  fs.mkdirSync(TOOLS_DIR, { recursive: true });
-  const result = spawnSync("bun", ["add", "--cwd", TOOLS_DIR, pkg], {
-    stdio: "pipe", timeout: TIMEOUT_MS, shell: true,
+/** Run a catalog-built one-liner under the SAME shell the exec paths use
+ *  (getShellCommand), with the tool dirs on PATH. The shared one-liners are
+ *  POSIX shell programs — on Windows they need Git Bash; getShellCommand's
+ *  PowerShell/cmd fallbacks would garble them, so refuse those with a clear
+ *  error instead of a confusing parse failure. Dynamic import: shell.ts
+ *  imports this module, so a static back-import would be a cycle. */
+async function runToolCommand(what: string, cmd: string, timeoutMs: number): Promise<void> {
+  const { getShellCommand } = await import("./shell.js");
+  const { shell, args } = getShellCommand(cmd);
+  if (os.platform() === "win32" && !/bash(\.exe)?$/i.test(shell)) {
+    throw new Error(`${what} requires Git Bash on Windows (install Git for Windows) — no bash found on this machine`);
+  }
+  const r = await new Promise<{ err: any; stdout: string; stderr: string }>(resolve => {
+    execFile(shell, args, { env: buildEnvWithTools(), timeout: timeoutMs, encoding: "utf-8", maxBuffer: 4 * 1024 * 1024, windowsHide: true },
+      (err: any, stdout, stderr) => resolve({ err, stdout: stdout || "", stderr: stderr || "" }));
   });
-  const stderr = result.stderr?.toString().trim() || "";
-  const stdout = result.stdout?.toString().trim() || "";
-  if (result.error) {
-    throw new Error(`bun add failed: ${result.error.message} | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
-  }
-  if (result.signal) {
-    throw new Error(`bun add killed by ${result.signal}${result.signal === 'SIGTERM' ? ` (likely timed out after ${TIMEOUT_MS / 1000}s)` : ''} | stderr: ${stderr || '(empty)'}`);
-  }
-  if (result.status === null) {
-    throw new Error(`bun add: null exit code (likely timed out after ${TIMEOUT_MS / 1000}s) | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
-  }
-  if (result.status !== 0) {
-    throw new Error(`bun add failed (exit ${result.status}) | stderr: ${stderr || '(empty)'} | stdout: ${stdout || '(empty)'}`);
+  if (r.err) {
+    // Name the actual failure class: timeout kill, spawn error (ENOENT/EACCES/
+    // maxBuffer have STRING codes), or plain non-zero exit. stderr tail first —
+    // a chatty stdout must not push the error message out of the 400-char tail.
+    const tail = (r.stderr.trim() || r.stdout.trim()).slice(-400) || "(no output)";
+    const e = r.err;
+    const reason = e.killed || e.signal === "SIGTERM" ? `timed out after ${timeoutMs / 1000}s`
+      : typeof e.code === "number" ? `exit ${e.code}`
+      : e.code ? `${e.code}` : "failed";
+    throw new Error(`${what} failed (${reason}): ${tail}`);
   }
 }
 
-function installWithPip(name: string, pkg: string) {
-  const venvDir = path.join(TOOLS_DIR, "venv");
-  const venvPython = os.platform() === "win32"
-    ? path.join(venvDir, "Scripts", "python.exe")
-    : path.join(venvDir, "bin", "python");
-
-  // Use system python directly (absolute path where possible, never the venv)
-  const sysPy = systemPython();
-
-  let python: string = sysPy;
-  let useVenv = false;
-
-  if (fs.existsSync(venvPython)) {
-    const check = spawnSync(venvPython, ["-m", "pip", "--version"], { stdio: "pipe", timeout: 5_000 });
-    if (check.status === 0) {
-      python = venvPython;
-      useVenv = true;
-    } else {
-      // Venv exists but is broken, remove it
-      log("warn", `Removing broken venv at ${venvDir}`);
-      try { fs.rmSync(venvDir, { recursive: true, force: true }); } catch {}
-    }
-  }
-
-  // Try creating venv if we don't have a working one
-  if (!useVenv) {
-    log("info", `Creating venv at ${venvDir}`);
-    const r = spawnSync(sysPy, ["-m", "venv", venvDir], { stdio: "pipe", timeout: 30_000 });
-    if (r.status === 0 && fs.existsSync(venvPython)) {
-      const check = spawnSync(venvPython, ["-m", "pip", "--version"], { stdio: "pipe", timeout: 5_000 });
-      if (check.status === 0) {
-        python = venvPython;
-        useVenv = true;
-      }
-    }
-  }
-
-  // Fallback to system python with --user
-  if (!useVenv) {
-    log("warn", `venv not usable, falling back to --user install`);
-    python = sysPy;
-  }
-
-  log("info", `Installing ${name} via pip (${pkg})`);
-  const args = useVenv
-    ? ["-m", "pip", "install", pkg]
-    : ["-m", "pip", "install", "--user", pkg];
-  const result = spawnSync(python, args, { stdio: "pipe", timeout: 120_000 });
-  const stderr = result.stderr?.toString().trim() || "";
-  if (result.signal) throw new Error(`pip install killed by ${result.signal}${result.signal === 'SIGTERM' ? ' (likely timed out after 120s)' : ''}`);
-  if (result.status !== 0) throw new Error(`pip install failed (exit ${result.status}): ${stderr || result.stdout?.toString().trim() || '(empty)'}`);
+function installCommandFor(name: string): string {
+  const entry = TOOL_CATALOG[name];
+  // "system" tools come from the OS package manager / rootfs preinstall — the
+  // builder returns '' for them; name the reason instead of a generic error.
+  if (entry.installer === "system") throw new Error(`${name} is OS-managed — install it via apt/brew/winget`);
+  const cmd = buildInstallCommand(entry, hostIdentity());
+  if (!cmd) throw new Error(`No install command for ${name} on this platform`);
+  return cmd;
 }
-
-const INSTALLERS: Record<string, (name: string, pkg: string) => void | Promise<void>> = {
-  npm: installWithNpm,
-  bun: installWithBun,
-  pip: installWithPip,
-  // installBinary returns false (no URL resolver / download failed) without
-  // throwing — convert to a throw so ensureToolDetailed reports failure
-  // instead of a false success.
-  binary: async (name: string, _pkg: string) => {
-    if (!(await installBinary(name))) throw new Error(`No binary download available for ${name} on this platform`);
-  },
-  // "system" tools come from the OS package manager / rootfs preinstall — never
-  // auto-install. Throw so install_tool doesn't report success for a no-op.
-  system: (name: string) => { throw new Error(`${name} is OS-managed — install it via apt/brew/winget`); },
-};
 
 // ── Public API ──
 
@@ -400,13 +252,10 @@ export async function ensureToolDetailed(name: string): Promise<{ ok: boolean; e
   try {
     if (isToolInstalled(name)) return { ok: false }; // already installed
 
-    const { pkg, installer: installerType } = TOOL_CATALOG[name];
-    const installFn = INSTALLERS[installerType];
-    if (!installFn) { log("warn", `Unknown installer: ${installerType}`); return { ok: false, error: `Unknown installer: ${installerType}` }; }
-
+    const { pkg } = TOOL_CATALOG[name];
     log("info", `Installing tool: ${name} (${pkg})`);
-    fs.mkdirSync(TOOLS_DIR, { recursive: true });
-    await installFn(name, pkg);
+    // Node/python bootstraps inside the one-liner can add a ~40MB download.
+    await runToolCommand(`${name} install`, installCommandFor(name), 300_000);
     log("info", `Successfully installed ${name}`);
     return { ok: true };
   } catch (e: any) {
@@ -417,47 +266,17 @@ export async function ensureToolDetailed(name: string): Promise<{ ok: boolean; e
   }
 }
 
-/** spawnSync doesn't throw on non-zero exit or timeout — check status/signal
- *  explicitly, otherwise a failed `npm uninstall` would be reported as
- *  success and the tile would flip to "not installed" while the binary is
- *  still there. */
-function checkSpawn(what: string, r: ReturnType<typeof spawnSync>): void {
-  if (r.error) throw r.error;
-  if (r.signal) throw new Error(`${what} killed by ${r.signal}${r.signal === "SIGTERM" ? " (likely timed out)" : ""}`);
-  if (r.status !== 0) {
-    const detail = r.stderr?.toString().trim() || r.stdout?.toString().trim() || "(no output)";
-    throw new Error(`${what} failed (exit ${r.status}): ${detail}`);
-  }
-}
-
-export function uninstallToolDetailed(name: string): { ok: boolean; error?: string } {
+export async function uninstallToolDetailed(name: string): Promise<{ ok: boolean; error?: string }> {
   if (!(name in TOOL_CATALOG)) return { ok: false, error: `Unknown tool: ${name}` };
-  const { pkg, installer: installerType } = TOOL_CATALOG[name];
+  const entry = TOOL_CATALOG[name];
+  if (entry.installer === "system") return { ok: false, error: `system-installer tools are managed by the OS package manager` };
 
   try {
-    if (installerType === "binary") {
-      // binFileName, not the catalog key: aliased entries (ripgrep→rg,
-      // todoai→todoforai-cli) install under their binName — deleting `name`
-      // would remove nothing and still report success.
-      const bin = binFileName(name);
-      const exts = os.platform() === "win32" ? ["", ".exe"] : [""];
-      for (const ext of exts) {
-        const p = path.join(binDir(), bin + ext);
-        if (fs.existsSync(p)) fs.unlinkSync(p);
-      }
-    } else if (installerType === "npm") {
-      checkSpawn("npm uninstall", spawnSync("npm", ["uninstall", "--prefix", TOOLS_DIR, pkg], { stdio: "pipe", timeout: 30_000, shell: true }));
-    } else if (installerType === "bun") {
-      checkSpawn("bun remove", spawnSync("bun", ["remove", "--cwd", TOOLS_DIR, pkg], { stdio: "pipe", timeout: 30_000, shell: true }));
-    } else if (installerType === "pip") {
-      const venvPython = os.platform() === "win32"
-        ? path.join(TOOLS_DIR, "venv", "Scripts", "python.exe")
-        : path.join(TOOLS_DIR, "venv", "bin", "python");
-      const python = fs.existsSync(venvPython) ? venvPython : systemPython();
-      checkSpawn("pip uninstall", spawnSync(python, ["-m", "pip", "uninstall", "-y", pkg], { stdio: "pipe", timeout: 30_000 }));
-    } else {
-      return { ok: false, error: `system-installer tools are managed by the OS package manager` };
-    }
+    const cmd = uninstallCommand(entry, hostIdentity());
+    if (!cmd) return { ok: false, error: `No uninstall command for ${name} on this platform` };
+    // The shared one-liners sweep every historical prefix (~/.local AND the
+    // edge's old ~/.todoforai/tools installs) — same behavior on both transports.
+    await runToolCommand(`${name} uninstall`, cmd, 60_000);
     log("info", `Uninstalled tool: ${name}`);
     return { ok: true };
   } catch (e: any) {
