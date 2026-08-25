@@ -258,7 +258,6 @@ export async function handleFunctionCall(payload: Record<string, any>, send: Sen
   const { requestId, functionName, args = {}, agentId, edgeId } = payload;
   const isAgent = !!agentId;
 
-  // Extract block info for frontend responses
   let blockInfo: Record<string, any> | undefined;
   if (args.blockId) {
     blockInfo = { todoId: args.todoId, messageId: args.messageId, blockId: args.blockId };

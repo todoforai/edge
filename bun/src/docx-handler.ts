@@ -103,7 +103,6 @@ export function extractXlsxContent(xlsxPath: string): string {
   const zip = unzipSync(data);
   const result: Record<string, string> = {};
 
-  // Extract worksheets
   for (const name of Object.keys(zip)) {
     if (name.startsWith("xl/worksheets/") && name.endsWith(".xml")) {
       const key = name.replace("xl/", "");
@@ -111,12 +110,10 @@ export function extractXlsxContent(xlsxPath: string): string {
     }
   }
 
-  // Shared strings
   if (zip["xl/sharedStrings.xml"]) {
     result["sharedStrings.xml"] = prettyPrintXml(new TextDecoder().decode(zip["xl/sharedStrings.xml"]));
   }
 
-  // Styles
   if (zip["xl/styles.xml"]) {
     result["styles.xml"] = prettyPrintXml(new TextDecoder().decode(zip["xl/styles.xml"]));
   }

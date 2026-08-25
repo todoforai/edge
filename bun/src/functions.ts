@@ -154,7 +154,6 @@ register("get_workspace_tree", async (args) => {
   if (process.platform !== "win32") {
     try {
       const { execSync } = await import("child_process");
-      // Check if tree is available
       execSync(process.platform === "win32" ? "where tree" : "which tree", { encoding: "utf-8", stdio: "pipe" });
       const cmd = ["tree", "-L", String(max_depth), "--dirsfirst"];
       if (isGit) cmd.push("--gitignore", "-I", ".git");

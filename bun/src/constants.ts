@@ -5,7 +5,6 @@ export const SR = {
   CONNECTED_EDGE: "connected_edge",
 } as const;
 
-// Edge Status
 export const EdgeStatus = {
   ONLINE: "ONLINE",
   OFFLINE: "OFFLINE",

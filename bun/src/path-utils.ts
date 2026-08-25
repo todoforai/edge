@@ -55,7 +55,6 @@ function checkRootsExist(filePath: string, rootPath?: string, fallbackRootPaths?
 }
 
 export function resolveFilePath(filePath: string, rootPath?: string, fallbackRootPaths: string[] = []): string {
-  // Handle file:// URLs
   if (filePath.startsWith("file://")) {
     filePath = fileURLToPath(filePath);
   }

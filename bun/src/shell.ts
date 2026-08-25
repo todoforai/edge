@@ -512,7 +512,6 @@ export function interruptBlock(blockId: string) {
   } catch {
     try { handle.proc?.kill(9); } catch {}
   }
-  // Close terminal after process is killed
   try { handle.terminal?.close(); } catch {}
   void flushStream(blockId);
   processes.delete(blockId);

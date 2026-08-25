@@ -323,7 +323,6 @@ function installWithPip(name: string, pkg: string) {
   let python: string = sysPy;
   let useVenv = false;
 
-  // Check if existing venv has working pip
   if (fs.existsSync(venvPython)) {
     const check = spawnSync(venvPython, ["-m", "pip", "--version"], { stdio: "pipe", timeout: 5_000 });
     if (check.status === 0) {
@@ -702,7 +701,6 @@ async function mountRemote(remote: string, mountPoint: string): Promise<boolean>
     }
     await new Promise(res => setTimeout(res, 500));
   }
-  // Read rclone log for the actual error
   let logTail = "";
   try {
     const content = fs.readFileSync(logFile, "utf-8");
