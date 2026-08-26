@@ -44,6 +44,10 @@ export interface Config {
   apiKey: string;
   debug: boolean;
   kill: boolean;
+  /** Ephemeral todo-scoped session (tfa-cli --isolated): uuid todoId. */
+  mayflyTodoId?: string;
+  /** Workspace root for the mayfly session (required with --mayfly). */
+  mayflyWorkspace?: string;
   addWorkspacePath?: string;
   /** Floor for shell execution timeout (seconds). Effective timeout = max(requested, maxTimeout). */
   maxTimeout?: number;
@@ -72,6 +76,8 @@ Commands:
 Options:
   --api-key <key>      Explicit API key (overrides saved login; e.g. --api-key=$MY_API_KEY)
   --api-url <url>      API URL (env: TODOFORAI_API_URL, default: https://api.todofor.ai)
+  --mayfly <todoId>    Ephemeral session scoped to ONE todo (no Edge row; evaporates on exit)
+  --workspace <path>   Workspace root for the --mayfly session (required with --mayfly)
   --add-path <path>    Add workspace path to this edge
   --max-timeout <sec>  Floor for shell execution timeout
   --kill               Replace any existing edge instance for this user+server
@@ -97,6 +103,8 @@ export function loadConfig(): Config {
       kill: { type: "boolean", default: false },
       "no-auto-update": { type: "boolean", default: false },
       "no-track-file-changes": { type: "boolean", default: false },
+      mayfly: { type: "string" },
+      workspace: { type: "string" },
       "add-path": { type: "string" },
       "max-timeout": { type: "string" },
       version: { type: "boolean", short: "v", default: false },
@@ -124,6 +132,28 @@ export function loadConfig(): Config {
   const noAutoUpdate = !!(values["no-auto-update"] || getEnv("NO_AUTO_UPDATE").toLowerCase().match(/^(true|1|yes)$/));
   const trackFileChanges = !(values["no-track-file-changes"] || getEnv("TRACK_FILE_CHANGES").toLowerCase().match(/^(false|0|no)$/));
 
+  // Mayfly: same contract as the bridge — strict uuid todoId (CLI-minted,
+  // high entropy keeps the mayfly-<todoId> slot uncollidable) + a workspace.
+  let mayflyTodoId: string | undefined;
+  let mayflyWorkspace: string | undefined;
+  if (values.mayfly) {
+    const id = String(values.mayfly).trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      console.error("--mayfly requires a uuid todoId");
+      process.exit(2);
+    }
+    if (!values.workspace) {
+      console.error("--mayfly requires --workspace <path>");
+      process.exit(2);
+    }
+    mayflyTodoId = id;
+    mayflyWorkspace = path.resolve(String(values.workspace).replace(/^~/, process.env.HOME || "~"));
+    if (!fs.existsSync(mayflyWorkspace)) {
+      console.error(`--workspace path does not exist: ${mayflyWorkspace}`);
+      process.exit(2);
+    }
+  }
+
   let addWorkspacePath: string | undefined;
   if (values["add-path"]) {
     const p = values["add-path"] as string;
@@ -132,7 +162,7 @@ export function loadConfig(): Config {
 
   const maxTimeout = values["max-timeout"] ? Math.max(0, parseInt(values["max-timeout"] as string, 10) || 0) : undefined;
 
-  return { apiUrl, apiKey, debug, kill, noAutoUpdate, trackFileChanges, addWorkspacePath, maxTimeout, subcommand };
+  return { apiUrl, apiKey, debug, kill, noAutoUpdate, trackFileChanges, mayflyTodoId, mayflyWorkspace, addWorkspacePath, maxTimeout, subcommand };
 }
 
 // ── Credential persistence ──

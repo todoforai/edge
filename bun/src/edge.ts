@@ -74,6 +74,9 @@ export class TODOforAIEdge {
   debug: boolean;
   maxTimeout: number;
   private wsUrl: string;
+  /** Ephemeral todo-scoped session (--mayfly): uuid todoId, else undefined. */
+  private mayflyTodoId?: string;
+  private mayflyWorkspace?: string;
   private fingerprint = "";
   private heartbeatTimer?: ReturnType<typeof setInterval>;
   private addWorkspacePath?: string;
@@ -100,6 +103,8 @@ export class TODOforAIEdge {
     this.debug = config.debug;
     this.maxTimeout = config.maxTimeout ?? 0;
     this.wsUrl = getWsUrl(this.api.apiUrl);
+    this.mayflyTodoId = config.mayflyTodoId;
+    this.mayflyWorkspace = config.mayflyWorkspace;
     this.addWorkspacePath = config.addWorkspacePath;
     this.browserExtensionBridge = new BrowserExtensionBridge(this.debug);
     setConnectionContext(() => ({ apiUrl: this.api.apiUrl, sessionToken: this.sessionToken }));
@@ -258,6 +263,8 @@ export class TODOforAIEdge {
   }
 
   private async syncConfigToServer(changes: Partial<EdgeConfigData>) {
+    // Mayfly sessions have no Edge row — nothing to PATCH server-side.
+    if (this.mayflyTodoId) return;
     if (!this.edgeId || !this.connected) return;
     const syncable: Record<string, any> = {};
     for (const [k, v] of Object.entries(changes)) {
@@ -342,9 +349,14 @@ export class TODOforAIEdge {
         this.userId = payload.userId || "";
         this.edgeConfig.id = this.edgeId;
         console.log(`\x1b[32m\x1b[1m🔗 Connected edge=${this.edgeId} user=${this.userId}\x1b[0m`);
+        // Machine-readable readiness marker for the spawning CLI (--isolated):
+        // once printed, the mayfly slot is claimed server-side, so the todo's
+        // first dispatch is guaranteed to resolve this session.
+        if (this.mayflyTodoId) console.log(`EDGE_READY id=${this.edgeId}`);
         run(async () => {
           this.updateConfig({ installedTools: await scanCatalogTools() });
-          await autoMountRcloneRemotes();
+          // Skip machine-mutating side effects for ephemeral sessions.
+          if (!this.mayflyTodoId) await autoMountRcloneRemotes();
         });
         break;
 
@@ -475,7 +487,10 @@ export class TODOforAIEdge {
    *  to the reconnect loop; rejects only for non-recoverable server errors. */
   private connect(): Promise<number> {
     return new Promise((resolve, reject) => {
-      const url = `${this.wsUrl}?fingerprint=${encodeURIComponent(this.fingerprint)}`;
+      const mayflyParams = this.mayflyTodoId
+        ? `&mayfly=${encodeURIComponent(this.mayflyTodoId)}&workspace=${encodeURIComponent(this.mayflyWorkspace!)}`
+        : "";
+      const url = `${this.wsUrl}?fingerprint=${encodeURIComponent(this.fingerprint)}${mayflyParams}`;
       if (this.debug) console.log(`[info] Connecting to ${url}`);
 
       const ws = new WebSocket(url, [this.api.apiKey], {
