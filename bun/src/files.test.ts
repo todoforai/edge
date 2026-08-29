@@ -156,3 +156,62 @@ describe("create_file repacks office XML into the zip container", () => {
     fs.rmSync(tmp, { recursive: true });
   });
 });
+
+describe("create_file reports pre-overwrite content", () => {
+  const createFile = () => FUNCTION_REGISTRY.get("create_file")!;
+
+  test("new file → no originalContent", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "files-test-"));
+    const r = await createFile()({ path: path.join(tmp, "new.txt"), content: "hi", rootPath: tmp });
+    expect(r.originalContent).toBeUndefined();
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("overwriting an existing text file returns its previous content", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "files-test-"));
+    const fp = path.join(tmp, "note.txt");
+    fs.writeFileSync(fp, "old content");
+    const r = await createFile()({ path: fp, content: "new content", rootPath: tmp });
+    expect(r.originalContent).toBe("old content");
+    expect(fs.readFileSync(fp, "utf-8")).toBe("new content");
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("existing empty file → originalContent is ''", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "files-test-"));
+    const fp = path.join(tmp, "empty.txt");
+    fs.writeFileSync(fp, "");
+    const r = await createFile()({ path: fp, content: "now has content", rootPath: tmp });
+    expect(r.originalContent).toBe("");
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("invalid UTF-8 previous content is omitted", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "files-test-"));
+    const fp = path.join(tmp, "latin1.txt");
+    fs.writeFileSync(fp, Buffer.from([0x68, 0x69, 0xff, 0xfe])); // no NUL, not valid UTF-8
+    const r = await createFile()({ path: fp, content: "clean", rootPath: tmp });
+    expect(r.originalContent).toBeUndefined();
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("binary previous content is omitted", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "files-test-"));
+    const fp = path.join(tmp, "blob.bin");
+    fs.writeFileSync(fp, Buffer.from([0x00, 0x01, 0x02]));
+    const r = await createFile()({ path: fp, content: "text now", rootPath: tmp });
+    expect(r.originalContent).toBeUndefined();
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("xlsx overwrite reports the extracted XML as originalContent", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "files-test-"));
+    const fp = path.join(tmp, "t.xlsx");
+    writeMinimalXlsx(fp);
+    const read = await readFileContent(fp, tmp, []);
+    const edited = read.content!.replace("hi", "bye");
+    const r = await createFile()({ path: fp, content: edited, rootPath: tmp });
+    expect(r.originalContent).toContain("hi");
+    fs.rmSync(tmp, { recursive: true });
+  });
+});

@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { readFileContent } from "./files.js";
-import { saveDocxContent, saveXlsxContent } from "./docx-handler.js";
+import { saveDocxContent, saveXlsxContent, extractDocxContent, extractXlsxContent } from "./docx-handler.js";
 import { resolveFilePath, getPlatformDefaultDirectory, getPathOrDefault } from "./path-utils.js";
 import { executeBlock, waitForCompletion, drainBlockOutput, clearBlockOutput, isBlockAlive, sendInput, rearmPauseWatch, getPid, findBlockIdByPid, consumeExitedOutput, getReturnCode, getShellCommand, type SendFn } from "./shell.js";
 // `pendingToolApprovals` was imported here to short-circuit the response when
@@ -482,10 +482,38 @@ register("list_dir", async (args) => {
   return { entries };
 });
 
+// Pre-write snapshot cap — matches file-change-tracker's per-file MAX_FILE_SIZE.
+const MAX_ORIGINAL_SNAPSHOT = 100_000;
+
+/** Content of the file about to be overwritten, for an Edit-style diff on the
+ *  Create block. null = new file / binary / too large / unreadable. */
+function readOriginalForDiff(fullPath: string, ext: string): string | null {
+  try {
+    const st = fs.statSync(fullPath);
+    if (!st.isFile()) return null;
+    // Office content flows as extracted XML (see read_file), so diff that form;
+    // the snapshot cap applies to the extracted XML, not the zip container.
+    if (ext === ".docx" || ext === ".xlsx") {
+      const xml = ext === ".docx" ? extractDocxContent(fullPath) : extractXlsxContent(fullPath);
+      return Buffer.byteLength(xml, "utf-8") > MAX_ORIGINAL_SNAPSHOT ? null : xml;
+    }
+    if (st.size > MAX_ORIGINAL_SNAPSHOT) return null;
+    // fatal decoder: reject invalid UTF-8 instead of silently emitting U+FFFD
+    const s = new TextDecoder("utf-8", { fatal: true }).decode(fs.readFileSync(fullPath));
+    return s.includes("\0") ? null : s;
+  } catch {
+    return null;
+  }
+}
+
 register("create_file", async (args) => {
   const { path: p, content, rootPath = "", fallbackRootPaths = [] } = args;
   const fullPath = resolveFilePath(p, rootPath, fallbackRootPaths);
   const ext = path.extname(fullPath).toLowerCase();
+
+  // Snapshot pre-write content so an overwrite can be shown as a diff
+  // (originalContent/modifiedContent — same fields the Edit tool uses).
+  const originalContent = readOriginalForDiff(fullPath, ext);
 
   // read_file returns extracted XML for docx/xlsx (they're zip containers), so a
   // string write here is edited XML that must be repacked into the original
@@ -498,14 +526,14 @@ register("create_file", async (args) => {
     if (ext === ".docx") saveDocxContent(fullPath, content);
     else saveXlsxContent(fullPath, content);
     noteFileToolWrite(fullPath);
-    return { path: fullPath, bytes: fs.statSync(fullPath).size };
+    return { path: fullPath, bytes: fs.statSync(fullPath).size, ...(originalContent !== null && { originalContent }) };
   }
 
   const dir = path.dirname(fullPath);
   if (dir) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(fullPath, content, "utf-8");
   noteFileToolWrite(fullPath);
-  return { path: fullPath, bytes: Buffer.byteLength(content, "utf-8") };
+  return { path: fullPath, bytes: Buffer.byteLength(content, "utf-8"), ...(originalContent !== null && { originalContent }) };
 });
 
 register("read_file_base64", async (args) => {
