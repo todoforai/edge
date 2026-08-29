@@ -175,4 +175,92 @@ describe("file-change-tracker", () => {
     fs.rmSync(repo2, { recursive: true, force: true });
   });
 
+  // ── rolling baseline (todoId present) ──────────────────────────────
+
+  const rollRun = async (todoId: string, mutate: () => void): Promise<string[]> => {
+    const tracker = startTracking(repo, undefined, todoId)!;
+    await tracker.ready;
+    mutate();
+    const sent: WsMessage[] = [];
+    await tracker.finish(async (m) => { sent.push(m); }, ids);
+    return (sent[0]?.payload.updates.fileChanges ?? []).map((c: { path: string }) => c.path).sort();
+  };
+
+  test("rolling: the second command reports only its own edit", async () => {
+    const todo = `rt-${Date.now()}-a`;
+    expect(await rollRun(todo, () => fs.writeFileSync(path.join(repo, "a.txt"), "first\n")))
+      .toEqual([abs("a.txt")]);
+    // a.txt is still dirty vs HEAD, but the rolled baseline owns that state now.
+    expect(await rollRun(todo, () => fs.writeFileSync(path.join(repo, "new.txt"), "second\n")))
+      .toEqual([abs("new.txt")]);
+  });
+
+  test("rolling: an edit made between two runs is not blamed on the next command", async () => {
+    const todo = `rt-${Date.now()}-b`;
+    await rollRun(todo, () => {});   // establish the baseline
+
+    // Foreign writer edits while no command runs; backdated past the margin,
+    // as a genuinely earlier edit's mtime would be.
+    fs.writeFileSync(path.join(repo, "a.txt"), "foreign edit\n");
+    const past = new Date(Date.now() - 60_000);
+    fs.utimesSync(path.join(repo, "a.txt"), past, past);
+
+    expect(await rollRun(todo, () => fs.writeFileSync(path.join(repo, "mine.txt"), "my edit\n")))
+      .toEqual([abs("mine.txt")]);
+    // Absorbed into the new baseline: the next command doesn't report it either.
+    expect(await rollRun(todo, () => {})).toEqual([]);
+  });
+
+  test("rolling: a HEAD moved between runs re-baselines instead of going blind", async () => {
+    const todo = `rt-${Date.now()}-c`;
+    await rollRun(todo, () => {});
+    fs.writeFileSync(path.join(repo, "a.txt"), "committed by another agent\n");
+    sh("git commit -qam other-agent");
+    expect(await rollRun(todo, () => fs.writeFileSync(path.join(repo, "x.txt"), "tracked\n")))
+      .toEqual([abs("x.txt")]);
+  });
+
+  test("rolling: a command that moves HEAD itself reports no file changes", async () => {
+    const todo = `rt-${Date.now()}-d`;
+    await rollRun(todo, () => {});
+    expect(await rollRun(todo, () => {
+      fs.writeFileSync(path.join(repo, "a.txt"), "committed\n");
+      sh("git commit -qam by-this-command");
+    })).toEqual([]);
+    // Re-baseline left tracking healthy for the next command.
+    expect(await rollRun(todo, () => fs.writeFileSync(path.join(repo, "y.txt"), "after\n")))
+      .toEqual([abs("y.txt")]);
+  });
+
+  test("rolling: a file-tool write between two runs is not blamed on the next command", async () => {
+    const todo = `rt-${Date.now()}-f`;
+    await rollRun(todo, () => {});   // baseline
+    // Edit/Create tool writes in the gap — recent mtime, but attributed to its
+    // own block via noteFileToolWrite, not to the next shell command.
+    fs.writeFileSync(path.join(repo, "a.txt"), "tool wrote this\n");
+    noteFileToolWrite(path.join(repo, "a.txt"));
+    expect(await rollRun(todo, () => fs.writeFileSync(path.join(repo, "mine.txt"), "shell wrote this\n")))
+      .toEqual([abs("mine.txt")]);
+  });
+
+  test("rolling: consecutive commands with fire-and-forget finish stay serialized", async () => {
+    const todo = `rt-${Date.now()}-e`;
+    await rollRun(todo, () => {});
+    // Command A finishes; its finish() is NOT awaited (as in shell.ts) while
+    // command B already starts. The chain must keep post(A) before pre(B).
+    const a = startTracking(repo, undefined, todo)!;
+    fs.writeFileSync(path.join(repo, "a.txt"), "by A\n");
+    const sentA: WsMessage[] = [];
+    const finishA = a.finish(async (m) => { sentA.push(m); }, ids);   // fire-and-forget
+    const b = startTracking(repo, undefined, todo)!;
+    await b.ready;
+    fs.writeFileSync(path.join(repo, "b.txt"), "by B\n");
+    const sentB: WsMessage[] = [];
+    await b.finish(async (m) => { sentB.push(m); }, ids);
+    await finishA;
+    const paths = (s: WsMessage[]) => (s[0]?.payload.updates.fileChanges ?? []).map((c: { path: string }) => c.path);
+    expect(paths(sentA)).toEqual([abs("a.txt")]);
+    expect(paths(sentB)).toEqual([abs("b.txt")]);
+  });
+
 });
