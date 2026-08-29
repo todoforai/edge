@@ -204,14 +204,14 @@ describe("create_file reports pre-overwrite content", () => {
     fs.rmSync(tmp, { recursive: true });
   });
 
-  test("xlsx overwrite reports the extracted XML as originalContent", async () => {
+  test("office overwrite reports no originalContent (XML diff intentionally skipped)", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "files-test-"));
     const fp = path.join(tmp, "t.xlsx");
     writeMinimalXlsx(fp);
     const read = await readFileContent(fp, tmp, []);
     const edited = read.content!.replace("hi", "bye");
     const r = await createFile()({ path: fp, content: edited, rootPath: tmp });
-    expect(r.originalContent).toContain("hi");
+    expect(r.originalContent).toBeUndefined();
     fs.rmSync(tmp, { recursive: true });
   });
 });
