@@ -64,7 +64,10 @@ interface PreState {
 
 function git(cwd: string, args: string[], maxBuffer = 8 * 1024 * 1024): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile("git", args, { cwd, timeout: 15_000, maxBuffer },
+    // GIT_OPTIONAL_LOCKS=0: snapshots are read-only observers; don't take
+    // index.lock for opportunistic refreshes, so a concurrent `git commit`
+    // by the tracked command never contends with us.
+    execFile("git", args, { cwd, timeout: 15_000, maxBuffer, env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" } },
       (err, stdout) => (err ? reject(err) : resolve(stdout)));
   });
 }
