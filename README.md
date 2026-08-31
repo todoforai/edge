@@ -2,7 +2,7 @@
 
 The **Web connector** for [TODO for AI](https://todofor.ai) — connects your machine to the TODO for AI server and gives TODOs shell, file, and browser access to get things done locally. Handles file operations, shell execution, DOCX/XLSX editing, git-aware file-change tracking, and more.
 
-For an overview, prebuilt binaries (Windows, macOS, Linux), and what the connector enables, see the [Edge download page](https://todofor.ai/downloads/edge).
+For setup details, prebuilt binaries (Windows, macOS, Linux), and what the connector enables, see the [Edge download page](https://todofor.ai/downloads/edge).
 
 ## Quickstart
 
