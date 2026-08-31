@@ -287,6 +287,9 @@ function extractTrailingTail(cmd: string): { execCmd: string; postFilter?: (s: s
 
 // Detect data URL image in shell output (same pattern as readFileContent uses)
 const DATA_URL_IMAGE_REGEX = /^data:(image\/[^;]+);base64,[A-Za-z0-9+/]+=*$/;
+// LLM providers reject images >5MB base64; an oversized one poisons the chat
+// (every later call 400s). Matches MAX_IMAGE_FILE_SIZE in files.ts (3.5MB raw → ~4.7MB b64).
+const MAX_IMAGE_DATA_URL_CHARS = 4_700_000;
 
 /** Tail note ONLY for a killed process — so partial output isn't reported as a
  *  clean finish. 124 = timeout(1) kill; 128+N = killed by signal N (137=SIGKILL/
@@ -302,6 +305,10 @@ function exitNotice(code: number | null): string {
 function detectContentType(output: string, cmd?: string): { result: string; contentType?: string } {
   const trimmed = output.trim();
   const match = trimmed.match(DATA_URL_IMAGE_REGEX);
+  if (match && trimmed.length > MAX_IMAGE_DATA_URL_CHARS) {
+    console.log(`\n🖼️  [edge] Image output too large (${trimmed.length} chars > ${MAX_IMAGE_DATA_URL_CHARS}) — dropped to protect the chat${cmd ? `\n    cmd: ${cmd}` : ""}\n`);
+    return { result: `[image output too large: ${trimmed.length} chars base64 (max ${MAX_IMAGE_DATA_URL_CHARS}) — not attached. Downscale it first, e.g. via ImageMagick: convert in.png -resize 1568x1568\\> out.png]` };
+  }
   if (match) {
     console.log(`\n🖼️  [edge] Image output detected! type=${match[1]} size=${trimmed.length} chars${cmd ? `\n    cmd: ${cmd}` : ""}\n`);
     return { result: trimmed, contentType: match[1] };

@@ -7,7 +7,10 @@ import mimetypesJson from "../../../packages/shared-fbe/src/mimetypes.json";
 
 const MAX_FILE_SIZE = 100_000; // 100KB
 const MAX_OFFICE_FILE_SIZE = 500_000; // 500KB
-const MAX_IMAGE_FILE_SIZE = 5_000_000; // 5MB
+// Anthropic rejects images >5MB *after* base64 (4/3 inflation), so raw must
+// stay ≤3.75MB — an oversized image poisons the message and 400s every
+// subsequent LLM call in the chat. 3.5MB leaves headroom.
+const MAX_IMAGE_FILE_SIZE = 3_500_000;
 const MAX_PDF_FILE_SIZE = 20_000_000; // 20MB — PDFs are sent whole as native document blocks
 const OFFICE_EXTENSIONS = new Set([".docx", ".xlsx"]);
 
