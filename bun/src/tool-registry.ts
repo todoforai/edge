@@ -8,7 +8,7 @@ import os from "os";
 import path from "path";
 import { spawnSync, execFile } from "child_process";
 import { TOOL_CATALOG } from "./tool-catalog.js";
-import { buildInstallCommand, uninstallCommand } from "../../../packages/shared-fbe/src/toolInstallCommand";
+import { buildInstallCommand, uninstallCommand, pipPkgNames } from "../../../packages/shared-fbe/src/toolInstallCommand";
 
 const TOOLS_DIR = path.join(os.homedir(), ".todoforai", "tools");
 const MNT_DIR  = path.join(os.homedir(), ".todoforai", "mnt");
@@ -106,9 +106,11 @@ function binFileName(name: string): string {
  *  every scan. Pip installs land in the MANAGED venv, which `systemPython()`
  *  skips, so the venv interpreter is tried first. */
 function pipCheckCmd(entry: typeof TOOL_CATALOG[string]): string {
-  const mod = entry.pkg.replace(/-/g, "_");
+  // Multi-package entries (matplotlib+pandas) count as installed only when
+  // EVERY module imports — a partial install must trigger a reinstall.
+  const mods = pipPkgNames(entry).map(p => p.replace(/-/g, "_")).join(", ");
   const venvPy = path.join(venvBinDir(), os.platform() === "win32" ? "python.exe" : "python");
-  return `{ "${venvPy}" -c 'import ${mod}' || ${systemPython()} -c 'import ${mod}'; } 2>/dev/null`;
+  return `{ "${venvPy}" -c 'import ${mods}' || ${systemPython()} -c 'import ${mods}'; } 2>/dev/null`;
 }
 
 /** Check if a tool is installed (installer-aware). Sync — spawnSync for pip tools
@@ -188,7 +190,7 @@ function getInstallCommand(name: string): string {
   return e.installCmd || {
     npm: `npm install -g --prefix ~/.local ${e.pkg}`,
     bun: `npm install -g --prefix ~/.local ${e.pkg}`,
-    pip: `pip install ${e.pkg}`,
+    pip: `pip install ${(e.packages ?? [e.pkg]).join(" ")}`,
     binary: `download ${e.pkg}`,
   }[e.installer as string] || `install ${e.pkg}`;
 }
