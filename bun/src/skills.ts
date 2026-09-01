@@ -9,6 +9,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { builtinSkillsRoot } from "./builtin-skills";
 
 // Directories (relative to a root) that may contain a skills tree.
 const SKILL_DIRS = [".agents", ".claude"];
@@ -37,9 +38,10 @@ export type SkillError = { path: string; message: string };
 
 export async function discoverSkills(
   rootPaths: string[],
-  opts: { includeUserScope?: boolean } = {},
+  opts: { includeUserScope?: boolean; includeBuiltinScope?: boolean } = {},
 ): Promise<{ skills: SkillMeta[]; errors: SkillError[] }> {
   const includeUserScope = opts.includeUserScope ?? true;
+  const includeBuiltinScope = opts.includeBuiltinScope ?? true;
   const bases: { base: string; scope: SkillScope }[] = [
     ...rootPaths.flatMap((p) =>
       SKILL_DIRS.map((d) => ({ base: path.join(p, d), scope: "repo" as const })),
@@ -73,7 +75,13 @@ export async function discoverSkills(
     }
   }
 
-  // First-wins name dedupe: roots are priority-ordered (repo .agents → repo .claude → user).
+  // Built-in skills shipped with the edge — lowest priority so repo/user overrides win.
+  if (includeBuiltinScope) {
+    const builtinRoot = builtinSkillsRoot();
+    if (builtinRoot) walkRoot(builtinRoot, "user", skills, errors, seenSkillPaths);
+  }
+
+  // First-wins name dedupe: roots are priority-ordered (repo .agents → repo .claude → user → builtin).
   const seenNames = new Set<string>();
   const unique = skills.filter((s) => !seenNames.has(s.name) && seenNames.add(s.name));
 

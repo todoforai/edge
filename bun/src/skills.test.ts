@@ -38,7 +38,7 @@ describe("discoverSkills", () => {
         },
       },
     });
-    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(errors).toEqual([]);
     expect(skills.length).toBe(2);
     const byName = Object.fromEntries(skills.map((s) => [s.name, s]));
@@ -54,7 +54,7 @@ describe("discoverSkills", () => {
     makeStructure(tmp, {
       ".claude": { skills: { fmt: { "SKILL.md": validSkill("fmt", "Formats.") } } },
     });
-    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(errors).toEqual([]);
     expect(skills.map((s) => s.name)).toEqual(["fmt"]);
     expect(skills[0].path).toBe(path.join(tmp, ".claude", "skills", "fmt", "SKILL.md"));
@@ -67,7 +67,7 @@ describe("discoverSkills", () => {
       ".agents": { skills: { dup: { "SKILL.md": validSkill("dup", "from agents") } } },
       ".claude": { skills: { dup: { "SKILL.md": validSkill("dup", "from claude") } } },
     });
-    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(skills.length).toBe(1);
     expect(skills[0].description).toBe("from agents");
     fs.rmSync(tmp, { recursive: true });
@@ -79,14 +79,14 @@ describe("discoverSkills", () => {
       ".agents": { skills: { a: { "SKILL.md": validSkill("a", "x") } } },
       ".claude": { skills: { b: { "SKILL.md": validSkill("b", "y") } } },
     });
-    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(skills.map((s) => s.name).sort()).toEqual(["a", "b"]);
     fs.rmSync(tmp, { recursive: true });
   });
 
   test("returns empty when .agents/skills missing", async () => {
     const tmp = makeTmpDir();
-    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(skills).toEqual([]);
     expect(errors).toEqual([]);
     fs.rmSync(tmp, { recursive: true });
@@ -102,7 +102,7 @@ describe("discoverSkills", () => {
         },
       },
     });
-    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(skills.map((s) => s.name)).toEqual(["good"]);
     expect(errors.length).toBe(1);
     expect(errors[0].message).toMatch(/frontmatter/);
@@ -114,7 +114,7 @@ describe("discoverSkills", () => {
     makeStructure(tmp, {
       ".agents": { skills: { a: { "SKILL.md": validSkill("a", "x") } } },
     });
-    const { skills } = await discoverSkills([tmp, tmp], { includeUserScope: false });
+    const { skills } = await discoverSkills([tmp, tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(skills.length).toBe(1);
     fs.rmSync(tmp, { recursive: true });
   });
@@ -129,7 +129,7 @@ describe("discoverSkills", () => {
         },
       },
     });
-    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(skills.map((s) => s.name)).toEqual(["shown"]);
     fs.rmSync(tmp, { recursive: true });
   });
@@ -139,7 +139,7 @@ describe("discoverSkills", () => {
     const b = makeTmpDir();
     makeStructure(a, { ".agents": { skills: { foo: { "SKILL.md": validSkill("foo", "x") } } } });
     makeStructure(b, { ".agents": { skills: { bar: { "SKILL.md": validSkill("bar", "y") } } } });
-    const { skills } = await discoverSkills([a, b], { includeUserScope: false });
+    const { skills } = await discoverSkills([a, b], { includeUserScope: false, includeBuiltinScope: false });
     expect(skills.map((s) => s.name).sort()).toEqual(["bar", "foo"]);
     fs.rmSync(a, { recursive: true });
     fs.rmSync(b, { recursive: true });
@@ -158,7 +158,7 @@ describe("discoverSkills", () => {
         },
       },
     });
-    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(skills.map((s) => s.name)).toEqual(["shallow"]);
     fs.rmSync(tmp, { recursive: true });
   });
@@ -167,7 +167,7 @@ describe("discoverSkills", () => {
     const tmp = makeTmpDir();
     const content = "---\nname: commented # ignored\ndescription: ok # ignored\n---\n# body\n";
     makeStructure(tmp, { ".agents": { skills: { commented: { "SKILL.md": content } } } });
-    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(errors).toEqual([]);
     expect(skills[0].name).toBe("commented");
     expect(skills[0].description).toBe("ok");
@@ -187,7 +187,7 @@ describe("discoverSkills", () => {
         },
       },
     });
-    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(errors).toEqual([]);
     const f = skills.find((s) => s.name === "folded")!;
     // sanitize() collapses whitespace, so folded/literal both end up space-joined
@@ -229,7 +229,7 @@ describe("discoverSkills", () => {
         },
       },
     });
-    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(errors).toEqual([]);
     const byName = Object.fromEntries(skills.map((s) => [s.name, s]));
     expect(byName.fmt.plugin).toBe("my-plugin");
@@ -246,7 +246,7 @@ describe("discoverSkills", () => {
     makeStructure(tmp, {
       ".claude": { plugins: { p: { commands: { "fix-issue.md": "Fix the issue: $ARGUMENTS\n" } } } },
     });
-    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(errors).toEqual([]);
     expect(skills.length).toBe(1);
     expect(skills[0].name).toBe("fix-issue");
@@ -267,7 +267,7 @@ describe("discoverSkills", () => {
         },
       },
     });
-    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(skills.length).toBe(1);
     expect(skills[0].plugin).toBe("real-name");
     fs.rmSync(tmp, { recursive: true });
@@ -281,7 +281,7 @@ describe("discoverSkills", () => {
         plugins: { p: { commands: { "dup.md": "---\ndescription: plugin command\n---\nbody\n" } } },
       },
     });
-    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(skills.length).toBe(1);
     expect(skills[0].description).toBe("plain skill");
     fs.rmSync(tmp, { recursive: true });
@@ -299,7 +299,7 @@ describe("discoverSkills", () => {
         },
       },
     });
-    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(errors).toEqual([]);
     expect(skills[0].plugin).toBe("broken");
     fs.rmSync(tmp, { recursive: true });
@@ -309,9 +309,43 @@ describe("discoverSkills", () => {
     const tmp = makeTmpDir();
     const content = "---  \nname: tol\ndescription: ok\n--- \n# body\n";
     makeStructure(tmp, { ".agents": { skills: { tol: { "SKILL.md": content } } } });
-    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false });
+    const { skills, errors } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
     expect(errors).toEqual([]);
     expect(skills.map((s) => s.name)).toEqual(["tol"]);
     fs.rmSync(tmp, { recursive: true });
+  });
+});
+
+describe("builtin skills", () => {
+  test("appear when builtin scope enabled, lowest priority", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "skills-builtin-"));
+    try {
+      const { skills } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: true });
+      const names = skills.map((s) => s.name);
+      expect(names).toContain("pptx");
+      expect(names).toContain("slides");
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  test("repo skill with same name overrides builtin", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "skills-builtin-"));
+    try {
+      const dir = path.join(tmp, ".agents", "skills", "pptx");
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, "SKILL.md"), "---\nname: pptx\ndescription: repo override\n---\nbody\n");
+      const { skills } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: true });
+      const pptx = skills.filter((s) => s.name === "pptx");
+      expect(pptx.length).toBe(1);
+      expect(pptx[0].description).toBe("repo override");
+      expect(pptx[0].scope).toBe("repo");
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+  });
+
+  test("excluded when builtin scope disabled", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "skills-builtin-"));
+    try {
+      const { skills } = await discoverSkills([tmp], { includeUserScope: false, includeBuiltinScope: false });
+      expect(skills.length).toBe(0);
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   });
 });
