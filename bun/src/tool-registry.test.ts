@@ -60,8 +60,8 @@ describe("findReferencedTools - command position detection", () => {
   });
 
   test("maps a catalog alias (tfa-cli) to its tool entry", () => {
-    expect(findReferencedTools('tfa-cli "delegate this"')).toContain("todoai");
-    expect(findReferencedTools('todoforai-cli "delegate this"')).toContain("todoai");
+    expect(findReferencedTools('tfa-cli "delegate this"')).toContain("tfa-cli");
+    expect(findReferencedTools('todoforai-cli "delegate this"')).toContain("tfa-cli");
   });
 
   test("matches tool after pipe", () => {

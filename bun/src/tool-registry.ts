@@ -154,8 +154,8 @@ export function findReferencedTools(content: string): string[] {
 
   return Object.keys(TOOL_CATALOG).filter(name => {
     // Tools may be invoked under a different binary name than their catalog key
-    // (e.g. todoai → todoforai-cli, slack-cli) or under a package alias
-    // (todoai → tfa-cli). Match any of those tokens.
+    // (e.g. ripgrep → rg) or under a package alias (tfa-cli → todoai).
+    // Match any of those tokens.
     const tokens = [name, TOOL_CATALOG[name].binName, ...(TOOL_CATALOG[name].aliases ?? [])]
       .filter((t): t is string => !!t);
     return tokens.some(tok => {
