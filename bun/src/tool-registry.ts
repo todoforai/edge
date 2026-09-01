@@ -100,9 +100,15 @@ function binFileName(name: string): string {
   return TOOL_CATALOG[name]?.binName ?? name;
 }
 
-/** Shell command that checks whether a pip tool is importable/present. */
+/** Shell command that checks whether a pip package is importable.
+ *  Deliberately NOT `statusCmd`: that probes the tool's ACCOUNT, so a signed-out
+ *  but perfectly installed tool would read as missing and be reinstalled on
+ *  every scan. Pip installs land in the MANAGED venv, which `systemPython()`
+ *  skips, so the venv interpreter is tried first. */
 function pipCheckCmd(entry: typeof TOOL_CATALOG[string]): string {
-  return entry.statusCmd || `${systemPython()} -c 'import ${entry.pkg.replace(/-/g, "_")}' 2>/dev/null`;
+  const mod = entry.pkg.replace(/-/g, "_");
+  const venvPy = path.join(venvBinDir(), os.platform() === "win32" ? "python.exe" : "python");
+  return `{ "${venvPy}" -c 'import ${mod}' || ${systemPython()} -c 'import ${mod}'; } 2>/dev/null`;
 }
 
 /** Check if a tool is installed (installer-aware). Sync — spawnSync for pip tools
@@ -112,7 +118,11 @@ export function isToolInstalled(name: string): boolean {
   const entry = TOOL_CATALOG[name];
   if (!entry) return false;
 
+  // A pip tool counts as installed when either its CLI is on PATH (packages
+  // whose import name differs from their key, e.g. rdt-cli → `rdt`) or its
+  // module imports.
   if (entry.installer === "pip") {
+    if (whichWithTools(binFileName(name))) return true;
     const r = spawnSync("sh", ["-c", pipCheckCmd(entry)], { stdio: "pipe", timeout: 5_000, env: buildEnvWithTools() });
     return r.status === 0;
   }
@@ -126,6 +136,7 @@ async function isToolInstalledAsync(name: string): Promise<boolean> {
   if (!entry) return false;
 
   if (entry.installer === "pip") {
+    if (whichWithTools(binFileName(name))) return true;
     return (await execShellAsync(pipCheckCmd(entry), buildEnvWithTools(), 5_000)).status === 0;
   }
 
@@ -385,7 +396,9 @@ export async function scanCatalogTools(): Promise<Record<string, ToolState>> {
         state.authenticated = r.status === 0;
         state.statusOutput = (r.stdout || r.stderr).trim().slice(0, 200);
       } catch {
-        state.authenticated = false;
+        // The probe never ran (timeout / spawn error). That is not a verdict on
+        // the account: leaving `authenticated` unset keeps the last known state
+        // instead of flipping a signed-in tool to "Sign in" on a flaky probe.
       }
     } else {
       state.authenticated = true;
