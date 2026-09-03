@@ -44,10 +44,12 @@ jobs:
       # The shared packages are cloned OUTSIDE this checkout, so the hoist into
       # bun/node_modules is invisible to them — their own file: deps must be installed
       # in place or the bundler can't resolve @shared/* / ws from their sources.
+      # npm, not bun install: bun >= 1.4.0 fails to resolve the nested file: dep
+      # (@shared/api -> ../shared-credentials). Same as publish-npm.yml.
       shell: bash
       run: |
-        cd bun && bun install
-        (cd ../../packages/shared-api && bun install)
+        cd bun && npm install
+        (cd ../../packages/shared-api && npm install)
 
     - name: Compile standalone binary
       shell: bash
