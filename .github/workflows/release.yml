@@ -77,6 +77,41 @@ jobs:
           chmod +x release/todoforai-edge-${{ matrix.target }}
         fi
 
+    # Unsigned Windows exes get flagged by SmartScreen and most AV engines.
+    # Same Azure Trusted Signing account/profile as bridge + the tauri app.
+    # NOTE: needs bun >= 1.2.23 — before that, appending the Authenticode
+    # signature corrupted --compile binaries (oven-sh/bun#22960).
+    - name: Sign with Azure Trusted Signing
+      if: matrix.target == 'windows-x64'
+      shell: pwsh
+      env:
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      run: |
+        cargo install trusted-signing-cli --version 0.11.0 --locked
+        $exe = "release/todoforai-edge-windows-x64.exe"
+        trusted-signing-cli -e "${{ secrets.AZURE_SIGNING_ENDPOINT }}" -a "${{ secrets.AZURE_SIGNING_ACCOUNT }}" -c "${{ secrets.AZURE_SIGNING_PROFILE }}" -d TODOforAI $exe
+        if ($LASTEXITCODE -ne 0) { Write-Error "signing failed"; exit 1 }
+        # Prove the signature landed
+        $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+          Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+        & $signtool verify /pa /v $exe
+        if ($LASTEXITCODE -ne 0) { Write-Error "exe is not signed"; exit 1 }
+        # Signing rewrites the bytes -> the exe must still run
+        & $exe --version
+        if ($LASTEXITCODE -ne 0) { Write-Error "signed exe is broken"; exit 1 }
+
+    - name: Compute sha256
+      shell: bash
+      run: |
+        cd release
+        for f in $(ls); do
+          if command -v sha256sum >/dev/null; then sha256sum "$f" > "$f.sha256"
+          else shasum -a 256 "$f" > "$f.sha256"; fi
+        done
+        cat *.sha256
+
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
