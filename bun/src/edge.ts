@@ -107,6 +107,7 @@ export class TODOforAIEdge {
     this.mayflyWorkspace = config.mayflyWorkspace;
     this.addWorkspacePath = config.addWorkspacePath;
     this.browserExtensionBridge = new BrowserExtensionBridge(this.debug);
+    this.browserExtensionBridge.identity = () => this.edgeId && !this.mayflyTodoId ? this.edgeId : null;
     setConnectionContext(() => ({ apiUrl: this.api.apiUrl, sessionToken: this.sessionToken }));
   }
 

@@ -26,7 +26,32 @@ export class BrowserExtensionBridge {
   private extIdentity: ExtIdentity | null = null;
   private pending = new Map<string, PendingRequest>();
 
+  /** Answers GET /identity for a web frontend on this machine — mirrors
+   *  bridge/identity_server.c. Set by the edge once authenticated. */
+  identity: (() => string | null) = () => null;
+
   constructor(private debug = false) {}
+
+  // Any https origin or a local dev server; the loopback bind is the real gate.
+  private static originAllowed(origin: string) {
+    return origin.startsWith("https://") || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:");
+  }
+
+  private handleHttp(req: http.IncomingMessage, res: http.ServerResponse) {
+    const origin = req.headers.origin;
+    if (origin && BrowserExtensionBridge.originAllowed(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Access-Control-Allow-Private-Network", "true");
+      res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+      res.setHeader("Access-Control-Max-Age", "86400");
+      res.setHeader("Vary", "Origin");
+    }
+    if (req.method === "OPTIONS") { res.writeHead(204).end(); return; }
+    const deviceId = req.url === "/identity" && req.method === "GET" ? this.identity() : null;
+    if (!deviceId) { res.writeHead(404).end(); return; }
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ deviceId }));
+  }
 
   get url() {
     return `ws://${BRIDGE_HOST}:${BRIDGE_PORT}`;
@@ -35,7 +60,7 @@ export class BrowserExtensionBridge {
   start() {
     if (this.server) return;
 
-    const server = http.createServer();
+    const server = http.createServer((req, res) => this.handleHttp(req, res));
     const disableOnPortConflict = (err: NodeJS.ErrnoException) => {
       const msg = String(err.message || "").toLowerCase();
       if (err.code !== "EADDRINUSE" && !msg.includes("in use") && !msg.includes("failed to start server")) return false;
