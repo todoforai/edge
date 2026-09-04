@@ -110,9 +110,28 @@ function listPluginDirs(pluginsRoot: string): { dir: string; name: string }[] {
   return out;
 }
 
+/** Classify a dirent, following symlinks. Directory symlinks are followed but
+ *  deduped by realpath (loop-safe); MAX_DEPTH bounds the walk regardless. */
+function classify(entry: fs.Dirent, full: string, visitedDirs: Set<string>): "dir" | "file" | "skip" {
+  let isDir = entry.isDirectory();
+  let isFile = entry.isFile();
+  if (entry.isSymbolicLink()) {
+    try { const st = fs.statSync(full); isDir = st.isDirectory(); isFile = st.isFile(); } catch { return "skip"; }
+  }
+  if (isDir) {
+    let real = full;
+    try { real = fs.realpathSync(full); } catch { return "skip"; }
+    if (visitedDirs.has(real)) return "skip";
+    visitedDirs.add(real);
+    return "dir";
+  }
+  return isFile ? "file" : "skip";
+}
+
 function walkRoot(root: string, scope: SkillScope, skills: SkillMeta[], errors: SkillError[], seen: Set<string>, plugin?: string) {
   const queue: { dir: string; depth: number }[] = [{ dir: root, depth: 0 }];
   let dirsVisited = 0;
+  const visitedDirs = new Set<string>();
 
   for (let i = 0; i < queue.length; i++) {
     const { dir, depth } = queue[i];
@@ -131,18 +150,10 @@ function walkRoot(root: string, scope: SkillScope, skills: SkillMeta[], errors: 
       if (entry.name.startsWith(".")) continue;
       const full = path.join(dir, entry.name);
 
-      if (entry.isDirectory()) {
-        queue.push({ dir: full, depth: depth + 1 });
-        continue;
-      }
+      const kind = classify(entry, full, visitedDirs);
+      if (kind === "dir") { queue.push({ dir: full, depth: depth + 1 }); continue; }
 
-      // Don't follow directory symlinks (loop risk). Allow file symlinks for SKILL.md only.
-      let isFile = entry.isFile();
-      if (entry.isSymbolicLink()) {
-        try { isFile = fs.statSync(full).isFile(); } catch { continue; }
-      }
-
-      if (isFile && entry.name === "SKILL.md") {
+      if (kind === "file" && entry.name === "SKILL.md") {
         if (seen.has(full)) continue;
         seen.add(full);
         const skill = parseSkillFile(full, scope, errors);
@@ -157,6 +168,7 @@ function walkRoot(root: string, scope: SkillScope, skills: SkillMeta[], errors: 
 function walkCommands(root: string, scope: SkillScope, plugin: string, skills: SkillMeta[], errors: SkillError[], seen: Set<string>) {
   const queue: { dir: string; depth: number }[] = [{ dir: root, depth: 0 }];
   let dirsVisited = 0;
+  const visitedDirs = new Set<string>();
 
   for (let i = 0; i < queue.length; i++) {
     const { dir, depth } = queue[i];
@@ -175,17 +187,10 @@ function walkCommands(root: string, scope: SkillScope, plugin: string, skills: S
       if (entry.name.startsWith(".")) continue;
       const full = path.join(dir, entry.name);
 
-      if (entry.isDirectory()) {
-        queue.push({ dir: full, depth: depth + 1 });
-        continue;
-      }
+      const kind = classify(entry, full, visitedDirs);
+      if (kind === "dir") { queue.push({ dir: full, depth: depth + 1 }); continue; }
 
-      let isFile = entry.isFile();
-      if (entry.isSymbolicLink()) {
-        try { isFile = fs.statSync(full).isFile(); } catch { continue; }
-      }
-
-      if (isFile && entry.name.endsWith(".md")) {
+      if (kind === "file" && entry.name.endsWith(".md")) {
         if (seen.has(full)) continue;
         seen.add(full);
         const cmd = parseCommandFile(full, scope, plugin, errors);
