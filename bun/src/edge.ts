@@ -22,6 +22,7 @@ import {
 } from "./handlers.js";
 import { scanCatalogTools, autoMountRcloneRemotes } from "./tool-registry.js";
 import { handlePreviewHttpRequest } from "./preview.js";
+import { hostIdentity } from "./host-identity.js";
 import type { SendFn } from "./shell.js";
 import { setFileTrackingEnabled } from "./file-change-tracker.js";
 
@@ -490,7 +491,8 @@ export class TODOforAIEdge {
       const mayflyParams = this.mayflyTodoId
         ? `&mayfly=${encodeURIComponent(this.mayflyTodoId)}&workspace=${encodeURIComponent(this.mayflyWorkspace!)}`
         : "";
-      const url = `${this.wsUrl}?fingerprint=${encodeURIComponent(this.fingerprint)}${mayflyParams}`;
+      const identity = encodeURIComponent(JSON.stringify(hostIdentity()));
+      const url = `${this.wsUrl}?fingerprint=${encodeURIComponent(this.fingerprint)}&identity=${identity}${mayflyParams}`;
       if (this.debug) console.log(`[info] Connecting to ${url}`);
 
       const ws = new WebSocket(url, [this.api.apiKey], {
