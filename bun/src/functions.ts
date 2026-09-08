@@ -8,7 +8,7 @@ import { executeBlock, waitForCompletion, drainBlockOutput, clearBlockOutput, is
 // `pendingToolApprovals` was imported here to short-circuit the response when
 // executeBlock entered AWAITING_APPROVAL. DEAD with the install-gating removal.
 import { msg } from "./constants.js";
-import { ensureTool, ensureToolDetailed, uninstallToolDetailed, buildEnvWithTools, scanCatalogTools, setCustomTool, probeBinary } from "./tool-registry.js";
+import { ensureTool, ensureToolDetailed, uninstallToolDetailed, buildEnvWithTools, scanCatalogTools, setCustomTool, probeBinary, isMounted } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
 import { allowedPreviewPorts } from "./preview.js";
 import { serveStaticDir } from "./static-server.js";
@@ -56,7 +56,8 @@ register("get_system_info", async () => {
     system = `Windows ${os.release()}`;
   }
   const shell = process.env.SHELL ? path.basename(process.env.SHELL) : "unknown";
-  const mount_path = path.join(os.homedir(), ".todoforai", "mnt", "todoforai");
+  const mountPoint = path.join(os.homedir(), ".todoforai", "mnt", "todoforai");
+  const mount_path = await isMounted(mountPoint) ? mountPoint : "";
   return { system, shell, mount_path };
 });
 

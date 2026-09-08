@@ -447,7 +447,7 @@ const HAS_FUSE = IS_LINUX || IS_MAC;
 
 // Async only — spawnSync here would freeze Bun's single-threaded event loop
 // and stall all edge RPCs (file reads time out while shell survives).
-async function isMounted(mountPoint: string): Promise<boolean> {
+export async function isMounted(mountPoint: string): Promise<boolean> {
   if (!HAS_FUSE) return false;
   if (IS_LINUX) {
     return (await execFileAsync("mountpoint", ["-q", mountPoint], 3_000)).status === 0;
