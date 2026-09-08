@@ -34,7 +34,8 @@ export class BrowserExtensionBridge {
 
   // Any https origin or a local dev server; the loopback bind is the real gate.
   private static originAllowed(origin: string) {
-    return origin.startsWith("https://") || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:");
+    return origin.startsWith("https://") || origin.startsWith("chrome-extension://") || origin.startsWith("moz-extension://")
+      || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:");
   }
 
   private handleHttp(req: http.IncomingMessage, res: http.ServerResponse) {
