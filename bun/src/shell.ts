@@ -167,6 +167,7 @@ export interface ExecuteBlockOptions {
   manual?: boolean;
   runMode?: string;
   agentSettingsId?: string;
+  modelId?: string;
   keepAliveOnTimeout?: boolean;
   outputMode?: OutputMode;
   frontendId?: string;
@@ -228,6 +229,7 @@ export async function executeBlock(
     manual = false,
     runMode,
     agentSettingsId = "",
+    modelId = "",
     keepAliveOnTimeout = false,
     outputMode = DEFAULT_OUTPUT_MODE,
     frontendId = "",
@@ -285,7 +287,7 @@ export async function executeBlock(
       ...buildEnvWithTools(), ...getConnectionEnv(), NO_COLOR: "1", TERM: HAS_BUN_TERMINAL ? "xterm-256color" : "dumb",
       PAGER: "", GIT_PAGER: "", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "color.ui", GIT_CONFIG_VALUE_0: "false",
       TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId,
-      TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId,
+      TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, TODOFORAI_MODEL_ID: modelId,
       // The tab that started this run — tfa-surface's default target (§4).
       TODOFORAI_FRONTEND_ID: frontendId, TODOFORAI_FRONTEND_KIND: frontendKind,
       TODOFORAI_GROUP_ID: groupTag,
