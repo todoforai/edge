@@ -57,6 +57,7 @@ export const EF = {
   BLOCK_META_RESULT: "block:meta_result",
   BLOCK_FILE_CHANGED: "block:file_changed",
   FUNCTION_CALL_RESULT_FRONT: "FUNCTION_CALL_RESULT_FRONT",
+  FUNCTION_CALL_OUTPUT_FRONT: "FUNCTION_CALL_OUTPUT_FRONT",
   BLOCK_SH_MSG_RESULT: "block:sh_msg_result",
   BLOCK_SH_MSG_START: "block:sh_msg_start",
   BLOCK_SH_DONE: "block:sh_done",
@@ -164,6 +165,11 @@ export const msg = {
     const payload: Record<string, any> = { requestId, edgeId, success };
     if (error) payload.error = error;
     return { type: EF.EDGE_WRITE_FILE_RESPONSE, payload };
+  },
+
+  /** Progress frame for a streaming frontend function call (zero or more precede the RESULT). */
+  functionCallOutputFront(requestId: string, edgeId: string, chunk: string): WsMessage {
+    return { type: EF.FUNCTION_CALL_OUTPUT_FRONT, payload: { requestId, edgeId, chunk } };
   },
 
   functionCallResultFront(requestId: string, edgeId: string, success: boolean, result?: any, error?: string, blockInfo?: Record<string, any>): WsMessage {

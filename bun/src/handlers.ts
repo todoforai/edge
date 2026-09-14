@@ -280,7 +280,9 @@ export async function handleFunctionCall(payload: Record<string, any>, send: Sen
       throw new Error(`Unknown function: ${functionName}. Available: ${available.join(", ")}`);
     }
 
-    const result = await fn(args, client);
+    // requestId rides along so streaming functions (execute_shell_command
+    // `stream: true`) can emit progress frames correlated to this call.
+    const result = await fn(isAgent ? args : { ...args, requestId }, client);
     // DEAD: tool-install approval gating — if the function returned the
     // __awaiting_approval__ sentinel we suppressed the response and waited
     // for the server to re-invoke after the user approved.

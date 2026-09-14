@@ -318,7 +318,7 @@ function detectContentType(output: string, cmd?: string): { result: string; cont
 }
 
 register("execute_shell_command", async (args, client) => {
-  const { cmd, cwd = (args as any).root_path ?? "", todoId = "", groupTag = "", projectId = "", messageId = "", blockId = "", agentSettingsId = "", modelId = "", frontendId = "", frontendKind = "", pid: resumePid = 0, output: outputMode = DEFAULT_OUTPUT_MODE } = args as Record<string, any>;
+  const { cmd, cwd = (args as any).root_path ?? "", todoId = "", groupTag = "", projectId = "", messageId = "", blockId = "", agentSettingsId = "", modelId = "", frontendId = "", frontendKind = "", pid: resumePid = 0, output: outputMode = DEFAULT_OUTPUT_MODE, stream = false, requestId = "" } = args as Record<string, any>;
   const canStream = !!(todoId && blockId && client);
   // The maxTimeout floor is for agent runs (always streaming). The
   // non-streaming path serves frontend RPCs whose caller waits exactly
@@ -339,8 +339,9 @@ register("execute_shell_command", async (args, client) => {
     // there, breaking every POSIX one-liner that works when streamed.
     const { execFile } = await import("child_process");
     const { shell, args: shellArgs } = getShellCommand(cmd);
+    const env = { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_GROUP_ID: groupTag, TODOFORAI_PROJECT_ID: projectId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, TODOFORAI_MODEL_ID: modelId, AGENT_BROWSER_SESSION: todoId };
     const { result, exitCode, timedOut } = await new Promise<{ result: string; exitCode: number | null; timedOut: boolean }>((resolve) => {
-      execFile(shell, shellArgs, { cwd: cwd || os.tmpdir(), encoding: "utf-8", timeout: timeout * 1000, maxBuffer: 10 * 1024 * 1024, env: { ...buildEnvWithTools(), ...getConnectionEnv(), TODOFORAI_TODO_ID: todoId, TODOFORAI_GROUP_ID: groupTag, TODOFORAI_PROJECT_ID: projectId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId, TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, TODOFORAI_MODEL_ID: modelId, AGENT_BROWSER_SESSION: todoId } }, (err: any, stdout, stderr) => {
+      const child = execFile(shell, shellArgs, { cwd: cwd || os.tmpdir(), encoding: "utf-8", timeout: timeout * 1000, maxBuffer: 10 * 1024 * 1024, env }, (err: any, stdout, stderr) => {
         // Non-zero exit → err.code (number). Killed by our timeout → err.killed
         // with no numeric code. No error → clean exit 0.
         resolve({
@@ -349,6 +350,16 @@ register("execute_shell_command", async (args, client) => {
           timedOut: !!err && typeof err.code !== "number" && (err.killed === true || err.signal != null),
         });
       });
+      // `stream: true` (frontend RPC) → tap the pipes and emit each chunk as a
+      // FUNCTION_CALL_OUTPUT_FRONT progress frame, mirroring the backend's
+      // bridge adapter. execFile already set utf-8 on both streams, so chunks
+      // arrive as strings with multibyte boundaries handled; the final result
+      // still carries the full buffered output.
+      if (stream && requestId && client) {
+        const onChunk = (chunk: string) => { client.sendResponse(msg.functionCallOutputFront(requestId, client.edgeId, chunk)); };
+        child.stdout?.on("data", onChunk);
+        child.stderr?.on("data", onChunk);
+      }
     });
     const detected = detectContentType(result, cmd);
     // Don't truncate image data URLs; cap plain text to the output policy.
