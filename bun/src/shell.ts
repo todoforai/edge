@@ -48,14 +48,20 @@ interface ShellCommand { shell: string; args: string[] }
  *  (functions.ts) runs commands under the SAME shell as the streaming PTY —
  *  otherwise POSIX one-liners (e.g. shared-fbe buildInstallCommand) work
  *  when streamed but break via cmd.exe on the fallback path. */
+// `-m` = job control on: each `cmd &` gets its own process group, so
+// backgrounded programs (GUI apps, servers) survive the shell/pty teardown
+// at block end — same semantics as the C bridge's interactive `sh`. Without
+// it, bg jobs share the shell's pgid and die with it (even with nohup/disown).
+const BASH_ARGS = ["-m", "-c"];
+
 export function getShellCommand(content: string): ShellCommand {
-  if (!IS_WIN) return { shell: "/bin/bash", args: ["-c", content] };
+  if (!IS_WIN) return { shell: "/bin/bash", args: [...BASH_ARGS, content] };
 
   const gitBash = "C:\\Program Files\\Git\\bin\\bash.exe";
-  if (fs.existsSync(gitBash)) return { shell: gitBash, args: ["-c", content] };
+  if (fs.existsSync(gitBash)) return { shell: gitBash, args: [...BASH_ARGS, content] };
 
   const bashPath = whichSync("bash");
-  if (bashPath) return { shell: bashPath, args: ["-c", content] };
+  if (bashPath) return { shell: bashPath, args: [...BASH_ARGS, content] };
 
   const psPath = whichSync("powershell") || whichSync("pwsh");
   if (psPath) {
