@@ -178,7 +178,7 @@ export function findReferencedTools(content: string): string[] {
 }
 
 export function findMissingTools(content: string): string[] {
-  // `system` tools (curl, grep, rclone, …) come from the OS — never auto-installable.
+  // `system` tools (curl, grep, gcloud, …) come from the OS — never auto-installable.
   return findReferencedTools(content).filter(name => TOOL_CATALOG[name].installer !== "system" && !isToolInstalled(name));
 }
 
