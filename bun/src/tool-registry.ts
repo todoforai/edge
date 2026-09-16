@@ -45,8 +45,8 @@ function systemPython(): string {
   return "python3";
 }
 
-/** Where shell-based installs land (shared-fbe buildInstallCommand: npm/bun
- *  `--prefix ~/.local`; pip goes to the managed venv). The C bridge already
+/** Legacy shell-install prefix (older shared-fbe buildInstallCommand put npm/bun
+ *  under `-g --prefix ~/.local`; now everything lands in TOOLS_DIR). The C bridge already
  *  prepends these (env_path.c) — mirror them here so a tool installed via
  *  either transport's shell path is visible to the edge's scan and exec env. */
 function localBinDirs(): string[] {
@@ -188,8 +188,8 @@ export function findMissingTools(content: string): string[] {
 function getInstallCommand(name: string): string {
   const e = TOOL_CATALOG[name];
   return e.installCmd || {
-    npm: `npm install -g --prefix ~/.local ${e.pkg}`,
-    bun: `npm install -g --prefix ~/.local ${e.pkg}`,
+    npm: `npm install --prefix ~/.todoforai/tools ${e.pkg}`,
+    bun: `npm install --prefix ~/.todoforai/tools ${e.pkg}`,
     pip: `pip install ${(e.packages ?? [e.pkg]).join(" ")}`,
     binary: `download ${e.pkg}`,
   }[e.installer as string] || `install ${e.pkg}`;
