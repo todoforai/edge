@@ -551,10 +551,39 @@ register("create_file", async (args) => {
   return { path: fullPath, bytes: Buffer.byteLength(content, "utf-8"), ...(originalContent !== null && { originalContent }) };
 });
 
+// Ranged read (`offset` set): the caller pulls a big file chunk by chunk, so
+// neither this process nor the backend relay ever holds more than one chunk —
+// that's why the file cap can be 4× the whole-file path's. Chunk stays well
+// under WS frame limits once base64'd (3MB → 4MB).
+const RANGE_MAX_FILE = 200_000_000;
+const RANGE_MAX_CHUNK = 3_015_000; // = frontend RANGE_BYTES / backend RFB_RANGE_MAX; callers precompute offsets
+
+function readFileRange(fullPath: string, offset: unknown, length: unknown) {
+  if (!Number.isInteger(offset) || (offset as number) < 0) throw new Error("offset must be an integer >= 0");
+  const off = offset as number;
+  const want = Math.min(Math.max(Number(length) || RANGE_MAX_CHUNK, 1), RANGE_MAX_CHUNK);
+  const fd = fs.openSync(fullPath, "r");
+  try {
+    const { size } = fs.fstatSync(fd);
+    if (size > RANGE_MAX_FILE) throw new Error(`File too large: ${size.toLocaleString()} bytes (max 200MB)`);
+    const buf = Buffer.alloc(Math.max(0, Math.min(want, size - off)));
+    let got = 0;
+    while (got < buf.length) {
+      const n = fs.readSync(fd, buf, got, buf.length - got, off + got);
+      if (n === 0) break;
+      got += n;
+    }
+    return { path: fullPath, base64: buf.subarray(0, got).toString("base64"), bytes: got, totalSize: size, eof: off + got >= size };
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 register("read_file_base64", async (args) => {
-  const { path: p, rootPath = "", fallbackRootPaths = [] } = args;
+  const { path: p, rootPath = "", fallbackRootPaths = [], offset, length } = args;
   const fullPath = resolveFilePath(p, rootPath, fallbackRootPaths);
   if (!fs.existsSync(fullPath)) throw new Error(`File not found: ${fullPath}`);
+  if (offset !== undefined) return readFileRange(fullPath, offset, length);
   const stat = fs.statSync(fullPath);
   if (stat.size > 50_000_000) throw new Error(`File too large: ${stat.size.toLocaleString()} bytes (max 50MB)`);
   const data = fs.readFileSync(fullPath);
