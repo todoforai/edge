@@ -39,7 +39,6 @@ export interface AgentSettings {
   ownerId: string;
   createdAt: number;
   systemMessage?: string;
-  mcpConfigs: Record<string, any>;
   edgesMcpConfigs: Record<string, any>;
   skills: Record<string, any>;
   model: string;
