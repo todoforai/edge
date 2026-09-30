@@ -3,28 +3,31 @@ import { unzipSync, zipSync, type Unzipped } from "fflate";
 
 // ── Pretty-print XML (simple regex-based indenter) ──
 
+const isOpenTag = (p: string) =>
+  p.startsWith("<") && !p.startsWith("</") && !p.startsWith("<?") && !p.startsWith("<!") && !p.endsWith("/>");
+
 function prettyPrintXml(xml: string): string {
-  // Normalize to single line first
-  let formatted = "";
+  // split w/ capture: odd indices = tags, even = text between them
+  const parts = xml.split(/(<[^>]+>)/);
+  let out = "";
   let indent = 0;
-  const parts = xml.replace(/>\s*</g, "><").split(/(<[^>]+>)/);
-  for (const part of parts) {
-    if (!part.trim()) continue;
-    if (part.startsWith("</")) {
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (isOpenTag(part) && parts[i + 2]?.startsWith("</")) {
+      // Leaf element (<t>text</t>): one line, text verbatim — it's data, pack writes it back as-is
+      out += "  ".repeat(indent) + part + parts[i + 1] + parts[i + 2] + "\n";
+      i += 2;
+    } else if (!part.trim()) {
+      continue; // formatting whitespace between tags
+    } else if (part.startsWith("</")) {
       indent = Math.max(indent - 1, 0);
-      formatted += "  ".repeat(indent) + part + "\n";
-    } else if (part.startsWith("<?")) {
-      formatted += part + "\n";
-    } else if (part.startsWith("<") && !part.endsWith("/>") && !part.startsWith("<!")) {
-      formatted += "  ".repeat(indent) + part + "\n";
-      indent++;
-    } else if (part.endsWith("/>")) {
-      formatted += "  ".repeat(indent) + part + "\n";
+      out += "  ".repeat(indent) + part + "\n";
     } else {
-      formatted += "  ".repeat(indent) + part + "\n";
+      out += "  ".repeat(indent) + part + "\n";
+      if (isOpenTag(part)) indent++;
     }
   }
-  return formatted;
+  return out;
 }
 
 // ── Multi-file format helpers ──
