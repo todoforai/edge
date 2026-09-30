@@ -56,7 +56,7 @@ make run-dev      # Local (http://localhost:4000)
 - **Documents** — DOCX/XLSX/PDF read & edit
 - **Managed runtimes** — auto-provisions Python venv, Node.js packages, and native binaries under `~/.todoforai/tools/` (added to PATH)
 - **Tool catalog** — on-demand install of CLIs like `gh`, `rg`, `cloudflared`, `supabase`, `stripe`, `flyctl`, …
-- **Browser bridge** — drive browsers via the [`todoforai-browser` extension](https://todofor.ai/downloads/extension) ([Chrome](https://chromewebstore.google.com/detail/todo-for-ai/oemlbhbggllbelfemliboclfagbchcoj) · [Firefox](https://addons.mozilla.org/firefox/addon/todo-for-ai/))
+- **Browser bridge** — drive the user's own browser via the [TODOforAI extension](https://todofor.ai/downloads/extension) (CDP, controlled with `agent-browser`) ([Chrome](https://chromewebstore.google.com/detail/todo-for-ai/oemlbhbggllbelfemliboclfagbchcoj) · [Firefox](https://addons.mozilla.org/firefox/addon/todo-for-ai/))
 
 See [API_USAGE.md](API_USAGE.md) for the full function list and message protocol.
 
