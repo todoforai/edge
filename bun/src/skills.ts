@@ -12,7 +12,7 @@ import os from "os";
 import { builtinSkillsRoot } from "./builtin-skills";
 
 // Directories (relative to a root) that may contain a skills tree.
-const SKILL_DIRS = [".agents", ".claude", ".codex"];
+const SKILL_DIRS = [".agents", ".claude"];
 
 const MAX_DEPTH = 6;
 const MAX_DIRS_PER_ROOT = 2000;
