@@ -220,13 +220,19 @@ describe("file-change-tracker", () => {
       .toEqual([abs("x.txt")]);
   });
 
-  test("rolling: a command that moves HEAD itself reports no file changes", async () => {
+  test("rolling: edits the command committed (commit / amend) are reported", async () => {
     const todo = `rt-${Date.now()}-d`;
     await rollRun(todo, () => {});
     expect(await rollRun(todo, () => {
       fs.writeFileSync(path.join(repo, "a.txt"), "committed\n");
       sh("git commit -qam by-this-command");
-    })).toEqual([]);
+    })).toEqual([abs("a.txt")]);
+    expect(await rollRun(todo, () => {
+      fs.writeFileSync(path.join(repo, "n.txt"), "amended in\n");
+      sh("git add -A && git commit -q --amend --no-edit");
+    })).toEqual([abs("n.txt")]);
+    // checkout is git's doing, not an edit
+    expect(await rollRun(todo, () => sh("git checkout -q HEAD~1"))).toEqual([]);
     // Re-baseline left tracking healthy for the next command.
     expect(await rollRun(todo, () => fs.writeFileSync(path.join(repo, "y.txt"), "after\n")))
       .toEqual([abs("y.txt")]);

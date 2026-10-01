@@ -211,16 +211,40 @@ function ancestorMtime(abs: string): number | null {
   }
 }
 
+/** Did HEAD get from `preHead` to `postHead` through plain commits / amends only
+ *  (the command committed its own edits)? Walks the HEAD reflog; anything else
+ *  (checkout / rebase / reset / pull / merge) or no reflog fails closed. */
+async function ownCommits(cwd: string, preHead: string, postHead: string): Promise<boolean> {
+  try {
+    const lines = (await git(cwd, ["reflog", "show", "-n", "100", "--format=%H %gs", "HEAD"])).split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const sp = lines[i]!.indexOf(" ");
+      const h = sp < 0 ? lines[i]! : lines[i]!.slice(0, sp);
+      if (i === 0 && h !== postHead) return false; // stale reflog
+      if (h === preHead) return true;
+      if (!/^commit( \(amend\))?:/.test(lines[i]!.slice(sp + 1))) return false;
+    }
+  } catch { /* no reflog */ }
+  return false;
+}
+
 /** Files the command changed in one repo. Absolute paths, anchored at its root. */
 async function report(pre: PreState, startedAt: number, roll: boolean): Promise<FileChange[]> {
   const cwd = pre.root;
-  // checkout / rebase / reset / pull moved HEAD → the working tree diff is git's
-  // doing, not the command editing files. Nothing worth reporting. (A HEAD
-  // moved *between* runs never reaches here — startTracking re-baselines.)
+  // HEAD moved by the command itself. Plain commits / amends (`sed … && git
+  // commit`) leave the worktree alone → report the edits against the pre HEAD.
+  // checkout / rebase / reset / pull: the tree delta is git's doing → nothing.
+  // (A HEAD moved *between* runs never reaches here — startTracking re-baselines.)
   const postHead = (await git(cwd, ["rev-parse", "HEAD"])).trim();
-  if (postHead !== pre.head) return [];
-
-  const postDirty = new Set(parseStatusZ(await gitStatus(cwd)));
+  const statusOut = await gitStatus(cwd);
+  let postDirty: Set<string>;
+  if (postHead === pre.head) postDirty = new Set(parseStatusZ(statusOut));
+  else if (await ownCommits(cwd, pre.head, postHead)) {
+    // Changed vs the pre HEAD (worktree incl. what got committed) + untracked.
+    const tracked = (await git(cwd, ["diff", "--no-renames", "--name-only", "-z", pre.head])).split("\0");
+    const untracked = statusOut.split("\0").filter((t) => t.startsWith("? ")).map((t) => t.slice(2));
+    postDirty = new Set([...tracked, ...untracked].filter(Boolean));
+  } else return [];
   const changes: FileChange[] = [];
   for (const p of new Set([...postDirty, ...pre.dirty])) {
     if (changes.length >= MAX_REPORT_FILES) break;
