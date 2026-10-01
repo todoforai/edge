@@ -396,7 +396,7 @@ export async function scanCatalogTools(): Promise<Record<string, ToolState>> {
       try {
         const r = await execShellAsync(entry.statusCmd, env, 10_000);
         state.authenticated = r.status === 0;
-        state.statusOutput = (r.stdout || r.stderr).trim().slice(0, 200);
+        state.statusOutput = (r.stdout || r.stderr).trim().slice(0, 2048);
       } catch {
         // The probe never ran (timeout / spawn error). That is not a verdict on
         // the account: leaving `authenticated` unset keeps the last known state
