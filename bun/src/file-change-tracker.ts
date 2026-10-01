@@ -211,9 +211,10 @@ function ancestorMtime(abs: string): number | null {
   }
 }
 
-/** Did HEAD get from `preHead` to `postHead` through plain commits / amends only
- *  (the command committed its own edits)? Walks the HEAD reflog; anything else
- *  (checkout / rebase / reset / pull / merge) or no reflog fails closed. */
+/** Did HEAD get from `preHead` to `postHead` through commits / amends / reverts /
+ *  cherry-picks only (the command's own deliberate tree changes)? Walks the HEAD
+ *  reflog; anything else (checkout / rebase / reset / pull / merge) or no reflog
+ *  fails closed. */
 async function ownCommits(cwd: string, preHead: string, postHead: string): Promise<boolean> {
   try {
     const lines = (await git(cwd, ["reflog", "show", "-n", "100", "--format=%H %gs", "HEAD"])).split("\n");
@@ -222,7 +223,7 @@ async function ownCommits(cwd: string, preHead: string, postHead: string): Promi
       const h = sp < 0 ? lines[i]! : lines[i]!.slice(0, sp);
       if (i === 0 && h !== postHead) return false; // stale reflog
       if (h === preHead) return true;
-      if (!/^commit( \(amend\))?:/.test(lines[i]!.slice(sp + 1))) return false;
+      if (!/^(commit( \(amend\))?|revert|cherry-pick):/.test(lines[i]!.slice(sp + 1))) return false;
     }
   } catch { /* no reflog */ }
   return false;

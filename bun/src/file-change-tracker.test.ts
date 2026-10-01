@@ -231,6 +231,7 @@ describe("file-change-tracker", () => {
       fs.writeFileSync(path.join(repo, "n.txt"), "amended in\n");
       sh("git add -A && git commit -q --amend --no-edit");
     })).toEqual([abs("n.txt")]);
+    expect(await rollRun(todo, () => sh("git revert --no-edit HEAD"))).toEqual([abs("a.txt"), abs("n.txt")]);
     // checkout is git's doing, not an edit
     expect(await rollRun(todo, () => sh("git checkout -q HEAD~1"))).toEqual([]);
     // Re-baseline left tracking healthy for the next command.
