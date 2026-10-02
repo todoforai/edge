@@ -178,6 +178,7 @@ export interface ExecuteBlockOptions {
   outputMode?: OutputMode;
   frontendId?: string;
   frontendKind?: string;
+  timeZone?: string;
   groupTag?: string;
   projectId?: string;
 }
@@ -240,6 +241,7 @@ export async function executeBlock(
     outputMode = DEFAULT_OUTPUT_MODE,
     frontendId = "",
     frontendKind = "",
+    timeZone,
     groupTag = "",
     projectId = "",
   }: ExecuteBlockOptions,
@@ -296,6 +298,7 @@ export async function executeBlock(
       TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, TODOFORAI_MODEL_ID: modelId,
       // The tab that started this run — tfa-surface's default target (§4).
       TODOFORAI_FRONTEND_ID: frontendId, TODOFORAI_FRONTEND_KIND: frontendKind,
+      ...(typeof timeZone === "string" ? { TODOFORAI_TIMEZONE: timeZone } : {}),
       TODOFORAI_GROUP_ID: groupTag,
       TODOFORAI_PROJECT_ID: projectId,
       // Per-todo agent-browser session so parallel todos get isolated daemons/tabs.

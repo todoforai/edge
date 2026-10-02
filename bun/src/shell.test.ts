@@ -210,3 +210,20 @@ describe.if(linux)("stream coalescing", () => {
     clearBlockOutput(blockId);
   }, 40000);
 });
+
+describe("User timezone environment", () => {
+  test("streamed child receives the caller timezone without changing global TZ", async () => {
+    const id = "b-timezone";
+    await executeBlock(id, "printf '%s' \"$TODOFORAI_TIMEZONE\"", noop, {
+      todoId: "t", messageId: "m", timeout: 5, cwd: "", timeZone: "Europe/Budapest",
+    });
+    await waitForCompletion(id, 5000);
+    expect(getBlockOutput(id).trim()).toBe("Europe/Budapest");
+    clearBlockOutput(id);
+  });
+  test("non-streaming child receives the same timezone", async () => {
+    const fn = FUNCTION_REGISTRY.get("execute_shell_command")!;
+    const r: any = await fn({ cmd: "printf 'ZONE=[%s]\\n' \"$TODOFORAI_TIMEZONE\"", timeZone: "Europe/Budapest", timeout: 5 }, {} as any);
+    expect(r.result).toContain("ZONE=[Europe/Budapest]");
+  });
+});

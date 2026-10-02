@@ -27,6 +27,7 @@ export async function handleBlockExecute(payload: Record<string, any>, send: Sen
       manual,
       groupTag,
       projectId,
+      timeZone: payload.timeZone,
     });
   } catch (e: any) {
     await send(msg.blockError(blockId, todoId, e.message));
