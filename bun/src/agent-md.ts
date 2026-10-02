@@ -1,6 +1,4 @@
-// Discover AGENT.md / AGENTS.md project-instruction files at workspace roots and $HOME/.agents
-// (plus $HOME/.codex, Codex's global AGENTS.md). CLAUDE.md is a per-directory fallback: read only
-// where no AGENT(S).md exists, so a repo with both doesn't inject the same instructions twice.
+// Discover AGENT.md / AGENTS.md project-instruction files at workspace roots and $HOME/.agents.
 // Unlike skills, the full body is returned (capped) — it's injected verbatim into the system prompt.
 // Root-level only: these are repo-wide instructions, not nested per-directory rules.
 
@@ -10,7 +8,6 @@ import os from "os";
 
 const MAX_BYTES = 64 * 1024;
 const FILENAMES = ["AGENT.md", "AGENTS.md"]; // accept both (Cursor / Codex conventions)
-const FALLBACK_FILENAMES = ["CLAUDE.md"]; // Claude Code convention — only when no AGENT(S).md
 
 export type AgentMdScope = "repo" | "user";
 export type AgentMdFile = {
@@ -34,8 +31,6 @@ export async function discoverAgentMd(
   ];
   if (includeUserScope) {
     dirs.push({ dir: path.join(os.homedir(), ".agents"), scope: "user" });
-    dirs.push({ dir: path.join(os.homedir(), ".codex"), scope: "user" });
-    dirs.push({ dir: path.join(os.homedir(), ".claude"), scope: "user" });
   }
 
   const files: AgentMdFile[] = [];
@@ -43,9 +38,7 @@ export async function discoverAgentMd(
   const seen = new Set<string>();
 
   for (const { dir, scope } of dirs) {
-    let hitInDir = false;
-    for (const name of [...FILENAMES, ...FALLBACK_FILENAMES]) {
-      if (hitInDir && FALLBACK_FILENAMES.includes(name)) break;
+    for (const name of FILENAMES) {
       const full = path.join(dir, name);
       if (seen.has(full)) continue;
 
@@ -53,7 +46,6 @@ export async function discoverAgentMd(
       try { stat = fs.statSync(full); } catch { continue; }
       if (!stat.isFile()) continue;
       seen.add(full);
-      hitInDir = true;
 
       try {
         const fd = fs.openSync(full, "r");
