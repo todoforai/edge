@@ -202,12 +202,11 @@ function annotate(abs: string, c: Omit<FileChange, "size" | "omitted">): FileCha
   return out;
 }
 
-/** Last-touched time of `abs` (max of mtime/ctime — `mv`/`cp -p` keep mtime but
- *  bump ctime), falling back to its nearest existing ancestor — a deletion has
- *  no mtime of its own, but unlinking updates the parent dir's. */
+/** mtime of `abs`, falling back to its nearest existing ancestor — a deletion
+ *  has no mtime of its own, but unlinking updates the parent dir's. */
 function ancestorMtime(abs: string): number | null {
   for (let t = abs; ; ) {
-    try { const st = fs.lstatSync(t); return Math.max(st.mtimeMs, st.ctimeMs); }
+    try { return fs.lstatSync(t).mtimeMs; }
     catch { const up = path.dirname(t); if (up === t) return null; t = up; }
   }
 }
