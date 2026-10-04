@@ -199,16 +199,24 @@ describe("file-change-tracker", () => {
     const todo = `rt-${Date.now()}-b`;
     await rollRun(todo, () => {});   // establish the baseline
 
-    // Foreign writer edits while no command runs; backdated past the margin,
-    // as a genuinely earlier edit's mtime would be.
+    // Foreign writer edits while no command runs, older than the margin.
+    // Real wait, not utimes: utimes bumps ctime, which the tracker also honours.
     fs.writeFileSync(path.join(repo, "a.txt"), "foreign edit\n");
-    const past = new Date(Date.now() - 60_000);
-    fs.utimesSync(path.join(repo, "a.txt"), past, past);
+    await Bun.sleep(2_100);
 
     expect(await rollRun(todo, () => fs.writeFileSync(path.join(repo, "mine.txt"), "my edit\n")))
       .toEqual([abs("mine.txt")]);
     // Absorbed into the new baseline: the next command doesn't report it either.
     expect(await rollRun(todo, () => {})).toEqual([]);
+  });
+
+  test("rolling: mv of an old file reports both sides (dest keeps mtime, ctime is fresh)", async () => {
+    const todo = `rt-${Date.now()}-g`;
+    fs.writeFileSync(path.join(repo, "old.txt"), "x\n");
+    sh("git add old.txt && git commit -qm old");
+    await Bun.sleep(2_100); // age past MTIME_MARGIN_MS (utimes would bump ctime)
+    await rollRun(todo, () => {});
+    expect(await rollRun(todo, () => sh("mv old.txt moved.txt"))).toEqual([abs("moved.txt"), abs("old.txt")]);
   });
 
   test("rolling: a HEAD moved between runs re-baselines instead of going blind", async () => {
