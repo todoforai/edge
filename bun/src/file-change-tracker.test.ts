@@ -211,6 +211,20 @@ describe("file-change-tracker", () => {
     expect(await rollRun(todo, () => {})).toEqual([]);
   });
 
+  test("rolling: mv of an old file reports both sides — the dest keeps the source's mtime", async () => {
+    const todo = `rt-${Date.now()}-g`;
+    fs.writeFileSync(path.join(repo, "old.txt"), "x\n");
+    sh("git add old.txt && git commit -qm old");
+    const past = new Date(Date.now() - 60_000);
+    fs.utimesSync(path.join(repo, "old.txt"), past, past);
+    await rollRun(todo, () => {});
+    expect(await rollRun(todo, () => sh("mv old.txt moved.txt"))).toEqual([abs("moved.txt"), abs("old.txt")]);
+    // Same through the own-commit path (`git mv … && git commit`).
+    fs.utimesSync(path.join(repo, "moved.txt"), past, past);
+    expect(await rollRun(todo, () => sh("git add -A && git commit -qm mv && git mv moved.txt m2.txt && git commit -qm mv2")))
+      .toEqual([abs("m2.txt"), abs("moved.txt")]);
+  });
+
   test("rolling: a HEAD moved between runs re-baselines instead of going blind", async () => {
     const todo = `rt-${Date.now()}-c`;
     await rollRun(todo, () => {});

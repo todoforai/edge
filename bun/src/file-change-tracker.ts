@@ -112,21 +112,23 @@ function git(cwd: string, args: string[], maxBuffer = 8 * 1024 * 1024): Promise<
   });
 }
 
-/** Parse `git status --porcelain=v2 -z` output into repo-root-relative paths.
- *  Renames contribute both destination and source (source shows up as deleted). */
-function parseStatusZ(out: string): string[] {
+/** Parse `git status --porcelain=v2 -z` output into repo-root-relative paths →
+ *  whether each exists in HEAD (`mH` = 000000 ⇒ absent). Renames contribute
+ *  both destination (not in HEAD by definition) and source (in HEAD). An
+ *  untracked path is absent unless a staged deletion (`1 D.`) already placed it. */
+function parseStatusZ(out: string): Map<string, boolean> {
   const tokens = out.split("\0");
-  const paths: string[] = [];
+  const paths = new Map<string, boolean>();
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
     if (!t) continue;
-    if (t.startsWith("1 ")) paths.push(t.split(" ").slice(8).join(" "));
+    if (t.startsWith("1 ")) { const f = t.split(" "); paths.set(f.slice(8).join(" "), f[3] !== "000000"); }
     else if (t.startsWith("2 ")) {
-      paths.push(t.split(" ").slice(9).join(" "));
+      paths.set(t.split(" ").slice(9).join(" "), false);
       const orig = tokens[++i]; // rename/copy source follows as its own NUL token
-      if (orig) paths.push(orig);
-    } else if (t.startsWith("? ")) paths.push(t.slice(2));
-    else if (t.startsWith("u ")) paths.push(t.split(" ").slice(10).join(" "));
+      if (orig) paths.set(orig, true);
+    } else if (t.startsWith("? ")) { const p = t.slice(2); if (!paths.has(p)) paths.set(p, false); }
+    else if (t.startsWith("u ")) paths.set(t.split(" ").slice(10).join(" "), true); // unmerged: fail toward "existed"
   }
   return paths;
 }
@@ -159,11 +161,6 @@ async function readCapped(abs: string): Promise<string | null> {
   } catch { return null; }
 }
 
-/** Did `p` exist at `rev`? (`git cat-file -e` exits non-zero when absent.) */
-async function gitPathExistsAt(cwd: string, rev: string, p: string): Promise<boolean> {
-  try { await git(cwd, ["cat-file", "-e", `${rev}:${p}`]); return true; }
-  catch { return false; }
-}
 
 async function gitShow(cwd: string, rev: string, p: string): Promise<string | null> {
   try {
@@ -175,15 +172,15 @@ async function gitShow(cwd: string, rev: string, p: string): Promise<string | nu
 async function snapshot(cwd: string): Promise<PreState> {
   // Single call: prints HEAD sha then the repo toplevel. Throws outside a repo / before first commit.
   const [head, root] = (await git(cwd, ["rev-parse", "HEAD", "--show-toplevel"])).trim().split("\n");
-  const dirty = parseStatusZ(await gitStatus(cwd));
+  const dirty = new Set(parseStatusZ(await gitStatus(cwd)).keys());
   const contents = new Map<string, string | null>();
   const sig = new Map<string, string | null>();
-  for (const p of dirty.slice(0, MAX_PRE_FILES)) {
+  for (const p of [...dirty].slice(0, MAX_PRE_FILES)) {
     const abs = path.join(root, p);
     contents.set(p, await readCapped(abs));
     sig.set(p, statSig(abs));
   }
-  return { root, head, takenAt: Date.now(), dirty: new Set(dirty), contents, sig };
+  return { root, head, takenAt: Date.now(), dirty, contents, sig };
 }
 
 /** Size + why-content-is-null for the side of the change the user would see. */
@@ -238,33 +235,38 @@ async function report(pre: PreState, startedAt: number, roll: boolean): Promise<
   // (A HEAD moved *between* runs never reaches here — startTracking re-baselines.)
   const postHead = (await git(cwd, ["rev-parse", "HEAD"])).trim();
   const statusOut = await gitStatus(cwd);
-  let postDirty: Set<string>;
-  if (postHead === pre.head) postDirty = new Set(parseStatusZ(statusOut));
+  // Dirty now → did the path exist at the pre HEAD? Answered from output we
+  // already have (status `mH` / diff `A`), never a per-path git call.
+  let postDirty: Map<string, boolean>;
+  if (postHead === pre.head) postDirty = parseStatusZ(statusOut);
   else if (await ownCommits(cwd, pre.head, postHead)) {
     // Changed vs the pre HEAD (worktree incl. what got committed) + untracked.
-    const tracked = (await git(cwd, ["diff", "--no-renames", "--name-only", "-z", pre.head])).split("\0");
-    const untracked = statusOut.split("\0").filter((t) => t.startsWith("? ")).map((t) => t.slice(2));
-    postDirty = new Set([...tracked, ...untracked].filter(Boolean));
+    postDirty = new Map();
+    const d = (await git(cwd, ["diff", "--no-renames", "--name-status", "-z", pre.head])).split("\0");
+    for (let i = 0; i + 1 < d.length; i += 2) postDirty.set(d[i + 1]!, d[i] !== "A");
+    for (const [p] of parseStatusZ(statusOut)) if (!postDirty.has(p)) postDirty.set(p, false); // left untracked
   } else return [];
   const changes: FileChange[] = [];
-  for (const p of new Set([...postDirty, ...pre.dirty])) {
+  for (const p of new Set([...postDirty.keys(), ...pre.dirty])) {
     if (changes.length >= MAX_REPORT_FILES) break;
     const abs = path.join(pre.root, p);
+    const wasDirty = pre.dirty.has(p);
+    if (wasDirty && !pre.contents.has(p)) continue; // over the snapshot cap → pre-state unknown, skip
+    const existedBefore = wasDirty
+      ? pre.sig.get(p) !== null       // dirty pre-command → lstat snapshot decides
+      : postDirty.get(p) !== false;   // clean pre-command → pre HEAD decides
     // Rolled baselines persist between runs, so the tree can hold edits by
     // anyone. Files untouched since this command started can't be its doing —
     // dropped here, absorbed into the next baseline. Unknown mtime fails open.
-    if (roll) {
+    // A path absent at the baseline is exempt: being here is proof it appeared
+    // since (`mv`/`cp -p` carry the source's old mtime over) — at the cost of
+    // blaming a file someone else created between runs on this command, once.
+    if (roll && existedBefore) {
       const m = ancestorMtime(abs);
       if (m !== null && m < startedAt - MTIME_MARGIN_MS) continue;
     }
-    const wasDirty = pre.dirty.has(p);
-    let originalContent: string | null;
-    if (wasDirty) {
-      if (!pre.contents.has(p)) continue; // over the snapshot cap → pre-state unknown, skip
-      originalContent = pre.contents.get(p)!;
-    } else {
-      originalContent = await gitShow(cwd, pre.head, p); // null = new file
-    }
+    const originalContent = wasDirty ? pre.contents.get(p)!
+      : existedBefore ? await gitShow(cwd, pre.head, p) : null;
     const modifiedContent = await readCapped(abs);
     if (wasDirty) {
       // Skip files that were dirty before the command and untouched by it:
@@ -283,9 +285,6 @@ async function report(pre: PreState, startedAt: number, roll: boolean): Promise<
     if (toolWriteTs !== undefined && toolWriteTs >= (roll ? pre.takenAt : startedAt)) continue;
 
     const existsNow = statSig(abs) !== null;
-    const existedBefore = wasDirty
-      ? pre.sig.get(p) !== null                       // dirty pre-command → lstat snapshot decides
-      : await gitPathExistsAt(cwd, pre.head, p);      // clean pre-command → HEAD decides
     const status: FileChange["status"] = !existsNow ? "deleted" : !existedBefore ? "created" : "modified";
     changes.push(annotate(abs, { path: abs, originalContent, modifiedContent, status }));
   }
