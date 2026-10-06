@@ -250,6 +250,7 @@ function parseSkillFile(filePath: string, scope: SkillScope, errors: SkillError[
   }
 
   const fm = parseSimpleYaml(frontmatter);
+  if (fm["disable-model-invocation"] === "true") return null;
   const name = sanitize(fm.name) || path.basename(path.dirname(filePath));
   const description = sanitize(fm.description) || "";
   const shortDescription = sanitize(fm["metadata.short-description"]) || undefined;
