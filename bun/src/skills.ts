@@ -26,7 +26,7 @@ export type SkillMeta = {
   name: string;
   description: string;
   shortDescription?: string;
-  /** Absolute path to the SKILL.md / command .md (used internally by SkillTool, not shown to the LLM). */
+  /** Absolute path to the SKILL.md / command .md (shown to the LLM in the `## Skills` section). */
   path: string;
   scope: SkillScope;
   /** Omitted for plain skills (wire compat); "command" for plugin commands/*.md. */
