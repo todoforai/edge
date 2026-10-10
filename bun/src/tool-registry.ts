@@ -8,7 +8,7 @@ import os from "os";
 import path from "path";
 import { spawnSync, execFile } from "child_process";
 import { TOOL_CATALOG } from "./tool-catalog.js";
-import { buildInstallCommand, uninstallCommand, pipPkgNames } from "../../../packages/shared-fbe/src/toolInstallCommand";
+import { buildInstallCommand, uninstallCommand, pipPkgNames, pipModuleNames } from "../../../packages/shared-fbe/src/toolInstallCommand";
 
 const TOOLS_DIR = path.join(os.homedir(), ".todoforai", "tools");
 const MNT_DIR  = path.join(os.homedir(), ".todoforai", "mnt");
@@ -108,7 +108,7 @@ function binFileName(name: string): string {
 function pipCheckCmd(entry: typeof TOOL_CATALOG[string]): string {
   // Multi-package entries (matplotlib+pandas) count as installed only when
   // EVERY module imports — a partial install must trigger a reinstall.
-  const mods = pipPkgNames(entry).map(p => p.replace(/-/g, "_")).join(", ");
+  const mods = pipModuleNames(entry).join(", ");
   const venvPy = path.join(venvBinDir(), os.platform() === "win32" ? "python.exe" : "python");
   return `{ "${venvPy}" -c 'import ${mods}' || ${systemPython()} -c 'import ${mods}'; } 2>/dev/null`;
 }
