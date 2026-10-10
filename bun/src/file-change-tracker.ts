@@ -208,22 +208,41 @@ function ancestorMtime(abs: string): number | null {
   }
 }
 
-/** Did HEAD get from `preHead` to `postHead` through commits / amends / reverts /
- *  cherry-picks only (the command's own deliberate tree changes)? Walks the HEAD
- *  reflog; anything else (checkout / rebase / reset / pull / merge) or no reflog
- *  fails closed. */
-async function ownCommits(cwd: string, preHead: string, postHead: string): Promise<boolean> {
+/** Walk the HEAD reflog back from `postHead` towards `preHead` through
+ *  commits / amends / reverts / cherry-picks only (deliberate tree changes).
+ *  Returns `preHead` when reached that way. With `sinceSec`, an entry older
+ *  than it ends the walk early and is returned instead — the newest HEAD that
+ *  predates the command. Anything else (checkout / rebase / reset / pull /
+ *  merge, a stale or missing reflog) → null, fail closed. */
+async function reflogPivot(cwd: string, preHead: string, postHead: string, sinceSec?: number): Promise<string | null> {
   try {
-    const lines = (await git(cwd, ["reflog", "show", "-n", "100", "--format=%H %gs", "HEAD"])).split("\n");
-    for (let i = 0; i < lines.length; i++) {
-      const sp = lines[i]!.indexOf(" ");
-      const h = sp < 0 ? lines[i]! : lines[i]!.slice(0, sp);
-      if (i === 0 && h !== postHead) return false; // stale reflog
-      if (h === preHead) return true;
-      if (!/^(commit( \(amend\))?|revert|cherry-pick):/.test(lines[i]!.slice(sp + 1))) return false;
+    const lines = (await git(cwd, ["reflog", "show", "-n", "100", "--date=unix", "--format=%H %gd %gs", "HEAD"])).split("\n");
+    // Entries newer than postHead (HEAD moved again since it was read) are
+    // skipped; never meeting postHead = stale reflog.
+    let found = false;
+    for (const line of lines) {
+      const m = /^(\S+) \S*@\{(\d+)\} (.*)$/.exec(line);
+      if (!m) return null;
+      const [, h, t, gs] = m;
+      if (!found && !(found = h === postHead)) continue;
+      if (h === preHead) return h;
+      if (sinceSec !== undefined && Number(t) < sinceSec) return h!;
+      if (!/^(commit( \(amend\))?|revert|cherry-pick):/.test(gs!)) return null;
     }
   } catch { /* no reflog */ }
-  return false;
+  return null;
+}
+
+/** Did HEAD get from `preHead` to `postHead` through the command's own commits? */
+const ownCommits = async (cwd: string, preHead: string, postHead: string) =>
+  (await reflogPivot(cwd, preHead, postHead)) === preHead;
+
+/** `pre` as of `head`: paths the old→head move touched leave the dirty
+ *  state, so their original comes from `head` (what the tree held then). */
+async function rebaseOnto(pre: PreState, head: string): Promise<PreState> {
+  const moved = new Set((await git(pre.root, ["diff", "--no-renames", "--name-only", "-z", pre.head, head])).split("\0").filter(Boolean));
+  const keep = <V>(m: Map<string, V>) => new Map([...m].filter(([p]) => !moved.has(p)));
+  return { ...pre, head, dirty: new Set([...pre.dirty].filter((p) => !moved.has(p))), contents: keep(pre.contents), sig: keep(pre.sig) };
 }
 
 /** Files the command changed in one repo. Absolute paths, anchored at its root. */
@@ -308,15 +327,27 @@ export function startTracking(cwd: string, cmd?: string, todoId?: string): FileT
   // and the cwd's repo would show none of it. A dir outside a git repo yields
   // no snapshot; several dirs of one repo collapse into a single one.
   const dirs = trackingDirs(cwd, cmd, { isDir, resolve: path.resolve, home: process.env.HOME });
-  // Reuse the rolled baseline when its HEAD still matches; a moved HEAD
-  // (another agent committed between runs) means the baseline speaks for a
-  // tree that no longer exists — re-snapshot, before the diff, so report()'s
-  // HEAD check only trips on moves the command itself made.
+  // Reuse the rolled baseline when its HEAD still matches. A moved HEAD is
+  // either another agent's commit between runs or this command's own
+  // `sed … && git commit` that outran the (unawaited) pre. The reflog, dated
+  // against `startedAt`, tells them apart: the baseline is rebased onto the
+  // newest HEAD predating the command (kept as is when every step is the
+  // command's own commit), so report() sees the own commits as its HEAD move.
+  // A same-second foreign commit counts as own (over-report); no usable
+  // reflog → re-snapshot, as before.
   const preOf = async (d: string): Promise<PreState | null> => {
     if (!todoId) return snapshot(d);
     const head = (await git(d, ["rev-parse", "HEAD", "--show-toplevel"])).trim().split("\n");
     const rolled = baselines.get(baseKey(todoId, head[1]!));
     if (rolled && rolled.pre.head === head[0]) return rolled.pre;
+    if (rolled) {
+      const pivot = await reflogPivot(d, rolled.pre.head, head[0]!, Math.floor(startedAt / 1000));
+      if (pivot === rolled.pre.head) return rolled.pre;
+      if (pivot) {
+        const rebased = await rebaseOnto(rolled.pre, pivot).catch(() => null);
+        if (rebased) { baselines.set(baseKey(todoId, rebased.root), { pre: rebased, at: Date.now() }); return rebased; }
+      }
+    }
     const fresh = await snapshot(d);
     baselines.set(baseKey(todoId, fresh.root), { pre: fresh, at: Date.now() });
     return fresh;

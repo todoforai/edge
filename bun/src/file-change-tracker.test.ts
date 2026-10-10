@@ -225,11 +225,16 @@ describe("file-change-tracker", () => {
       .toEqual([abs("m2.txt"), abs("moved.txt")]);
   });
 
+  /** Another agent's commit between runs: dated before the next command starts. */
+  const foreignCommit = (msg: string) => execSync(`git commit -qam ${msg}`, {
+    cwd: repo, stdio: "pipe", env: { ...process.env, GIT_COMMITTER_DATE: `${Math.floor(Date.now() / 1000) - 60} +0000` },
+  });
+
   test("rolling: a HEAD moved between runs re-baselines instead of going blind", async () => {
     const todo = `rt-${Date.now()}-c`;
     await rollRun(todo, () => {});
     fs.writeFileSync(path.join(repo, "a.txt"), "committed by another agent\n");
-    sh("git commit -qam other-agent");
+    foreignCommit("other-agent");
     expect(await rollRun(todo, () => fs.writeFileSync(path.join(repo, "x.txt"), "tracked\n")))
       .toEqual([abs("x.txt")]);
   });
@@ -251,6 +256,43 @@ describe("file-change-tracker", () => {
     // Re-baseline left tracking healthy for the next command.
     expect(await rollRun(todo, () => fs.writeFileSync(path.join(repo, "y.txt"), "after\n")))
       .toEqual([abs("y.txt")]);
+  });
+
+  /** Like rollRun, but `mutate` runs *before* the unawaited pre gets to look —
+   *  a `sed -i … && git commit` that outruns the snapshot. */
+  const racedRun = async (todoId: string, mutate: () => void) => {
+    const tracker = startTracking(repo, undefined, todoId)!;
+    mutate();
+    const sent: WsMessage[] = [];
+    await tracker.finish(async (m) => { sent.push(m); }, ids);
+    return (sent[0]?.payload.updates.fileChanges ?? []) as { path: string; originalContent: string | null; modifiedContent: string | null }[];
+  };
+
+  test("rolling: a commit that outruns the pre snapshot is still reported", async () => {
+    const todo = `rt-${Date.now()}-oc`;
+    await rollRun(todo, () => {});
+    const c = await racedRun(todo, () => {
+      fs.writeFileSync(path.join(repo, "a.txt"), "fast\n");
+      sh("git commit -qam fast");
+    });
+    expect(c.map((x) => x.path)).toEqual([abs("a.txt")]);
+    expect(c[0]!.originalContent).toBe("hello\nworld\n");
+    expect(c[0]!.modifiedContent).toBe("fast\n");
+    // Rolled onto the new HEAD: not reported again.
+    expect(await rollRun(todo, () => fs.writeFileSync(path.join(repo, "z.txt"), "later\n"))).toEqual([abs("z.txt")]);
+  });
+
+  test("rolling: foreign commit between runs + own commit outrunning pre → original is the foreign content", async () => {
+    const todo = `rt-${Date.now()}-mix`;
+    await rollRun(todo, () => {});
+    fs.writeFileSync(path.join(repo, "a.txt"), "foreign\n");
+    foreignCommit("foreign");
+    const c = await racedRun(todo, () => {
+      fs.writeFileSync(path.join(repo, "a.txt"), "own\n");
+      sh("git commit -qam own");
+    });
+    expect(c.map((x) => x.path)).toEqual([abs("a.txt")]);
+    expect(c[0]!.originalContent).toBe("foreign\n");
   });
 
   test("rolling: a file-tool write between two runs is not blamed on the next command", async () => {
