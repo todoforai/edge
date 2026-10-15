@@ -18,7 +18,7 @@ adb -s $S shell getprop ro.product.model
 ```
 Errors: *phone "…" is not online* → the toggle is off / app killed / no Wi-Fi — ask the user. *wireless debugging OFF*
 in the entry → ask them to enable Settings → Developer options → Wireless debugging (also after every reboot).
-First time on a new host adbd asks the user to approve the host key on the phone — tell them to tap Allow.
+First time on a new host the host key must be paired: `adb connect` fails with an auth/handshake error. Ask the user to open Wireless debugging → *Pair device with pairing code* on the phone; pairing from the host is `adb pair "<name>" <code>` (one-time per host key, persists until revoked on the phone).
 
 ## Look
 ```sh
