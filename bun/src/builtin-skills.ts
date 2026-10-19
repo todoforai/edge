@@ -14,7 +14,6 @@ import pptxInventory from "../builtin-skills/pptx/scripts/inventory.py" with { t
 import pptxRender from "../builtin-skills/pptx/scripts/render.sh" with { type: "text" };
 import slidesSkill from "../builtin-skills/slides/SKILL.md" with { type: "text" };
 import benchmarkModeSkill from "../builtin-skills/benchmark-mode/SKILL.md" with { type: "text" };
-import androidPhoneSkill from "../builtin-skills/android-phone/SKILL.md" with { type: "text" };
 
 const FILES: Record<string, string> = {
   "pptx/SKILL.md": pptxSkill,
@@ -23,7 +22,6 @@ const FILES: Record<string, string> = {
   "pptx/scripts/render.sh": pptxRender,
   "slides/SKILL.md": slidesSkill,
   "benchmark-mode/SKILL.md": benchmarkModeSkill,
-  "android-phone/SKILL.md": androidPhoneSkill,
 };
 
 let cachedRoot: string | null = null;
