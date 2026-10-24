@@ -64,3 +64,10 @@ read todoforai:...        # BackendRef, unchanged
 - Bare `tfa-cat <name>` as skill lookup — ambiguity with files.
 - Skill discovery on the machine: reuse edge `get_skills` walk logic (workspace paths from env? need
   `TODOFORAI_WORKSPACE_PATHS` injected by bridge).
+
+## 2026-10-24 — implemented: upload into the block (supersedes the marker design)
+- `tfa-cat x.png` (stdout = TTY, `TODOFORAI_BLOCK_ID` set) → sync multipart `POST $TODOFORAI_API_URL/dst/v1/resources/show` with `todoId`, `blockId`. Prints nothing; errors on stderr (rc=1). Non-TTY: raw bytes like cat. CLI cap 20MB.
+- backend: accepted only while a run for (user, todo, chatBlockId) is live; stored + held in `services/shellAttachments.ts` (10 files / 20MB per block, 30min TTL); `bridge_exec` result `attachments` = frames + dataB64 (key = the run's starting block, so pid-resume works). BLOCK_UPDATE accepts echoed frames only if handed out (`claimDelivered`).
+- agent: `BashTool` validates (`media_error`) → blobs to the model; frames echoed in the block result, bytes not re-sent.
+- Known gap: parked run finishing with no waiter → files dropped after TTL.
+- Commits: backend 63d3c690, agent 7f744a4f, api-apps 46b44ff.
