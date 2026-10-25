@@ -5,6 +5,7 @@ import { spawn as nodeSpawn } from "child_process";
 import { msg, type WsMessage } from "./constants.js";
 import { buildEnvWithTools, autoInstallMissingTools } from "./tool-registry.js";
 import { getConnectionEnv } from "./connection-context.js";
+import { withToolProfiles } from "./tool-profiles.js";
 import { pauseDetector } from "./shell-pause-detector.js";
 import { startTracking } from "./file-change-tracker.js";
 import { capLineWidth, collapseCarriageReturns, formatTruncationNotice, OUTPUT_POLICIES, DEFAULT_OUTPUT_MODE, resolveOutputPolicy, type OutputMode, type OutputPolicy } from "../../../packages/shared-fbe/src/outputLimits";
@@ -181,6 +182,8 @@ export interface ExecuteBlockOptions {
   timeZone?: string;
   groupTag?: string;
   projectId?: string;
+  /** AgentSettings.toolProfiles: tool key → login profile name (see tool-profiles.ts). */
+  toolProfiles?: Record<string, string>;
 }
 
 // ── Stream coalescing ──
@@ -244,6 +247,7 @@ export async function executeBlock(
     timeZone,
     groupTag = "",
     projectId = "",
+    toolProfiles,
   }: ExecuteBlockOptions,
 ) {
   let cwd = requestedCwd;
@@ -292,7 +296,7 @@ export async function executeBlock(
 
     const effectiveRunMode = runMode || (manual ? "manual" : undefined);
     const env = {
-      ...buildEnvWithTools(), ...getConnectionEnv(), NO_COLOR: "1", TERM: HAS_BUN_TERMINAL ? "xterm-256color" : "dumb",
+      ...withToolProfiles(buildEnvWithTools(), toolProfiles), ...getConnectionEnv(), NO_COLOR: "1", TERM: HAS_BUN_TERMINAL ? "xterm-256color" : "dumb",
       PAGER: "", GIT_PAGER: "", GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "color.ui", GIT_CONFIG_VALUE_0: "false",
       TODOFORAI_TODO_ID: todoId, TODOFORAI_MESSAGE_ID: messageId, TODOFORAI_BLOCK_ID: blockId,
       TODOFORAI_AGENT_SETTINGS_ID: agentSettingsId, TODOFORAI_MODEL_ID: modelId,
