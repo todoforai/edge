@@ -1,4 +1,4 @@
-// Discover SKILL.md files under .agents/skills/ and .claude/skills/ for given workspace roots and $HOME.
+// Discover SKILL.md files (and loose <skills>/<name>.md files) under .agents/skills/ and .claude/skills/ for given workspace roots and $HOME.
 // Also discovers Claude Code-style plugins under .agents/plugins/ and .claude/plugins/:
 // each <plugins>/<dir>/ may carry a `.claude-plugin/plugin.json` manifest (name; falls back
 // to the directory name) plus `skills/**/SKILL.md` and `commands/**/*.md`. Commands are
@@ -32,6 +32,8 @@ export type SkillMeta = {
   kind?: SkillKind;
   /** Plugin name when discovered inside a plugin directory. */
   plugin?: string;
+  /** `learning: true` in its frontmatter: the agent may improve it. */
+  learning?: boolean;
 };
 export type SkillError = { path: string; message: string };
 
@@ -145,10 +147,11 @@ function walkRoot(root: string, scope: SkillScope, skills: SkillMeta[], errors: 
       const kind = classify(entry, full, visitedDirs);
       if (kind === "dir") { queue.push({ dir: full, depth: depth + 1 }); continue; }
 
-      if (kind === "file" && entry.name === "SKILL.md") {
+      const loose = kind === "file" && depth === 0 && isLooseSkillFile(entry.name);
+      if (kind === "file" && (entry.name === "SKILL.md" || loose)) {
         if (seen.has(full)) continue;
         seen.add(full);
-        const skill = parseSkillFile(full, scope, errors);
+        const skill = loose ? parseLooseFile(full, scope, errors) : parseSkillFile(full, scope, errors);
         if (skill) skills.push(plugin ? { ...skill, plugin } : skill);
       }
     }
@@ -226,7 +229,7 @@ function readHead(filePath: string): string {
   return buf.subarray(0, bytes).toString("utf-8");
 }
 
-function parseSkillFile(filePath: string, scope: SkillScope, errors: SkillError[]): SkillMeta | null {
+function parseSkillFile(filePath: string, scope: SkillScope, errors: SkillError[], fallbackName?: string): SkillMeta | null {
   let head: string;
   try {
     head = readHead(filePath);
@@ -243,7 +246,7 @@ function parseSkillFile(filePath: string, scope: SkillScope, errors: SkillError[
 
   const fm = parseSimpleYaml(frontmatter);
   if (fm["disable-model-invocation"] === "true") return null;
-  const name = sanitize(fm.name) || path.basename(path.dirname(filePath));
+  const name = sanitize(fm.name) || sanitize(fallbackName) || path.basename(path.dirname(filePath));
   const description = sanitize(fm.description) || "";
   const shortDescription = sanitize(fm["metadata.short-description"]) || undefined;
 
@@ -262,7 +265,50 @@ function parseSkillFile(filePath: string, scope: SkillScope, errors: SkillError[
     shortDescription: shortDescription && shortDescription.length <= MAX_DESC_LEN ? shortDescription : undefined,
     path: filePath,
     scope,
+    ...(fm.learning?.trim().toLowerCase() === "true" && { learning: true }),
   };
+}
+
+/** A plain `<skills>/<name>.md` (dropped in by hand, no folder) is a skill too, frontmatter
+ *  optional: name = file stem, description = first paragraph. Mirrors `isLooseSkillPath` /
+ *  `firstParagraph` (packages/shared-fer/src/skills/skillFile.ts) and the agent's `_skill_meta`. */
+const LOOSE_DESC_MAX = 300;
+const isLooseSkillFile = (name: string) => name.endsWith(".md") && name !== "SKILL.md" && name.toLowerCase() !== "readme.md";
+
+function parseLooseFile(filePath: string, scope: SkillScope, errors: SkillError[]): SkillMeta | null {
+  let head: string;
+  try {
+    head = readHead(filePath);
+  } catch (e: any) {
+    errors.push({ path: filePath, message: `read failed: ${e?.message ?? e}` });
+    return null;
+  }
+  if (extractFrontmatter(head) !== null) return parseSkillFile(filePath, scope, errors, path.basename(filePath, ".md"));
+  const name = sanitize(path.basename(filePath, ".md"));
+  if (!name || name.length > MAX_NAME_LEN) {
+    errors.push({ path: filePath, message: `invalid name (empty or > ${MAX_NAME_LEN} chars)` });
+    return null;
+  }
+  return { name, description: firstParagraph(head), path: filePath, scope };
+}
+
+function firstParagraph(text: string): string {
+  const para: string[] = [];
+  let heading = "";
+  let fence = false;
+  for (const raw of text.replace(/^\uFEFF/, "").split(/\r?\n/)) {
+    const l = raw.trim();
+    if (/^(```|~~~)/.test(l)) { fence = !fence; if (para.length) break; continue; }
+    if (fence) continue;
+    if (!l || /^(#{1,6}\s|---+$|\*\*\*+$|\|)/.test(l)) {
+      if (!heading && /^#{1,6}\s/.test(l)) heading = l.replace(/^#+\s*/, "");
+      if (para.length) break;
+      continue;
+    }
+    para.push(l);
+  }
+  const s = [...sanitize(para.length ? para.join(" ") : heading)];
+  return s.length > LOOSE_DESC_MAX ? `${s.slice(0, LOOSE_DESC_MAX - 1).join("").trimEnd()}…` : s.join("");
 }
 
 function extractFrontmatter(text: string): string | null {

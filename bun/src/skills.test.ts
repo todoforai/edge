@@ -315,3 +315,25 @@ describe("discoverSkills", () => {
     fs.rmSync(tmp, { recursive: true });
   });
 });
+
+describe("loose skills and learning", () => {
+  test("a plain .md directly in skills/ is a skill; README and nested notes are not", async () => {
+    const tmp = makeTmpDir();
+    makeStructure(tmp, {
+      ".agents": {
+        skills: {
+          "beszerzes.md": "# Beszerzés\n\nA szokásos beszállítóktól.\n\n1. lépés",
+          "offer.md": "---\ndescription: With frontmatter.\nlearning: true\n---\nbody",
+          "ReadMe.md": "# folder notes",
+          own: { "SKILL.md": validSkill("own", "folder skill"), "notes.md": "not a skill" },
+        },
+      },
+    });
+    const { skills } = await discoverSkills([tmp], { includeUserScope: false });
+    const byName = Object.fromEntries(skills.map((s) => [s.name, s]));
+    expect(Object.keys(byName).sort()).toEqual(["beszerzes", "offer", "own"]);
+    expect(byName.beszerzes.description).toBe("A szokásos beszállítóktól.");
+    expect(byName.offer).toMatchObject({ description: "With frontmatter.", learning: true });
+    expect(byName.own.learning).toBeUndefined();
+  });
+});
