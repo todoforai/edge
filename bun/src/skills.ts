@@ -247,7 +247,8 @@ function parseSkillFile(filePath: string, scope: SkillScope, errors: SkillError[
   const fm = parseSimpleYaml(frontmatter);
   if (fm["disable-model-invocation"] === "true") return null;
   const name = sanitize(fm.name) || sanitize(fallbackName) || path.basename(path.dirname(filePath));
-  const description = sanitize(fm.description) || "";
+  // A loose file (fallbackName set) without a description: its body's first paragraph.
+  const description = sanitize(fm.description) || (fallbackName !== undefined ? firstParagraph(head) : "");
   const shortDescription = sanitize(fm["metadata.short-description"]) || undefined;
 
   if (!name || name.length > MAX_NAME_LEN) {
@@ -296,7 +297,10 @@ function firstParagraph(text: string): string {
   const para: string[] = [];
   let heading = "";
   let fence = false;
-  for (const raw of text.replace(/^\uFEFF/, "").split(/\r?\n/)) {
+  let lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const close = lines[0]?.trim() === "---" ? lines.findIndex((l, i) => i > 0 && l.trim() === "---") : -1;
+  if (close > 0) lines = lines.slice(close + 1);  // the body, past any frontmatter
+  for (const raw of lines) {
     const l = raw.trim();
     if (/^(```|~~~)/.test(l)) { fence = !fence; if (para.length) break; continue; }
     if (fence) continue;

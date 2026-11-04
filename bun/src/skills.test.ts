@@ -324,6 +324,7 @@ describe("loose skills and learning", () => {
         skills: {
           "beszerzes.md": "# Beszerzés\n\nA szokásos beszállítóktól.\n\n1. lépés",
           "offer.md": "---\ndescription: With frontmatter.\nlearning: true\n---\nbody",
+          "inv.md": "---\nlearning: true\n---\n# T\n\nCheck invoices.\n",
           "ReadMe.md": "# folder notes",
           own: { "SKILL.md": validSkill("own", "folder skill"), "notes.md": "not a skill" },
         },
@@ -331,7 +332,8 @@ describe("loose skills and learning", () => {
     });
     const { skills } = await discoverSkills([tmp], { includeUserScope: false });
     const byName = Object.fromEntries(skills.map((s) => [s.name, s]));
-    expect(Object.keys(byName).sort()).toEqual(["beszerzes", "offer", "own"]);
+    expect(Object.keys(byName).sort()).toEqual(["beszerzes", "inv", "offer", "own"]);
+    expect(byName.inv).toMatchObject({ description: "Check invoices.", learning: true });
     expect(byName.beszerzes.description).toBe("A szokásos beszállítóktól.");
     expect(byName.offer).toMatchObject({ description: "With frontmatter.", learning: true });
     expect(byName.own.learning).toBeUndefined();
