@@ -22,13 +22,25 @@ describe("discoverAgentMd", () => {
     fs.rmSync(tmp, { recursive: true });
   });
 
-  test("accepts both AGENT.md and AGENTS.md", async () => {
+  test("one file per folder: AGENTS.md, else AGENT.md, else CLAUDE.md", async () => {
     const tmp = makeTmpDir();
+    fs.writeFileSync(path.join(tmp, "CLAUDE.md"), "c\n");
+    expect((await discoverAgentMd([tmp], { includeUserScope: false })).files.map((f) => f.content)).toEqual(["c\n"]);
     fs.writeFileSync(path.join(tmp, "AGENT.md"), "a\n");
     fs.writeFileSync(path.join(tmp, "AGENTS.md"), "b\n");
-    const { files } = await discoverAgentMd([tmp], { includeUserScope: false });
-    expect(files.map((f) => path.basename(f.path)).sort()).toEqual(["AGENT.md", "AGENTS.md"]);
+    expect((await discoverAgentMd([tmp], { includeUserScope: false })).files.map((f) => f.content)).toEqual(["b\n"]);
     fs.rmSync(tmp, { recursive: true });
+  });
+
+  test("a file behind two roots (symlink) loads once", async () => {
+    const a = makeTmpDir();
+    const b = makeTmpDir();
+    fs.writeFileSync(path.join(a, "AGENTS.md"), "x\n");
+    fs.symlinkSync(path.join(a, "AGENTS.md"), path.join(b, "CLAUDE.md"));
+    const { files } = await discoverAgentMd([a, b], { includeUserScope: false });
+    expect(files.length).toBe(1);
+    fs.rmSync(a, { recursive: true });
+    fs.rmSync(b, { recursive: true });
   });
 
   test("returns empty when no AGENT.md present", async () => {

@@ -1,17 +1,19 @@
-// Discover AGENT.md / AGENTS.md project-instruction files at workspace roots and $HOME/.agents.
-// Unlike skills, the full body is returned (capped) — it's injected verbatim into the system prompt.
-// Root-level only: these are repo-wide instructions, not nested per-directory rules.
+// Discover project-instruction files at workspace roots and for the user. One per folder,
+// the first of AGENTS.md, AGENT.md, CLAUDE.md (user: ~/.agents/AGENTS.md, ~/.agents/AGENT.md,
+// ~/.claude/CLAUDE.md), and one per real file (symlinks count once). The full body is
+// returned (capped): it's injected verbatim into the system prompt. Root-level only.
 
 import fs from "fs";
 import path from "path";
 import os from "os";
 
 const MAX_BYTES = 64 * 1024;
-const FILENAMES = ["AGENT.md", "AGENTS.md"]; // accept both (Cursor / Codex conventions)
+const FILENAMES = ["AGENTS.md", "AGENT.md", "CLAUDE.md"]; // priority order
 
 export type AgentMdScope = "repo" | "user";
 export type AgentMdFile = {
   path: string; // absolute
+  realpath: string; // symlinks resolved
   scope: AgentMdScope;
   content: string; // full body, capped at MAX_BYTES
   bytes: number; // pre-cap size on disk
@@ -26,41 +28,40 @@ export async function discoverAgentMd(
   const includeUserScope = opts.includeUserScope ?? true;
   const maxBytes = opts.maxBytes ?? MAX_BYTES;
 
-  const dirs: { dir: string; scope: AgentMdScope }[] = [
-    ...rootPaths.map((p) => ({ dir: p, scope: "repo" as const })),
-  ];
+  const candidates: { scope: AgentMdScope; paths: string[] }[] =
+    rootPaths.map((p) => ({ scope: "repo" as const, paths: FILENAMES.map((n) => path.join(p, n)) }));
   if (includeUserScope) {
-    dirs.push({ dir: path.join(os.homedir(), ".agents"), scope: "user" });
+    const home = os.homedir();
+    candidates.push({ scope: "user", paths: [path.join(home, ".agents", "AGENTS.md"), path.join(home, ".agents", "AGENT.md"), path.join(home, ".claude", "CLAUDE.md")] });
   }
 
   const files: AgentMdFile[] = [];
   const errors: AgentMdError[] = [];
   const seen = new Set<string>();
 
-  for (const { dir, scope } of dirs) {
-    for (const name of FILENAMES) {
-      const full = path.join(dir, name);
-      if (seen.has(full)) continue;
-
-      let stat: fs.Stats;
-      try { stat = fs.statSync(full); } catch { continue; }
-      if (!stat.isFile()) continue;
-      seen.add(full);
-
+  for (const { scope, paths } of candidates) {
+    for (const full of paths) {
       try {
+        const stat = fs.statSync(full);
+        if (!stat.isFile() || stat.size === 0) continue; // an empty file counts as none
+        const real = fs.realpathSync(full);
+        if (seen.has(real)) break; // this folder's file is already loaded
         const fd = fs.openSync(full, "r");
         const buf = Buffer.alloc(maxBytes);
         let bytes: number;
         try { bytes = fs.readSync(fd, buf, 0, maxBytes, 0); } finally { fs.closeSync(fd); }
+        seen.add(real);
         files.push({
           path: full,
+          realpath: real,
           scope,
           content: buf.subarray(0, bytes).toString("utf-8"),
           bytes: stat.size,
           truncated: stat.size > maxBytes,
         });
+        break; // first readable name wins
       } catch (e: any) {
-        errors.push({ path: full, message: `read failed: ${e?.message ?? e}` });
+        if (e?.code !== "ENOENT") errors.push({ path: full, message: `read failed: ${e?.message ?? e}` });
       }
     }
   }
