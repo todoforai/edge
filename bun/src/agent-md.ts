@@ -50,12 +50,14 @@ export async function discoverAgentMd(
         const buf = Buffer.alloc(maxBytes);
         let bytes: number;
         try { bytes = fs.readSync(fd, buf, 0, maxBytes, 0); } finally { fs.closeSync(fd); }
+        const content = buf.subarray(0, bytes).toString("utf-8");
+        if (!content.trim()) continue; // whitespace-only counts as empty (matches agent_md_info.jl)
         seen.add(real);
         files.push({
           path: full,
           realpath: real,
           scope,
-          content: buf.subarray(0, bytes).toString("utf-8"),
+          content,
           bytes: stat.size,
           truncated: stat.size > maxBytes,
         });
