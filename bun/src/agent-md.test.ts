@@ -110,7 +110,7 @@ describe("discoverAgentMd", () => {
   });
 
   test("skips whitespace-only AGENTS.md and falls back to CLAUDE.md", async () => {
-    const tmp = mkTmp();
+    const tmp = makeTmpDir();
     fs.writeFileSync(path.join(tmp, "AGENTS.md"), "   \n\t\n");
     fs.writeFileSync(path.join(tmp, "CLAUDE.md"), "real rules\n");
     const { files } = await discoverAgentMd([tmp], { includeUserScope: false });
