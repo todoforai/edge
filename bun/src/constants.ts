@@ -63,6 +63,9 @@ export const EF = {
   BLOCK_SH_DONE: "block:sh_done",
   FRONTEND_FILE_CHUNK_RESULT: "frontend:file_chunk_result",
   PREVIEW_HTTP_RESPONSE: "preview:http_response",
+  PREVIEW_WS_OPENED: "preview:ws_opened",
+  PREVIEW_WS_DATA: "preview:ws_data",
+  PREVIEW_WS_CLOSE: "preview:ws_close",
 } as const;
 
 // Edge to Frontend+Agent
@@ -73,6 +76,9 @@ export const S2E = {
   EDGE_CONFIG_UPDATE: "edge:config_update",
   SESSION_TOKEN: "edge:session_token",
   PREVIEW_HTTP_REQUEST: "preview:http_request",
+  PREVIEW_WS_OPEN: "preview:ws_open",
+  PREVIEW_WS_DATA: "preview:ws_data",
+  PREVIEW_WS_CLOSE: "preview:ws_close",
 } as const;
 
 // ── Message builders ──

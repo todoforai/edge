@@ -97,3 +97,97 @@ export async function handlePreviewHttpRequest(
     await send(response(requestId, { error: hint }));
   }
 }
+
+
+// ── WebSocket relay (browser ↔ backend ↔ edge ↔ ws://127.0.0.1:<port>) ──
+
+const MAX_WS_STREAMS = 32;
+const activeWs = new Map<string, WebSocket>();
+
+export async function handlePreviewWsOpen(
+  payload: { streamId: string; port: number; path: string; protocols?: string[] },
+  send: (msg: WsMessage) => Promise<void>,
+) {
+  const { streamId, port, path, protocols } = payload;
+  if (!allowedPreviewPorts.has(port)) {
+    await send({ type: EF.PREVIEW_WS_OPENED, payload: { streamId, error: `Port ${port} is not registered for preview on this device` } });
+    return;
+  }
+  if (activeWs.size >= MAX_WS_STREAMS) {
+    await send({ type: EF.PREVIEW_WS_OPENED, payload: { streamId, error: "Too many open preview WebSocket streams" } });
+    return;
+  }
+  try {
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    const ws = protocols?.length
+      ? new WebSocket(`ws://127.0.0.1:${port}${cleanPath}`, protocols)
+      : new WebSocket(`ws://127.0.0.1:${port}${cleanPath}`);
+    ws.binaryType = "arraybuffer";
+    activeWs.set(streamId, ws);
+
+    let opened = false;
+    let settled = false;
+    ws.addEventListener("open", () => {
+      opened = true;
+      settled = true;
+      void send({ type: EF.PREVIEW_WS_OPENED, payload: { streamId } });
+    });
+    ws.addEventListener("message", (ev) => {
+      if (typeof ev.data === "string") {
+        if (Buffer.byteLength(ev.data, "utf8") > MAX_RESPONSE_BODY) {
+          ws.close(1009, "Message too large");
+          return;
+        }
+        void send({ type: EF.PREVIEW_WS_DATA, payload: { streamId, binary: false, text: ev.data } });
+      } else if (ev.data instanceof ArrayBuffer) {
+        if (ev.data.byteLength > MAX_RESPONSE_BODY) {
+          ws.close(1009, "Message too large");
+          return;
+        }
+        void send({ type: EF.PREVIEW_WS_DATA, payload: { streamId, binary: true, dataB64: Buffer.from(ev.data).toString("base64") } });
+      }
+    });
+    ws.addEventListener("error", () => {
+      if (!settled) {
+        settled = true;
+        activeWs.delete(streamId);
+        void send({ type: EF.PREVIEW_WS_OPENED, payload: { streamId, error: `Could not connect WebSocket to 127.0.0.1:${port}` } });
+      }
+    });
+    ws.addEventListener("close", (ev) => {
+      activeWs.delete(streamId);
+      if (!settled) {
+        settled = true;
+        void send({ type: EF.PREVIEW_WS_OPENED, payload: { streamId, error: ev.reason || `Upstream closed (${ev.code})` } });
+      } else if (opened) {
+        void send({ type: EF.PREVIEW_WS_CLOSE, payload: { streamId, code: ev.code, reason: ev.reason } });
+      }
+    });
+  } catch (e: any) {
+    activeWs.delete(streamId);
+    await send({ type: EF.PREVIEW_WS_OPENED, payload: { streamId, error: e?.message || "WebSocket open failed" } });
+  }
+}
+
+export function handlePreviewWsData(payload: { streamId: string; binary?: boolean; dataB64?: string; text?: string }) {
+  const ws = activeWs.get(payload.streamId);
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  try {
+    if (payload.binary && payload.dataB64 !== undefined) ws.send(Buffer.from(payload.dataB64, "base64"));
+    else if (payload.text !== undefined) ws.send(payload.text);
+  } catch { /* close listener cleans up */ }
+}
+
+export function handlePreviewWsClose(payload: { streamId: string; code?: number; reason?: string }) {
+  const ws = activeWs.get(payload.streamId);
+  if (!ws) return;
+  activeWs.delete(payload.streamId);
+  try { ws.close(payload.code && payload.code >= 1000 && payload.code < 5000 ? payload.code : 1000, payload.reason); } catch {}
+}
+
+export function closeAllPreviewWs() {
+  for (const ws of activeWs.values()) {
+    try { ws.close(1001, "Edge disconnected"); } catch {}
+  }
+  activeWs.clear();
+}

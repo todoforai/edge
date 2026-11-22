@@ -21,7 +21,7 @@ import {
   handleFunctionCall,
 } from "./handlers.js";
 import { scanCatalogTools, autoMountRcloneRemotes } from "./tool-registry.js";
-import { handlePreviewHttpRequest } from "./preview.js";
+import { handlePreviewHttpRequest, handlePreviewWsOpen, handlePreviewWsData, handlePreviewWsClose, closeAllPreviewWs } from "./preview.js";
 import { hostIdentity } from "./host-identity.js";
 import type { SendFn } from "./shell.js";
 import { setFileTrackingEnabled } from "./file-change-tracker.js";
@@ -370,6 +370,18 @@ export class TODOforAIEdge {
         run(() => handlePreviewHttpRequest(payload, send));
         break;
 
+      case S2E.PREVIEW_WS_OPEN:
+        run(() => handlePreviewWsOpen(payload as any, send));
+        break;
+
+      case S2E.PREVIEW_WS_DATA:
+        handlePreviewWsData(payload as any);
+        break;
+
+      case S2E.PREVIEW_WS_CLOSE:
+        handlePreviewWsClose(payload as any);
+        break;
+
       case S2E.SESSION_TOKEN:
         if (typeof payload.token === "string" && payload.token.startsWith("dst_")) {
           this.sessionToken = payload.token;
@@ -518,6 +530,7 @@ export class TODOforAIEdge {
           this.connected = false;
           this.ws = null;
         }
+        closeAllPreviewWs();
         fn();
       };
 
