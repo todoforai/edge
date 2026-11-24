@@ -18,7 +18,7 @@ import { getGlobalEdgeInstance } from "./edge.js";
 import { discoverSkills } from "./skills.js";
 import { discoverAgentMd } from "./agent-md.js";
 import { noteFileToolWrite } from "./file-change-tracker.js";
-import { truncateLines, resolveOutputPolicy, applyOutputPolicy, DEFAULT_OUTPUT_MODE } from "../../../packages/shared-fbe/src/outputLimits";
+import { truncateLines, resolveOutputPolicy, applyOutputPolicy, DEFAULT_OUTPUT_MODE, MAX_LINE_LEN } from "../../../packages/shared-fbe/src/outputLimits";
 
 // ── Registry ──
 
@@ -666,7 +666,7 @@ register("search_files", async (args) => {
       });
       output = lines.join("\n");
     }
-    return { result: truncateLines(output, { maxLines: head, maxLineLen: resolveOutputPolicy(outputMode).lineLimit }) };
+    return { result: truncateLines(output, { maxLines: head, maxLineLen: outputMode === "wide" || outputMode === "raw" ? Infinity : MAX_LINE_LEN }) };
   }
   if (code === 1) return { result: "No matches found." };
   throw new Error(`search error (exit ${code}): ${stderr}`);
