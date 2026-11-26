@@ -80,7 +80,7 @@ async function main() {
   if (config.subcommand === "update") {
     // No package.json next to us ⇒ standalone binary: point at the installer.
     if (!ownPkg) {
-      console.log("\x1b[33mStandalone binary — re-run the installer: curl -fsSL https://todofor.ai/edge | sh\x1b[0m");
+      console.log("\x1b[33mStandalone binary — download the latest from https://github.com/todoforai/edge/releases\x1b[0m");
       process.exit(1);
     }
     const result = await selfUpdate(ownPkg);

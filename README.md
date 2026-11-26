@@ -2,16 +2,9 @@
 
 The **Web connector** for [TODO for AI](https://todofor.ai) — connects your machine to the TODO for AI server and gives TODOs shell, file, and browser access to get things done locally. Handles file operations, shell execution, DOCX/XLSX editing, git-aware file-change tracking, and more.
 
-Prebuilt binaries (Windows, macOS, Linux) are on the [Releases page](https://github.com/todoforai/edge/releases). For the other ways to connect your machine to TODO for AI (desktop app, Bridge, CLI, browser extension), see [todofor.ai/downloads](https://todofor.ai/downloads).
+> **Edge is no longer offered as a download.** To connect your computer to TODO for AI, use the [Bridge](https://github.com/todoforai/bridge) or one of the options on [todofor.ai/downloads](https://todofor.ai/downloads). This repository stays for existing installs and development.
 
-## Quickstart
-
-```bash
-curl -fsSL https://todofor.ai/edge | sh   # standalone binary, no Node required
-todoforai-edge
-```
-
-Already have Node? `npm install -g @todoforai/edge` works too. On Windows: `irm https://todofor.ai/edge.ps1 | iex`.
+## Existing installs
 
 First run opens your browser for device-flow login and saves the key to the platform credentials store (`~/.config/todoforai/credentials.json` on Linux, `~/Library/Application Support/todoforai/credentials.json` on macOS, `%APPDATA%\todoforai\credentials.json` on Windows; legacy `~/.todoforai/credentials.json` still read). Shared with the bridge and CLI. No flags needed.
 
